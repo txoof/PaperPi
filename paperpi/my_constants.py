@@ -23,3 +23,14 @@ CONFIG_SYSTEM = Path(f'/etc/default/{CONFIG_FILENAME}')
 # plugins 
 PLUGINS = 'plugins'
 FONTS = Path('./fonts').resolve()
+
+LOGGING_CONFIG = f'{CONFIG_PATH}/logging.cfg'
+
+VERSION_STRING = f'''
+{APP_NAME}
+Version: {VERSION}
+{URL}
+'''
+
+# sleep delay in the update loop in seconds
+UPDATE_SLEEP = 5
