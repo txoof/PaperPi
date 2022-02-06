@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 
-logging.basicConfig(level='DEBUG')
+# logging.basicConfig(level='DEBUG')
 
 
 
@@ -108,7 +108,7 @@ class Plugin:
         self.cache = cache
         self.update_function = update_function
         self.refresh_rate = refresh_rate
-        min_display_time = min_display_time
+        self.min_display_time = min_display_time
         
         self._last_ask = 0
         self.data = {}
