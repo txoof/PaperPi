@@ -242,7 +242,11 @@ def get_help(module=None, print_help=True, plugin_path='./plugins'):
 #     logger.debug(f'my_module: {my_module}')
     
     try:
-        plugin_name = f'{".".join(plugin_path.parts)}.{my_module[0]}.{my_module[0]}'
+        #plugin_name = f'{".".join(plugin_path.parts)}.{my_module[0]}.{my_module[0]}'
+        # strip off any parts that start with "."
+        plugin_name = '.'.join([i for i in plugin_path.parts if not i.startswith('.')])
+        plugin_name = f"{plugin_name}.{my_module[0]}.{my_module[0]}"
+        
         logger.debug(f'attempting to import: {plugin_name}')
         imported = importlib.import_module(plugin_name)
     except ImportError as e:
