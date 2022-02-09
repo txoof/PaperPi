@@ -1,0 +1,4 @@
+cairocffi
+pycairo
+cffi
+CairoSVG

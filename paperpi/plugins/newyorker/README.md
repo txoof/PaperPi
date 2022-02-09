@@ -1,5 +1,5 @@
 # newyorker
-![sample image for plugin paperpi.plugins.newyorker](./newyorker.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.newyorker](./newyorker.layout-sample.png) 
 
 ```
  

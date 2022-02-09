@@ -1,5 +1,5 @@
 # demo_plugin
-![sample image for plugin paperpi.plugins.demo_plugin](./demo_plugin.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.demo_plugin](./demo_plugin.layout-sample.png) 
 
 ```
  

@@ -504,7 +504,7 @@ class EPD:
         self.ReadBusy()
         # pass
         
-    def Clear(self, color=0xFF=0xFF):
+    def Clear(self, color=0xFF):
         self.send_command(0x10)
         for i in range(0, int(self.width * self.height / 8)):
             self.send_data(color)

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# entry script to launch PaperPi
+
+PROGRAM_PATH=/usr/local/paperpi
+
+# set the pipenv venv within the project directory
+export PIPENV_VENV_IN_PROJECT=1
+
+# set the location of the Pipfile
+export PIPENV_PIPFILE=$(realpath $PROGRAM_PATH/Pipfile)
+
+# launch paperpi in its pipenv-virtual environment
+# pass all args sent to this script on to executable
+pipenv run $(realpath $PROGRAM_PATH/paperpi.py) "$@"
+
+
