@@ -9,6 +9,9 @@ CWD=$(pwd)
 INCLUDE="./install_include.txt"
 EXCLUDE="./install_exclude.txt"
 
+SYSTEMD_UNIT_FILE_NAME="$APPNAME-daemon.service"
+SYSTEMD_UNIT_="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
+
 
 # install requirements from the plugin requirements-*.txt files
 function install_plugin_requirements {
@@ -39,7 +42,7 @@ function create_pipenv {
 }
 
 
-function check_packages {
+function check_deb_packages {
 
   echo "checking for required packages"
   halt=0
@@ -86,7 +89,44 @@ function check_packages {
 
 }
 
-check_packages
+function check_py_packages {
+  halt=0
+  echo "checking python environment"
+  echo ""
+  source python_packages.txt
+  for i in "${REQUIRED_PY[@]}"
+  do
+    echo "verifying python package $i"
+    if ! pip show $i > /dev/null 2>&1
+    then
+      echo "required python package $i not installed. Install with:"
+      echo "pip3 install $i"
+      echo ""
+      halt=$((halt+1))
+    else
+      echo "...OK"
+    fi
+  done
+
+  if [[ $halt -gt 0 ]]
+  then
+    echo "$halt required pytyhon packages are missing. See messages above."
+    echo "stopping install"
+    exit 1
+  fi
+}
+
+function add_launcher {
+  echo "add launcher script"
+}
+
+function install_unit_file {
+  echo "install unit file"
+}
+
+
+#check_py_packages
+#check_deb_packages
 #copy_files
 #create_pipenv
 #install_plugin_requirements
