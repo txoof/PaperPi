@@ -29,7 +29,7 @@ function copy_files {
 
   echo "Installing files to $INSTALLPATH"
   rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $INSTALLPATH
-  cp ./Pipfile $INSTALLPATH/$APPNAME
+  cp ../Pipfile $INSTALLPATH/$APPNAME
 
 }
 
