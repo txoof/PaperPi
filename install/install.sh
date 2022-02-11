@@ -125,9 +125,9 @@ function install_unit_file {
 }
 
 
-#check_py_packages
-#check_deb_packages
-#copy_files
-#create_pipenv
-#install_plugin_requirements
+check_py_packages
+check_deb_packages
+copy_files
+create_pipenv
+install_plugin_requirements
 
