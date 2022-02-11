@@ -14,13 +14,13 @@
 see the utilities dir
 
 * [x] builds development environment from Pipfile
-* [x] creates documentation on demain 
+* [x] creates documentation on demand 
 * [x] find imports from all plugins and create `requirements-plguinname.txt` for each
     - this will be a new requirement for all plugins so
 * [ ] 
 
 ## ????!??!
 Misc tasks
-* [ ] ???
+* [ ] ???:
 
     
