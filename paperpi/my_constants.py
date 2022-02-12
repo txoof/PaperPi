@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from os import path
+
+
 APP_NAME = 'PaperPi'
 CONTACT='aaron.ciuffo@gmail.com'
 DEVEL_NAME = f'com.txoof.{APP_NAME.lower()}'
@@ -7,10 +10,17 @@ VERSION='0.3.0.0'
 URL = 'https://github.com/ txoof/epd_display'
 
 
+
+
+
 CONFIG_FILENAME = f'{APP_NAME.lower()}.ini'
 
+
+# reliably identify the current working directory
+BASE_DIRECTORY = path.dirname(path.abspath(__file__))
+
 # base configuration
-CONFIG_PATH = Path('./config')
+CONFIG_PATH = Path(f'{BASE_DIRECTORY}/config').resolve()
 CONFIG_BASE = CONFIG_PATH/CONFIG_FILENAME
 
 # per-user configuration
@@ -22,9 +32,9 @@ CONFIG_SYSTEM = Path(f'/etc/default/{CONFIG_FILENAME}')
 
 # plugins 
 PLUGINS = 'plugins'
-FONTS = Path('./fonts').resolve()
+FONTS = Path(f'{BASE_DIRECTORY}/fonts').resolve()
 
-LOGGING_CONFIG = f'{CONFIG_PATH}/logging.cfg'
+LOGGING_CONFIG = Path(CONFIG_PATH)/'logging.cfg'
 
 VERSION_STRING = f'''
 {APP_NAME}
