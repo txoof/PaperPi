@@ -79,6 +79,8 @@ function check_deb_packages {
     echo "checking for required packages"
     halt=0
 
+    missing=()
+
     # get all the debian_packages-*.txt
     array=()
     find $LOCALPATH -name "debian_packages-*.txt" -print0 >tmpfile
@@ -100,9 +102,10 @@ function check_deb_packages {
           echo "checking $i"
           if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
           then
-            echo "Required debian package $i not installed. Install with:"
-            echo "sudo apt install $i"
-            echo ""
+#            echo "Required debian package $i not installed. Install with:"
+#            echo "sudo apt install $i"
+#            echo ""
+            missing+=( $i )
             halt=$((halt+1))
           fi
 
@@ -113,7 +116,11 @@ function check_deb_packages {
     if [[ $halt -gt 0 ]]
     then
       echo "$halt required packages are missing."
+      echo "install missing packages with: "
+      echo "sudo apt install ${missing[*]}"
+      echo ""
       echo "stopping install"
+
       exit 1
     else
       echo "required packages installed"
@@ -124,6 +131,7 @@ function check_deb_packages {
 
 function check_py_packages {
   halt=0
+  missing=()
 
   if [ $INSTALL -lt 1 ]
   then
@@ -136,11 +144,12 @@ function check_py_packages {
     for i in "${REQUIRED_PY[@]}"
     do
       echo "verifying python package $i"
-      if ! pip show $i > /dev/null 2>&1
+      if ! pip3 show $i > /dev/null 2>&1
       then
-        echo "required python package $i not installed. Install with:"
-        echo "sudo pip3 install $i"
-        echo ""
+        #echo "required python package $i not installed. Install with:"
+        #echo "sudo pip3 install $i"
+        #echo ""
+        missing+=( $i )
         halt=$((halt+1))
       else
         echo "...OK"
@@ -151,6 +160,9 @@ function check_py_packages {
   if [[ $halt -gt 0 ]]
   then
     echo "$halt required pytyhon packages are missing. See messages above."
+    echo "install missing packages with:"
+    echo "sudo pip3 install ${missing[*]}"
+    echo ""
     echo "stopping install"
     exit 1
   fi
@@ -348,16 +360,16 @@ function check_permissions {
     echo "
 
   Try:
-    $ sudo $(basename $0)
+    $ sudo ./$(basename $0)
 
-  This installer will setup/uninstall $app_name to run at system boot and does the following:
-  * copy $app_name to $bin_install_path
-  * create configuration files in $system_config_path
-  * setup systemd unit files in $system_unit_path
-  * add user "$app_name" to the GPIO and SPI access groups
+  This installer will setup/uninstall $APPNAME to run at system boot and does the following:
+  * copy $APPNAME excutable to $BINPATH
+  * create configuration files in $SYSTEM_CONFIG_PATH
+  * setup systemd unit files in $SYSTEMD_UNIT_FILE_NAME
+  * add user "$APPNAME" to the GPIO and SPI access groups
 
   To uninstall use:
-  $ $(basename $0) -u|-p
+  $ ./$(basename $0) -u|-p
 "
   exit 0
   fi
@@ -366,7 +378,20 @@ function check_permissions {
 
 
 function Help {
-  echo print help here
+  echo "
+  Install/Uninstall $APPNAME to run at boot
+
+  This installer will install $APPNAME as a daemon service to
+  run at system startup.
+
+  This installer must be run as root.
+
+  options:
+  -h        This help screen
+  -u        uninstall $APPNAME
+  -p        uninstall $APPNAME and purge all config files
+  "
+
 }
 
 ## main program ##
