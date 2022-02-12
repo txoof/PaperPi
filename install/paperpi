@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+PROGRAM_PATH=/usr/local/paperpi
+
+# set the pipenv venv within the project directory
+export PIPENV_VENV_IN_PROJECT=1
+
+# launch paperpi in its pipenv-virtual environment
+export PIPENV_PIPFILE=$(realpath $PROGRAM_PATH/Pipfile)
+
+pipenv run python3 $(realpath $PROGRAM_PATH/paperpi.py)
+
+
