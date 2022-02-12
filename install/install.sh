@@ -12,15 +12,11 @@ EXCLUDE="./install_exclude.txt"
 
 
 SYSTEMD_UNIT_FILE_NAME="$APPNAME-daemon.service"
-SYSTEMD_UNIT_="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
+SYSTEMD_UNIT_FILE="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
 
-# set the pipenv venv to be within the project directory (1)
-export PIPENV_VENV_IN_PROJECT=1
+CONFIG_FILE_NAME=$APPNAME.ini
+SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
 
-
-function stop_daemon {
-  echo ""
-}
 
 
 # install requirements from the plugin requirements-*.txt files
@@ -143,7 +139,7 @@ function check_py_packages {
       if ! pip show $i > /dev/null 2>&1
       then
         echo "required python package $i not installed. Install with:"
-        echo "pip3 install $i"
+        echo "sudo pip3 install $i"
         echo ""
         halt=$((halt+1))
       else
@@ -212,9 +208,9 @@ function add_user {
 function install_unit_file {
   if [ $INSTALL -eq 1 ]
   then
-    echo "installing systemd unit file to: $SYSTEMD_UNIT_PATH"
-    cp $SYSTEMD_UNIT_FILE $SYSTEMD_UNIT_PATH
-    if [ $? -ne 0]
+    echo "installing systemd unit file to: $SYSTEMD_UNIT_FILE"
+    cp $SYSTEMD_UNIT_FILE_NAME $SYSTEMD_UNIT_FILE
+    if [ $? -ne 0 ]
     then
       echo "failed to copy unit file"
       echo "exiting"
@@ -243,22 +239,24 @@ function install_unit_file {
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
   then
     echo "stopping daemon"
-    /bin/systemctl stop $SYSTEMD_UNIT_FILE
+    /usr/bin/systemctl stop $SYSTEMD_UNIT_FILE_NAME
     if [ $? -ne 0 ]
     then
       echo "failed to stop daemon"
       echo "try to stop manually with:"
-      echo "$ sudo systemctl stop $SYSTEMD_UNIT_FILE"
+      echo "$ sudo systemctl stop $SYSTEMD_UNIT_FILE_NAME"
       echo "exiting"
       exit 1
     fi
+    
+    echo "removing $SYSTEMD_UNIT_FILE"
 
-    rm $SYSTEMD_UNIT_PATH
+    rm $SYSTEMD_UNIT_FILE
     if [ $? -ne 0 ]
     then
-      echo "failed to remove unit file: $systemd_unit_path"
+      echo "failed to remove unit file: $SYSTEMD_UNIT_FILE"
       echo "try to manually remove with:"
-      echo "$ sudo rm $systemd_unit_path"
+      echo "$ sudo rm $SYSTEMD_UNIT_FILE"
       ERRORS=$((ERRORS+1))
     fi
 
@@ -266,6 +264,106 @@ function install_unit_file {
     /bin/systemctl daemon-reload
   fi
 }
+
+function install_config {
+  if [ $INSTALL -gt 0 ] 
+  then
+    echo "installing system config"
+    INSTALL_CONFIG=0
+
+    if [[ -f $SYSTEM_CONFIG_PATH ]]
+    then
+      echo "existing config files found at $SYSTEM_CONFIG_PATH"
+      echo "existing files will not be overwritten"
+      echo ""
+      echo "a new version will be added at $SYSTEM_CONFIG_PATH.new"
+      cp ./$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH.new
+   
+    else
+      echo "adding config file: $SYSTEM_CONFIG_PATH"
+      cp ./$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH
+    fi
+  fi
+
+  if [ $PURGE -gt 0 ]
+  then
+    echo "removing $SYSTEM_CONFIG_PATH"
+    if [ -f $SYSTEM_CONFIG_PATH ]
+    then
+      rm $SYSTEM_CONFIG_PATH
+      if [ $? -ne 0 ]
+      then
+        echo "failed to remove config file"
+        ERRORS=$((ERRORS+1))
+      fi
+    else
+      echo "nothing to remove"
+    fi
+  fi
+}
+
+
+finish_install()
+{
+  if [ $INSTALL -gt 0 ]
+  then
+    echo
+    echo "
+    install completed
+
+    You must now complete the following steps
+    REQUIRED:
+    * edit $SYSTEM_CONFIG_PATH and set:
+      - display_type = [YOUR_SCREEN]
+      - vcom = [only set for HD screens]
+
+    OPTIONAL:
+    * Enable plugins by removing the "x" section headers
+    * Configure modules
+
+    When completed, run the following command or reboot to start
+    the $APPNAME daemon will start automatcially
+
+    $ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
+    "
+  fi
+
+  # uninstall
+  if [ $UNINSTALL -gt 0 ]
+  then
+    echo "uninstall completed"
+  fi
+
+  if [ $ERRORS -gt 0 ]
+  then
+    echo "$ERRORS errors occured, please see output above for details"
+  fi
+}
+
+
+function check_permissions {
+  if [ "$EUID" -ne 0 ]
+  then
+     Help
+    echo "
+
+  Try:
+    $ sudo $(basename $0)
+
+  This installer will setup/uninstall $app_name to run at system boot and does the following:
+  * copy $app_name to $bin_install_path
+  * create configuration files in $system_config_path
+  * setup systemd unit files in $system_unit_path
+  * add user "$app_name" to the GPIO and SPI access groups
+
+  To uninstall use:
+  $ $(basename $0) -u|-p
+"
+  exit 0
+  fi
+}
+
+
 
 function Help {
   echo print help here
@@ -314,12 +412,20 @@ then
   fi
 fi
 
+# set the pipenv venv to be within the project directory (1)
+export PIPENV_VENV_IN_PROJECT=1
 
-#check_py_packages
-#check_deb_packages
-#copy_files
-#create_pipenv
-#install_plugin_requirements
+
+
+check_permissions
+check_py_packages
+check_deb_packages
+copy_files
+create_pipenv
+install_plugin_requirements
 install_executable
 add_user
+install_config
+install_unit_file
+finish_install
 
