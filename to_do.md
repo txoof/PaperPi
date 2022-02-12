@@ -21,8 +21,8 @@ see the utilities dir
     - this will be a new requirement for all plugins so
 * [ ] 
 
-## ????!??!
-Misc tasks
-* [ ] ???:
+## MISC
+* [ ] Sample .ini file is not being rebuilt with documentation -- this should happen with the `create_docs.py` script
+* [ ] document how the creation of docs, paperpi.ini file get created
 
     
