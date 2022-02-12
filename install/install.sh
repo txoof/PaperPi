@@ -31,6 +31,7 @@ function install_plugin_requirements {
     echo "installing Plugin requirements:"
     cat $tempfile
     pipenv install -r $tempfile --skip-lock
+    popd
   else
     echo ""
   fi
@@ -172,7 +173,7 @@ function install_executable {
   if [ $INSTALL -gt 0 ]
   then
     echo "adding executable to $BINPATH/paperpi"
-    cp paperpi $BINPATH
+    cp $CWD/paperpi $BINPATH
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ] 
@@ -293,7 +294,7 @@ function install_config {
    
     else
       echo "adding config file: $SYSTEM_CONFIG_PATH"
-      cp ./$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH
+      cp $CWD/$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH
     fi
   fi
 
@@ -453,4 +454,3 @@ add_user
 install_config
 install_unit_file
 finish_install
-
