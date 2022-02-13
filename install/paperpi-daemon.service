@@ -8,7 +8,7 @@ Wants=network-online.target
 # adding arguments https://superuser.com/questions/728951/systemd-giving-my-service-multiple-arguments
 # wait until everything else is started
 Type=simple
-ExecStart=/usr/bin/paperpi -d
+ExecStart=/usr/local/bin/paperpi -d
 TimeoutStopSec=30
 #ExecStop= echo "killing ${MAINPID}"
 #ExecStop= kill -s INT ${MAINPID}
