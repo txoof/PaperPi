@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 APPNAME="paperpi"
-LOCALPATH="../paperpi"
+LOCALPATH="$SCRIPT_DIR/../paperpi"
 INSTALLPATH="/usr/local/"
 BINPATH="/usr/local/bin/"
 CWD=$(pwd)
 
 # files to include/exclude when installing
-INCLUDE="./install_include.txt"
-EXCLUDE="./install_exclude.txt"
+INCLUDE="$SCRIPT_DIR/install_include.txt"
+EXCLUDE="$SCRIPT_DIR/install_exclude.txt"
 
 
 SYSTEMD_UNIT_FILE_NAME="$APPNAME-daemon.service"
-SYSTEMD_UNIT_FILE="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
+SYSTEMD_UNIT_PATH="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
 
 CONFIG_FILE_NAME=$APPNAME.ini
 SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
@@ -24,10 +26,11 @@ function install_plugin_requirements {
 
   if [ $INSTALL -gt 0 ]
   then
+    echo "Installing requirements in virtual environment for $APPNAME plugins"
     pushd $INSTALLPATH/$APPNAME
     # find all the plugin requirements and install using pipenv install 
     tempfile=$(mktemp)
-    find $CWD/../paperpi/plugins -type f -name "requirements-*.txt" -exec cat {} >> $tempfile \; 
+    find $SCRIPT_DIR/../paperpi/plugins -type f -name "requirements-*.txt" -exec cat {} >> $tempfile \; 
     echo "installing Plugin requirements:"
     cat $tempfile
     pipenv install -r $tempfile --skip-lock
@@ -44,7 +47,7 @@ function copy_files {
   then
     echo "Installing files to $INSTALLPATH"
     rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $INSTALLPATH
-    cp ../Pipfile $INSTALLPATH/$APPNAME
+    cp $SCRIPT_DIR/../Pipfile $INSTALLPATH/$APPNAME
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
@@ -60,6 +63,7 @@ function create_pipenv {
 
   if [ $INSTALL -gt 0 ]
   then
+    echo "Creating virtual environment for $APPNAME in $INSTALLPATH"
     pushd $INSTALLPATH/$APPNAME
     pipenv install --skip-lock
     popd
@@ -77,7 +81,7 @@ function check_deb_packages {
     # nothing to do here if not installing
     echo ""
   else
-    echo "checking for required packages"
+    echo "checking for required debian packages"
     halt=0
 
     missing=()
@@ -96,16 +100,13 @@ function check_deb_packages {
 
     for i in "${array[@]}"
     do
-        echo "found packages for module $(basename $i)"
+        echo "found debian packages for PaperPi module $(basename $i)"
         source "$i"
         for i in "${DEBPKG[@]}"
         do
           echo "checking $i"
           if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
           then
-#            echo "Required debian package $i not installed. Install with:"
-#            echo "sudo apt install $i"
-#            echo ""
             missing+=( $i )
             halt=$((halt+1))
           fi
@@ -141,7 +142,7 @@ function check_py_packages {
   else
     echo "checking python environment"
     echo ""
-    source python_packages.txt
+    source $SCRIPT_DIR/required_python_packages.txt
     for i in "${REQUIRED_PY[@]}"
     do
       echo "verifying python package $i"
@@ -173,7 +174,7 @@ function install_executable {
   if [ $INSTALL -gt 0 ]
   then
     echo "adding executable to $BINPATH/paperpi"
-    cp $CWD/paperpi $BINPATH
+    cp $SCRIPT_DIR/paperpi $BINPATH
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ] 
@@ -221,8 +222,8 @@ function add_user {
 function install_unit_file {
   if [ $INSTALL -eq 1 ]
   then
-    echo "installing systemd unit file to: $SYSTEMD_UNIT_FILE"
-    cp $SYSTEMD_UNIT_FILE_NAME $SYSTEMD_UNIT_FILE
+    echo "installing systemd unit file to: $SYSTEMD_UNIT_PATH"
+    cp $SCRIPT_DIR/$SYSTEMD_UNIT_FILE_NAME $SYSTEMD_UNIT_PATH
     if [ $? -ne 0 ]
     then
       echo "failed to copy unit file"
@@ -240,7 +241,7 @@ function install_unit_file {
     fi
 
     echo "enabling systemd unit file"
-    /bin/systemctl enable $SYSTEMD_UNIT_FILE
+    /bin/systemctl enable $SYSTEMD_UNIT_PATH
     if [ $? -ne 0 ]
     then
       echo "failed to enable systemd untit files"
@@ -262,14 +263,14 @@ function install_unit_file {
       exit 1
     fi
     
-    echo "removing $SYSTEMD_UNIT_FILE"
+    echo "removing $SYSTEMD_UNIT_PATH"
 
-    rm $SYSTEMD_UNIT_FILE
+    rm $SYSTEMD_UNIT_PATH
     if [ $? -ne 0 ]
     then
-      echo "failed to remove unit file: $SYSTEMD_UNIT_FILE"
+      echo "failed to remove unit file: $SYSTEMD_UNIT_PATH"
       echo "try to manually remove with:"
-      echo "$ sudo rm $SYSTEMD_UNIT_FILE"
+      echo "$ sudo rm $SYSTEMD_UNIT_PATH"
       ERRORS=$((ERRORS+1))
     fi
 
@@ -286,15 +287,18 @@ function install_config {
 
     if [[ -f $SYSTEM_CONFIG_PATH ]]
     then
+      echo "##############################################################"
       echo "existing config files found at $SYSTEM_CONFIG_PATH"
       echo "existing files will not be overwritten"
       echo ""
       echo "a new version will be added at $SYSTEM_CONFIG_PATH.new"
-      cp ./$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH.new
+      echo "it may be useful to review the differences between the config files"
+      echo "##############################################################"
+      cp $SCRIPT_DIR/$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH.new
    
     else
       echo "adding config file: $SYSTEM_CONFIG_PATH"
-      cp $CWD/$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH
+      cp $SCRIPT_DIR/$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH
     fi
   fi
 
@@ -331,8 +335,8 @@ finish_install()
       - vcom = [only set for HD screens]
 
     OPTIONAL:
-    * Enable plugins by removing the "x" section headers
-    * Configure modules
+    * Enable plugins by removing the \"x\" from section headers
+    * Configure the plugins to match your needs/environment
 
     When completed, run the following command or reboot to start
     the $APPNAME daemon will start automatcially
@@ -361,7 +365,7 @@ function check_permissions {
     echo "
 
   Try:
-    $ sudo ./$(basename $0)
+    $ sudo $0
 
   This installer will setup/uninstall $APPNAME to run at system boot and does the following:
   * copy $APPNAME excutable to $BINPATH
@@ -369,8 +373,8 @@ function check_permissions {
   * setup systemd unit files in $SYSTEMD_UNIT_FILE_NAME
   * add user "$APPNAME" to the GPIO and SPI access groups
 
-  To uninstall use:
-  $ ./$(basename $0) -u|-p
+  To uninstall or purge all files use:
+  $ $0 -u|-p
 "
   exit 0
   fi
@@ -440,8 +444,6 @@ fi
 
 # set the pipenv venv to be within the project directory (1)
 export PIPENV_VENV_IN_PROJECT=1
-
-
 
 check_permissions
 check_py_packages
