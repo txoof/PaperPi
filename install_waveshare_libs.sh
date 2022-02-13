@@ -36,4 +36,4 @@ find $WS_LOCAL -type f -exec sed -i 's/^import numpy/#&/' {} \;
 find $WS_LOCAL -type f -exec sed -i -E 's/(^\W+def init\(self,\W+update)/\1=False/g' {} \;
 
 # add default value to `color` arg in Clear() method (see epd2in7 for example)
-find $WS_LOCAL -type f -exec sed -i -E 's/(^\W+def Clear\(self,\W+color)/\1=0xFF/g' {} \;
+find $WS_LOCAL -type f -exec sed -i -E 's/(\W+def Clear\(self,\W+color)\)/\1=0xFF)/' {} \;
