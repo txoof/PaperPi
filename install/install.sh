@@ -417,7 +417,7 @@ while getopts ":hup" option; do
     PURGE=1;;
   \?) # invalid option
     echo "error: unknown option: ${option}"
-    echo 
+    echo "" 
     Help
     exit;;
   esac
