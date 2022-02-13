@@ -1,5 +1,5 @@
 # reddit_quote
-![sample image for plugin paperpi.plugins.reddit_quote](./reddit_quote.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.reddit_quote](./reddit_quote.layout-sample.png) 
 
 ```
  

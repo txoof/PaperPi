@@ -1,5 +1,5 @@
 # crypto
-![sample image for plugin paperpi.plugins.crypto](./crypto.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.crypto](./crypto.layout-sample.png) 
 
 ```
  
