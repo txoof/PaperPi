@@ -133,4 +133,4 @@ execute_sudo() {
 echo "$git_temp"
 execute_sudo "$git_temp/install/install.sh"
 
-rm -rf $git_tmp
+rm -rf $git_temp
