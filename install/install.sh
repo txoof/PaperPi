@@ -153,6 +153,17 @@ function check_py_packages {
         #echo ""
         missing+=( $i )
         halt=$((halt+1))
+        echo ""
+        echo "missing $i, attempting to install"
+        echo ""
+        pip3 install $i 
+        if pip3 show $i > /dev/null 2>&1
+        then
+          echo ""
+          echo "missing $i installed successfully. continuing..."
+          echo ""
+          halt=$((halt-1))
+        fi
       else
         echo "...OK"
       fi
@@ -161,7 +172,7 @@ function check_py_packages {
 
   if [[ $halt -gt 0 ]]
   then
-    echo "$halt required pytyhon packages are missing. See messages above."
+    echo "$halt required python packages are missing. See messages above."
     echo "install missing packages with:"
     echo "sudo pip3 install ${missing[*]}"
     echo ""
