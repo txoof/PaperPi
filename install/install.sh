@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 APPNAME="paperpi"
@@ -372,7 +373,6 @@ finish_install()
 function check_permissions {
   if [ "$EUID" -ne 0 ]
   then
-     Help
     echo "
 
   Try:
@@ -414,23 +414,37 @@ function Help {
 INSTALL=1
 UNINSTALL=0
 PURGE=0
-while getopts ":hup" option; do
-  case ${option} in
-  h) # display help
+
+while [[ $# -gt 0 ]]; do
+  echo "processing $1"
+  case $1 in
+  -h) # display help
     Help
-    exit;;
-  u) # uninstall
-    INSTALL=0
-    UNINSTALL=1;;
-  p) # uninstall and purge config files
+    exit
+    shift
+    shift
+    ;;
+  -u) # uninstall
     INSTALL=0
     UNINSTALL=1
-    PURGE=1;;
-  \?) # invalid option
-    echo "error: unknown option: ${option}"
+    shift
+    shift
+    ;;
+  -p) # uninstall and purge config files
+    INSTALL=0
+    UNINSTALL=1
+    PURGE=1
+    shift
+    shift
+    ;;
+  -*) # invalid option
+    echo "error: unknown option: ${1}"
     echo "" 
     Help
     exit;;
+   *)
+    shift
+    ;;
   esac
 done
 
