@@ -332,7 +332,24 @@ function install_config {
 }
 
 
-finish_install()
+function enable_spi {
+  if [ $INSTALL -gt 0 ]
+  then
+    echo ""
+    echo "checking if SPI is enabled"
+    echo ""
+    if [[ $(sudo raspi-config nonint get_spi) = "1" ]]
+    then 
+      echo ""
+      echo "SPI is not enabled, enabling now"
+      echo ""
+      sudo raspi-config nonint do_spi 0
+    fi
+  fi
+}
+
+
+function finish_install()
 {
   if [ $INSTALL -gt 0 ]
   then
@@ -480,4 +497,5 @@ install_executable
 add_user
 install_config
 install_unit_file
+enable_spi
 finish_install
