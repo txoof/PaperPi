@@ -58,6 +58,7 @@ function Help {
   --info: virtual environment information
 
 "
+exit 0
 }
 
 function venv_info {
@@ -82,7 +83,7 @@ while [[ $# -gt 0 ]]; do
     shift
     shift
     ;;
-  -i)
+  -c)
     INSTALL=1
     PURGE=0
     shift
@@ -110,6 +111,31 @@ while [[ $# -gt 0 ]]; do
     ;;
   esac
 done
+
+if [[ $INSTALL -eq 0 ]] && [[ $PURGE -eq 0 ]]; then
+  Help
+fi
+
+if ! command pip3 > /dev/null 2>&1
+then
+  echo "pip3 is not installed and is required for this development enviornment"
+  echo "try:
+  sudo apt install python3-pip
+  "
+  exit
+fi
+
+if ! command pipenv > /dev/null 2>&1
+then
+  echo "pipenv is not installed and is required for this development environemnt"
+  echo "try:
+  pip3 install pipenv
+
+for a system-wide install try:
+  sudo pip3 install pipenv
+  "
+  exit 1
+fi
 
 clean_devel_modules
 install_devel_requirements

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 APPNAME="paperpi"
@@ -331,14 +332,28 @@ function install_config {
 }
 
 
-finish_install()
-{
+function enable_spi {
   if [ $INSTALL -gt 0 ]
   then
-    echo
-    echo "
-    install completed
+    echo ""
+    echo "checking if SPI is enabled"
+    echo ""
+    if [[ $(sudo raspi-config nonint get_spi) = "1" ]]
+    then 
+      echo ""
+      echo "SPI is not enabled, enabling now"
+      echo ""
+      sudo raspi-config nonint do_spi 0
+    fi
+  fi
+}
 
+
+function edit_config {
+  if [ $INSTALL -gt 0 ]
+  then
+    CONFIG_EDITED=0
+    echo "
     You must now complete the following steps
     REQUIRED:
     * edit $SYSTEM_CONFIG_PATH and set:
@@ -348,13 +363,45 @@ finish_install()
     OPTIONAL:
     * Enable plugins by removing the \"x\" from section headers
     * Configure the plugins to match your needs/environment
-
-    When completed, run the following command or reboot to start
-    the $APPNAME daemon will start automatcially
-
-    $ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
     "
+    read -p "Would you like to do that now? (y/N): " edit_config
+    if [[ $edit_config =~ ^[Yy]$ ]]
+    then
+      sudo nano $SYSTEM_CONFIG_PATH
+      CONFIG_EDITED=1
+    fi
   fi
+}
+
+
+function finish_install()
+{
+  if [ $INSTALL -gt 0 ]
+  then
+    echo ""
+    echo "install completed"
+    echo ""
+    if [ $CONFIG_EDITED -lt 1 ]
+    then
+    echo "
+      Before running the programs you must complete the following steps
+      REQUIRED:
+      * edit $SYSTEM_CONFIG_PATH and set:
+        - display_type = [YOUR_SCREEN]
+        - vcom = [only set for HD screens]
+
+      OPTIONAL:
+      * Enable plugins by removing the \"x\" from section headers
+      * Configure the plugins to match your needs/environment
+
+      When completed, run the following command or reboot to start
+      the $APPNAME daemon will start automatcially
+
+      $ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
+      "
+    fi
+  fi
+  
 
   # uninstall
   if [ $UNINSTALL -gt 0 ]
@@ -368,11 +415,19 @@ finish_install()
   fi
 }
 
+  
+
+function start_service {
+  if [[ $INSTALL -gt 0 && $CONFIG_EDITED -gt 0 ]]
+  then
+    sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
+  fi
+}
+
 
 function check_permissions {
   if [ "$EUID" -ne 0 ]
   then
-     Help
     echo "
 
   Try:
@@ -414,23 +469,37 @@ function Help {
 INSTALL=1
 UNINSTALL=0
 PURGE=0
-while getopts ":hup" option; do
-  case ${option} in
-  h) # display help
+
+while [[ $# -gt 0 ]]; do
+  echo "processing $1"
+  case $1 in
+  -h) # display help
     Help
-    exit;;
-  u) # uninstall
-    INSTALL=0
-    UNINSTALL=1;;
-  p) # uninstall and purge config files
+    exit
+    shift
+    shift
+    ;;
+  -u) # uninstall
     INSTALL=0
     UNINSTALL=1
-    PURGE=1;;
-  \?) # invalid option
-    echo "error: unknown option: ${option}"
+    shift
+    shift
+    ;;
+  -p) # uninstall and purge config files
+    INSTALL=0
+    UNINSTALL=1
+    PURGE=1
+    shift
+    shift
+    ;;
+  -*) # invalid option
+    echo "error: unknown option: ${1}"
     echo "" 
     Help
     exit;;
+   *)
+    shift
+    ;;
   esac
 done
 
@@ -466,4 +535,7 @@ install_executable
 add_user
 install_config
 install_unit_file
+enable_spi
+edit_config
 finish_install
+start_service
