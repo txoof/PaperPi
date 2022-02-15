@@ -1,3 +1,6 @@
+# ***NOTE***
+This is a development branch of PaperPi. You're welcome to join in the hacking. The [offical release can be found here](https://github.com/txoof/epd_display#readme)
+
 # PaperPi
 |     |     |
 |:---:|:---:|
