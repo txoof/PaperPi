@@ -352,7 +352,7 @@ function enable_spi {
 function edit_config {
   if [ $INSTALL -gt 0 ]
   then
-    CONFIG_EDITED = 0
+    CONFIG_EDITED=0
     echo "
     You must now complete the following steps
     REQUIRED:
@@ -368,7 +368,7 @@ function edit_config {
     if [[ $edit_config =~ ^[Yy]$ ]]
     then
       sudo nano $SYSTEM_CONFIG_PATH
-      CONFIG_EDITED = 1
+      CONFIG_EDITED=1
     fi
   fi
 }
@@ -418,7 +418,7 @@ function finish_install()
   
 
 function start_service {
-  if [ $INSTALL -gt 0 && $CONFIG_EDITED -gt 0 ]
+  if [[ $INSTALL -gt 0 && $CONFIG_EDITED -gt 0 ]]
   then
     sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
   fi
