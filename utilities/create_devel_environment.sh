@@ -58,6 +58,7 @@ function Help {
   --info: virtual environment information
 
 "
+exit 0
 }
 
 function venv_info {
@@ -110,6 +111,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   esac
 done
+
+if [[ $INSTALL -eq 0 ]] && [[ $PURGE -eq 0 ]]; then
+  Help
+fi
 
 clean_devel_modules
 install_devel_requirements
