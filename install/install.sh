@@ -332,14 +332,28 @@ function install_config {
 }
 
 
-finish_install()
-{
+function enable_spi {
   if [ $INSTALL -gt 0 ]
   then
-    echo
-    echo "
-    install completed
+    echo ""
+    echo "checking if SPI is enabled"
+    echo ""
+    if [[ $(sudo raspi-config nonint get_spi) = "1" ]]
+    then 
+      echo ""
+      echo "SPI is not enabled, enabling now"
+      echo ""
+      sudo raspi-config nonint do_spi 0
+    fi
+  fi
+}
 
+
+function edit_config {
+  if [ $INSTALL -gt 0 ]
+  then
+    CONFIG_EDITED=0
+    echo "
     You must now complete the following steps
     REQUIRED:
     * edit $SYSTEM_CONFIG_PATH and set:
@@ -349,13 +363,45 @@ finish_install()
     OPTIONAL:
     * Enable plugins by removing the \"x\" from section headers
     * Configure the plugins to match your needs/environment
-
-    When completed, run the following command or reboot to start
-    the $APPNAME daemon will start automatcially
-
-    $ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
     "
+    read -p "Would you like to do that now? (y/N): " edit_config
+    if [[ $edit_config =~ ^[Yy]$ ]]
+    then
+      sudo nano $SYSTEM_CONFIG_PATH
+      CONFIG_EDITED=1
+    fi
   fi
+}
+
+
+function finish_install()
+{
+  if [ $INSTALL -gt 0 ]
+  then
+    echo ""
+    echo "install completed"
+    echo ""
+    if [ $CONFIG_EDITED -lt 1 ]
+    then
+    echo "
+      Before running the programs you must complete the following steps
+      REQUIRED:
+      * edit $SYSTEM_CONFIG_PATH and set:
+        - display_type = [YOUR_SCREEN]
+        - vcom = [only set for HD screens]
+
+      OPTIONAL:
+      * Enable plugins by removing the \"x\" from section headers
+      * Configure the plugins to match your needs/environment
+
+      When completed, run the following command or reboot to start
+      the $APPNAME daemon will start automatcially
+
+      $ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
+      "
+    fi
+  fi
+  
 
   # uninstall
   if [ $UNINSTALL -gt 0 ]
@@ -366,6 +412,15 @@ finish_install()
   if [ $ERRORS -gt 0 ]
   then
     echo "$ERRORS errors occured, please see output above for details"
+  fi
+}
+
+  
+
+function start_service {
+  if [[ $INSTALL -gt 0 && $CONFIG_EDITED -gt 0 ]]
+  then
+    sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
   fi
 }
 
@@ -480,4 +535,7 @@ install_executable
 add_user
 install_config
 install_unit_file
+enable_spi
+edit_config
 finish_install
+start_service

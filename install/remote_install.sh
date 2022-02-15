@@ -8,8 +8,8 @@ set -eu
 #set -x
 
 
-#PP_GITREPO="https://github.com/txoof/PaperPi.git"
-PP_GITREPO="git@github.com:txoof/PaperPi.git"
+PP_GITREPO="https://github.com/txoof/PaperPi.git"
+#PP_GITREPO="git@github.com:txoof/PaperPi.git"
 PP_GITBRANCH="manage_modules"
 
 INSTALLER="/install/install.sh"
