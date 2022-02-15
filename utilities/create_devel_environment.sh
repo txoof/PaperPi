@@ -116,6 +116,18 @@ if [[ $INSTALL -eq 0 ]] && [[ $PURGE -eq 0 ]]; then
   Help
 fi
 
+if ! command pipenv > /dev/null 2>&1
+then
+  echo "pipenv must be installed to create this development environemnt"
+  echo "try:
+  pip3 install pipenv
+
+for a system-wide install try:
+  sudo pip3 install pipenv
+  "
+  exit 1
+fi
+
 clean_devel_modules
 install_devel_requirements
 rm_venv
