@@ -83,7 +83,7 @@ while [[ $# -gt 0 ]]; do
     shift
     shift
     ;;
-  -i)
+  -c)
     INSTALL=1
     PURGE=0
     shift
