@@ -1,4 +1,3 @@
 cairocffi
-pycairo
 cffi
 CairoSVG

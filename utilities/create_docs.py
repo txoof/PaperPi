@@ -151,7 +151,11 @@ def setup_plugins(project_root, plugin_list=None, resolution=(640, 400), skip_la
         
         # setup plugin
         if skip_layouts:
-#             print('skipping creating full layouts and creating images due to command line switch (-s)')
+            plugin_dict[plugin].append({'plugin': plugin,
+                                        'module': module,
+                                        'plugin_obj': None,
+                                        'doc_path': plugin_path/plugin,
+                                        'layout': None })
             continue
         else:
             for name, layout in all_layouts.items():
@@ -358,20 +362,6 @@ def update_plugin_docs(plugin_docs, doc_path):
             file.write(f'![{plugin} sample Image]({values["image"]})\n\n')
             
         file.write(post)        
-
-
-
-
-
-
-# update_plugin_docs(plugin_d, '../documentation')
-
-
-
-
-
-
-
 
 
 
