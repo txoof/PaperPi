@@ -20,6 +20,12 @@ SYSTEMD_UNIT_PATH="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
 CONFIG_FILE_NAME=$APPNAME.ini
 SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
 
+function abort {
+  # abort installation with message
+  printf "%s\n" "$@"
+  printf "%s\n\nThis installer can be resumed with '$0'"
+  exit 1
+}
 
 
 # install requirements from the plugin requirements-*.txt files
@@ -124,7 +130,7 @@ function check_deb_packages {
       echo ""
       echo "stopping install"
 
-      exit 1
+      abort
     else
       echo "required packages installed"
     fi
@@ -178,7 +184,7 @@ function check_py_packages {
     echo "sudo pip3 install ${missing[*]}"
     echo ""
     echo "stopping install"
-    exit 1
+    abort
   fi
 }
 
@@ -206,7 +212,7 @@ function add_user {
     then
       echo "failed to add user"
       echo "install aborted"
-      exit 1
+      abort
     fi
 
     /usr/sbin/usermod -a -G spi,gpio $APPNAME
@@ -214,7 +220,7 @@ function add_user {
     then
       echo "failed to add user to groups: spi, gpio"
       echo "install aborted"
-      exit 1
+      abort
     fi
   fi
 
@@ -240,7 +246,7 @@ function install_unit_file {
     then
       echo "failed to copy unit file"
       echo "exiting"
-      exit 1
+      abort
     fi
 
     echo "reloading systemd unit files"
@@ -249,7 +255,7 @@ function install_unit_file {
     then
       echo "failed to reload systemd untit files"
       echo "exiting"
-      exit 1
+      abort
     fi
 
     echo "enabling systemd unit file"
@@ -258,7 +264,7 @@ function install_unit_file {
     then
       echo "failed to enable systemd untit files"
       echo "exiting"
-      exit 1
+      abort
     fi
   fi
 
@@ -272,7 +278,7 @@ function install_unit_file {
       echo "try to stop manually with:"
       echo "$ sudo systemctl stop $SYSTEMD_UNIT_FILE_NAME"
       echo "exiting"
-      exit 1
+      abort
     fi
     
     echo "removing $SYSTEMD_UNIT_PATH"
