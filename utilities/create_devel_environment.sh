@@ -116,9 +116,17 @@ if [[ $INSTALL -eq 0 ]] && [[ $PURGE -eq 0 ]]; then
   Help
 fi
 
+if ! command pip3 > /dev/null 2>&1
+then
+  echo "pip3 is not installed and is required for this development enviornment"
+  echo "try:
+  sudo apt install pip3
+  "
+fi
+
 if ! command pipenv > /dev/null 2>&1
 then
-  echo "pipenv must be installed to create this development environemnt"
+  echo "pipenv is not installed and is required for this development environemnt"
   echo "try:
   pip3 install pipenv
 
