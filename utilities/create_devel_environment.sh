@@ -122,6 +122,7 @@ then
   echo "try:
   sudo apt install pip3
   "
+  exit
 fi
 
 if ! command pipenv > /dev/null 2>&1
