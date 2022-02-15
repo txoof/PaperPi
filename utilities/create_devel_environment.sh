@@ -120,7 +120,7 @@ if ! command pip3 > /dev/null 2>&1
 then
   echo "pip3 is not installed and is required for this development enviornment"
   echo "try:
-  sudo apt install pip3
+  sudo apt install python3-pip
   "
   exit
 fi
