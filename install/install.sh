@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SOURCE=${BASH_SOURCE[0]}
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "$SOURCE")
+  [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where >
+done
+SCRIPT_DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+
 
 APPNAME="paperpi"
 LOCALPATH="$SCRIPT_DIR/../paperpi"
@@ -23,7 +30,8 @@ SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
 function abort {
   # abort installation with message
   printf "%s\n" "$@"
-  printf "%s\n\nThis installer can be resumed with '$0'"
+  printf "%s\n\nThis installer can be resumed with:\n"
+  printf "sudo .$DIR/$(basename "$0")\n"
   exit 1
 }
 
@@ -114,12 +122,13 @@ function check_deb_packages {
           echo "checking $i"
           if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
           then
-            missing+=( $i )
+            echo ""
+            echo "missing $i"
+            echo ""
             halt=$((halt+1))
+            missing+=( $i )
           fi
-
         done
-
     done
 
     if [[ $halt -gt 0 ]]
@@ -155,11 +164,6 @@ function check_py_packages {
       echo "verifying python package $i"
       if ! pip3 show $i > /dev/null 2>&1
       then
-        #echo "required python package $i not installed. Install with:"
-        #echo "sudo pip3 install $i"
-        #echo ""
-        missing+=( $i )
-        halt=$((halt+1))
         echo ""
         echo "missing $i, attempting to install"
         echo ""
@@ -169,7 +173,12 @@ function check_py_packages {
           echo ""
           echo "missing $i installed successfully. continuing..."
           echo ""
-          halt=$((halt-1))
+        else
+          echo ""
+          echo "automatic install of $i failed. Manual installation may be required"
+          echo ""
+          halt=$((halt+1))
+          missing+=( $i )
         fi
       else
         echo "...OK"
