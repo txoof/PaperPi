@@ -1,6 +1,3 @@
-# ***NOTE***
-This is a development branch of PaperPi. You're welcome to join in the hacking. The [offical release can be found here](https://github.com/txoof/epd_display#readme)
-
 # PaperPi
 |     |     |
 |:---:|:---:|
@@ -11,7 +8,7 @@ PaperPi is an e-Paper display with multiple rotating display plugins that contai
 PaperPi is a quiet and clean portal to the internet. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose. 
 
 
-PaperPi is written to work with almost all of the [WaveShare](https://www.waveshare.com/product/displays/e-paper.htm) SPI displays out of the box. PaperPi will work with the tiny 2" displays all the way up to the 10" HD displays with minimal configuration. Check the complete list of [supported screens](#supportedScreens)
+PaperPi is written to work with almost all of the [WaveShare](https://www.waveshare.com/product/displays/e-paper.htm) SPI displays out of the box. PaperPi will work with the tiny 2" displays all the way up to the 10" HD displays with minimal configuration. Check the complete list of [supported screens](#supportedScreens) below.
 
 
 For information on building a frame, case and custom cable, see [these instructions](./documentation/Frame_Cable_Case.md).
@@ -68,63 +65,73 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 PaperPi plugins work with a variety of other software such as Logitech Media Server and Spotify. Check the [Plugin documentation](./documentation/Plugins.md) for further instructions
 
 <a name="setup"> </a>
-## Setup
-PaperPi requires only small amount of setup. 
+## Install & Setup
+PaperPi requires only small amount of setup and is packaged with amatures in mind. By default PaperPi will install as a daemon service that will start at boot. 
 
-### Hardware/OS Setup
-**All Waveshare Screens**
+### Install
+To get started, copy and paste the following command into a terminal window to download the latest stable version of PaperPi and automatically start the install and setup process.
 
-The WaveShare displays require the SPI interface. SPI can be enabled through the `raspi-config` command.
-1. Enable SPI (see images below)
-    - `$ sudo raspi-config` > Interface Options > SPI > Yes
-    
-| |
-|:-------------------------:|
-|<img src=./documentation/images/raspi_config_00_iface_opts.png alt="librespot plugin" width=500 />|
-|<img src=./documentation/images/raspi_config_01_spi.png alt="librespot plugin" width=500 />|
-|<img src=./documentation/images/raspi_config_02_spi_enabled.png alt="librespot plugin" width=500 />|
+`/bin/bash -c "$(curl -fsSL /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)")`
+
+If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh` 
+
+### Setup
+**Daemon Mode**
+
+The installer should prompt you to edit `/etc/defaults/paperpi.ini`. At minium you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
+
+Any changes to the PaperPi configuration require a restart:
+
+`sudo systemctl restart paperpi-daemon.service`
+
+**On Demand**
+
+If you would rather run PaperPi on-demand rather than a daemon service you can run it as regular user (e.g. pi) by running `/usr/local/bin/paperpi`. A new configuration file will be created in your user's directory. Make sure to edit this file and add, at minimum, your EPD Screen.
+
+PaperPi can be run on demand in daemon mode using `paperpi -d`
+
+## Command Reference
+```
+usage: paperpi.py [-h] [--add_config plugin user|daemon] [-c CONFIG_FILE.ini]
+                  [-l LOG_LEVEL] [-d] [--list_plugins]
+                  [--plugin_info [plugin|plugin.function]]
+                  [--run_plugin_func plugin.function [optional_arg1 arg2 argN ...]]
+                  [-V]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --add_config plugin user|daemon
+                        copy sample config to the user or daemon configuration
+                        file
+  -c CONFIG_FILE.ini, --config CONFIG_FILE.ini
+                        use the specified configuration file
+  -l LOG_LEVEL, --log_level LOG_LEVEL
+                        change the log output level
+  -d, --daemon          run in daemon mode (ignore user configuration if
+                        found)
+  --list_plugins        list all available plugins
+  --plugin_info [plugin|plugin.function]
+                        get information for plugins and user-facing functions
+                        provided by a plugin
+  --run_plugin_func plugin.function [optional_arg1 arg2 argN ...]
+                        run a user-facing function for a plugin
+  -V, --version         display version and exit
+```
 
 
-### Userland Setup
-PaperPi can be run directly on-demand from a user account such as the default "pi" user. Any other user will work as well, but the user must be a member of the spi group.
-1. [Download the tarball](https://github.com/txoof/epd_display/raw/master/paperpi_latest.tgz)
-    - `$ wget https://github.com/txoof/epd_display/raw/master/paperpi_latest.tgz`
-2. Decompress the archive: `tar xvzf paperpi.tgz`
-3. Launch PaperPi: `$ ./paperpi/dist/paperpi`
-    - On the first run PaperPi will create a configuration file in `~/.config/com.txoof.paperpi/paperpi.ini` and then exit
-4. Edit the configuration file to match your needs. The default configuration will provide a reasonable starting point
-    - `$ nano ~/.config/com.txoof.paperpi/paperpi.ini`
-        - At minimum you must specify the `display_type`
-        - If you are using an HD IT8951 display, you must also set the `vcom` value which can be found on the ribon cable.
-        ```
-        # choose the display type that matches your e-paper pannel 
-        display_type = epd2in7
-        # vcom value for HDIT8951 displays
-        vcom = 0.0
-        ```
-        - See the list of [supported screens](#supportedScreens) for more information
-5. Launch PaperPi again -- you should immediately see a splash screen followed shortly by the first active plugin.
-6. Press `ctrl+c` to shutdown paperpi cleanly
-    - Waveshare recommends clearing pannels to a blank state prior to long-term storage
+`--add_config plugin user|daemon`: add a configuration file for _plugin_ to the _user_ configuration  or _daemon_ configuration files
 
-### Daemon Setup
-PaperPi is designed to run as an unattended daemon process that starts at system boot.
+`-c/--config CONFIG_FILE.ini`: Use the specified _CONFIG_FILE_ instead of the default
 
-1. [Download the tarball](https://github.com/txoof/epd_display/raw/master/paperpi_latest.tgz)
-    - `$ wget https://github.com/txoof/epd_display/raw/master/paperpi_latest.tgz`
-2. Decompress the archive: `tar xvzf paperpi.tgz`
-3. Install PaperPi as a service, run the install script: `$ sudo ./install.sh` 
-    - This will:
-        * add the necessary service users and groups
-        * add a configuration file to `/etc/defaults/paperpi.ini`
-        * install PaperPi as a systemd service
-4. Edit `/etc/defaults/paperpi.ini` to configure a `display_type` and enable any plugins
-    - `$ sudo nano /etc/defaults/paperpi.ini`
-    - At minimum you must specify the `display_type`
-    - See the list of [supported screens](#supportedScreens) for more information
-5. Start PaperPi: `$ sudo systemctl restart paperpi` 
-    - PaperPi will now start and restart at boot as a systemd service
-    - PaperPi may fail to clear the screen when the daemon is stopped. This a known [issue](https://github.com/txoof/epd_display/issues/19).
+`-l/--log_level DEBUG|INFO|WARNING|ERROR`: Specify the logging level from the command line
+
+`--list_plugins`: List all plugins that have been found.
+
+`--plugin_info plugin|plugin.function`: Print help information for a _plugin_ and all of it's helper functions or a specific _plugin.function_
+
+`--run_plugin_func plugin.function` Some plugins provide helper functions such as determining the LAT/LON of a location (met_no, moon_phases) or finding local Logitech Media Servers (lms_client). `--run_plugin_func` runs a plugin helper function. Use `--plugin_info` to learn more.
+
+`-V/--version`: Display version information and exit
 
 
 ## Developing PaperPi
@@ -136,25 +143,12 @@ If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, 
 
 **Create a Build Environment**
 
-1. Clone the repo: `https://github.com/txoof/epd_display.git`
-2. Run `$ create_devel_venv.sh` to create a build environment
-    - This will check for all necessary libraries and python modules
-3. The build script will then attempt to build a binary of PaperPi using pyintsaller 
-    - executables are stored in `./dist/`
-    
-**Build Paperpi**
-
-1. Create a build environment (see above)
-2. Run `$ build.sh` to create a pyinstaller one-file distributable
-3. If you've updated documentation in any plugins, be sure to rebuild the documentation with `$ pipenv run python3 create_docs.py`
-4. Submit a PR if you'd like your changes included in the official distribution
+1. Clone the repo: `https://github.com/txoof/PaperPi`
+2. Run `$ ./utilities/create_devel_environment.sh` to create a build environment
+    - This will check for all necessary libraries and python modules and create a local venv for development
 
 ## Contributing
-PaperPi's core is written and maintained in Jupyter Notebook. If you'd like to contribute, please make pull requests in the Jupyter notebooks. Making PRs to the `.py` files means manually moving the changes into the Jupyter Notebook and adds considerable work to the build/test process.
-
-Plugins can be pure python, but should follow the [guide provided](./documentation/Plugins.md).
-
-See [this gist](https://gist.github.com/txoof/ed4319db317f813b9e500ff190ca4a87) for a quick guide for setting up a jupyter environment on a Raspberry Pi.
+Plugins can be pure python, but should follow the [guide provided](./documentation/Plugins.md). 
 
 <a name="supportedScreens"> </a>
 ## Supported Screens
@@ -168,47 +162,51 @@ Some WaveShare screens that support color output will also work with with the no
 
 NN. Board        Supported:
 --  -----        ----------
-00. epd1in02     supported: False
- * AttributeError: module does not support `EPD.display()`
-01. epd1in54     supported: True
-02. epd1in54_V2  supported: True
-03. epd1in54b    supported: True
-04. epd1in54b_V2 supported: True
-05. epd1in54c    supported: True
-06. epd2in13     supported: True
-07. epd2in13_V2  supported: True
-08. epd2in13b_V3 supported: True
-09. epd2in13bc   supported: True
-10. epd2in13d    supported: True
-11. epd2in66     supported: True
-12. epd2in66b    supported: True
-13. epd2in7      supported: True
-14. epd2in7b     supported: True
-15. epd2in7b_V2  supported: True
-16. epd2in9      supported: True
-17. epd2in9_V2   supported: True
-18. epd2in9b_V3  supported: True
-19. epd2in9bc    supported: True
-20. epd2in9d     supported: True
-21. epd3in7      supported: False
- * unsupported `EPD.Clear()` function
- * AttributeError: module does not support `EPD.display()`
-22. epd4in01f    supported: True
-23. epd4in2      supported: True
-24. epd4in2b_V2  supported: True
-25. epd4in2bc    supported: True
-26. epd5in65f    supported: True
-27. epd5in83     supported: True
-28. epd5in83_V2  supported: True
-29. epd5in83b_V2 supported: True
-30. epd5in83bc   supported: True
-31. epd7in5      supported: True
-32. epd7in5_HD   supported: True
-33. epd7in5_V2   supported: True
-34. epd7in5b_HD  supported: True
-35. epd7in5b_V2  supported: True
-36. epd7in5bc    supported: True
-37. All IT8951 Based Panels
+01. epd1in02     False
+    * Issues:
+        * AttributeError: module does not support `EPD.display()`
+01. epd1in54     True
+02. epd1in54_V2  True
+03. epd1in54b    True
+04. epd1in54b_V2 True
+05. epd1in54c    True
+06. epd2in13     True
+07. epd2in13_V2  True
+08. epd2in13_V3  True
+09. epd2in13b_V3 True
+10. epd2in13bc   True
+11. epd2in13d    True
+12. epd2in66     True
+13. epd2in66b    True
+14. epd2in7      True
+15. epd2in7b     True
+16. epd2in7b_V2  True
+17. epd2in9      True
+18. epd2in9_V2   True
+19. epd2in9b_V3  True
+20. epd2in9bc    True
+21. epd2in9d     True
+22. epd3in7      False
+     * Issues:
+         * Non-standard, unsupported `EPD.Clear()` function
+         * AttributeError: module does not support `EPD.display()`
+23. epd4in01f    True
+24. epd4in2      True
+25. epd4in2b_V2  True
+26. epd4in2bc    True
+27. epd5in65f    True
+28. epd5in83     True
+29. epd5in83_V2  True
+30. epd5in83b_V2 True
+31. epd5in83bc   True
+32. epd7in5      True
+33. epd7in5_HD   True
+34. epd7in5_V2   True
+35. epd7in5b_HD  True
+36. epd7in5b_V2  True
+37. epd7in5bc    True
+39. HD IT8951 Based Screens True
+
 
 <a name="knownIssues"> </a>
 ## Isuses
@@ -216,7 +214,6 @@ NN. Board        Supported:
 See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
-Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
-
+Please [open tickets at GitHub](https://github.com/txoof/PaperPi/issues).
 
 
