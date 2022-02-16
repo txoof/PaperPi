@@ -214,6 +214,6 @@ NN. Board        Supported:
 See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
-Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
+Please [open tickets at GitHub](https://github.com/txoof/PaperPi/issues).
 
 
