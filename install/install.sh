@@ -31,7 +31,7 @@ function abort {
   # abort installation with message
   printf "%s\n" "$@"
   printf "%s\n\nThis installer can be resumed with:\n"
-  printf ".$DIR/$(basename "$0")\n"
+  printf "sudo .$DIR/$(basename "$0")\n"
   exit 1
 }
 
