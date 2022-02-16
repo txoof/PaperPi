@@ -114,8 +114,22 @@ function check_deb_packages {
           echo "checking $i"
           if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
           then
-            missing+=( $i )
-            halt=$((halt+1))
+            echo ""
+            echo "missing $i, attempting to install"
+            echo ""
+            sudo apt install $i
+            if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -ne 0 ]
+            then
+              echo ""
+              echo "missing $i installed successfully. continuing..."
+              echo ""
+            else
+              echo ""
+              echo "automatic install of $i failed. Manual installation may be required"
+              echo ""
+              halt=$((halt+1))
+              missing+=( $i )
+            fi
           fi
 
         done
@@ -155,11 +169,6 @@ function check_py_packages {
       echo "verifying python package $i"
       if ! pip3 show $i > /dev/null 2>&1
       then
-        #echo "required python package $i not installed. Install with:"
-        #echo "sudo pip3 install $i"
-        #echo ""
-        missing+=( $i )
-        halt=$((halt+1))
         echo ""
         echo "missing $i, attempting to install"
         echo ""
@@ -169,7 +178,12 @@ function check_py_packages {
           echo ""
           echo "missing $i installed successfully. continuing..."
           echo ""
-          halt=$((halt-1))
+        else
+          echo ""
+          echo "automatic install of $i failed. Manual installation may be required"
+          echo ""
+          halt=$((halt+1))
+          missing+=( $i )
         fi
       else
         echo "...OK"
