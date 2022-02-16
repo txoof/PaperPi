@@ -123,25 +123,12 @@ function check_deb_packages {
           if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
           then
             echo ""
-            echo "missing $i, attempting to install"
+            echo "missing $i"
             echo ""
-            sudo apt install $i
-            if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -ne 0 ]
-            then
-              echo ""
-              echo "missing $i installed successfully. continuing..."
-              echo ""
-            else
-              echo ""
-              echo "automatic install of $i failed. Manual installation may be required"
-              echo ""
-              halt=$((halt+1))
-              missing+=( $i )
-            fi
+            halt=$((halt+1))
+            missing+=( $i )
           fi
-
         done
-
     done
 
     if [[ $halt -gt 0 ]]
