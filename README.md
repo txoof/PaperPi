@@ -71,7 +71,7 @@ PaperPi requires only small amount of setup and is packaged with amatures in min
 ### Install
 To get started, copy and paste the following command into a terminal window to download the latest stable version of PaperPi and automatically start the install and setup process.
 
-`/bin/bash -c "$(curl -fsSL https://github.com/txoof/PaperPi/blob/main/install/remote_install.sh)`
+`/bin/bash -c "$(curl -fsSL /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)")`
 
 If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh` 
 
@@ -215,6 +215,5 @@ See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
 Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
-
 
 
