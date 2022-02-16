@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+trap '{ echo "Ctrl-C detected. Quitting." ; abort; }' INT
 
 SOURCE=${BASH_SOURCE[0]}
 while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
