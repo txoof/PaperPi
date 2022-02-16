@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SOURCE=${BASH_SOURCE[0]}
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "$SOURCE")
+  [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where >
+done
+SCRIPT_DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+
 
 APPNAME="paperpi"
 LOCALPATH="$SCRIPT_DIR/../paperpi"
@@ -23,7 +30,8 @@ SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
 function abort {
   # abort installation with message
   printf "%s\n" "$@"
-  printf "%s\n\nThis installer can be resumed with '$0'"
+  printf "%s\n\nThis installer can be resumed with:\n"
+  printf ".$DIR/$(basename "$0")\n"
   exit 1
 }
 
