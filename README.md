@@ -70,7 +70,7 @@ PaperPi plugins work with a variety of other software such as Logitech Media Ser
 
 ## Install & Setup
 
-PaperPi requires only small amount of setup and is packaged with amatures in mind. By default PaperPi will install as a daemon service that will start at boot.
+PaperPi requires only small amount of setup and is packaged with amateurs in mind. By default PaperPi will install as a daemon service that will start at boot.
 
 ### Install
 
