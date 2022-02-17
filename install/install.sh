@@ -258,7 +258,7 @@ function add_user {
 function install_unit_file {
   if [ $INSTALL -eq 1 ]
   then
-    DAEMON_INSTALL = 1
+    DAEMON_INSTALL=1
     echo "installing systemd unit file to: $SYSTEMD_UNIT_PATH"
     cp $SCRIPT_DIR/$SYSTEMD_UNIT_FILE_NAME $SYSTEMD_UNIT_PATH
     if [ $? -ne 0 ]
@@ -288,7 +288,7 @@ function install_unit_file {
         abort
       fi
     else
-      DAEMON_INSTALL = 0
+      DAEMON_INSTALL=0
       echo ""
       echo "you selected to run on demand"
       echo "you can enable the daemon later by typing:"
