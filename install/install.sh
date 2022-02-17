@@ -258,6 +258,7 @@ function add_user {
 function install_unit_file {
   if [ $INSTALL -eq 1 ]
   then
+    DAEMON_INSTALL = 1
     echo "installing systemd unit file to: $SYSTEMD_UNIT_PATH"
     cp $SCRIPT_DIR/$SYSTEMD_UNIT_FILE_NAME $SYSTEMD_UNIT_PATH
     if [ $? -ne 0 ]
@@ -275,15 +276,24 @@ function install_unit_file {
       echo "exiting"
       abort
     fi
-
-    echo "enabling systemd unit file"
-    /bin/systemctl enable $SYSTEMD_UNIT_PATH
-    if [ $? -ne 0 ]
+    read -p "Would you like to enable $APPNAME to run in daemon mode? (Y/n): " edit_config
+    if [[ $edit_config =~ ^([yY][eE][sS]|[yY]*)$ ]]
     then
-      echo "failed to enable systemd untit files"
-      echo "exiting"
-      abort
-    fi
+      echo "enabling systemd unit file"
+      /bin/systemctl enable $SYSTEMD_UNIT_PATH
+      if [ $? -ne 0 ]
+      then
+        echo "failed to enable systemd untit files"
+        echo "exiting"
+        abort
+      fi
+    else
+      DAEMON_INSTALL = 0
+      echo ""
+      echo "you selected to run on demand"
+      echo "you can enable the daemon later by typing:"
+      echo "sudo systemctl enable $SYSTEMMD_UNIT_PATH"
+      echo ""
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
@@ -417,12 +427,19 @@ function finish_install()
       OPTIONAL:
       * Enable plugins by removing the \"x\" from section headers
       * Configure the plugins to match your needs/environment
-
-      When completed, run the following command or reboot to start
-      the $APPNAME daemon will start automatcially
-
-      $ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME
       "
+      if [ $DAEMON_INSTALL -gt 1 ]
+      then
+        echo ""
+        echo "When completed, run the following command or reboot to start"
+        echo "the $APPNAME daemon will start automatcially"
+        echo ""
+        echo "$ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME"
+      else
+        echo ""
+        echo "to manually start $APPNAME please run"
+        echo "$ $BINPATH$APPNAME"
+      fi
     fi
   fi
   
