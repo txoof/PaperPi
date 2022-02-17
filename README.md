@@ -1,25 +1,23 @@
 # PaperPi
+
 |     |     |
 |:---:|:---:|
 |<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> Splash Screen| <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 /> PaperPi Weather Plugin|
 
 PaperPi is an e-Paper display with multiple rotating display plugins that contain dynamic content.
 
-PaperPi is a quiet and clean portal to the internet. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose. 
-
+PaperPi is a quiet and clean portal to the internet. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose.
 
 PaperPi is written to work with almost all of the [WaveShare](https://www.waveshare.com/product/displays/e-paper.htm) SPI displays out of the box. PaperPi will work with the tiny 2" displays all the way up to the 10" HD displays with minimal configuration. Check the complete list of [supported screens](#supportedScreens) below.
-
 
 For information on building a frame, case and custom cable, see [these instructions](./documentation/Frame_Cable_Case.md).
 
 To get started, jump to the **[Setup Instructions](#setup_install)**
 
-
 ## Plugins
+
 PaperPi supports many different plugins and layouts for each plugin.
 
- 
 ### [Complete Plugins List](./documentation/Plugins.md)
 
 | | | |
@@ -28,54 +26,61 @@ PaperPi supports many different plugins and layouts for each plugin.
 |<img src=./paperpi/plugins/moon_phase/moon_phase.layout-sample.png alt="decimal binary clock" width=300 />[Moon Phase](./paperpi/plugins/moon_phase/README.md)|<img src=./paperpi/plugins/met_no/met_no.layout-sample.png alt="met_no plugin" width=300 />[Met.no Weather](./paperpi/plugins/met_no/README.md)|<img src=./paperpi/plugins/crypto/crypto.layout-sample.png alt="Crypto Currency Ticker" width=300 />[Crypto Currency](./paperpi/plugins/crypto/README.md)|
 |<img src=./paperpi/plugins/reddit_quote/reddit_quote.layout-sample.png alt="reddit/r/quotes" width=300 />[Reddit Quotes](./paperpi/plugins/reddit_quote/README.md)|<img src=./paperpi/plugins/xkcd_comic/xkcd_comic.layout-sample.png alt="XKCD Comic" width=300 />[XKCD Comic](./paperpi/plugins/xkcd_comic/README.md)|<img src=./paperpi/plugins/basic_clock/basic_clock.layout-sample.png alt="Basic Clock" width=300 />[Basic Clock](./paperpi/plugins/basic_clock/README.md)| |
 
-
 ## Changes
+
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
 
-**V 0.3.0** 
-* PaperPi is no longer distriburted as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an excutable entry script in `/usr/local/bin/`. 
+**V 0.3.0**
+
+* PaperPi is no longer distriburted as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an excutable entry script in `/usr/local/bin/`.
 * Plugins can now be edited easily in `/usr/local/paperpi/plugins/`
-* Additional plugins can be placed in `/usr/local/paperpi/plugins` without rebuilding 
+* Additional plugins can be placed in `/usr/local/paperpi/plugins` without rebuilding
 
 <a name="requirements"></a>
-## Requirements
+
+## PaperPi Requirements
 
 ### Required Hardware
-* Raspberry Pi
-    - Tested: Pi 4, Pi 3, and Pi Zero
+
+* Raspberry Pi (Pi 4, Pi 3, and Pi Zero)
 * Raspberry Pi OS Buster or later (64-bit supported)
 * [WaveShare EPD SPI-only Screen](https://www.waveshare.com/product/displays/e-paper.htm) with PiHat
-    - see the full list of currently [supported screens](#supportedScreens)
-    - UART, SPI/USB/I80 screens are **not supported** as there is no python library for diving these boards
-    
-     
+  * see the full list of currently [supported screens](#supportedScreens)
+  * UART, SPI/USB/I80 screens are **not supported** as there is no python library for diving these boards
+
 ### Optional Hardware
-* [HiFiBerry hat](https://www.hifiberry.com/shop/#boards) (*optional*) 
-    * The HiFiBerry DAC+ PRO and similar boards add high-quality audio output to the Pi so it can act as a display and also work as a LMS client player using squeezelite
-    * GPIO 2x20 headers **must be added** to the HiFiBerry HAT to provide an interface for the WaveShare HAT.
-    * HiFiBerry's [DAC+ Bundle](https://www.hifiberry.com/shop/bundles/hifiberry-dac-bundle-4/) with the following configuraiton is a good choice:
-        * DAC+ Pro 
-        * Acrylic Case for (RCA) AND DIGI+
-        * Raspberry Pi 4B 2GB (1GB should be sufficient as well)
-        * 16GB SD Card
-        * PowerSupply (USB C 5.1V/3A)
-        * 2x20 Pin Male Header (required for WaveShare HAT)
+
+* [HiFiBerry hat](https://www.hifiberry.com/shop/#boards) (*optional*)
+  * The HiFiBerry DAC+ PRO and similar boards add high-quality audio output to the Pi so it can act as a display and also work as a LMS client player using squeezelite
+  * GPIO 2x20 headers **must be added** to the HiFiBerry HAT to provide an interface for the WaveShare HAT.
+  * HiFiBerry's [DAC+ Bundle](https://www.hifiberry.com/shop/bundles/hifiberry-dac-bundle-4/) with the following configuraiton is a good choice:
+    * DAC+ Pro
+    * Acrylic Case for (RCA) AND DIGI+
+    * Raspberry Pi 4B 2GB (1GB should be sufficient as well)
+    * 16GB SD Card
+    * PowerSupply (USB C 5.1V/3A)
+    * 2x20 Pin Male Header (required for WaveShare HAT)
 
 ### Optional Software
+
 PaperPi plugins work with a variety of other software such as Logitech Media Server and Spotify. Check the [Plugin documentation](./documentation/Plugins.md) for further instructions
 
 <a name="setup_install"> </a>
+
 ## Install & Setup
-PaperPi requires only small amount of setup and is packaged with amatures in mind. By default PaperPi will install as a daemon service that will start at boot. 
+
+PaperPi requires only small amount of setup and is packaged with amatures in mind. By default PaperPi will install as a daemon service that will start at boot.
 
 ### Install
+
 To get started, copy and paste the following command into a terminal window to download the latest stable version of PaperPi and automatically start the install and setup process.
 
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
 
-If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh` 
+If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh`
 
 ### Setup
+
 **Daemon Mode**
 
 The installer should prompt you to edit `/etc/defaults/paperpi.ini`. At minium you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
@@ -91,6 +96,7 @@ If you would rather run PaperPi on-demand rather than a daemon service you can r
 PaperPi can be run on demand in daemon mode using `paperpi -d`
 
 ## Command Reference
+
 ```
 usage: paperpi.py [-h] [--add_config plugin user|daemon] [-c CONFIG_FILE.ini]
                   [-l LOG_LEVEL] [-d] [--list_plugins]
@@ -118,26 +124,26 @@ optional arguments:
   -V, --version         display version and exit
 ```
 
+`--add_config plugin user|daemon`: add a configuration file for *plugin* to the *user* configuration  or *daemon* configuration files
 
-`--add_config plugin user|daemon`: add a configuration file for _plugin_ to the _user_ configuration  or _daemon_ configuration files
-
-`-c/--config CONFIG_FILE.ini`: Use the specified _CONFIG_FILE_ instead of the default
+`-c/--config CONFIG_FILE.ini`: Use the specified *CONFIG_FILE* instead of the default
 
 `-l/--log_level DEBUG|INFO|WARNING|ERROR`: Specify the logging level from the command line
 
 `--list_plugins`: List all plugins that have been found.
 
-`--plugin_info plugin|plugin.function`: Print help information for a _plugin_ and all of it's helper functions or a specific _plugin.function_
+`--plugin_info plugin|plugin.function`: Print help information for a *plugin* and all of it's helper functions or a specific *plugin.function*
 
 `--run_plugin_func plugin.function` Some plugins provide helper functions such as determining the LAT/LON of a location (met_no, moon_phases) or finding local Logitech Media Servers (lms_client). `--run_plugin_func` runs a plugin helper function. Use `--plugin_info` to learn more.
 
 `-V/--version`: Display version information and exit
 
-
 ## Developing PaperPi
-If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, you will likely need a working build environment. 
 
-### Requirements:
+If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, you will likely need a working build environment.
+
+### Requirements
+
 * python 3.7+
 * pipenv
 
@@ -145,13 +151,16 @@ If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, 
 
 1. Clone the repo: `https://github.com/txoof/PaperPi`
 2. Run `$ ./utilities/create_devel_environment.sh` to create a build environment
-    - This will check for all necessary libraries and python modules and create a local venv for development
+    * This will check for all necessary libraries and python modules and create a local venv for development
 
 ## Contributing
-Plugins can be pure python, but should follow the [guide provided](./documentation/Plugins.md). 
+
+Plugins can be pure python, but should follow the [guide provided](./documentation/Plugins.md).
 
 <a name="supportedScreens"> </a>
+
 ## Supported Screens
+
 Most NON-IT8951 screens are only supported in 1 bit (black and white) mode. Color output is not supported at this time. Some waveshare drivers do not provide 'standard' `display` and `Clear` methods; these displays are not supported at this time.
 
 All IT8951 Screens now support 8 bit grayscale output.
@@ -162,6 +171,7 @@ Some WaveShare screens that support color output will also work with with the no
 
 NN. Board        Supported:
 --  -----        ----------
+
 01. epd1in02     False
     * Issues:
         * AttributeError: module does not support `EPD.display()`
@@ -207,13 +217,13 @@ NN. Board        Supported:
 37. epd7in5bc    True
 39. HD IT8951 Based Screens True
 
-
 <a name="knownIssues"> </a>
 ## Issues
+
 **Hardware Issues**
 See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
 Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
 
-
+Document updated 2022.02.17
