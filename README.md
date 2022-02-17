@@ -90,11 +90,19 @@ Any changes to the PaperPi configuration require a restart of the service:
 
 `sudo systemctl restart paperpi-daemon.service`
 
+To disable the service from starting on boot, run the command:
+
+`sudo systemctl disable paperpi-daemon.service`
+
 **On Demand**
 
 If you would rather run PaperPi on-demand rather than a daemon service you can run it as regular user (e.g. pi) by running `/usr/local/bin/paperpi`. A new configuration file will be created in your user's directory. Make sure to edit this file and add, at minimum, your EPD Screen.
 
 PaperPi can be run on demand in daemon mode using `paperpi -d`
+
+### Uninstall
+
+To uninstall PaperPi, run `./install/install.sh` with either `-u` to uninstall or `-p` to uninstall and remove all configuration files.
 
 ## Command Reference
 
