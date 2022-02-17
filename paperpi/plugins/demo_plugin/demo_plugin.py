@@ -130,6 +130,13 @@ def update_function(self, *args, **kwargs):
 
 
 
+# # use this in jupyter to allow loading libraries
+# import sys
+# sys.path.append('../')
+
+
+
+
 
 
 # from library.CacheFiles import CacheFiles

@@ -10,6 +10,17 @@ The `Plugin` class offers several built-in functions and properties that plugins
 
 See the included [`demo_plugin`](../paperpi/plugins/demo_plugin) for a simple, well documented plugin that can be used as a template for building a plugin.
 
+## Getting Started
+
+1. Clone this repo `https://github.com/txoof/PaperPi.git`
+2. Setup the development environment: `PaperPi/utilities/create_devel_environment.sh`
+    - this will create a pipenv virtual environment with all the required components
+3. Create a branch for your plugin: `git branch my_plugin; git checkout my_plugin`
+4. Start developing! A good place to start is to make a copy of the `/paperpi/plugins/demo_plugin` for a relatively complete structure you can begin modifying.
+5. Add any python modules your plugin requires using `pipenv install --dev ModuleName`
+    - this will help keep your additional modules separate from the PaperPi core modules
+
+
 ### BUILTIN PROPERTIES AVAILABLE TO PLUGINS
 
 All plugins have the following functions and properties available. Call the builtin functions by using `self.[method/property]`.
@@ -44,6 +55,8 @@ Args:
 * [ ] Plugin modules must be named with exactly the same name as their module directory: `plugins/my_new_plugin/my_new_plugin.py`
 * [ ] Include a `__init__.py` -- see below
 * [ ] Plugin modules must contain at minimum one function called `update_function()`
+* [ ] Include a file called `debian_packages-myplugin.txt` with any debian packages your plugin relies on (optional) -- see below for an example
+* [ ] Include a file called `requirements-myplugin_hidden.txt` for any python dependencies that are not explictly imported (optional) -- see below for an example
 * [ ] Include a `constants.py` see below for specification
 * [ ] Plugin modules must at minimum contain a `layout.py` file that contains a layout file. See the specificaitons below.
 * [ ] At minimum the `update_function` should contain a docstring that completely documents the plugin's use and behavior
@@ -79,6 +92,21 @@ refresh_rate = 60
 min_display_time = 60
 max_priority = 2
 additional_key = foo '''
+```
+
+
+**debian_packages-myplugin.txt**
+If your plugin depends on any external debian packages they must be included in a `debian_packages-myplugin.txt` file where "myplugin" is the name of your plugin. Provide any additional debian packages as a bash array named `DEBPKG`. Bash arrays do not use commas to separate elements:
+
+`DEBPKG=( "libfoo-dev" "formatter-FooBar" )`
+
+**requirements-myplugin_hidden.txt**
+
+If your plugin fails to install correctly due to hidden imports that are not correctly detected, they can be added using a flat file that lists one module per line. Use the name from PyPi.
+```
+cairocffi
+cffi
+CairoSVG
 ```
 
 **OPTIONAL**
@@ -153,5 +181,6 @@ config = {
 Once you've built an tested your plugin, you can add it to PaperPi by submitting a pull request. You should do the following to make sure your plugin is ready to go:
 
 * Test your plugin and make sure it doesn't crash when an internet connection is unavilable, or a bad data is returned
+* Run `$pipenv run python ./utilities/find_imports.sh` to update all of the python module dependencies for your plugin
 * Run  `$ pipenv run python ./utilities/create_docs.py` script to make sure your README and sample images are built properly.
 * Submit a PR that includes your plugin 
