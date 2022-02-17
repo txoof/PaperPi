@@ -26,6 +26,7 @@ PaperPi supports many different plugins and layouts for each plugin.
 |<img src=./paperpi/plugins/moon_phase/moon_phase.layout-sample.png alt="decimal binary clock" width=300 />[Moon Phase](./paperpi/plugins/moon_phase/README.md)|<img src=./paperpi/plugins/met_no/met_no.layout-sample.png alt="met_no plugin" width=300 />[Met.no Weather](./paperpi/plugins/met_no/README.md)|<img src=./paperpi/plugins/crypto/crypto.layout-sample.png alt="Crypto Currency Ticker" width=300 />[Crypto Currency](./paperpi/plugins/crypto/README.md)|
 |<img src=./paperpi/plugins/reddit_quote/reddit_quote.layout-sample.png alt="reddit/r/quotes" width=300 />[Reddit Quotes](./paperpi/plugins/reddit_quote/README.md)|<img src=./paperpi/plugins/xkcd_comic/xkcd_comic.layout-sample.png alt="XKCD Comic" width=300 />[XKCD Comic](./paperpi/plugins/xkcd_comic/README.md)|<img src=./paperpi/plugins/basic_clock/basic_clock.layout-sample.png alt="Basic Clock" width=300 />[Basic Clock](./paperpi/plugins/basic_clock/README.md)| |
 
+See the [Developing Plugins](./documentation/developing_plugins.md) guide for more information on creating your own plugins.
 ## Changes
 
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
