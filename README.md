@@ -13,7 +13,7 @@ PaperPi is written to work with almost all of the [WaveShare](https://www.wavesh
 
 For information on building a frame, case and custom cable, see [these instructions](./documentation/Frame_Cable_Case.md).
 
-To get started, jump to the **[Setup Instructions](#setup)**
+To get started, jump to the **[Setup Instructions](#setup_install)**
 
 
 ## Plugins
@@ -41,9 +41,9 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 ## Requirements
 
 ### Required Hardware
-* Raspberry Pi 4B, Pi3
-    - A Pi Zero is likely sufficient, but is untested at this time (Nov 2020)
-* Raspberry Pi OS Buster or later
+* Raspberry Pi
+    - Tested: Pi 4, Pi 3, and Pi Zero
+* Raspberry Pi OS Buster or later (64-bit supported)
 * [WaveShare EPD SPI-only Screen](https://www.waveshare.com/product/displays/e-paper.htm) with PiHat
     - see the full list of currently [supported screens](#supportedScreens)
     - UART, SPI/USB/I80 screens are **not supported** as there is no python library for diving these boards
@@ -64,14 +64,14 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 ### Optional Software
 PaperPi plugins work with a variety of other software such as Logitech Media Server and Spotify. Check the [Plugin documentation](./documentation/Plugins.md) for further instructions
 
-<a name="setup"> </a>
+<a name="setup_install"> </a>
 ## Install & Setup
 PaperPi requires only small amount of setup and is packaged with amatures in mind. By default PaperPi will install as a daemon service that will start at boot. 
 
 ### Install
 To get started, copy and paste the following command into a terminal window to download the latest stable version of PaperPi and automatically start the install and setup process.
 
-`/bin/bash -c "$(curl -fsSL /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)")`
+`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
 
 If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh` 
 
@@ -80,7 +80,7 @@ If you would rather install PaperPi yourself, [clone this repo](https://github.c
 
 The installer should prompt you to edit `/etc/defaults/paperpi.ini`. At minium you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
 
-Any changes to the PaperPi configuration require a restart:
+Any changes to the PaperPi configuration require a restart of the service:
 
 `sudo systemctl restart paperpi-daemon.service`
 
@@ -209,11 +209,11 @@ NN. Board        Supported:
 
 
 <a name="knownIssues"> </a>
-## Isuses
+## Issues
 **Hardware Issues**
 See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
-Please [open tickets at GitHub](https://github.com/txoof/PaperPi/issues).
+Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
 
 
