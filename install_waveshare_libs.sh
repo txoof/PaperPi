@@ -37,3 +37,7 @@ find $WS_LOCAL -type f -exec sed -i -E 's/(^\W+def init\(self,\W+update)/\1=Fals
 
 # add default value to `color` arg in Clear() method (see epd2in7 for example)
 find $WS_LOCAL -type f -exec sed -i -E 's/(\W+def Clear\(self,\W+color)\)/\1=0xFF)/' {} \;
+
+# default to full update in def init() for screens that support partial update
+echo "set default lut value in init()"
+find $WS_LOCAL -type f -exec sed -i -E 's/(def init\(self, lut)(.*)/\1=None\2\n        if not lut:\n            lut = self.lut_full_update/' {} \;
