@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+trap '{ echo "Ctrl-C detected. Quitting." ; abort; }' INT
 
 SOURCE=${BASH_SOURCE[0]}
 while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
@@ -31,7 +32,7 @@ function abort {
   # abort installation with message
   printf "%s\n" "$@"
   printf "%s\n\nThis installer can be resumed with:\n"
-  printf "sudo .$DIR/$(basename "$0")\n"
+  printf "sudo $SCRIPT_DIR/$(basename "$0")\n"
   exit 1
 }
 
