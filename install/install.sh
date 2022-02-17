@@ -294,6 +294,7 @@ function install_unit_file {
       echo "you can enable the daemon later by typing:"
       echo "sudo systemctl enable $SYSTEMMD_UNIT_PATH"
       echo ""
+    fi
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
