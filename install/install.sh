@@ -292,7 +292,7 @@ function install_unit_file {
       echo ""
       echo "you selected to run on demand"
       echo "you can enable the daemon later by typing:"
-      echo "$ sudo systemctl enable $SYSTEMMD_UNIT_PATH"
+      echo "$ sudo systemctl enable $SYSTEMMD_UNIT_FILE_NAME"
       echo ""
     fi
   fi
