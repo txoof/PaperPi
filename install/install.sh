@@ -67,13 +67,13 @@ function copy_files {
   then
     echo "Installing files to $INSTALLPATH"
     rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $INSTALLPATH
-    cp $SCRIPT_DIR/../Pipfile $INSTALLPATH/$APPNAME
+    cp $SCRIPT_DIR/../Pipfile $INSTALLPATH$APPNAME
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
   then
-    echo "Removing files from $INSTALLPATH/$APPNAME"
-    rm -rf $INSTALLPATH/$APPNAME
+    echo "Removing files from $INSTALLPATH$APPNAME"
+    rm -rf $INSTALLPATH$APPNAME
   fi
 
 }
@@ -84,7 +84,7 @@ function create_pipenv {
   if [ $INSTALL -gt 0 ]
   then
     echo "Creating virtual environment for $APPNAME in $INSTALLPATH"
-    pushd $INSTALLPATH/$APPNAME
+    pushd $INSTALLPATH$APPNAME
     if ! command pipenv install --skip-lock
     then
       popd
@@ -209,14 +209,14 @@ function check_py_packages {
 function install_executable {
   if [ $INSTALL -gt 0 ]
   then
-    echo "adding executable to $BINPATH/paperpi"
+    echo "adding executable to ${BINPATH}paperpi"
     cp $SCRIPT_DIR/paperpi $BINPATH
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ] 
   then
-    echo "removing excutable at $BINPATH/paperpi"
-    rm $BINPATH/paperpi
+    echo "removing excutable at ${BINPATH}paperpi"
+    rm ${BINPATH}paperpi
   fi
 }
 
