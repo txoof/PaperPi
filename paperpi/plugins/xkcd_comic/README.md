@@ -1,5 +1,5 @@
 # xkcd_comic
-![sample image for plugin paperpi.plugins.xkcd_comic](./xkcd_comic.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.xkcd_comic](./xkcd_comic.layout-sample.png) 
 
 ```
  

@@ -1,5 +1,5 @@
 # moon_phase
-![sample image for plugin paperpi.plugins.moon_phase](./moon_phase.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.moon_phase](./moon_phase.layout-sample.png) 
 
 ```
  

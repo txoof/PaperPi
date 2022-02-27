@@ -1,0 +1,3 @@
+cairocffi
+cffi
+CairoSVG

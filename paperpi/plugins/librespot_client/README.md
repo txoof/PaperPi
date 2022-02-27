@@ -1,5 +1,5 @@
 # librespot_client
-![sample image for plugin paperpi.plugins.librespot_client](./librespot_client.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.librespot_client](./librespot_client.layout-sample.png) 
 
 ```
  

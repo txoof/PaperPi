@@ -1,5 +1,5 @@
 # word_clock
-![sample image for plugin paperpi.plugins.word_clock](./word_clock.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.word_clock](./word_clock.layout-sample.png) 
 
 ```
  

@@ -1,0 +1,3 @@
+dictor
+pytz
+requests

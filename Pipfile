@@ -6,13 +6,29 @@ name = "pypi"
 [packages]
 ipykernel = "*"
 epdlib = "*"
-argconfigparse = "*"
-dictor = "*"
-
-[dev-packages]
+pipreqs = "*"
+ArgConfigParse = "*"
 
 [requires]
 python_version = "3"
 
 [packages.it8951]
 git = "https://github.com/GregDMeyer/IT8951.git"
+
+[dev-packages]
+dictor = "*"
+requests = "*"
+epdlib = "*"
+pytz = "*"
+feedparser = "*"
+python-dateutil = "*"
+currency-symbols = "*"
+pycoingecko = "*"
+pygal = "*"
+qrcode = "*"
+cairocffi = "*"
+pycairo = "*"
+cffi = "*"
+QueryLMS = "*"
+Pillow = "*"
+CairoSVG = "*"

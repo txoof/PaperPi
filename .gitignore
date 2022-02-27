@@ -9,4 +9,5 @@ tmp/*
 *.ignore
 *.tgz
 *.spec
+.vscode*
 version.txt
