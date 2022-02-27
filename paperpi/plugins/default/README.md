@@ -1,5 +1,5 @@
 # default
-![sample image for plugin paperpi.plugins.default](./default.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.default](./default.layout-sample.png) 
 
 ```
  

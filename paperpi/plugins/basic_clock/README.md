@@ -1,5 +1,5 @@
 # basic_clock
-![sample image for plugin paperpi.plugins.basic_clock](./basic_clock.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.basic_clock](./basic_clock.layout-sample.png) 
 
 ```
  

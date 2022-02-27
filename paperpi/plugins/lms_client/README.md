@@ -1,5 +1,5 @@
 # lms_client
-![sample image for plugin paperpi.plugins.lms_client](./lms_client.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.lms_client](./lms_client.layout-sample.png) 
 
 ```
  

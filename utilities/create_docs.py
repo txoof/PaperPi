@@ -14,6 +14,28 @@ sys.path.append('../')
 
 
 
+def get_base_prefix_compat():
+    """Get base/real prefix, or sys.prefix if there is none."""
+    return getattr(sys, "base_prefix", None) or getattr(sys, "real_prefix", None) or sys.prefix
+
+def in_virtualenv():
+    return get_base_prefix_compat() != sys.prefix
+
+
+
+
+
+
+if not in_virtualenv():
+    print('This script must be run from within the local virtual environment')
+    print(f'try:\npipenv run python3 {sys.argv[0]}')
+    sys.exit()
+
+
+
+
+
+
 from paperpi.library import Plugin, CacheFiles, get_help
 from importlib import import_module
 from pathlib import Path
@@ -129,43 +151,42 @@ def setup_plugins(project_root, plugin_list=None, resolution=(640, 400), skip_la
         
         # setup plugin
         if skip_layouts:
-            print('skipping creating full layouts and creating images due to command line switch (-s)')
-        for name, layout in all_layouts.items():
-            print(f'adding layout: {name}')
-            layout = font_path(layout)
-            if not skip_layouts:
-                my_plugin = Plugin(resolution=resolution,
-                                   cache=cache,
-                                   layout=layout,
-                                   update_function=module.update_function,
-                                   config=config
-                                  )
-                my_plugin.refresh_rate = 1
+            plugin_dict[plugin].append({'plugin': plugin,
+                                        'module': module,
+                                        'plugin_obj': None,
+                                        'doc_path': plugin_path/plugin,
+                                        'layout': None })
+            continue
+        else:
+            for name, layout in all_layouts.items():
+                print(f'adding layout: {name}')
+                layout = font_path(layout)
+                if not skip_layouts:
+                    my_plugin = Plugin(resolution=resolution,
+                                       cache=cache,
+                                       layout=layout,
+                                       update_function=module.update_function,
+                                       config=config
+                                      )
+                    my_plugin.refresh_rate = 1
 
-                try:
-                    if 'kwargs' in config:
-                        my_plugin.update(**config['kwargs'])
+                    try:
+                        if 'kwargs' in config:
+                            my_plugin.update(**config['kwargs'])
 
-                    else:
-                        my_plugin.update()
-                except Exception as e:
-                    print(f'plugin "{plugin}" could not be configured due to errors: {e}')
-            else:
-                my_plugin = None
-            plugin_dict[plugin].append({
-                                   'plugin': plugin,
-                                   'module': module, 
-                                   'plugin_obj': my_plugin, 
-                                   'doc_path': plugin_path/plugin,
-                                   'layout': name})
+                        else:
+                            my_plugin.update()
+                    except Exception as e:
+                        print(f'plugin "{plugin}" could not be configured due to errors: {e}')
+                else:
+                    my_plugin = None
+                plugin_dict[plugin].append({
+                                       'plugin': plugin,
+                                       'module': module, 
+                                       'plugin_obj': my_plugin, 
+                                       'doc_path': plugin_path/plugin,
+                                       'layout': name})
     return plugin_dict
-
-
-
-
-
-
-# pd = setup_plugins('../paperpi')
 
 
 
@@ -180,19 +201,23 @@ def update_ini_file(plugin_dict):
     output_ini_file = '../paperpi/config/paperpi.ini'
     
     config_sections = []
+    skipped_sections = []
     
     print(f'updating {output_ini_file} using sample configs from plugins')
     
-    for plugin, data in plugin_dict.items():
+    
+    for plugin, data, in plugin_dict.items():
         try:
             sample_config = data[0]['module'].constants.sample_config
         except (IndexError, AttributeError):
-            logger.info(f'no valid data for plugin {plugin}')
+            logger.info(f'no valid module data for plugin {plugin}; add {plugin}/constants.sample_config')
+            skipped_sections.append(plugin)
             continue
-            
+                        
         # check that it matches the format
         match = re.match('^\s{0,}\[Plugin', sample_config)
         try:
+            # set the plugin to be disabled by default
             if match.string:
                 sample_config = re.sub('^\s{0,}\[Plugin', '[xPlugin', sample_config)
             else:
@@ -212,9 +237,14 @@ def update_ini_file(plugin_dict):
     
     output_ini_list.extend(config_sections)
     
+    print(f'writing updated .ini file to {output_ini_file}')
     with open(output_ini_file, 'w') as out_f:
         for i in output_ini_list:
             out_f.write(i)
+            
+    if len(skipped_sections) > 0:
+        print('\nThese plugins did not have valid sample configurations:')
+        print(skipped_sections)
 
 
 
@@ -263,7 +293,7 @@ def create_readme(plugin_dict, project_root, overwrite_images=False):
             try:
                 image = layout['plugin_obj'].image
             except AttributeError:
-                print('  no image available, skipping this layout')
+                print('   - no image available, skipping this layout')
                 continue
                 
             if (image_path.exists() and overwrite_images) or not image_path.exists():
@@ -307,13 +337,6 @@ def create_readme(plugin_dict, project_root, overwrite_images=False):
 
 
 
-# plugin_d = create_readme(pd, '../paperpi/', False)
-
-
-
-
-
-
 def update_plugin_docs(plugin_docs, doc_path):
     '''update Plugin.md documentation with snips from all plugin READMEs
     
@@ -335,8 +358,8 @@ def update_plugin_docs(plugin_docs, doc_path):
     with open(plugin_readme_final, 'w') as file:
         file.write(source)
         for plugin, values in plugin_docs.items():
-            file.write(f'### [{plugin}]({Path("..")/values["readme"]})\n')
-            file.write(f'![{plugin} sample Image]({Path("..")/values["image"]})\n\n')
+            file.write(f'### [{plugin}]({values["readme"]})\n')
+            file.write(f'![{plugin} sample Image]({values["image"]})\n\n')
             
         file.write(post)        
 
@@ -345,14 +368,10 @@ def update_plugin_docs(plugin_docs, doc_path):
 
 
 
-# update_plugin_docs(plugin_d, '../documentation')
-
-
-
-
-
-
 def main():
+    
+
+        
     parser = argparse.ArgumentParser(description='create_docs')
  
     parser.add_argument('-o', '--overwrite_images', default=False, action='store_true',
@@ -367,22 +386,34 @@ def main():
     parser.add_argument('-d', '--documentation_path', default='../documentation',
                        help='path to documentation directory')
     
+    parser.add_argument('--log_level', default='INFO', help='set logging output level')
+    
+#     parser.add_argument('-s' '--skip_layouts', default=False, action='store_true',
+#                         help='skip creating layouts for each plugin')
+    
 # this breaks README creation
-#     parser.add_argument('-s', '--skip_layouts', default=False, action='store_true',
-#                         help='skip loading layouts and do not create images')
+    parser.add_argument('-s', '--skip_layouts', default=False, action='store_true',
+                        help='skip loading layouts and do not create images')
     
     
     args = parser.parse_args()
     
-#     args = parser.parse_known_args()
-    plugin_dict = setup_plugins(args.project_root, args.plugin_list)
-    plugin_docs = create_readme(plugin_dict, 
-                                project_root=args.project_root,
-                                overwrite_images=args.overwrite_images,
-                                )
-    update_ini_file(plugin_dict)
-    update_plugin_docs(plugin_docs, doc_path=args.documentation_path)
+    logger.root.setLevel(args.log_level)
     
+#     args = parser.parse_known_args()
+    plugin_dict = setup_plugins(args.project_root, args.plugin_list, skip_layouts=args.skip_layouts)
+    
+    if args.skip_layouts:
+        print('Documentation will not be updated due to option "--skip_layouts"')
+        update_ini_file(plugin_dict)        
+    else:
+        plugin_docs = create_readme(plugin_dict, 
+                                    project_root=args.project_root,
+                                    overwrite_images=args.overwrite_images,)
+    
+        update_plugin_docs(plugin_docs, doc_path=args.documentation_path)
+    
+    return plugin_dict
     
 
 

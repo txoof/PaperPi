@@ -1,5 +1,5 @@
 # dec_binary_clock
-![sample image for plugin paperpi.plugins.dec_binary_clock](./dec_binary_clock.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.dec_binary_clock](./dec_binary_clock.layout-sample.png) 
 
 ```
  

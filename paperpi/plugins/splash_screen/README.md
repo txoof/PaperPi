@@ -1,5 +1,5 @@
 # splash_screen
-![sample image for plugin paperpi.plugins.splash_screen](./splash_screen.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.splash_screen](./splash_screen.layout-sample.png) 
 
 ```
  
