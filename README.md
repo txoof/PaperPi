@@ -1,8 +1,18 @@
-# PaperPi
+# PaperPi V2
+
+## NOTE
+
+**This version of PaperPi is under heavy development and is not ready for the average user.** We are working on adding more screen compatibility, possibly adding color screen support for inkyPHAT and WaveShare 3 color screens. There are also plans to make plugins easier to install and update.
+
+See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, but reports, contributions, and testers are welcome.
+
+**The stable version of [PaperPi can be found here](https://github.com/txoof/epd_display).**
+
 
 |     |     |
 |:---:|:---:|
 |<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> Splash Screen| <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 /> PaperPi Weather Plugin|
+
 
 PaperPi is an e-Paper display with multiple rotating display plugins that contain dynamic content.
 
