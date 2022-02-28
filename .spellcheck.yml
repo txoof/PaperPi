@@ -3,9 +3,13 @@ matrix:
   aspell:
     lang: en
   dictionary:
+    wordlists:
+    - .wordlist.txt
     encoding: utf-8
   pipeline:
   - pyspelling.filters.markdown:
+      ignores:
+      - code
   - pyspelling.filters.html:
       comments: false
       ignores:
