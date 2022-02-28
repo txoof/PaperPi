@@ -255,4 +255,4 @@ Document updated 2022.02.17
 The official version can be found [here](https://github.com/txoof/epd_display).
 
 ## Helping Out
-If you're interested in helping out, check out the ![GitHub labels](https://img.shields.io/github/labels/txoof/PaperPi/help%20wanted) and ![GitHub labels](https://img.shields.io/github/labels/txoof/PaperPi/good%20first%20issue) labels in [issues](https://github.com/txoof/PaperPi/issues) and jump in. Collaborators are always welcome
+If you're interested in helping out, check out the [issues](https://github.com/txoof/PaperPi/issues) and jump in. Collaborators are always welcome
