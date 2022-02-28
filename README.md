@@ -1,6 +1,6 @@
 # PaperPi V2
 
-![Spellcheck](https://github.com/igsekor/pyspelling-any/workflows/Spellcheck/badge.svg) 
+[![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg?branch=main)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
 ## NOTE
 
