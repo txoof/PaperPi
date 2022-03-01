@@ -1,4 +1,4 @@
-# PaperPi V2
+# PaperPi V3
 [![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
 ## NOTE
