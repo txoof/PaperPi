@@ -111,7 +111,7 @@ Follow [HiFiBerry's excellent guide](https://www.hifiberry.com/docs/software/con
 ### librespot-java & SpoCon
 [librespot-java](https://github.com/librespot-org/librespot-java) is required for this plugin. The java implementation offers a local web interface that this plugin depends on for pulling now-playing information.
 
-[SpoCon](https://github.com/spocon/spocon) provides an easy-install Raspbian package for intalling librespot-java.
+[SpoCon](https://github.com/spocon/spocon) provides an easy-install Raspbian package for installing librespot-java.
 
 Once you've installed and configured your SpoCon service, you will need to set up the plugin in your `paperpi.ini` configuration.
 ```
@@ -122,7 +122,7 @@ refresh_rate = 10
 # 0 is a good choice for music service tracking to ensure the currently
 # playing music is displayed
 max_priority = 0
-# anything less than 15 seconeds is probably not useful
+# anything less than 15 seconds is probably not useful
 min_display_time = 15
 # name of librespot player
 player_name = SpoCon-Spotify
