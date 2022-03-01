@@ -43,7 +43,7 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 **V 0.3.0**
 
-* PaperPi is no longer distriburted as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an excutable entry script in `/usr/local/bin/`.
+* PaperPi is no longer distributed as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an executable entry script in `/usr/local/bin/`.
 * Plugins can now be edited easily in `/usr/local/paperpi/plugins/`
 * Additional plugins can be placed in `/usr/local/paperpi/plugins` without rebuilding
 
@@ -64,7 +64,7 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 * [HiFiBerry hat](https://www.hifiberry.com/shop/#boards) (*optional*)
   * The HiFiBerry DAC+ PRO and similar boards add high-quality audio output to the Pi so it can act as a display and also work as a LMS client player using squeezelite
   * GPIO 2x20 headers **must be added** to the HiFiBerry HAT to provide an interface for the WaveShare HAT.
-  * HiFiBerry's [DAC+ Bundle](https://www.hifiberry.com/shop/bundles/hifiberry-dac-bundle-4/) with the following configuraiton is a good choice:
+  * HiFiBerry's [DAC+ Bundle](https://www.hifiberry.com/shop/bundles/hifiberry-dac-bundle-4/) with the following configuration is a good choice:
     * DAC+ Pro
     * Acrylic Case for (RCA) AND DIGI+
     * Raspberry Pi 4B 2GB (1GB should be sufficient as well)
@@ -94,7 +94,7 @@ If you would rather install PaperPi yourself, [clone this repo](https://github.c
 
 **Daemon Mode**
 
-The installer should prompt you to edit `/etc/defaults/paperpi.ini`. At minium you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
+The installer should prompt you to edit `/etc/defaults/paperpi.ini`. At minimum you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
 
 Any changes to the PaperPi configuration require a restart of the service:
 
