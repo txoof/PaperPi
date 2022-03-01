@@ -2,7 +2,7 @@
 
 ## 0.3.0.0
 
-* Remove dependency on PyInstaller -- PaperPi is no longer distrubuted as a frozen PyInstaller
+* Remove dependency on PyInstaller -- PaperPi is no longer distributed as a frozen PyInstaller
 * Update installer and offer web-based install
 
 ## 0.2.14.5
@@ -23,7 +23,7 @@
 
 ## 0.2.14.1
 
-* Add reddit_quote pulgin
+* Add reddit_quote plugin
 
 ## 0.2.14.0
 
