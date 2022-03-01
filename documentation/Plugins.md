@@ -2,7 +2,7 @@
 
 All plugins are configured through the `paperpi.ini` files. For a single-user configuration the file is stored in `~/.config/com.txoof.paperpi/` for system-wide daemon configuration the file is stored in `/etc/defaults/`.
 
-## Plugins Currently Avialable
+## Plugins Currently Available
 
 ### [reddit_quote](../paperpi/plugins/reddit_quote/README.md)
 
@@ -89,7 +89,7 @@ max_priority = int
 min_display_time = int
 ```
 
-Plugins provide a sample configuration in their documentation. Use the following commands to find a list of plugins and view their sample configruations:
+Plugins provide a sample configuration in their documentation. Use the following commands to find a list of plugins and view their sample configurations:
 
 **List Available Plugins**
 
@@ -126,7 +126,7 @@ Paperpi can add the default plugin configuration to either the user or daemon co
 * screen layout that defines how to organize plugin graphical and text elements
 * use `--plugin_info plugin_name` to see available layouts
 * see the documentation for each plugin for a sample of all available layouts
-* some layouts may be more approrpriate for smaller screens
+* some layouts may be more appropriate for smaller screens
 
 **Refresh Rate**: `refresh_rate = integer in seconds`
 
@@ -141,17 +141,17 @@ Paperpi can add the default plugin configuration to either the user or daemon co
 * a clock plugin that displays when music players are idle should be set to 2
 * plugins with the lowest integer value will be displayed in the display loop
 * some plugins change their priority when events happen such as when an audio track changes, music is paused, or a device becomes idle
-* this value determines the maximum priority the plugin will use when it determines an important event has occured.
+* this value determines the maximum priority the plugin will use when it determines an important event has occurred.
 * recommended values can be found by using `--plugin_info plugin_name`
 
 **Minimum Display Time** `min_display_time = integer in seconds`
 
 * number of seconds plugin should stay on the screen before another plugin is cycled
-* recommended values can be found usign `--plugin_info plugin_name`
+* recommended values can be found using `--plugin_info plugin_name`
 
 ### Additional Configuration Elements
 
-Some plugins require additonal configuration such as API keys, location information or other configuration details. Use `--plugin_info plugin_name` to find a sample configuration. Check the plugin README for additional information.
+Some plugins require additional configuration such as API keys, location information or other configuration details. Use `--plugin_info plugin_name` to find a sample configuration. Check the plugin README for additional information.
 
 ## Writing Plugins
 
@@ -212,7 +212,7 @@ Plugins are written in python 3 and should follow the following guidelines to fu
 ```from .my_new_plugin_name import update_function```
 
 **constants.py**
-* `name = my_new_plugin` - plugin name that maches module directory name
+* `name = my_new_plugin` - plugin name that matches module directory name
 * `version = 'version'` - version information
 * sample configuration as docstring
 
@@ -239,7 +239,7 @@ The update_function is added to a `library.Plugin()` object as a method. The upd
 
 * `update_function` must accept `*args, **kwargs` even if they are not used
 * `update_function` must return a tuple of: (is_updated(bool), data(dict), priority(int))
-  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not opperating
+  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not operating
   * `data` is a dictionary that contains key/value pairs of either strings or an image (path to an image or PIL image object).
   * `priority` indicates your modules priority
     * The default should be to return `self.max_priority`; it is allowed to return a negative number if your plugin detects an important event.
@@ -291,6 +291,6 @@ config = {
 
 Once you've built an tested your plugin, you can add it to PaperPi by submitting a pull request. You should do the following to make sure your plugin is ready to go:
 
-* Test your plugin and make sure it doesn't crash when an internet connection is unavilable, or a bad data is returned
+* Test your plugin and make sure it doesn't crash when an internet connection is unavailable, or a bad data is returned
 * Run  `$ pipenv run python ./utilities/create_docs.py` script to make sure your README and sample images are built properly.
 * Submit a PR that includes your plugin
