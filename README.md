@@ -1,5 +1,5 @@
 # PaperPi V2
-[![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg?branch=add-spellchecking)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
+[![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
 ## NOTE
 
