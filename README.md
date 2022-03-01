@@ -1,6 +1,8 @@
 # PaperPi V2
 [![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg?branch=add-spellchecking)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
+Intentional tyop
+
 ## NOTE
 
 **This version of PaperPi is under heavy development and is not ready for the average user.** We are working on adding more screen compatibility, possibly adding color screen support for inkyPHAT and WaveShare 3 color screens. There are also plans to make plugins easier to install and update.
