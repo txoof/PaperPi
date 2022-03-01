@@ -87,7 +87,7 @@ layout: **my_layout_one**
 
 
 ## Additional Plugin Information
-Additional plugin information can be appended to the README by adding a file called `README_additional.md` in the root of the plugin directory. This will be directly append at the end of the README.md file.
+Additional plugin information can be appended to the README by adding a file called `README_additional.md` in the root of the plugin directory. This will be directly appended at the end of the README.md file.
 
 
 Included image was sourced from the [Wikimedia Project](https://commons.wikimedia.org/wiki/File:Acuminate_Leaf_\(PSF\).jpg)
