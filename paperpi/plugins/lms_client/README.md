@@ -145,7 +145,7 @@ Follow [HiFiBerry's excellent guide](https://www.hifiberry.com/docs/software/con
 
 If you intend to use other audio output software such as a Spotify Player (e.g. librespot), you may want to set SqueezeLite to close the output device when it is not playing. Adding `SB_EXTRA_ARGS="-C 10"` to `/etc/default/squeezelite/squeezelite` will close the audio device after 10 seconds freeing it for other applications.
 
-Once you've installed and configured your SqueezeLite player to locate your server and chceck the player name use:
+Once you've installed and configured your SqueezeLite player to locate your server and check the player name use:
 
 ```
 $ paperpi --run_plugin_func lms_client.scan_servers

@@ -56,9 +56,9 @@ Args:
 * [ ] Include a `__init__.py` -- see below
 * [ ] Plugin modules must contain at minimum one function called `update_function()`
 * [ ] Include a file called `debian_packages-myplugin.txt` with any debian packages your plugin relies on (optional) -- see below for an example
-* [ ] Include a file called `requirements-myplugin_hidden.txt` for any python dependencies that are not explictly imported (optional) -- see below for an example
+* [ ] Include a file called `requirements-myplugin_hidden.txt` for any python dependencies that are not explicitly imported (optional) -- see below for an example
 * [ ] Include a `constants.py` see below for specification
-* [ ] Plugin modules must at minimum contain a `layout.py` file that contains a layout file. See the specificaitons below.
+* [ ] Plugin modules must at minimum contain a `layout.py` file that contains a layout file. See the specifications below.
 * [ ] At minimum the `update_function` should contain a docstring that completely documents the plugin's use and behavior
   * See the example below
   * End all user-facing docstrings with `%U`; to ensure they are included in the auto-documenting build scripts
@@ -79,7 +79,7 @@ See the [`basic_clock` layout](../paperpi/plugins/basic_clock/layout.py) for a s
 
 **constants.py**
 The `constants.py` file must contain the following:
-* `name = my_new_plugin` - plugin name that maches module directory name
+* `name = my_new_plugin` - plugin name that matches module directory name
 * `version = 'version'` - version information
 * sample configuration as docstring. This will be added to the .ini file on demand by the user to assist in configuration.
 
@@ -129,7 +129,7 @@ The update_function is added to a `library.Plugin()` object as a method. The upd
 Checklist:
 - [ ] `update_function` must accept `*args, **kwargs` even if they are not used
 - [ ] `update_function` must return a tuple of: (is_updated(bool), data(dict), priority(int))
-  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not opperating
+  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not operating
   * `data` is a dictionary that contains key/value pairs of either strings or an image (path to an image or PIL image object).
   * `priority` indicates your modules priority
     * The default should be to return `self.max_priority`; it is allowed to return a negative number if your plugin detects an important event.
@@ -180,7 +180,7 @@ config = {
 
 Once you've built an tested your plugin, you can add it to PaperPi by submitting a pull request. You should do the following to make sure your plugin is ready to go:
 
-* Test your plugin and make sure it doesn't crash when an internet connection is unavilable, or a bad data is returned
+* Test your plugin and make sure it doesn't crash when an internet connection is unavailable, or a bad data is returned
 * Run `$pipenv run python ./utilities/find_imports.sh` to update all of the python module dependencies for your plugin
 * Run  `$ pipenv run python ./utilities/create_docs.py` script to make sure your README and sample images are built properly.
 * Submit a PR that includes your plugin 

@@ -32,17 +32,17 @@ See below for some tips for mounting a panel inside of a FrameLabs frame.
 |     |
 |:---:|
 |<img src=./images/frame_mounting_tape.jpg alt="Panel secured to matboard" width=600/> Panel secured to matboard|
-| Secure the e-paper panel to the matboard using packing tape or something similar. Secure the flexible PCB to the back of the panel using capton tape or something similar.|
+| Secure the e-paper panel to the matboard using packing tape or something similar. Secure the flexible PCB to the back of the panel using kapton tape or something similar.|
 
 |     |
 |:---:|
 |<img src=./images/frame_backing_board.jpg alt="Backing board" width=600/> Backing Board|
-| Cut the backing board as needed to accomodate the PLA mount. |
+| Cut the backing board as needed to accommodate the PLA mount. |
 
 |     |
 |:---:|
 |<img src=./images/frame_spacer_cutout.jpg alt="frame spacer" width=600/> Frame Spacer|
-| Some of the foam will need to be removed from the spacer to accomodate the PLA mount. Use a hobby knife to remove as much as needed. |
+| Some of the foam will need to be removed from the spacer to accommodate the PLA mount. Use a hobby knife to remove as much as needed. |
 
 Carefully clean the glass and assemble the frame using the included magnet tape as per the instructions provided by FrameLabs.
 
@@ -51,7 +51,7 @@ Carefully clean the glass and assemble the frame using the included magnet tape 
 ## Case
 [This laser cut case](https://github.com/txoof/pi4_case#readme) works with a Pi4 and a HiFi Berry DAC+ HAT. The opening in the front allows room for plugging in a 40 pin header cable.
 
-The included SVG file is made for 4mm multi-plex (plywood). If your plywood is thicker or thiner, a new SVG can be generated with OpenSCAD by adjusting the `material` value.
+The included SVG file is made for 4mm multi-plex (plywood). If your plywood is thicker or thinner, a new SVG can be generated with OpenSCAD by adjusting the `material` value.
 ![Laser Cut Case and Frame](https://github.com/txoof/pi4_case/raw/master/pi_4_back.jpg)
 
 <a name="Cable"></a>
@@ -71,7 +71,7 @@ The included JST to Dupont cable is quite short. Cables up to 40 cm have been te
    - *buy some extra, crimping is difficult*
 * 8x 1 meter 20-24 AWG wire
 * [Crimper](https://www.adafruit.com/product/350) 
-   - *buy a good set like these. The other, cheaper, "automatic" crmimpers have terrible dies and destroy crimp ends just to make you cry.*
+   - *buy a good set like these. The other, cheaper, "automatic" crimpers have terrible dies and destroy crimp ends just to make you cry.*
 * 1 meter [Braided Cable Sheath](https://www.google.com/search?q=pet+expandable+braided+sleeving&oq=pet+expandable+braided+sleeving&gs_lcp=Cgdnd3Mtd2l6EAEYADIFCAAQgAQyBQgAEIAEMgQIABAeMgYIABAFEB4yBggAEAUQHjIGCAAQBRAeMgYIABAFEB4yBggAEAUQHjIGCAAQBRAeMgYIABAFEB5KBAhBGABKBAhBGABQAFgAYN8saABwAHgAgAFAiAFAkgEBMZgBAMABAQ&sclient=gws-wiz) *(optional)*
 * Tape *(optional)*
 * Thin string *(optional)*
@@ -87,10 +87,10 @@ The included JST to Dupont cable is quite short. Cables up to 40 cm have been te
 
 1. Cut the wire to length. 
    - Hookup wires up to 40cm have been tested and work properly with both the HD and Non-HD panels.
-2. Cut the braided cable sheath to a length aproximately equal to your wires
-3. Cut two lengths of heat shrink tubing aproximately 2cm in length
+2. Cut the braided cable sheath to a length approximately equal to your wires
+3. Cut two lengths of heat shrink tubing approximately 2cm in length
 4. Push the two lengths heat shrink tubing onto the braided cable sheath 
-   - The heat shrink tube will help prevent the braid from coming appart as you work
+   - The heat shrink tube will help prevent the braid from coming apart as you work
 5. Bundle one end of the the wires together with a piece of masking tape. Add a piece of string to the bundle.
    - The string will assist in pulling the wire bundle through the 
 6. Push the coat hanger through the tubing and attach the string to the end
@@ -99,7 +99,7 @@ The included JST to Dupont cable is quite short. Cables up to 40 cm have been te
    - See this (excellent short video)[https://www.youtube.com/watch?v=XvdePo12vIM]
 9. Slide the JST and Molex connectors into the housings 
    - See the pinouts below for HD and Non HD panels
-0. Use scisors to trim excess braided sheath   
+0. Use scissors to trim excess braided sheath   
    - Make sure there is enough slack that the cable sheath does not pull too tightly on the wires and connectors
 1. Slide the heat shrink tube over the end of the sheath and shrink in place
 
