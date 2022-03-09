@@ -56,9 +56,9 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 * Raspberry Pi (Pi 4, Pi 3, and Pi Zero)
 * Raspberry Pi OS Buster or later (64-bit supported)
-* [WaveShare EPD SPI-only Screen](https://www.waveshare.com/product/displays/e-paper.htm) with PiHat
+* [WaveShare EPD Screen](https://www.waveshare.com/product/displays/e-paper.htm) with PiHat
   * see the full list of currently [supported screens](#supportedScreens)
-  * UART, SPI/USB/I80 screens are **not supported** as there is no python library for diving these boards
+  * Note: HDMI screens are not supported
 
 ### Optional Hardware
 
