@@ -153,6 +153,8 @@ Paperpi can add the default plugin configuration to either the user or daemon co
 
 Some plugins require additional configuration such as API keys, location information or other configuration details. Use `--plugin_info plugin_name` to find a sample configuration. Check the plugin README for additional information.
 
+
+
 ## Writing Plugins
 
 PaperPi is designed to support additional plugins written in Python 3. Any modules available through PyPi may be used.
@@ -160,6 +162,22 @@ PaperPi is designed to support additional plugins written in Python 3. Any modul
 When PaperPi starts, all plugins that are configured and active are added as `self.update_function` to a generic `Plugin` class. This happens automatically and is managed for you. The `Plugin` class offers several built-in functions and properties that plugins can take advantage of. See the "BUILTIN FUNCTIONS" section below.
 
 See the included [`demo_plugin`](../paperpi/plugins/demo_plugin) for a simple, well documented plugin that can be used as a template for building a plugin.
+
+### PLUGIN REQUIREMENTS
+
+Plugin must contain, at minimum, a `[plugin_name].py` file that contains an `update_function()`. Addtional files are also required for a complete plugin package. See the [Packaging Plugins](#packaging-plugins) section below.
+
+#### `update_function()`
+
+* Must return a 3-tuple of `(is_updated(bool), data(dict), priority(int))
+* Must accept args/kwargs
+* Must have a docstring that explains it's basic function and any information an end user may need to configure/setup the plugin. This docstring must end with exactly `%U` on the very last line. The docstring will be displayed when using the `--plugin_info` option.
+
+#### User-facing functions
+
+Plugins may contain user-facing functions that can be run from the command line using the `--run_plugin_func plugin_name.function`. For an example, see the `met_no.get_coord` user-facing function.
+
+User-facing functions should have a docstring that ends with `%U` on the very last line. The docstring should explain the function and it's usage. The docstring will be displayed when using the `--plugin_info plugin_name.function` option.
 
 ### BUILTIN FUNCTIONS AVAILABLE TO PLUGINS
 
@@ -186,7 +204,147 @@ All plugins have the following functions and properties available. Call the buil
 
 Plugins are written in python 3 and should follow the following guidelines to function properly:
 
+### PACKAGING PLUGINS
+
+Installable Plugins consist of a .tar.gz file that contains the basic structure below. Substitute your plugin name for `[plugin_name]` as appropriate All files/directories marked with a `^` are optional and not required.
+```
+[plugin_name]/
+├── __init__.py
+├── constants.py
+├── debian_packages-[plugin_name].txt^
+├── layout.py
+├── [plugin_name].py
+├── [plugin_name].layout-sample.png
+├── requirements-[plugin_name].txt^
+├── README.md
+├── README_additional.md^
+├── sample.py
+├── additional_content^/
+│   └── additional_content.foo^
+└── additional_files^/
+    └── additional_files.bar^
+```
+
+#### **--Required Files--**
+
+#### `__init__.py`
+
+Purpose: Allows PaperPi to properly import your `update_function()`
+
+Required contents:
+
+```from .[plugin_name] import update_function```
+
+#### `constants.py`
+
+Purpose: Any constants related to your plugin as well as the name, version number data set provided to layouts and a sample configuration.
+
+Required contents:
+
+* `version` version number of plugin
+* `data` contains a default data set this information is displayed when `--plugin_info` is called. These are all of the data keys your plugin provides that _can_ be used by layouts.
+* `sample_config` docstring that contains a sample, working configuration for your plugin. The `sample_config` string is added to the user or system config when `--add_config` is called.
+
+```
+version = '0.0.0'
+name = '[plugin_name]'
+data = { 'key0': default_value,
+         'key1': default_value,
+         'keyn': default_value
+       }
+sample_config = '''
+[Plugin: [Human Readable Name for plugin_name]]
+layout = layout
+plugin = plugin_name
+refresh_rate = 60
+min_display_time = 120
+max_priority = 2
+plugin_specific_kwarg0 = foo
+plugin_specific_kwarg1 = bar
+# add any notes or comments like this:
+# make sure you generate an API key by visiting spam.ham
+plugin_name_api_key = YOUR_API_KEY_HERE
+'''
+```
+
+#### layout.py
+
+Purpose: contains all possible layout supported by your plugin. See the [EPDLib Layout](https://github.com/txoof/epdlib#Layout) module for more information on crafting layouts.
+
+Required Contents:
+
+* `layout` default layout for your plugin. It is acceptable to use a variable assignment such as `layout = complex_name_for_layout`.
+```
+layout = { layout definition }
+```
+
+#### `[plugin_name].py`
+
+Purpose: entry point for your module. This file must contain the `update_function()` for your plugin. This file must have exactly same name as the plugin directory.
+
+Required Contents:
+```
+def update_function():
+  # do stuff
+  return (is_updated, data, priority)
+```
+
+#### `[plugin_name].png`
+
+Purpsose: Image used in README for your plugin. This is automatically generated by running `$ pipenv run python ./utilities/create_docs.py`. If you have multiple layouts, a sample png will be generated for each layout.
+
+
+### README.md
+
+Purpose: Automatically generated by the `create_docs.py` script. This includes the docstring from the `update_function()`, sample images for all of the possible layouts as well as any additional information that is appended from README_additional.py
+
+#### `sample.py`
+
+Purpose: Provides a sample configuration for the `create_docs.py` script. This provides a configuration that will allow plugin to be initiated, and sample images created for all possible plugins.
+
+**NB!** make sure you do not leave any sensitive API keys in this after you have generated your sample images with `create_docs.py`
+
+Required Contents:
+```
+config = {
+    # this must be a valid layout
+    'layout': 'layout',
+    'plugin_specific_kwarg_config_option': 'Spam, spam, spam and eggs',
+    'additional_config_option': 10 
+}
+```
+
+#### **--Optional Files--**
+
+#### `debian_packages-[plugin_name].txt` -- optional
+
+Purpose: Provides any additional Debian packages that must be installed for your plugin to function.
+
+Required Contents:
+```
+# this is a BASH array, not python! Follow the format shown here exactly!
+# Use only spaces, no commas, and surround all names with double quotes
+DEBPKG=( "deb-package-name0" "deb-package-name1" )
+```
+
+#### `requirements-[plugin_name].txt`
+
+Purpose: Provides any additional python modules that must be installed for your plugin to function. This can be generated by running the `./utilities/find_imports.sh` script.
+
+Required Contents:
+```
+foo-module1
+bar-module2
+py-module3
+```
+
+#### Additional Content
+
+Any additional support files or sub directories can be be placed in the root of your plugin directory.
+
+
 ### REQUIREMENTS CHECKLIST
+
 
 * [ ] Plugin modules are added to the `paperpi/plugins` directory
 * [ ] Plugin modules must be named with exactly the same name as their module directory:
@@ -206,86 +364,6 @@ Plugins are written in python 3 and should follow the following guidelines to fu
 * [ ] At minimum the `update_function` should contain a docstring that completely documents the plugin's use and behavior
   * See the example below
   * End all user-facing docstrings with `%U`; to ensure they are included in the auto-documenting build scripts
-
-****init**.py**
-
-```from .my_new_plugin_name import update_function```
-
-**constants.py**
-* `name = my_new_plugin` - plugin name that matches module directory name
-* `version = 'version'` - version information
-* sample configuration as docstring
-
-```
-sample_config = '''
-[Plugin: Human Readable Name for Plugin]
-layout = layout
-plugin = my_new_plugin
-refresh_rate = 60
-min_display_time = 60
-max_priority = 2
-additional_key = foo '''
-```
-
-**OPTIONAL**
-
-* Plugin modules may have user-facing helper functions that can help the user setup or configure the plugin
-  * User facing plugins should be documented using a docstring that contains the `%U` as the last character
-  * See the `lms_client` plugin and the `met_no` plugins for examples
-
-**update_function() specifications**
-
-The update_function is added to a `library.Plugin()` object as a method. The update_function will have access to the `self` namespace of the Plugin object including the `max_priority` and `cache`. The `Plugin()` API is well documented.
-
-* `update_function` must accept `*args, **kwargs` even if they are not used
-* `update_function` must return a tuple of: (is_updated(bool), data(dict), priority(int))
-  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not operating
-  * `data` is a dictionary that contains key/value pairs of either strings or an image (path to an image or PIL image object).
-  * `priority` indicates your modules priority
-    * The default should be to return `self.max_priority`; it is allowed to return a negative number if your plugin detects an important event.
-    * If the module is in a passive state (e.g. there is no interesting data to show) set `priority` to `2**15` to ensure it is not included in the display loop
-* Required docstring:
-
-    ```
-    '''
-    update function for my_plugin_name provides foo information
-    
-    # longer description of what this plugin does
-    This plugin provides...
-    
-    # required configuration elements that must be passed to this plugin
-    Requirements:
-        self.config(dict): {
-            key1: value1
-            key2: value2
-        }
-        self.cache(CacheFiles object): location to store downloaded images
-    
-    # arguments the update_function accepts
-    Args:
-       self(namespace): namespace from plugin object
-     
-    # return values
-    Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))
-    # marker '%U' that indicates this is a user-facing function that should be included when producing 
-    # documentation
-    %U'''
-    ```
-
-**`sample.py` specifications**
-
-To provide a sample image and automatically create documentation provide a `sample.py` file with your module with the following information:
-
-```
-config = {
-    # this is required
-    'layout': 'layout_name_to_use_for_sample_img',
-    # optional below this point
-    'config_option': 'value',
-    'config_option2': 12345
-}
-```
 
 ## Adding Plugins to PaperPi
 
