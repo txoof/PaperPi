@@ -225,7 +225,7 @@ Installable Plugins consist of a .tar.gz file that contains the basic structure 
     └── additional_files.bar^
 ```
 
-#### **--Required Files--**
+#### **--REQUIRED FILES--**
 
 #### `__init__.py`
 
@@ -267,7 +267,7 @@ plugin_name_api_key = YOUR_API_KEY_HERE
 '''
 ```
 
-#### layout.py
+#### `layout.py`
 
 Purpose: contains all possible layout supported by your plugin. See the [EPDLib Layout](https://github.com/txoof/epdlib#Layout) module for more information on crafting layouts.
 
@@ -314,7 +314,7 @@ config = {
 }
 ```
 
-#### **--Optional Files--**
+#### **--OPTIONAL FILES--**
 
 #### `debian_packages-[plugin_name].txt` -- optional
 
@@ -326,6 +326,10 @@ Required Contents:
 # Use only spaces, no commas, and surround all names with double quotes
 DEBPKG=( "deb-package-name0" "deb-package-name1" )
 ```
+
+#### `README_additional.md`
+
+Purpose: Provides additional information about the plugin that is not covered in the docstring provided by `update_function()`. This is automatically appended to the README.md by the `create_docs.py` script. The [LMS-Client](../paperpi/plugins/lms_client/) has an example a `README_additional.md` file. 
 
 #### `requirements-[plugin_name].txt`
 
@@ -342,33 +346,6 @@ py-module3
 
 Any additional support files or sub directories can be be placed in the root of your plugin directory.
 
-
-### REQUIREMENTS CHECKLIST
-
-
-* [ ] Plugin modules are added to the `paperpi/plugins` directory
-* [ ] Plugin modules must be named with exactly the same name as their module directory:
-  * `plugins/my_new_plugin/my_new_plugin.py
-* [ ] Include a `__init__.py` -- see below
-* [ ] Plugin modules must contain at minimum one function called `update_function()`
-* [ ] Plugin modules will receive any configuration options specified in it's configuration section in the  `paperpi.ini` file at startup
-  * Any values your plugin requires such as API keys, email addresses, URLs can be accessed from the `self.config` property
-* [ ] Include a `constants.py` see below for specification
-* [ ] Plugin modules must at minimum contain a `layout.py` file that contains a layout file.
-  * The default layout should be named `layout`
-    * it is acceptable to set `layout = my_complex_name` for the default playout
-  * See the [epdlib Layout module](https://github.com/txoof/epdlib#layout-module) for more information on creating layouts
-  * See the [`basic_clock` layout](../paperpi/plugins/basic_clock/layout.py) for a simple layout template
-  * Layouts that require fonts should use paths in the following format: `'font': dir_path+'/../../fonts/<FONT NAME>/<FONT FILE>`
-    * Add additional publicly available fonts to the `fonts` directory (<https://fonts.google.com/> is a good source)
-* [ ] At minimum the `update_function` should contain a docstring that completely documents the plugin's use and behavior
-  * See the example below
-  * End all user-facing docstrings with `%U`; to ensure they are included in the auto-documenting build scripts
-
 ## Adding Plugins to PaperPi
 
-Once you've built an tested your plugin, you can add it to PaperPi by submitting a pull request. You should do the following to make sure your plugin is ready to go:
-
-* Test your plugin and make sure it doesn't crash when an internet connection is unavailable, or a bad data is returned
-* Run  `$ pipenv run python ./utilities/create_docs.py` script to make sure your README and sample images are built properly.
-* Submit a PR that includes your plugin
+UNDER REVIEW
