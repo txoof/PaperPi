@@ -6,8 +6,8 @@
 **Possible Solution:** 
 
 - Use JST connector instead of plugging the waveshare HAT directly into the raspberry pi (see table below)
-    - try switching to the wire JST connector and plug the black dupont connectors directly into the GPIO headers of the PI (see table below)
-    - See [pinout.xyz](https://pinout.xyz) for help locating the proper GPIO pins
+  - try switching to the wire JST connector and plug the black dupont connectors directly into the GPIO headers of the PI (see table below)
+  - See [pinout.xyz](https://pinout.xyz) for help locating the proper GPIO pins
 
 #### JST Connector Pinout
 
@@ -21,6 +21,3 @@
 | DC          | GPOIO 25(BCM)     | 22                  |
 | RST         | GPIO 17(BCM)      | 11                  |
 | BUSY        | GPIO 24(BCM)      | 18                  |
-
-
-

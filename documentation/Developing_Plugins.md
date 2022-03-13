@@ -4,9 +4,9 @@ PaperPi is designed to support additional plugins written in Python 3. Any modul
 
 ## How it works
 
-When PaperPi starts, all plugins that are configured by the user  added as `update_function` to a generic `Plugin` class. This happens automatically and is managed for you.
+When PaperPi starts, all plugins that are configured by the user added as `update_function` to a generic `Plugin` class. This happens automatically and is managed by the application.
 
-The `Plugin` class offers several built-in functions and properties that plugins can take advantage of. See the "BUILTIN PROPERTIES" section below.
+The `Plugin` class offers several built-in functions and properties that plugins can take advantage of. See the [BUILTIN PROPERTIES](#builtin-properties-available-to-plugins) section below.
 
 See the included [`demo_plugin`](../paperpi/plugins/demo_plugin) for a simple, well documented plugin that can be used as a template for building a plugin.
 
@@ -20,101 +20,57 @@ See the included [`demo_plugin`](../paperpi/plugins/demo_plugin) for a simple, w
 5. Add any python modules your plugin requires using `pipenv install --dev ModuleName`
     - this will help keep your additional modules separate from the PaperPi core modules
 
+## BUILTIN PROPERTIES AVAILABLE TO PLUGINS
 
-### BUILTIN PROPERTIES AVAILABLE TO PLUGINS
+### **Plugin Class Methods and Properties**
 
 All plugins have the following functions and properties available. Call the builtin functions by using `self.[method/property]`.
 
-**Plugin Class Methods and Properties**
+- resolution(`tuple` of `int`): resolution of the epd or similar screen: (Length, Width)
+- name(`str`): human readable name of the function for logging and reference
+- layout(`dict`): epdlib.Layout.layout dictionary that describes screen layout
+- max_priority(`int`): maximum priority for this module values approaching 0 have highest priority, values < 0 are inactive
+- refresh_rate(`int`): minimum time in seconds between requests for pulling an update
+- min_display_time(`int`): minimum time in seconds plugin should be allowed to display in the loop
+- config(`dict`): any kwargs in the plugin configuration from `paperpi.ini` that are not addressed here
+  - Any values your plugin requires such as API keys, email addresses, URLs can be accessed from the `self.config` property
+- cache(`CacheFiles` obj): object that can be used for downloading remote files and caching.
 
-* resolution(`tuple` of `int`): resolution of the epd or similar screen: (Length, Width)
-* name(`str`): human readable name of the function for logging and reference
-* layout(`dict`): epdlib.Layout.layout dictionary that describes screen layout
-* max_priority(`int`): maximum priority for this module values approaching 0 have highest priority, values < 0 are inactive
-* refresh_rate(`int`): minimum time in seconds between requests for pulling an update
-* min_display_time(`int`): minimum time in seconds plugin should be allowed to display in the loop
-* config(`dict`): any kwargs in the plugin configuration from `paperpi.ini` that are not addressed here
-  * Any values your plugin requires such as API keys, email addresses, URLs can be accessed from the `self.config` property
-* cache(`CacheFiles` obj): object that can be used for downloading remote files and caching.
+### **CacheFiles Class Methods and Properties**
 
-**CacheFiles Class Methods and Properties**
+Each plugin has access to the cache for the application. This cache is **not secure**. All plugins can access the same cache. **Do not store secrets here**. It is good practice to store plugin data in a subdirectory or prepend the cahced file with the plugin name to prevent other plugins from clobbering downloaded data.
+
 `cache_file(url, file_id, force=False)` download a remote file and return the local path to the file if a local file with the same name is found, download is skipped and path returned
 
 Args:
-* url(`str`): url to remote file
-* file_id(`str`): name to use for local file
-* force(`bool`): force a download ignoring local files with the same name
+
+- url(`str`): url to remote file
+- file_id(`str`): name to use for local file
+- force(`bool`): force a download ignoring local files with the same name
 
 `cleanup()` recursively remove all cached files and cache path (this is typically only used when shutting down the application)
 
-`cache_path: pathlib.PosixPath - top-level path to cache
+`cache_path`: pathlib.PosixPath - top-level path to cache
 
-### REQUIREMENTS CHECKLIST
+### PLUGIN REQUIREMENTS
 
-* [ ] Plugin modules are added to the `paperpi/plugins` directory
-* [ ] Plugin modules must be named with exactly the same name as their module directory: `plugins/my_new_plugin/my_new_plugin.py`
-* [ ] Include a `__init__.py` -- see below
-* [ ] Plugin modules must contain at minimum one function called `update_function()`
-* [ ] Include a file called `debian_packages-myplugin.txt` with any debian packages your plugin relies on (optional) -- see below for an example
-* [ ] Include a file called `requirements-myplugin_hidden.txt` for any python dependencies that are not explicitly imported (optional) -- see below for an example
-* [ ] Include a `constants.py` see below for specification
-* [ ] Plugin modules must at minimum contain a `layout.py` file that contains a layout file. See the specifications below.
-* [ ] At minimum the `update_function` should contain a docstring that completely documents the plugin's use and behavior
-  * See the example below
-  * End all user-facing docstrings with `%U`; to ensure they are included in the auto-documenting build scripts
+Plugin must contain, at minimum, a `[plugin_name].py` file that contains an `update_function()`. Addtional files are also required for a complete plugin package. See the [Packaging Plugins](#packaging-plugins) section below.
 
-**layout.py**
-Within the `layout.py` file, the default layout should be named `layout`. It is acceptable to use a complex name and set:
+**`update_function`**
 
-    `layout = my_complex_name`
-Layouts that require fonts should use paths in the following format: `'font': dir_path+'/../../fonts/<FONT NAME>/<FONT FILE>` Add additional publicly available fonts to the `fonts` directory (<https://fonts.google.com/> is a good source)
+- Must return a 3-tuple of `(is_updated(bool), data(dict), priority(int))
+- Must accept args/kwargs
+- Must have a docstring that explains it's basic function and any information an end user may need to configure/setup the plugin. This docstring must end with exactly `%U` on the very last line. The docstring will be displayed when using the `--plugin_info` option.
 
-See the [epdlib Layout module](https://github.com/txoof/epdlib#layout-module) for more information on creating layouts
+**User-facing functions**
 
-See the [`basic_clock` layout](../paperpi/plugins/basic_clock/layout.py) for a simple layout template
+Plugins may contain user-facing functions that can be run from the command line using the `--run_plugin_func plugin_name.function`. For an example, see the `met_no.get_coord` user-facing function.
 
-**\_\_init\_\_.py**
-
-```from .my_new_plugin_name import update_function```
-
-**constants.py**
-The `constants.py` file must contain the following:
-* `name = my_new_plugin` - plugin name that matches module directory name
-* `version = 'version'` - version information
-* sample configuration as docstring. This will be added to the .ini file on demand by the user to assist in configuration.
-
-```
-sample_config = '''
-[Plugin: Human Readable Name for Plugin]
-layout = layout
-plugin = my_new_plugin
-refresh_rate = 60
-min_display_time = 60
-max_priority = 2
-additional_key = foo '''
-```
-
-
-**debian_packages-myplugin.txt**
-If your plugin depends on any external debian packages they must be included in a `debian_packages-myplugin.txt` file where "myplugin" is the name of your plugin. Provide any additional debian packages as a bash array named `DEBPKG`. Bash arrays do not use commas to separate elements:
-
-`DEBPKG=( "libfoo-dev" "formatter-FooBar" )`
-
-**requirements-myplugin_hidden.txt**
-
-If your plugin fails to install correctly due to hidden imports that are not correctly detected, they can be added using a flat file that lists one module per line. Use the name from PyPi.
-```
-cairocffi
-cffi
-CairoSVG
-```
-
-**OPTIONAL**
-
-Plugin modules may have user-facing helper functions that can help the user setup or configure the plugin. User facing plugins should be documented using a docstring that contains the `%U` as the last character. See the `lms_client` plugin for an example that helps locate Logitech Media Servers on the local network. The `met_no` plugins for examples provides a function for finding the LAT/LON of a city or location. 
+User-facing functions should have a docstring that ends with `%U` on the very last line. The docstring should explain the function and it's usage. The docstring will be displayed when using the `--plugin_info plugin_name.function` option.
 
 Example:
-```
+
+```python
 def say_hello(name):
     '''
     This fuction says "hello" to the user when called.
@@ -122,65 +78,178 @@ def say_hello(name):
     print(f'hello {name}')
 ```
 
-**update_function() specifications**
+### BUILTIN FUNCTIONS AVAILABLE TO PLUGINS
 
-The update_function is added to a `library.Plugin()` object as a method. The update_function will have access to the `self` namespace of the Plugin object including the `max_priority` and `cache`. The `Plugin()` API is internally documented.
+All plugins have the following functions and properties available. Call the builtin functions by using `self.[method/property]`.
 
-Checklist:
-- [ ] `update_function` must accept `*args, **kwargs` even if they are not used
-- [ ] `update_function` must return a tuple of: (is_updated(bool), data(dict), priority(int))
-  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not operating
-  * `data` is a dictionary that contains key/value pairs of either strings or an image (path to an image or PIL image object).
-  * `priority` indicates your modules priority
-    * The default should be to return `self.max_priority`; it is allowed to return a negative number if your plugin detects an important event.
-    * If the module is in a passive state (e.g. there is no interesting data to show) set `priority` to `2**15` to ensure it is not included in the display loop
-- [ ] Returns a 3 tuple of `(is_updated(bool), data(dict), priority(int))`
-- [ ] Required docstring:
-    ```
-    '''
-    update function for my_plugin_name provides foo information
-    
-    This plugin provides...functionality
-    
-    # required configuration elements that must be passed to this plugin
-    Requirements:
-        self.config(dict): {
-            key1: value1
-            key2: value2
-        }
-        self.cache(CacheFiles object): location to store downloaded images
-    
-    # arguments the update_function accepts
-    Args:
-       self(namespace): namespace from plugin object
-     
-    # return values
-    Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))
-    # marker '%U' that indicates this is a user-facing function that should be included when producing 
-    # documentation
-    %U'''
-    ```
+#### **Plugin Class Methods and Properties**
 
-**sample.py**
+- resolution(`tuple` of `int`): resolution of the epd or similar screen: (Length, Width)
+- name(`str`): human readable name of the function for logging and reference
+- layout(`dict`): epdlib.Layout.layout dictionary that describes screen layout
+- max_priority(`int`): maximum priority for this module values approaching 0 have highest priority, values < 0 are inactive
+- refresh_rate(`int`): minimum time in seconds between requests for pulling an update
+- min_display_time(`int`): minimum time in seconds plugin should be allowed to display in the loop
+- config(`dict`): any kwargs in the plugin configuration from `paperpi.ini`
+- cache(`CacheFiles` obj): object that can be used for downloading remote files and caching
+  - `cache_file(self, url, file_id, force=False)` download a remote file and return the local path to the file if a local file with the same name is found, download is skipped and path returned
+    - Args:
+      - url(`str`): url to remote file
+      - file_id(`str`): name to use for local file
+      - force(`bool`): force a download ignoring local files with the same name
+  - `cleanup(self)` recursively remove all cached files and cache path (this is typically only used when shutting down the application)
+    - Properties:
+      - cache_path(`pathlib.PosixPath`): top-level path to cache files
 
-To provide a sample image and automatically create documentation provide a `sample.py` file. When documentation is automatically generated, a sample image will be produced using each available layout. 
+Plugins are written in python 3 and should follow the following guidelines to function properly:
 
+### PACKAGING PLUGINS
+
+Installable Plugins consist of a .tar.gz file that contains the basic structure below. Substitute your plugin name for `[plugin_name]` as appropriate All files/directories marked with a `^` are optional and not required.
+
+```text
+[plugin_name]/
+├── __init__.py
+├── constants.py
+├── debian_packages-[plugin_name].txt^
+├── layout.py
+├── [plugin_name].py
+├── [plugin_name].layout-sample.png
+├── requirements-[plugin_name].txt^
+├── README.md
+├── README_additional.md^
+├── sample.py
+├── additional_content^/
+│   └── additional_content.foo^
+└── additional_files^/
+    └── additional_files.bar^
 ```
+
+#### **--REQUIRED FILES--**
+
+#### `__init__.py`
+
+Purpose: Allows PaperPi to properly import your `update_function()`
+
+Required contents:
+
+```from .[plugin_name] import update_function```
+
+#### `constants.py`
+
+Purpose: Any constants related to your plugin as well as the name, version number data set provided to layouts and a sample configuration.
+
+Required contents:
+
+- `version` version number of plugin
+- `data` contains a default data set this information is displayed when `--plugin_info` is called. These are all of the data keys your plugin provides that _can_ be used by layouts.
+- `sample_config` docstring that contains a sample, working configuration for your plugin. The `sample_config` string is added to the user or system config when `--add_config` is called.
+
+```python
+version = '0.0.0'
+name = '[plugin_name]'
+data = { 'key0': default_value,
+         'key1': default_value,
+         'keyn': default_value
+       }
+sample_config = '''
+[Plugin: [Human Readable Name for plugin_name]]
+layout = layout
+plugin = plugin_name
+refresh_rate = 60
+min_display_time = 120
+max_priority = 2
+plugin_specific_kwarg0 = foo
+plugin_specific_kwarg1 = bar
+# add any notes or comments like this:
+# make sure you generate an API key by visiting spam.ham
+plugin_name_api_key = YOUR_API_KEY_HERE
+'''
+```
+
+#### `layout.py`
+
+Purpose: contains all possible layout supported by your plugin. See the [EPDLib Layout](https://github.com/txoof/epdlib#Layout) module for more information on crafting layouts.
+
+Required Contents:
+
+- `layout` default layout for your plugin. It is acceptable to use a variable assignment such as `layout = complex_name_for_layout`.
+
+```python
+layout = { layout definition }
+```
+
+#### `[plugin_name].py`
+
+Purpose: entry point for your module. This file must contain the `update_function()` for your plugin. This file must have exactly same name as the plugin directory.
+
+Required Contents:
+
+```python
+def update_function():
+  # do stuff
+  return (is_updated, data, priority)
+```
+
+#### `[plugin_name].png`
+
+Purpsose: Image used in README for your plugin. This is automatically generated by running `$ pipenv run python ./utilities/create_docs.py`. If you have multiple layouts, a sample png will be generated for each layout.
+
+### README.md
+
+Purpose: Automatically generated by the `create_docs.py` script. This includes the docstring from the `update_function()`, sample images for all of the possible layouts as well as any additional information that is appended from README_additional.py
+
+#### `sample.py`
+
+Purpose: Provides a sample configuration for the `create_docs.py` script. This provides a configuration that will allow plugin to be initiated, and sample images created for all possible plugins.
+
+**NB!** make sure you do not leave any sensitive API keys in this after you have generated your sample images with `create_docs.py`
+
+Required Contents:
+
+```python
 config = {
-    # this is required
-    'layout': 'layout_name_to_use_for_sample_img',
-    # optional below this point
-    'config_option': 'value',
-    'config_option2': 12345
+    # this must be a valid layout
+    'layout': 'layout',
+    'plugin_specific_kwarg_config_option': 'Spam, spam, spam and eggs',
+    'additional_config_option': 10 
 }
 ```
 
+#### **--OPTIONAL FILES--**
+
+#### `debian_packages-[plugin_name].txt` -- optional
+
+Purpose: Provides any additional Debian packages that must be installed for your plugin to function.
+
+Required Contents:
+
+```bash
+# this is a BASH array, not python! Follow the format shown here exactly!
+# Use only spaces, no commas, and surround all names with double quotes
+DEBPKG=( "deb-package-name0" "deb-package-name1" )
+```
+
+#### `README_additional.md`
+
+Purpose: Provides additional information about the plugin that is not covered in the docstring provided by `update_function()`. This is automatically appended to the README.md by the `create_docs.py` script. The [LMS-Client](../paperpi/plugins/lms_client/) has an example a `README_additional.md` file.
+
+#### `requirements-[plugin_name].txt`
+
+Purpose: Provides any additional python modules that must be installed for your plugin to function. This can be generated by running the `./utilities/find_imports.sh` script.
+
+Required Contents:
+
+```text
+foo-module1
+bar-module2
+py-module3
+```
+
+#### Additional Content
+
+Any additional support files or sub directories can be be placed in the root of your plugin directory.
+
 ## Adding Plugins to PaperPi
 
-Once you've built an tested your plugin, you can add it to PaperPi by submitting a pull request. You should do the following to make sure your plugin is ready to go:
-
-* Test your plugin and make sure it doesn't crash when an internet connection is unavailable, or a bad data is returned
-* Run `$pipenv run python ./utilities/find_imports.sh` to update all of the python module dependencies for your plugin
-* Run  `$ pipenv run python ./utilities/create_docs.py` script to make sure your README and sample images are built properly.
-* Submit a PR that includes your plugin 
+UNDER REVIEW
