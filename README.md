@@ -93,6 +93,58 @@ If you would rather install PaperPi yourself, [clone this repo](https://github.c
 
 ### Setup
 
+**`paperpi.ini`**
+
+All configurations are managed through the `paperpi.ini` file. The daemon configuration file is stored in `/etc/defaults/paperpi.ini` and an on-demand user-space configuration file is automatically created in `~/.config/com.txoof.paperpi/paperpi.ini`. 
+
+Config file:
+```ini
+# CONFIG_VERSION=1
+[main]
+# display type use HD for IT8951 displays
+display_type = None
+# required vcom value for IT8951 screens
+vcom = 0.0
+# maximum refresh between total screen clear for HD displays
+max_refresh = 4
+# logging output level
+log_level = WARNING
+# display splash screen (True or False)
+splash = True
+# rotation of EPD display
+# (cable bottom: 0; cable left: -90; cable right: 90; cable top: 180)
+rotation = 0
+
+
+##### PLUGINS #####
+# Each plugin must be configured. A plugin can be
+# included multiple times with different configurations
+# e.g. to show the status of multiple Logitech Players, or
+# weather in multiple locations or with different layouts
+
+# find a list of available plugins:
+# $ paperpi --list_plugins
+
+# active plugins configurations must include:
+# [Plugin: Your Name For This Plugin] # must start with "Plugin: "
+# layout = name_of_layout # found in plugins/plugin_name/layout.py
+# plugin = plugin_name # found as plugins/plugin_name
+# refresh_rate = seconds # number of seconds between updates to *data*
+# min_display_time = seconds # minimum time plugin should show when active
+# max_priority = int # values closer to 0 are high priority, negative values are ignored
+
+# use `paperpi --plugin_info [plugin_name]` for a sample configuration and
+# available layouts
+
+# Fallback, default plugin to display if all else fails
+[Plugin: default fallback plugin]
+layout = layout
+plugin = default
+refresh_rate = 30
+min_display_time = 60
+max_priority = 2**15
+```
+
 **Daemon Mode**
 
 The installer should prompt you to edit `/etc/defaults/paperpi.ini`. At minimum you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
