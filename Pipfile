@@ -5,9 +5,13 @@ name = "pypi"
 
 [packages]
 ipykernel = "*"
-epdlib = "*"
 pipreqs = "*"
 ArgConfigParse = "*"
+
+[packages.epdlib]
+editable = true
+ref = "omni_epd"
+git = "https://github.com/txoof/epdlib.git"
 
 [requires]
 python_version = "3"
