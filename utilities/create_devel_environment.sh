@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-
+PROJECT_DIR=$(dirname $SCRIPT_DIR)
 
 
 
@@ -9,16 +9,17 @@ function install_devel_requirements {
   # create pipenv for this project
   if [ $INSTALL -gt 0 ]
   then
-    "installing all plugin development requirements"
+    echo "installing all plugin development requirements"
     # find all the plugin requirements and install using pipenv install
     tempfile=$(mktemp)
-    find $SCRIPT_DIR/../paperpi/plugins -type f -name "requirements-*.txt" -exec cat {} >> $tempfile \;
+    find $PROJECT_DIR/paperpi/plugins -type f -name "requirements-*.txt" -exec cat {} >> $tempfile \;
     echo "Installing development dependencies for all plugins:"
     cat $tempfile
-    pushd $SCRIPT_DIR/../  > /dev/null 2>&1
+    pushd $PROJECT_DIR  > /dev/null 2>&1
     # add all the modules from the plugins
+    echo "tempfile: $tempfile"
     pipenv install --dev -r $tempfile --skip-lock
-    popd > /dev/null 2>popd1
+    popd > /dev/null 2>&1
   fi
 }
 
@@ -27,9 +28,9 @@ function clean_devel_modules {
   if [ $INSTALL -gt 0 ] 
   then
     echo "removing all previous development modules"
-    pushd $SCRIPT_DIR/../  > /dev/null 2>&1
+    pushd $PROJECT_DIR/../  > /dev/null 2>&1
     pipenv uninstall --all-dev --skip-lock
-    popd > /dev/null 2>popd1
+    popd > /dev/null 2>&1
   fi
 }
 
