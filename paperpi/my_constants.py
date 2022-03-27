@@ -6,8 +6,8 @@ from os import path
 APP_NAME = 'PaperPi'
 CONTACT='aaron.ciuffo@gmail.com'
 DEVEL_NAME = f'com.txoof.{APP_NAME.lower()}'
-VERSION='0.3.0.0'
-URL = 'https://github.com/ txoof/epd_display'
+VERSION='0.3.0.0 Stable-Development'
+URL = 'https://github.com/ txoof/PaperPi'
 
 
 
