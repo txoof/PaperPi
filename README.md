@@ -8,7 +8,7 @@
 
 See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, bug reports, contributions, and testers are welcome.
 
-**This version is compatible with RaspberyPi OS Bullseye and does not work properly with Buster.**
+**This version is compatible with Raspbery Pi OS Bullseye and does not work properly with Buster.**
 
 **The stable version of [PaperPi can be found here](https://github.com/txoof/epd_display).**
 
