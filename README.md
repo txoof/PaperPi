@@ -1,19 +1,23 @@
-# PaperPi V3
+
+# PaperPi V3 <!-- omit in toc -->
 [![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
-## NOTE
+## NOTE <!-- omit in toc -->
 
 **This version of PaperPi is under heavy development and is not ready for the average user.** We are working on adding more screen compatibility, possibly adding color screen support for inkyPHAT and WaveShare 3 color screens. There are also plans to make plugins easier to install and update.
 
-See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, but reports, contributions, and testers are welcome.
+See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, bug reports, contributions, and testers are welcome.
+
+**This version is compatible with RaspberyPi OS Bullseye and does not work properly with Buster.**
 
 **The stable version of [PaperPi can be found here](https://github.com/txoof/epd_display).**
-
 
 |     |     |
 |:---:|:---:|
 |<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> Splash Screen| <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 /> PaperPi Weather Plugin|
 
+
+## About PaperPi
 
 PaperPi is an e-Paper display with multiple rotating display plugins that contain dynamic content.
 
@@ -47,10 +51,13 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 * PaperPi is no longer distributed as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an executable entry script in `/usr/local/bin/`.
 * Plugins can now be edited easily in `/usr/local/paperpi/plugins/`
 * Additional plugins can be placed in `/usr/local/paperpi/plugins` without rebuilding
+* Add support for mirroring output 
 
 <a name="requirements"></a>
 
 ## PaperPi Requirements
+
+PaperPi is compatible with RaspberryPi OS Bullseye. Some python dependencies such as *numpy* will not build proiperly under Buster.
 
 ### Required Hardware
 
@@ -185,57 +192,67 @@ Most NON-IT8951 screens are only supported in 1 bit (black and white) mode. Colo
 
 All IT8951 Screens now support 8 bit grayscale output.
 
-Some WaveShare screens that support color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
+Some WaveShare screens that support color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `waveshare_epd.epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `waveshare_epd.epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
 
 **WaveShare Screen**
 
-NN. Board        Supported:
---  -----        ----------
-
-01. epd1in02     False
-    * Issues:
-        * AttributeError: module does not support `EPD.display()`
-01. epd1in54     True
-02. epd1in54_V2  True
-03. epd1in54b    True
-04. epd1in54b_V2 True
-05. epd1in54c    True
-06. epd2in13     True
-07. epd2in13_V2  True
-08. epd2in13_V3  True
-09. epd2in13b_V3 True
-10. epd2in13bc   True
-11. epd2in13d    True
-12. epd2in66     True
-13. epd2in66b    True
-14. epd2in7      True
-15. epd2in7b     True
-16. epd2in7b_V2  True
-17. epd2in9      True
-18. epd2in9_V2   True
-19. epd2in9b_V3  True
-20. epd2in9bc    True
-21. epd2in9d     True
-22. epd3in7      False
-     * Issues:
-         * Non-standard, unsupported `EPD.Clear()` function
-         * AttributeError: module does not support `EPD.display()`
-23. epd4in01f    True
-24. epd4in2      True
-25. epd4in2b_V2  True
-26. epd4in2bc    True
-27. epd5in65f    True
-28. epd5in83     True
-29. epd5in83_V2  True
-30. epd5in83b_V2 True
-31. epd5in83bc   True
-32. epd7in5      True
-33. epd7in5_HD   True
-34. epd7in5_V2   True
-35. epd7in5b_HD  True
-36. epd7in5b_V2  True
-37. epd7in5bc    True
-39. HD IT8951 Based Screens True
+NN. mfg.name                   
+-------------------------------
+00. inky.auto
+01. inky.impression
+02. inky.phat1608_black
+03. inky.phat1608_red
+04. inky.phat1608_yellow
+05. inky.phat_black
+06. inky.phat_red
+07. inky.phat_yellow
+08. inky.what_black
+09. inky.what_red
+10. inky.what_yellow
+11. omni_epd.mock
+12. waveshare_epd.epd1in02
+13. waveshare_epd.epd1in54
+14. waveshare_epd.epd1in54_V2
+15. waveshare_epd.epd1in54b
+16. waveshare_epd.epd1in54b_V2
+17. waveshare_epd.epd1in54c
+18. waveshare_epd.epd2in13
+19. waveshare_epd.epd2in13_V2
+20. waveshare_epd.epd2in13b
+21. waveshare_epd.epd2in13b_V3
+22. waveshare_epd.epd2in13c
+23. waveshare_epd.epd2in13d
+24. waveshare_epd.epd2in66
+25. waveshare_epd.epd2in66b
+26. waveshare_epd.epd2in7
+27. waveshare_epd.epd2in7b
+28. waveshare_epd.epd2in7b_V2
+29. waveshare_epd.epd2in9
+30. waveshare_epd.epd2in9_V2
+31. waveshare_epd.epd2in9b
+32. waveshare_epd.epd2in9b_V3
+33. waveshare_epd.epd2in9c
+34. waveshare_epd.epd2in9d
+35. waveshare_epd.epd3in7
+36. waveshare_epd.epd4in01f
+37. waveshare_epd.epd4in2
+38. waveshare_epd.epd4in2b
+39. waveshare_epd.epd4in2b_V2
+40. waveshare_epd.epd4in2c
+41. waveshare_epd.epd5in65f
+42. waveshare_epd.epd5in83
+43. waveshare_epd.epd5in83_V2
+44. waveshare_epd.epd5in83b
+45. waveshare_epd.epd5in83b_V2
+46. waveshare_epd.epd5in83c
+47. waveshare_epd.epd7in5
+48. waveshare_epd.epd7in5_HD
+49. waveshare_epd.epd7in5_V2
+50. waveshare_epd.epd7in5b
+51. waveshare_epd.epd7in5b_HD
+52. waveshare_epd.epd7in5b_V2
+53. waveshare_epd.epd7in5c
+54. waveshare_epd.it8951
 
 <a name="knownIssues"> </a>
 ## Issues
@@ -246,7 +263,7 @@ See the [troubleshooting guide](./documentation/Troubleshooting.md)
 **Software Bugs**
 Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
 
-Document updated 2022.02.17
+Document updated 2022.05.01
 =======
 # PaperPi (Development)
 **This is a development version of PaperPi that's not fit for prime-time yet.**

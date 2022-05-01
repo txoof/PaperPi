@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.3.1
+* Add mirror display support
+
 ## 0.3.0.0
 
 * Remove dependency on PyInstaller -- PaperPi is no longer distributed as a frozen PyInstaller
