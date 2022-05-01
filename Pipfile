@@ -7,7 +7,7 @@ name = "pypi"
 ipykernel = "*"
 pipreqs = "*"
 ArgConfigParse = "*"
-epdlib = {editable = true, ref = "development", git = "https://github.com/txoof/epdlib.git"}
+epdlib = {editable = true, ref = "mirror", git = "https://github.com/txoof/epdlib.git"}
 it8951 = {editable = true, git = "https://github.com/GregDMeyer/IT8951.git"}
 
 [requires]
