@@ -84,7 +84,7 @@ function install_devel_requirements {
     pushd $SCRIPT_DIR/../  > /dev/null 2>&1
     # add all the modules from the plugins
     pipenv install --dev -r $tempfile --skip-lock
-    popd > /dev/null 2>popd1
+    popd > /dev/null 2>&1
   fi
 }
 
@@ -95,7 +95,7 @@ function clean_devel_modules {
     echo "removing all previous development modules"
     pushd $SCRIPT_DIR/../  > /dev/null 2>&1
     pipenv uninstall --all-dev --skip-lock
-    popd > /dev/null 2>popd1
+    popd > /dev/null 2>&1
   fi
 }
 
@@ -106,7 +106,7 @@ function rm_venv {
     echo "removing pipenv virtual environment"
     pushd $SCRIPT_DIR/../  > /dev/null 2>&1
     pipenv --rm
-    popd > /dev/null 2>popd1
+    popd > /dev/null 2>&1
   fi
 }
 
