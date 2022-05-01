@@ -406,9 +406,10 @@ def setup_display(config):
     
     epd = config['main'].get('display_type', None)
     vcom = config['main'].get('vcom', None)
+    mirror = config['main'].get('mirror', False)
     
     try:
-        screen = Screen(epd=epd, vcom=vcom)
+        screen = Screen(epd=epd, vcom=vcom, mirror=mirror)
         screen.clearEPD()
     except ScreenError as e:
         logging.critical('Error loading epd from configuration')
@@ -669,8 +670,8 @@ def main():
 
 
 
-if '-l' not in sys.argv:
-    sys.argv.extend(['-l', 'DEBUG'])
+# if '-l' not in sys.argv:
+#     sys.argv.extend(['-l', 'DEBUG'])
     
 if __name__ == "__main__":
     # remove jupyter runtime junk for testing
