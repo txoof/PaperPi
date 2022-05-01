@@ -3,6 +3,72 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$(dirname $SCRIPT_DIR)
 
+function abort {
+  # abort installation with message
+  printf "%s\n" "$@"
+  printf "%s\n\nThis installer can be resumed with:\n"
+  printf "sudo $SCRIPT_DIR/$(basename "$0")\n"
+  exit 1
+}
+
+function check_deb_packages {
+
+  if [ $INSTALL -lt 1 ]
+  then
+    # nothing to do here if not installing
+    echo ""
+  else
+    echo "checking for required debian packages"
+    halt=0
+
+    missing=()
+
+    # get all the debian_packages-*.txt
+    array=()
+    find $LOCALPATH -name "debian_packages-*.txt" -print0 >tmpfile
+    while IFS=  read -r -d $'\0'; do
+        array+=("$REPLY")
+    done <tmpfile
+    rm -f tmpfile
+
+    # source all the DEBPKG variables
+    PKGS=()
+    PKGS+=(${CORE_DEB[@]})
+
+    for i in "${array[@]}"
+    do
+        echo "found debian packages for PaperPi module $(basename $i)"
+        source "$i"
+        for i in "${DEBPKG[@]}"
+        do
+          echo "checking $i"
+          if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
+          then
+            echo ""
+            echo "missing $i"
+            echo ""
+            halt=$((halt+1))
+            missing+=( $i )
+          fi
+        done
+    done
+
+    if [[ $halt -gt 0 ]]
+    then
+      echo "$halt required packages are missing."
+      echo "install missing packages with: "
+      echo "sudo apt install ${missing[*]}"
+      echo ""
+      echo "stopping install"
+
+      abort
+    else
+      echo "required packages installed"
+    fi
+  fi
+
+}
+
 
 
 function install_devel_requirements {
@@ -41,7 +107,7 @@ function rm_venv {
     echo "removing pipenv virtual environment"
     pushd $SCRIPT_DIR/../  > /dev/null 2>&1
     pipenv --rm
-    popd > /dev/null 2>popd1
+    popd > /dev/null 2>&1
   fi
 }
 
@@ -138,6 +204,7 @@ for a system-wide install try:
   exit 1
 fi
 
+check_deb_packages
 clean_devel_modules
 install_devel_requirements
 rm_venv
