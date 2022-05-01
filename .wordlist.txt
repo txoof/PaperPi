@@ -166,3 +166,4 @@ kapton
 crimpers
 waveshare
 omni
+numpy
