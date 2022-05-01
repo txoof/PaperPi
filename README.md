@@ -57,7 +57,7 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 ## PaperPi Requirements
 
-PaperPi is compatible with RaspberryPi OS Bullseye. Some python dependencies such as *numpy* will not build proiperly under Buster.
+PaperPi is compatible with Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* will not build properly under Buster.
 
 ### Required Hardware
 
