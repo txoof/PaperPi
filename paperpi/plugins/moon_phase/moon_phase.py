@@ -419,9 +419,10 @@ def update_function(self, *args, **kwargs):
         try:
             logging.debug('downloading fresh data from met.no API')
             sunrise = requests.get(constants.met_endpoint, param, headers=headers)
-        except RequestException as e:
+        except requests.RequestException as e:
             logging.warning(f'failed to download JSON data: {e}')
-
+            return failure
+            
         # check there is valid data
         if sunrise.status_code == 200:
             try:
@@ -444,6 +445,7 @@ def update_function(self, *args, **kwargs):
             
     
     return (is_updated, data, priority)
+
 
 
 
