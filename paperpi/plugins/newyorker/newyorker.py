@@ -70,7 +70,10 @@ def update_function(self, **kwargs):
             use 1 to only pull from today
         
     Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))    
+        tuple: (is_updated(bool), data(dict), priority(int))
+    
+    This plugin is inspired and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
+        
     %U'''
     def time_now():
         return datetime.now().strftime("%H:%M")
@@ -86,9 +89,8 @@ def update_function(self, **kwargs):
         Returns:
             tuple: (bool, dict) - True if successful, dictionary of comic, caption and time
             
-        This plugin is inspired and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
         
-        %U'''
+        '''
         # set up the feed parser and fetch the feed
         feed = feedparser.parse(constants.feed_url)
         if feed.has_key('bozo_exception'):

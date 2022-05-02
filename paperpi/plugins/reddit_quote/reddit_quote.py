@@ -131,7 +131,7 @@ def update_function(self, *args, **kwargs):
     Returns:
         tuple: (is_updated(bool), data(dict), priority(int))   
         
-    This plugin is inspired and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
+    This plugin is inspired by and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
     
     %U'''  
 

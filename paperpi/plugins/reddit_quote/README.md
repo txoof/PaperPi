@@ -3,7 +3,7 @@
 
 ```
  
-PLUGIN: reddit_quote v:0.1.0
+PLUGIN: reddit_quote v:0.1.2
 
  
 FUNCTION: update_function
@@ -22,7 +22,9 @@ update function for reddit_quote plugin
         self(namespace): namespace from plugin object
         
     Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))        
+        tuple: (is_updated(bool), data(dict), priority(int))   
+        
+    This plugin is inspired by and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
     
     
 ___________________________________________________________________________

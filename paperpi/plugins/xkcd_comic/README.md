@@ -7,7 +7,7 @@ PLUGIN: xkcd_comic v:0.1.1
 
  
 FUNCTION: update_function
-update function for xkcd_comic provides a comic, title and "alt-text" for a random XKCD comic
+update function for xkcd_comic provides a comic, title and "alt-text" for a random XKCD commic
     
     During each update a random comic from the entire XKCD comic corpus. Comics are resampled to fit 
     appropriately onto the screen. 

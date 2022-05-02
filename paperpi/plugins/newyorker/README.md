@@ -3,7 +3,7 @@
 
 ```
  
-PLUGIN: newyorker v:0.0.1
+PLUGIN: newyorker v:0.1.1
 
  
 FUNCTION: update_function
@@ -22,7 +22,10 @@ update function for newyorker provides a New Yorker comic of the day
             use 1 to only pull from today
         
     Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))    
+        tuple: (is_updated(bool), data(dict), priority(int))
+    
+    This plugin is inspired and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
+        
     
 ___________________________________________________________________________
  
