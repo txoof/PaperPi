@@ -49,6 +49,7 @@ def _fetch_quotes():
         r = requests.get(constants.quotes_url, headers=constants.headers)
     except requests.RequestException as e:
         logging.error(f'failed to fetch quotes from {constants.quotes_url}, {e}')
+        return (raw_quotes, True)
     if r.status_code == 200:
         try:
             json_data = dictor(r.json(), constants.quote_data_addr)
