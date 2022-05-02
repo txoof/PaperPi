@@ -84,7 +84,11 @@ def update_function(self, **kwargs):
             day_range(int): number of days to choose from (use 1 for today only)
             
         Returns:
-            tuple: (bool, dict) - True if successful, dictionary of comic, caption and time'''
+            tuple: (bool, dict) - True if successful, dictionary of comic, caption and time
+            
+        This plugin is inspired and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
+        
+        %U'''
         # set up the feed parser and fetch the feed
         feed = feedparser.parse(constants.feed_url)
         if feed.has_key('bozo_exception'):
