@@ -1,7 +1,9 @@
 # Change Log
 
-## 0.3.1
+## 0.3.1.0
+
 * Add mirror display support
+* increase stability of Reddit, New Yorker and Moon Phases plugin when network connectivity is limited
 
 ## 0.3.0.0
 
