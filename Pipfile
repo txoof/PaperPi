@@ -5,20 +5,17 @@ name = "pypi"
 
 [packages]
 ipykernel = "*"
-epdlib = "*"
 pipreqs = "*"
 ArgConfigParse = "*"
+epdlib = {editable = true, ref = "mirror", git = "https://github.com/txoof/epdlib.git"}
+it8951 = {editable = true, git = "https://github.com/GregDMeyer/IT8951.git"}
 
 [requires]
 python_version = "3"
 
-[packages.it8951]
-git = "https://github.com/GregDMeyer/IT8951.git"
-
 [dev-packages]
 dictor = "*"
 requests = "*"
-epdlib = "*"
 pytz = "*"
 feedparser = "*"
 python-dateutil = "*"
@@ -27,7 +24,6 @@ pycoingecko = "*"
 pygal = "*"
 qrcode = "*"
 cairocffi = "*"
-pycairo = "*"
 cffi = "*"
 QueryLMS = "*"
 Pillow = "*"
