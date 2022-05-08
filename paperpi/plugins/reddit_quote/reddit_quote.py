@@ -49,6 +49,7 @@ def _fetch_quotes():
         r = requests.get(constants.quotes_url, headers=constants.headers)
     except requests.RequestException as e:
         logging.error(f'failed to fetch quotes from {constants.quotes_url}, {e}')
+        return (raw_quotes, True)
     if r.status_code == 200:
         try:
             json_data = dictor(r.json(), constants.quote_data_addr)
@@ -128,7 +129,9 @@ def update_function(self, *args, **kwargs):
         self(namespace): namespace from plugin object
         
     Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))        
+        tuple: (is_updated(bool), data(dict), priority(int))   
+        
+    This plugin is inspired by and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
     
     %U'''  
 

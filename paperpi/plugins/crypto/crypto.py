@@ -58,94 +58,6 @@ logger = logging.getLogger(__name__)
 
 
 
-# def _generate_sparkline(data, cache_path='./', ratio=(10, 3), generate_keys=[constants.CG_PRICE_KEY]):
-#     '''convert dictionary of list of two-tuples into multiple sparkline graphs
-    
-#     Args:
-#         data(dict): {'key'[[v1, v2], [v1, v2]...], 'key2': [[v1, v2]]}
-#         cache_path(string): location to output sparkline images
-#         ratio(2 tuple): (height, width) of sparkline image in inches
-#         generate_keys(list): list of CoinGeco data keys to use when generating sparkline
-        
-#     Returns:
-#         dict  : {'coingeco key': path to sparkline file}
-        
-#     Coingeco returns the following keys for a typical coin: prices, market_caps, volumes. 
-#     Only 'prices' is used by default.
-#     '''
-    
-    
-#     # TO DO: 
-#     # - [ ] set figsize -- this should match the block ratio in the layout to ensure proper scaling
-
-    
-#     logger.debug(f'sparkline ratio: {ratio}')
-    
-#     sparklines = {}
-    
-#     for i, v in enumerate(ratio):
-#         ratio[i] = v/100
-    
-#     logger.debug(f'sparkline ratio: {ratio}')
-    
-#     for key in data.keys():
-#         if key in generate_keys:
-#             output_file = Path(cache_path)/f'{key}_sparkline.png'
-#             # cull just the 1th value from each pair
-#             x = [i[1] for i in data[key]]
-#             # calculate the mean for the set
-#             mean = np.mean(x)
-
-#             # plot the data
-#             fig, ax = plt.subplots(1, 1, figsize=ratio)
-# #             fig, ax = plt.subplots(1, 1)
-# #             fig, ax = plt.subplots(1, 1, gridspec_kw={'width_ratios': [ratio[0]], 
-# #                                                       'height_ratios': [ratio[1]]})            
-#             plt.plot(x, color='k', linewidth=1)
-
-#             # add a marker to the last value
-#             plt.plot(len(x)-1, x[len(x)-1], color='k', marker='o')
-
-#             # Remove the Y axis
-#             for k,v in ax.spines.items():
-#                 v.set_visible(False)
-#             ax.set_xticks([])
-#             ax.set_yticks([])
-
-#             # add the mean value line (blue, width 2, style -.-.-)
-#             ax.axhline(y=mean, c='gray', linewidth=2, linestyle='-.')
-
-#             try:
-#                 logger.debug(f'writing sparkline to file: {cache_path/output_file}')
-#                 plt.savefig(cache_path/output_file, dpi=100)
-#                 sparklines[key] = output_file
-#             except Exception as e:
-#                 logging.error(f'failed to write sparkline file: {output_file}: {e}')
-#                 pass
-            
-# #             plt.show()
-#             plt.close()
-    
-#     return sparklines
-
-#     # Save the resulting bmp file to the images directory
-# #     plt.savefig(os.path.join(picdir, key+'spark.png'), dpi=72)
-# #     plt.close('all') # Close plot to prevent memory error
-
-
-
-
-
-
-
-# $ apt install libcairo2 -- need to make sure this is installed -- add this to the install scripts
-# update install scripts to check for SPI configurtation and stuff too
-
-
-
-
-
-
 def _pygal_sparkline(data, cache_path='./', width=1000, height=300, 
                      generate_keys=[constants.CG_PRICE_KEY]):
     
@@ -477,6 +389,8 @@ def update_function(self, *args, **kwargs):
         
     Returns:
         tuple: (is_updated(bool), data(dict), priority(int))
+        
+    This plugin is based heavily on the veeb.ch [stonks project](https://github.com/veebch/stonks)
     %U'''   
   
     general_failure = False
