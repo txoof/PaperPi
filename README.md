@@ -4,7 +4,7 @@
 
 ## NOTE <!-- omit in toc -->
 
-**This version of PaperPi is under heavy development and is not ready for the average user.** We are working on adding more screen compatibility, possibly adding color screen support for inkyPHAT and WaveShare 3 color screens. There are also plans to make plugins easier to install and update.
+**This version of PaperPi is under heavy development and is not ready for the average user.**
 
 See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, bug reports, contributions, and testers are welcome.
 
