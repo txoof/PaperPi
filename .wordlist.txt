@@ -164,3 +164,6 @@ datas
 youtube
 kapton
 crimpers
+waveshare
+omni
+numpy

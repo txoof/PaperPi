@@ -1,4 +1,9 @@
 ## Troubleshooting
+### **Issue:** Output is mirrored on display
+**Possible Solution:**
+
+* use the `mirror=True` option in the `paperpi.ini` configuration file
+  
 ### **Issue:** Streaks, and poor quality text
 <img src=./images/trouble_streaks.jpg alt="streaks" width=500 />
 <img src=./images/trouble_bad_text.jpg alt="bad text" width=500 />

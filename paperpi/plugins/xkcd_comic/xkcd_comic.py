@@ -78,7 +78,7 @@ def resize_image(img, target):
 
 # make sure this function can accept *args and **kwargs even if you don't intend to use them
 def update_function(self, *args, **kwargs):
-    '''update function for xkcd_comic provides a comic, title and "alt-text" for a random XKCD commic
+    '''update function for xkcd_comic provides a comic, title and "alt-text" for a random XKCD comic
     
     During each update a random comic from the entire XKCD comic corpus. Comics are resampled to fit 
     appropriately onto the screen. 

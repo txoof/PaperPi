@@ -210,8 +210,6 @@ def get_config_files(cmd_args):
     Returns:
         ArgConfigParse.ConfgifFile'''
     
-    logger.debug('gathering configuration files')
-    
     config_files_dict = {'base': constants.CONFIG_BASE,
                          'system': constants.CONFIG_SYSTEM,
                          'user': constants.CONFIG_USER,
@@ -219,32 +217,36 @@ def get_config_files(cmd_args):
     
     config_files_list = [config_files_dict['base']]
     
-    if cmd_args.options.main__daemon:
-        logging.debug(f'using daemon configuration: {constants.CONFIG_SYSTEM}')
-        config_files_list.append(config_files_dict['system'])
+    if config_files_dict['cmd_line']:
+        config_file = config_files_dict['cmd_line']
     else:
-        if constants.CONFIG_USER.exists():
-            config_files_list.append(config_files_dict['user'])
+        if cmd_args.options.main__daemon:
+            config_file = config_files_dict['system']
         else:
-            try:
-                constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
-            except PermissionError as e:
-                msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
-                logger.critical(msg)
-                do_exit(1, msg)
-            try:
-                shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
-            except Exception as e:
-                msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
-                logging.critical(1, msg)
-                do_exit(1, msg)
-            msg = f'''This appears to be the first time PaperPi has been run.
-A user configuration file created: {constants.CONFIG_USER}
-At minimum you edit this file and add a display_type and enable one plugin.
+            config_file = config_files_dict['user']
+            if not config_file.exists():
+                try:
+                    constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
+                except PermissionError as e:
+                    msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
+                    logger.critical(msg)
+                    do_exit(1, msg)
+                try:
+                    shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
+                except Exception as e:
+                    msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
+                    logging.critical(1, msg)
+                    do_exit(1, msg)
+                msg = f'''This appears to be the first time PaperPi has been run.
+    A user configuration file created: {constants.CONFIG_USER}
+    At minimum you edit this file and add a display_type and enable one plugin.
+
+    Edit the configuration file with:
+       $ nano {constants.CONFIG_USER}'''
+                do_exit(0, msg)
         
-Edit the configuration file with:
-   $ nano {constants.CONFIG_USER}'''
-            do_exit(0, msg)
+    config_files_list.append(config_file)
+    
     
     logger.info(f'using configuration files to configure PaperPi: {config_files_list}')
     config_files = ArgConfigParse.ConfigFile(config_files_list, ignore_missing=True)
@@ -255,6 +257,77 @@ Edit the configuration file with:
         config_files = None
 
     return config_files
+    
+
+
+
+
+
+
+# def get_config_files(cmd_args):
+#     '''read config.ini style files(s)
+    
+#     Args: 
+#         cmd_args(`ArgConfigParse.CmdArgs` obj)
+        
+#     Returns:
+#         ArgConfigParse.ConfgifFile'''
+    
+#     logger.debug('gathering configuration files')
+    
+#     config_files_dict = {'base': constants.CONFIG_BASE,
+#                          'system': constants.CONFIG_SYSTEM,
+#                          'user': constants.CONFIG_USER,
+#                          'cmd_line': cmd_args.options.user_config}
+    
+#     config_files_list = [config_files_dict['base']]
+    
+    
+# #     cmd_line_config = cmd_args.nested_opts_dict.get('__cmd_line', {}).get('user_config', None)
+    
+    
+
+    
+#     if cmd_args.options.main__daemon:
+#         logging.debug(f'using daemon configuration: {constants.CONFIG_SYSTEM}')
+#         config_files_list.append(config_files_dict['system'])
+#     else:
+#         if constants.CONFIG_USER.exists():
+#             config_files_list.append(config_files_dict['user'])
+#         else:
+#             try:
+#                 constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
+#             except PermissionError as e:
+#                 msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
+#                 logger.critical(msg)
+#                 do_exit(1, msg)
+#             try:
+#                 shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
+#             except Exception as e:
+#                 msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
+#                 logging.critical(1, msg)
+#                 do_exit(1, msg)
+#             msg = f'''This appears to be the first time PaperPi has been run.
+# A user configuration file created: {constants.CONFIG_USER}
+# At minimum you edit this file and add a display_type and enable one plugin.
+        
+# Edit the configuration file with:
+#    $ nano {constants.CONFIG_USER}'''
+#             do_exit(0, msg)
+            
+    
+
+    
+#     logger.info(f'using configuration files to configure PaperPi: {config_files_list}')
+#     config_files = ArgConfigParse.ConfigFile(config_files_list, ignore_missing=True)
+#     try:
+#         config_files.parse_config()
+#     except DuplicateSectionError as e:
+#         logger.error(f'{e}')
+#         config_files = None
+        
+
+#     return config_files
 
 
 
@@ -666,12 +739,13 @@ def main():
 
 
 
-
-
-
-if '-l' not in sys.argv:
-    sys.argv.extend(['-l', 'DEBUG'])
     
+
+
+
+
+
+
 if __name__ == "__main__":
     # remove jupyter runtime junk for testing
     if len(sys.argv) >= 2 and 'ipykernel' in sys.argv[0]:
@@ -683,7 +757,6 @@ if __name__ == "__main__":
 #         sys.argv.extend(sys.argv[2:])
     exit_code = main()
 #     sys.exit(exit_code)
-
 
 
 

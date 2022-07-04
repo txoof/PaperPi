@@ -3,7 +3,7 @@
 
 ```
  
-PLUGIN: crypto v:0.2.0
+PLUGIN: crypto v:0.2.1
 
  
 FUNCTION: update_function
@@ -57,6 +57,8 @@ update function for crypto plugin provides: value of crypto token versus fiat cu
         
     Returns:
         tuple: (is_updated(bool), data(dict), priority(int))
+        
+    This plugin is based heavily on the veeb.ch [stonks project](https://github.com/veebch/stonks)
     
 ___________________________________________________________________________
  

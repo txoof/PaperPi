@@ -129,7 +129,9 @@ def update_function(self, *args, **kwargs):
         self(namespace): namespace from plugin object
         
     Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))        
+        tuple: (is_updated(bool), data(dict), priority(int))   
+        
+    This plugin is inspired by and based on the veeb.ch [stonks project](https://github.com/veebch/stonks)
     
     %U'''  
 
