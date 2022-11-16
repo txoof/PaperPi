@@ -2,6 +2,7 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$(dirname $SCRIPT_DIR)
+PYVERSION="python 3"
 
 function abort {
   # abort installation with message
@@ -89,6 +90,15 @@ function install_devel_requirements {
   fi
 }
 
+function add_kernel() {
+  if [ $JUPYTER -gt 0 ]
+  then
+    venvDir=$(pipenv --venv)
+    projectName=$(basename $venvDir)
+    pipenv run python -m ipykernel install --user --name="${projectName}"
+  fi
+}
+
 function clean_devel_modules {
   # clean development modules and start fresh
   if [ $INSTALL -gt 0 ] 
@@ -111,6 +121,15 @@ function rm_venv {
   fi
 }
 
+function clean_kernel() {
+  if [ $PURGE -gt 0 ]
+  then
+    venvDir=$(pipenv --venv)
+    venvName=$(basename $venvDir| tr '[:upper:]' '[:lower:]')
+    jupyter kernelspec remove $venvName $venvName
+  fi
+}
+
 function Help {
   echo "
   Create a development environment for this project
@@ -120,6 +139,7 @@ function Help {
 
   options:
   -c: create the virtual environment
+  -j: create the virtual environment and add jupyter kernel
   -h: This help screen
   -p: purge the virtual environment
   --info: virtual environment information
@@ -140,6 +160,7 @@ function venv_info {
 ## main program ##
 INSTALL=0
 PURGE=0
+JUPYTER=0
 
 
 while [[ $# -gt 0 ]]; do
@@ -153,6 +174,13 @@ while [[ $# -gt 0 ]]; do
   -c)
     INSTALL=1
     PURGE=0
+    shift
+    shift
+    ;;
+  -j)
+    INSTALL=1
+    PURGE=0
+    JUPYTER=1
     shift
     shift
     ;;
@@ -207,5 +235,6 @@ fi
 check_deb_packages
 clean_devel_modules
 install_devel_requirements
+clean_kernel
 rm_venv
 
