@@ -12,6 +12,8 @@ my_layout_one = {
       'string': {
           # this block is of a TextBlock type
           'type': 'TextBlock',
+          # set as gray scale when possible
+          'mode': 'L',
           # this block does not contain an image
           'image': False,
           # number of lines of text to display before word-wrapping
@@ -32,7 +34,8 @@ my_layout_one = {
       },
       # this block will contain the string provided by  data['time']
       'time': {
-          'type': 'TextBlock',          
+          'type': 'TextBlock',  
+          'mode': 'L',          
           'image': False,
           'max_lines': 1,
           'width': 1/2,
@@ -45,7 +48,8 @@ my_layout_one = {
           'relative': ['time', 'string'],
       },
       'extra': {
-          'type': 'TextBlock',          
+          'type': 'TextBlock',  
+          'mode': 'L',          
           'image': False,
           'max_lines': 3,
           'width': 1/2,
@@ -58,6 +62,7 @@ my_layout_one = {
       },
       'image': {
           'type': 'ImageBlock',         
+          'mode': 'L',
           'image': True,
           'width': 1/2,
           'height': 1/2,
