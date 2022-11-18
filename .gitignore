@@ -11,3 +11,4 @@ tmp/*
 *.spec
 .vscode*
 version.txt
+paperpi/plugins/*/library
