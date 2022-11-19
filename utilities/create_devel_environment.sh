@@ -12,6 +12,22 @@ function abort {
   exit 1
 }
 
+function check_system {
+  echo "checking if SPI is enabled"
+  echo ""
+  if [[ $(sudo raspi-config nonint get_spi) = "1" ]]
+  then
+    echo ""
+    echo "SPI is not enabled and is required for PaperPi to function"
+    echo "enable with:"
+    echo "$ sudo raspi-config nonint do spi 0"
+    echo "exiting"
+    exit 0
+  else
+    echo "SPI OK"
+  fi
+}
+
 function check_deb_packages {
 
   if [ $INSTALL -lt 1 ]
@@ -233,6 +249,7 @@ for a system-wide install try:
   exit 1
 fi
 
+check_system
 check_deb_packages
 clean_devel_modules
 install_devel_requirements
