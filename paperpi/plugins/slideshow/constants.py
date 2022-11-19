@@ -15,17 +15,19 @@ sample_config = '''
 # default layout
 layout = layout
 plugin = slideshow
-# recommended display time
+# time between choosing new image (seconds)
+refresh_rate = 90
+# recommended display time (seconds)
 min_display_time = 30
 # maximum priority in display loop
-max_priority = 1
+max_priority = 2
 # path to image directory
 image_path = /pi/documents/images
 # order to pull images in: random, sequential
 order = random
 '''
 # default path for images if none is provided
-default_path = Path(dir_path+'/fallback_images')
+default_image_path = Path(dir_path+'/fallback_images')
 
 # supported image file types 
 supported_image_types = ['.gif', '.jpg', '.jpeg', '.png']
@@ -33,11 +35,8 @@ supported_image_types = ['.gif', '.jpg', '.jpeg', '.png']
 # recent images pickle file
 recent_images = 'recent_images.pkl'
 
-
-
-
 # expected options from configuration file
 expected_config = {
-    'image_path': (str, default_path),
+    'image_path': (str, default_image_path),
     'order': (str, 'sequential'),
 }

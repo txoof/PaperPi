@@ -1,8 +1,9 @@
-# lms_client layouts
+# slideshow plugin layouts
 # handling file locations with relative paths is hard
 # this simplifies locating the fonts needed for this layout
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
 
 image_only_centered_blackbkground = {
     'image': {
@@ -16,8 +17,7 @@ image_only_centered_blackbkground = {
         'relative': False,
         'hcenter': True,
         'vcenter': True,
-        'bkground': 0
-        
+        'bkground': 0,     
     }
 }
 
@@ -33,7 +33,7 @@ image_only_centered_whitebkground = {
         'relative': False,
         'hcenter': True,
         'vcenter': True,
-        'bkground': 255
+        'bkground': 255,
         
     }
 }
@@ -63,6 +63,7 @@ image_time_centered_blackbkground = {
         'relative': ['time', 'image'],
         'hcenter': True,
         'vcenter': True,
+        'align': 'center',
         'inverse': True,
         'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
     }
@@ -93,6 +94,7 @@ image_time_centered_whitebkground = {
         'hcenter': True,
         'vcenter': True,
         'inverse': False,
+        'align': 'center',        
         'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
     }
 }

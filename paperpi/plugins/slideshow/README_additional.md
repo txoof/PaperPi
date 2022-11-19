@@ -1,5 +1,5 @@
 ## Additional Plugin Information
-Additional plugin information can be appended to the README by adding a file called `README_additional.md` in the root of the plugin directory. This will be directly appended at the end of the README.md file.
+
+If the slideshow plugin fails to access the configured image path, it will fall back to several supplied images. The included images were sourced from the Flicker [Biodiversity Heritage Library](https://www.flickr.com/photos/61021753@N02/).
 
 
-Included images sourced from Flicker [Biodiversity Heritage Library](https://www.flickr.com/photos/61021753@N02/)

@@ -1,35 +1,27 @@
 # slideshow
-![sample image for plugin ...paperpi.plugins.demo_plugin](./demo_plugin.layout-sample.png) 
+![sample image for plugin ...paperpi.plugins.slideshow](./slideshow.layout-sample.png) 
 
 ```
  
-PLUGIN: demo_plugin v:0.1.0
+PLUGIN: slideshow v:0.1.0
 
  
-FUNCTION: demo_function
-demo function that prints a docstring
-    
-    This function prints the __doc__ string for this function as a 
-    demonstration of a Plugin "user-facing" function.
-    
-    Args:
-        None
-        
-    Returns:
-        None
-    
-___________________________________________________________________________
- 
 FUNCTION: update_function
-update function for demo plugin providing some silly information and a picture
+update function for slideshow plugin
     
-    This plugin provides a message generated for the user and 
-    a static image that floats around
+    This plugin choose an image from a specified directory and displays it
+    along with some optional information such as the time and a filename. 
     
-    Requirments:
+    Images are displayed in either `random` or `sequential` order. 
+    
+    Each time the plugin runs the `image_path` is re-indexed. If images are added
+    or removed from the `image_path`, they will be used in the rotation. 
+    
+    
+    Requirements:
         self.config(dict): {
-            'your_name': 'user name',
-            'your_color': 'user color',
+            'image_path': '/absolute/path/to/images',
+            'order': 'random',
         }
         
     Args: 
@@ -38,56 +30,72 @@ update function for demo plugin providing some silly information and a picture
     Returns:
         tuple: (is_updated(bool), data(dict), priority(int))
 
-    # Don't forget to end your docstring with a "" so it is displayed
     
 ___________________________________________________________________________
  
  
 
-SAMPLE CONFIGURATION FOR paperpi.plugins.demo_plugin.demo_plugin
+SAMPLE CONFIGURATION FOR paperpi.plugins.slideshow.slideshow
 
-[Plugin: A Demo Plugin]
-# this is a sample config users can use to help setup the plugin
+[Plugin: Slideshow]
 # default layout
 layout = layout
-# the literal name of your module
-plugin = demo_plugin
-# recommended display time
+plugin = slideshow
+# time between choosing new image (seconds)
+refresh_rate = 90
+# recommended display time (seconds)
 min_display_time = 30
 # maximum priority in display loop
-max_priority = 1
-# your name
-your_name = Slartybartfast
-# your favorite color
-your_color = chartreuse
+max_priority = 2
+# path to image directory
+image_path = /pi/documents/images
+# order to pull images in: random, sequential
+order = random
 
  
 LAYOUTS AVAILABLE:
+  image_only_centered_blackbkground
+  image_only_centered_whitebkground
+  image_time_centered_blackbkground
+  image_time_centered_whitebkground
   layout
-  my_layout_one
  
 
-DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.demo_plugin.demo_plugin:
-   welcome_str
+DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.slideshow.slideshow:
    time
-   extra
+   filename
    image
 ```
 
 ## Provided Layouts:
 
+layout: **image_only_centered_blackbkground**
+
+![sample image for plugin image_only_centered_blackbkground](./slideshow.image_only_centered_blackbkground-sample.png) 
+
+
+layout: **image_only_centered_whitebkground**
+
+![sample image for plugin image_only_centered_whitebkground](./slideshow.image_only_centered_whitebkground-sample.png) 
+
+
+layout: **image_time_centered_blackbkground**
+
+![sample image for plugin image_time_centered_blackbkground](./slideshow.image_time_centered_blackbkground-sample.png) 
+
+
+layout: **image_time_centered_whitebkground**
+
+![sample image for plugin image_time_centered_whitebkground](./slideshow.image_time_centered_whitebkground-sample.png) 
+
+
 layout: **layout**
 
-![sample image for plugin layout](./demo_plugin.layout-sample.png) 
-
-
-layout: **my_layout_one**
-
-![sample image for plugin my_layout_one](./demo_plugin.my_layout_one-sample.png) 
+![sample image for plugin layout](./slideshow.layout-sample.png) 
 
 
 ## Additional Plugin Information
-Additional plugin information can be appended to the README by adding a file called `README_additional.md` in the root of the plugin directory. This will be directly appended at the end of the README.md file.
+
+If the slideshow plugin fails to access the configured image path, it will fall back to several supplied images. The included images were sourced from the Flicker [Biodiversity Heritage Library](https://www.flickr.com/photos/61021753@N02/).
 
 
-Included image was sourced from the [Wikimedia Project](https://commons.wikimedia.org/wiki/File:Acuminate_Leaf_\(PSF\).jpg)
