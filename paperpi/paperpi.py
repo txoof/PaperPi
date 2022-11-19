@@ -494,7 +494,8 @@ def setup_display(config):
         return return_val
     except FileNotFoundError as e:
         logging.critical(f'Error initializing EPD: {e}')
-        logging.critical(f'It appears that SPI is not enabled on this Pi. See: https://github.com/txoof/epd_display/tree/testing#hardwareos-setup')
+        logging.critical(f'It appears that SPI is not enabled on this Pi. Try:')
+        logging.critical(f'   $ sudo raspi-config nonint do_spi 0')
         return_val = ret_obj(None, 1, moduleNotFoundError_fmt.format(epd, e))
         return return_val
     
@@ -757,16 +758,6 @@ if __name__ == "__main__":
 #         sys.argv.extend(sys.argv[2:])
     exit_code = main()
 #     sys.exit(exit_code)
-
-
-
-
-
-
-
-
-
-
 
 
 
