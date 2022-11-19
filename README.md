@@ -14,7 +14,7 @@ See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, bug
 
 |     |     |
 |:---:|:---:|
-|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> Splash Screen| <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 /> PaperPi Weather Plugin|
+|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> <br />Splash Screen| <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 />|
 
 
 ## About PaperPi
@@ -46,7 +46,7 @@ See the [Developing Plugins](./documentation/developing_plugins.md) guide for mo
 
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
 
-**V 0.3.0**
+**V 0.4.0**
 
 * PaperPi is no longer distributed as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an executable entry script in `/usr/local/bin/`.
 * Plugins can now be edited easily in `/usr/local/paperpi/plugins/`
@@ -57,7 +57,7 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 ## PaperPi Requirements
 
-PaperPi is compatible with Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* will not build properly under Buster.
+PaperPi is compatible with Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* will may not build properly under Buster.
 
 ### Required Hardware
 
@@ -182,7 +182,7 @@ If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, 
 
 ## Contributing
 
-Plugins can be pure python, but should follow the [guide provided](./documentation/Plugins.md).
+Plugins can be pure python, but should follow the [guide provided](./documentation/developing_plugins.md).
 
 <a name="supportedScreens"> </a>
 

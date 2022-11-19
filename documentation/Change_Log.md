@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.4.0.0
+
+* Add [Slideshow](../paperpi/plugins/slideshow/README.md) plugin
+* Update documentation
+
 ## 0.3.1.0
 
 * Add mirror display support
