@@ -3,20 +3,17 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 
 
 ## Plugins Currently Available
-### [xkcd_comic](../paperpi/plugins/xkcd_comic/README.md)
-![xkcd_comic sample Image](../paperpi/plugins/xkcd_comic/xkcd_comic.layout-sample.png)
-
-### [basic_clock](../paperpi/plugins/basic_clock/README.md)
-![basic_clock sample Image](../paperpi/plugins/basic_clock/basic_clock.layout-sample.png)
-
-### [word_clock](../paperpi/plugins/word_clock/README.md)
-![word_clock sample Image](../paperpi/plugins/word_clock/word_clock.layout-sample.png)
+### [demo_plugin](../paperpi/plugins/demo_plugin/README.md)
+![demo_plugin sample Image](../paperpi/plugins/demo_plugin/demo_plugin.layout-sample.png)
 
 ### [newyorker](../paperpi/plugins/newyorker/README.md)
 ![newyorker sample Image](../paperpi/plugins/newyorker/newyorker.layout-sample.png)
 
-### [dec_binary_clock](../paperpi/plugins/dec_binary_clock/README.md)
-![dec_binary_clock sample Image](../paperpi/plugins/dec_binary_clock/dec_binary_clock.layout-sample.png)
+### [reddit_quote](../paperpi/plugins/reddit_quote/README.md)
+![reddit_quote sample Image](../paperpi/plugins/reddit_quote/reddit_quote.layout-sample.png)
+
+### [word_clock](../paperpi/plugins/word_clock/README.md)
+![word_clock sample Image](../paperpi/plugins/word_clock/word_clock.layout-sample.png)
 
 ### [met_no](../paperpi/plugins/met_no/README.md)
 ![met_no sample Image](../paperpi/plugins/met_no/met_no.layout-sample.png)
@@ -24,26 +21,32 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 ### [default](../paperpi/plugins/default/README.md)
 ![default sample Image](../paperpi/plugins/default/default.layout-sample.png)
 
+### [xkcd_comic](../paperpi/plugins/xkcd_comic/README.md)
+![xkcd_comic sample Image](../paperpi/plugins/xkcd_comic/xkcd_comic.layout-sample.png)
+
 ### [librespot_client](../paperpi/plugins/librespot_client/README.md)
 ![librespot_client sample Image](../paperpi/plugins/librespot_client/librespot_client.layout-sample.png)
 
-### [reddit_quote](../paperpi/plugins/reddit_quote/README.md)
-![reddit_quote sample Image](../paperpi/plugins/reddit_quote/reddit_quote.layout-sample.png)
-
-### [moon_phase](../paperpi/plugins/moon_phase/README.md)
-![moon_phase sample Image](../paperpi/plugins/moon_phase/moon_phase.layout-sample.png)
-
-### [demo_plugin](../paperpi/plugins/demo_plugin/README.md)
-![demo_plugin sample Image](../paperpi/plugins/demo_plugin/demo_plugin.layout-sample.png)
+### [slideshow](../paperpi/plugins/slideshow/README.md)
+![slideshow sample Image](../paperpi/plugins/slideshow/slideshow.layout-sample.png)
 
 ### [lms_client](../paperpi/plugins/lms_client/README.md)
 ![lms_client sample Image](../paperpi/plugins/lms_client/lms_client.layout-sample.png)
 
-### [splash_screen](../paperpi/plugins/splash_screen/README.md)
-![splash_screen sample Image](../paperpi/plugins/splash_screen/splash_screen.layout-sample.png)
+### [dec_binary_clock](../paperpi/plugins/dec_binary_clock/README.md)
+![dec_binary_clock sample Image](../paperpi/plugins/dec_binary_clock/dec_binary_clock.layout-sample.png)
+
+### [moon_phase](../paperpi/plugins/moon_phase/README.md)
+![moon_phase sample Image](../paperpi/plugins/moon_phase/moon_phase.layout-sample.png)
 
 ### [crypto](../paperpi/plugins/crypto/README.md)
 ![crypto sample Image](../paperpi/plugins/crypto/crypto.layout-sample.png)
+
+### [splash_screen](../paperpi/plugins/splash_screen/README.md)
+![splash_screen sample Image](../paperpi/plugins/splash_screen/splash_screen.layout-sample.png)
+
+### [basic_clock](../paperpi/plugins/basic_clock/README.md)
+![basic_clock sample Image](../paperpi/plugins/basic_clock/basic_clock.layout-sample.png)
 
 ## Configuration
 Each plugin is configured through a [Plugin: Name] section in the configuration files. 
@@ -71,7 +74,7 @@ To use a plugin, add a configuration section for each plugin instance to the app
    min_display_time = int
    ```
 
-   Plugins provide a sample configuration in their documentation. Use the following commands to find a list of plugins and view their sample configruations:
+   Plugins provide a sample configuration in their documentation. Use the following commands to find a list of plugins and view their sample configurations:
 
    **List Available Plugins**
 
@@ -105,7 +108,7 @@ To use a plugin, add a configuration section for each plugin instance to the app
 * screen layout that defines how to organize plugin graphical and text elements
 * use `--plugin_info plugin_name` to see available layouts
 * see the documentation for each plugin for a sample of all available layouts
-* some layouts may be more approrpriate for smaller screens
+* some layouts may be more appropriate for smaller screens
 
 **Refresh Rate**: `refresh_rate = integer in seconds`
 * this controls how often the plugin is checked for new data
@@ -118,20 +121,20 @@ To use a plugin, add a configuration section for each plugin instance to the app
 * a clock plugin that displays when music players are idle should be set to 2
 * plugins with the lowest integer value will be displayed in the display loop
 * some plugins change their priority when events happen such as when an audio track changes, music is paused, or a device becomes idle
-* this value determines the maximum priority the plugin will use when it determines an important event has occured.
+* this value determines the maximum priority the plugin will use when it determines an important event has occurred.
 * recommended values can be found by using `--plugin_info plugin_name`
 
 **Minimum Display Time** `min_display_time = integer in seconds`
 * number of seconds plugin should stay on the screen before another plugin is cycled
-* recommended values can be found usign `--plugin_info plugin_name`
+* recommended values can be found using `--plugin_info plugin_name`
 
 
 ### Additional Configuration Elements
 
-Some plugins require additonal configuration such as API keys, location information or other configuration details. Use `--plugin_info plugin_name` to find a sample configuration. Check the plugin README for additional information.
+Some plugins require additional configuration such as API keys, location information or other configuration details. Use `--plugin_info plugin_name` to find a sample configuration. Check the plugin README for additional information.
 
 
-# Developing Plugins
+## Developing Plugins
 
 PaperPi is designed to support additional plugins written in Python 3. Any modules available through PyPi or through a git repository may be used.
 
