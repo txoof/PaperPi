@@ -7,7 +7,7 @@ for filename in $PLUGIN_PATH/*; do
 
   if [[ $basename != "_"* ]]; then
     savepath=$filename/requirements-$basename.txt
-    pipenv run pipreqs --force --savepath $savepath $filename
+    pipenv run pipreqs --no-follow-links --force --savepath $savepath $filename
 
     sed -i -E 's/==\S+$//g' $savepath
   fi

@@ -4,7 +4,7 @@
 
 ## NOTE <!-- omit in toc -->
 
-**This version of PaperPi is under heavy development and is not ready for the average user.** We are working on adding more screen compatibility, possibly adding color screen support for inkyPHAT and WaveShare 3 color screens. There are also plans to make plugins easier to install and update.
+**This version of PaperPi is under heavy development and is not ready for the average user.**
 
 See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, bug reports, contributions, and testers are welcome.
 
@@ -14,7 +14,7 @@ See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, bug
 
 |     |     |
 |:---:|:---:|
-|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> Splash Screen| <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 /> PaperPi Weather Plugin|
+|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> <br />Splash Screen| <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 />|
 
 
 ## About PaperPi
@@ -46,7 +46,7 @@ See the [Developing Plugins](./documentation/developing_plugins.md) guide for mo
 
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
 
-**V 0.3.0**
+**V 0.4.0**
 
 * PaperPi is no longer distributed as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an executable entry script in `/usr/local/bin/`.
 * Plugins can now be edited easily in `/usr/local/paperpi/plugins/`
@@ -57,7 +57,7 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 ## PaperPi Requirements
 
-PaperPi is compatible with Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* will not build properly under Buster.
+PaperPi is compatible with Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* will may not build properly under Buster.
 
 ### Required Hardware
 
@@ -182,7 +182,7 @@ If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, 
 
 ## Contributing
 
-Plugins can be pure python, but should follow the [guide provided](./documentation/Plugins.md).
+Plugins can be pure python, but should follow the [guide provided](./documentation/developing_plugins.md).
 
 <a name="supportedScreens"> </a>
 
@@ -196,63 +196,55 @@ Some WaveShare screens that support color output will also work with with the no
 
 **WaveShare Screen**
 
-NN. mfg.name                   
--------------------------------
-00. inky.auto
-01. inky.impression
-02. inky.phat1608_black
-03. inky.phat1608_red
-04. inky.phat1608_yellow
-05. inky.phat_black
-06. inky.phat_red
-07. inky.phat_yellow
-08. inky.what_black
-09. inky.what_red
-10. inky.what_yellow
-11. omni_epd.mock
-12. waveshare_epd.epd1in02
-13. waveshare_epd.epd1in54
-14. waveshare_epd.epd1in54_V2
-15. waveshare_epd.epd1in54b
-16. waveshare_epd.epd1in54b_V2
-17. waveshare_epd.epd1in54c
-18. waveshare_epd.epd2in13
-19. waveshare_epd.epd2in13_V2
-20. waveshare_epd.epd2in13b
-21. waveshare_epd.epd2in13b_V3
-22. waveshare_epd.epd2in13c
-23. waveshare_epd.epd2in13d
-24. waveshare_epd.epd2in66
-25. waveshare_epd.epd2in66b
-26. waveshare_epd.epd2in7
-27. waveshare_epd.epd2in7b
-28. waveshare_epd.epd2in7b_V2
-29. waveshare_epd.epd2in9
-30. waveshare_epd.epd2in9_V2
-31. waveshare_epd.epd2in9b
-32. waveshare_epd.epd2in9b_V3
-33. waveshare_epd.epd2in9c
-34. waveshare_epd.epd2in9d
-35. waveshare_epd.epd3in7
-36. waveshare_epd.epd4in01f
-37. waveshare_epd.epd4in2
-38. waveshare_epd.epd4in2b
-39. waveshare_epd.epd4in2b_V2
-40. waveshare_epd.epd4in2c
-41. waveshare_epd.epd5in65f
-42. waveshare_epd.epd5in83
-43. waveshare_epd.epd5in83_V2
-44. waveshare_epd.epd5in83b
-45. waveshare_epd.epd5in83b_V2
-46. waveshare_epd.epd5in83c
-47. waveshare_epd.epd7in5
-48. waveshare_epd.epd7in5_HD
-49. waveshare_epd.epd7in5_V2
-50. waveshare_epd.epd7in5b
-51. waveshare_epd.epd7in5b_HD
-52. waveshare_epd.epd7in5b_V2
-53. waveshare_epd.epd7in5c
-54. waveshare_epd.it8951
+
+NN. Board        Supported:
+---------------------------
+00. epd1in02     False
+    - Issues:
+     * AttributeError: module does not support `EPD.display()`
+01. epd1in54     True
+02. epd1in54_V2  True
+03. epd1in54b    True
+04. epd1in54b_V2 True
+05. epd1in54c    True
+06. epd2in13     True
+07. epd2in13_V2  True
+08. epd2in13_V3  True
+09. epd2in13b_V3 True
+10. epd2in13b_V4 True
+11. epd2in13bc   True
+12. epd2in13d    True
+13. epd2in66     True
+14. epd2in66b    True
+15. epd2in7      True
+16. epd2in7b     True
+17. epd2in7b_V2  True
+18. epd2in9      True
+19. epd2in9_V2   True
+20. epd2in9b_V3  True
+21. epd2in9bc    True
+22. epd2in9d     True
+23. epd3in7      False
+    - Issues:
+     * Non-standard, unsupported `EPD.Clear()` function
+     * AttributeError: module does not support `EPD.display()`
+24. epd4in01f    True
+25. epd4in2      True
+26. epd4in2b_V2  True
+27. epd4in2bc    True
+28. epd5in65f    True
+29. epd5in83     True
+30. epd5in83_V2  True
+31. epd5in83b_V2 True
+32. epd5in83bc   True
+33. epd7in5      True
+34. epd7in5_HD   True
+35. epd7in5_V2   True
+36. epd7in5b_HD  True
+37. epd7in5b_V2  True
+38. epd7in5bc    True
+39. HD IT8951 Based Screens True
+
 
 <a name="knownIssues"> </a>
 ## Issues

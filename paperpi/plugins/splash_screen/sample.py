@@ -4,6 +4,6 @@ config = {
             'kwargs': { 
               'app_name': 'PaperPi',
               'version': ' ',
-              'url': 'https://github.com/ txoof/epd_display'
+              'url': 'https://github.com/ txoof/PaperPi'
             },
         } 

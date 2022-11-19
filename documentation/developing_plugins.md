@@ -22,6 +22,7 @@ See the included [`demo_plugin`](../paperpi/plugins/demo_plugin) for a simple, w
 
 
 ### BUILTIN PROPERTIES AVAILABLE TO PLUGINS
+>>>>>>> documentation
 
 All plugins have the following functions and properties available. Call the builtin functions by using `self.[method/property]`.
 
@@ -74,6 +75,7 @@ See the [epdlib Layout module](https://github.com/txoof/epdlib#layout-module) fo
 See the [`basic_clock` layout](../paperpi/plugins/basic_clock/layout.py) for a simple layout template
 
 **\_\_init\_\_.py**
+>>>>>>> documentation
 
 ```from .my_new_plugin_name import update_function```
 
@@ -136,11 +138,17 @@ Checklist:
     * If the module is in a passive state (e.g. there is no interesting data to show) set `priority` to `2**15` to ensure it is not included in the display loop
 - [ ] Returns a 3 tuple of `(is_updated(bool), data(dict), priority(int))`
 - [ ] Required docstring:
+>>>>>>> documentation
     ```
     '''
     update function for my_plugin_name provides foo information
     
+<<<<<<< HEAD
+    # longer description of what this plugin does
+    This plugin provides...
+=======
     This plugin provides...functionality
+>>>>>>> documentation
     
     # required configuration elements that must be passed to this plugin
     Requirements:
