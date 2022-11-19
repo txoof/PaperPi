@@ -1,4 +1,4 @@
-# lms_client layouts
+# phases of the moon layouts
 # handling file locations with relative paths is hard
 # this simplifies locating the fonts needed for this layout
 import os
