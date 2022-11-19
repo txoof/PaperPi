@@ -76,4 +76,4 @@ layout: **quote_small_screen**
 
 
 ## Additional Plugin Information
-This plugin is based on the [veebch/stonks](https://github.com/veebch/stonks) application. The code is mostly rewritten, but the basic layout and much of the logic is borrowed.
+This plugin is based on the [veebch/stonks](https://github.com/veebch/stonks) and [veebch/edify](https://github.com/veebch/edify) application. The code is mostly rewritten, but the basic layout and much of the logic is borrowed.
