@@ -2,15 +2,8 @@
 # PaperPi V3 <!-- omit in toc -->
 [![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
-## NOTE <!-- omit in toc -->
-
-**This version of PaperPi is under heavy development and is not ready for the average user.**
-
-See our [Milestones here](https://github.com/txoof/PaperPi/milestones). PRs, bug reports, contributions, and testers are welcome.
-
 **This version is compatible with Raspberry Pi OS Bullseye and does not work properly with Buster.**
 
-**The stable version of [PaperPi can be found here](https://github.com/txoof/epd_display).**
 
 |     |     |
 |:---:|:---:|
