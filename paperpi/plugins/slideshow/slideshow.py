@@ -19,8 +19,9 @@ from datetime import datetime
 from pathlib import Path
 # from os import walk, path
 from os import listdir
-from random import randint
+from random import randint, choice
 import pickle
+from PIL import Image, ImageOps
 
 
 
@@ -28,6 +29,15 @@ import pickle
 
 
 def _index_images(image_path):
+    '''
+    index images into an ordered list; rejects all files that do 
+    not match constants.supported_image_types
+    
+    Args:
+        image_path(str): path to index
+        
+    Returns:
+        list'''
     image_path = Path(image_path)
     image_array = []
     logging.info(f'indexing {image_path}')
@@ -45,6 +55,108 @@ def _index_images(image_path):
         logging.warning(f'{image_path} does not appear to be a directory')
     image_array.sort()
     return image_array
+
+
+
+
+
+
+def _add_border(image, borders=constants.f_white_mat_silver_black):
+    '''
+    Add border(s) to an image to create a frame based on a 
+    provided ratio using the shortest edge of the image
+    
+    For a 800x600 image, the border will be calculated using 600 px. using
+    the supplied ratios
+    
+    Borders are specified in a list of tuples. The first element is 
+    added directly around the image; additional borders are added 
+    working outward.
+    
+    Border list format: [(ratio of short edge, RGB color tuple)]
+    
+    Provided colors in constants: 
+    white = (255, 255, 255)
+    gainsboro = (220, 220, 220)
+    lightgray = (211, 211, 211)
+    silver = (192, 192, 192)
+    gray = (128, 128, 128)
+    dimgray = (105, 105, 105)
+    darkgray = (80, 80, 80)
+    black = (0, 0, 0)
+    
+    Add a black frame that is 10% the size of the shortest edge:
+    [(0.1, constants.black)] or [(0.1, (0, 0, 0))]
+    
+    white mat with silver and black frame:
+    [(0.02, white), (0.01, silver), (0.08, black)]
+    
+    Args:
+        image(str): path to image to be framed
+        borders(list of tuple): [()]
+        
+    Returns:
+        Image
+    '''
+    logging.debug(f'adding borders: {borders}')
+        
+    im = Image.open(image)
+
+    if not borders:
+        return im
+    
+    im_new = im.copy()
+    for i in borders:
+        border = round(min(im.size) * i[0])
+        fill = i[1]
+        im_new = ImageOps.expand(im_new, border=border, fill=fill)
+    return(im_new)    
+
+
+
+
+
+
+def _slugify(s):
+    import re
+    s = s.lower().strip()
+    s = re.sub(r'[^\w\s-]', '', s)
+    s = re.sub(r'[\s_-]+', '_', s)
+    s = re.sub(r'^-+|-+$', '', s)
+    return s
+
+def _sample_frames(i, size=(300, 300)):
+    '''
+    create sample images displaying frmames that can 
+    be used in the README_additional.md file using the
+    constants.frames values.
+    
+    Args:
+        i(path): path to source image to use
+        size(tuple): thumbnail size to use
+    '''
+    frames = constants.frames
+    frames['None'] = None
+    
+    for frame, values in constants.frames.items():
+        print(frame, values)
+        f_image = _add_border(i, values)
+        f_image = f_image.convert(mode='L')
+        f_image.thumbnail(size)
+    #     display(f_image)
+        output_name = f'{constants.name}-framed-{_slugify(frame)}.png'
+        print(f'saving sample: {output_name}')
+        f_image.save(output_name)
+        
+#     img = Image.open(i)
+    
+
+
+
+
+
+
+# _sample_frames('./fallback_images/zebra.jpg')
 
 
 
@@ -222,10 +334,21 @@ def update_function(self, *args, **kwargs):
         
     logging.debug(f'using image: {current_image}')
     
+    config_frame = self.config['frame'].lower()
+    
+    if config_frame == 'random':
+        config_frame = choice(list(constants.frames.keys()))
+    
+    frame = constants.frames.get(config_frame, None)
+    
+    logging.debug(f'using frame: {config_frame}')
+    
+    image = _add_border(current_image, frame)
+    
     data = {
-        'image': current_image,
+        'image': image,
         'time': time,
-        'filename': current_image.name,
+        'filename': current_image.name
     }
     
     try:
@@ -238,6 +361,41 @@ def update_function(self, *args, **kwargs):
     
     is_updated = True
     return (is_updated, data, priority)
+
+
+
+
+
+
+
+
+
+
+# # this code snip simulates running from within the display loop use this and the following
+# # cell to test the output
+# import logging
+# logging.root.setLevel('DEBUG')
+# from library.CacheFiles import CacheFiles
+# from library import Plugin
+# from IPython.display import display
+# test_plugin = Plugin(resolution=(800, 600))
+# test_plugin.config = {
+#         'image_path': './fallback_images', 
+#         'order': 'sequential',
+#         'frame': 'black & silver: matted'}
+# test_plugin.layout = layout.image_only_centered_whitebkground
+# test_plugin.cache = CacheFiles()
+# test_plugin.update_function = update_function
+# test_plugin.update()
+
+
+
+
+
+
+# # 
+# test_plugin.force_update()
+# display(test_plugin.image)
 
 
 

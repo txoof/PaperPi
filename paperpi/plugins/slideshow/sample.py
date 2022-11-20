@@ -1,4 +1,5 @@
 config = {
           'layout':'layout',
-          'order': 'sequential'
+          'order': 'sequential',
+          'frame': ' black & silver: matted'
 }
