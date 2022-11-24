@@ -7,20 +7,26 @@
 
 |     |     |
 |:---:|:---:|
-|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> | <img src=./documentation/images/PaperPi_Demo_frame.gif alt="PaperPi" width=400 />|
+|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> | <img src=./documentation/images/paperpiV3.gif alt="PaperPi" width=400 />|
 
 
 ## About PaperPi
 
-PaperPi is an e-Paper display with multiple rotating display plugins that contain dynamic content.
+PaperPi is a lovely, quiet, *slow internet* e-Paper radio. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose.
 
-PaperPi is a quiet and clean portal to the internet. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose.
+To get started, jump to the **[Setup Instructions](#setup_install)**.
 
-PaperPi is written to work with almost all of the [WaveShare](https://www.waveshare.com/product/displays/e-paper.htm) SPI displays out of the box. PaperPi will work with the tiny 2" displays all the way up to the 10" HD displays with minimal configuration. Check the complete list of [supported screens](#supportedScreens) below.
+### Why it's great
+
+* Works with almost all of the [WaveShare](https://www.waveshare.com/product/displays/e-paper.htm) SPI displays out of the box with minimal setup or configuration
+* Scales plugin output to match your display size from tiny 2" 1 bit displays all the way to 10" HD 8 bit displays
+* Supports an open and hackable plugin architecture
+* Easy install and configuration
+* Quiet, low distraction display with just the content you want
+* Looks great on your desk or in your living room
 
 For information on building a frame, case and custom cable, see [these instructions](./documentation/Frame_Cable_Case.md).
 
-To get started, jump to the **[Setup Instructions](#setup_install)**
 
 ## Plugins
 
@@ -45,6 +51,7 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 * Plugins can now be edited easily in `/usr/local/paperpi/plugins/`
 * Additional plugins can be placed in `/usr/local/paperpi/plugins` without rebuilding
 * Add support for mirroring output 
+* Add additional plugins
 
 <a name="requirements"></a>
 
@@ -85,7 +92,7 @@ PaperPi requires only small amount of setup and is packaged with amateurs in min
 
 ### Install
 
-To get started, copy and paste the following command into a terminal window to download the latest stable version of PaperPi and automatically start the install and setup process.
+To get started, copy and paste the following command into a terminal window on your RaspberryPi to download the latest stable version of PaperPi and automatically start the install and setup process.
 
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
 
@@ -247,13 +254,6 @@ See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
 Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
-
-Document updated 2022.05.01
-=======
-# PaperPi (Development)
-**This is a development version of PaperPi that's not fit for prime-time yet.**
-
-The official version can be found [here](https://github.com/txoof/epd_display).
 
 ## Helping Out
 If you're interested in helping out, check out the [issues](https://github.com/txoof/PaperPi/issues) and jump in. Collaborators are always welcome
