@@ -232,11 +232,11 @@ def update_function(self, *args, **kwargs):
     # check that dictionary is not corrupt:
     dict_failure = False
     if not isinstance(recent_image_dict, dict):
-        logging.warning('dictionary pickle does not contain type `dict`')
+        logging.debug('dictionary pickle does not contain type `dict`')
         dict_failure = True
     for i in (0, 1):
         if i not in recent_image_dict.keys():
-            logging.warning('dictionary pickle has bad data')
+            logging.debug('dictionary pickle has bad data')
             dict_failure = True
     
     if dict_failure:
