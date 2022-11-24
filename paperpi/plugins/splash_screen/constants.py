@@ -5,3 +5,6 @@ data = {
         'version': 'application version number',
         'url': 'url to application',
        }
+
+# do not include a sample INI configuration
+include_ini = False

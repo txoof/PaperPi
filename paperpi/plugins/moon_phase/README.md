@@ -1,5 +1,5 @@
 # moon_phase
-![sample image for plugin ...paperpi.plugins.moon_phase](./moon_phase.layout-sample.png) 
+![sample image for plugin moon_phase](./moon_phase.layout-sample.png) 
 
 ```
  
@@ -118,12 +118,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.moon_phase.mo
    phase_desc
 ```
 
-## Provided Layouts:
-
-layout: **layout**
-
-![sample image for plugin layout](./moon_phase.layout-sample.png) 
-
+## Provided Layouts: 
 
 layout: **moon_data**
 
