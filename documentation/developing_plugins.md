@@ -75,17 +75,27 @@ See the [epdlib Layout module](https://github.com/txoof/epdlib#layout-module) fo
 See the [`basic_clock` layout](../paperpi/plugins/basic_clock/layout.py) for a simple layout template
 
 **\_\_init\_\_.py**
->>>>>>> documentation
 
-```from .my_new_plugin_name import update_function```
+The `__init__.py` file must contain at minimum an import of the update function from your plugin. See the example below
+
+```python
+from .my_new_plugin_name import update_function
+```
 
 **constants.py**
-The `constants.py` file must contain the following:
+
+The `constants.py` is used in generating documentation and populating the deployed `paperpi.ini` file. The constants file must contain the following:
+
 * `name = my_new_plugin` - plugin name that matches module directory name
 * `version = 'version'` - version information
 * sample configuration as docstring. This will be added to the .ini file on demand by the user to assist in configuration.
+* optional: `include_ini = False` -- if this plugin should not be included in the deployed `paperpi.ini`
 
-```
+Example `constants.py`
+
+```python
+name = 'my_plugin_name`
+version = '1.2.3.foo'
 sample_config = '''
 [Plugin: Human Readable Name for Plugin]
 layout = layout
@@ -98,14 +108,18 @@ additional_key = foo '''
 
 
 **debian_packages-myplugin.txt**
+
 If your plugin depends on any external debian packages they must be included in a `debian_packages-myplugin.txt` file where "myplugin" is the name of your plugin. Provide any additional debian packages as a bash array named `DEBPKG`. Bash arrays do not use commas to separate elements:
 
-`DEBPKG=( "libfoo-dev" "formatter-FooBar" )`
+```bash
+DEBPKG=( "libfoo-dev" "formatter-FooBar" )
+```
 
 **requirements-myplugin_hidden.txt**
 
-If your plugin fails to install correctly due to hidden imports that are not correctly detected, they can be added using a flat file that lists one module per line. Use the name from PyPi.
-```
+If your plugin fails to install correctly due to hidden python imports that are not correctly detected, they can be added using a flat file that lists one module per line. Use the name from PyPi.
+
+```text
 cairocffi
 cffi
 CairoSVG
@@ -113,10 +127,11 @@ CairoSVG
 
 **OPTIONAL**
 
-Plugin modules may have user-facing helper functions that can help the user setup or configure the plugin. User facing plugins should be documented using a docstring that contains the `%U` as the last character. See the `lms_client` plugin for an example that helps locate Logitech Media Servers on the local network. The `met_no` plugins for examples provides a function for finding the LAT/LON of a city or location. 
+Plugin modules may have user-facing helper functions that can help the user setup or configure the plugin. User facing plugins should be documented using a docstring that contains the `%U` as the last character. See the `lms_client` plugin for an example of a helper function that can be used to locate Logitech Media Servers on the local network. The `met_no` plugin also provides a function for finding the LAT/LON of a city or location. 
 
 Example:
-```
+
+```python
 def say_hello(name):
     '''
     This fuction says "hello" to the user when called.
@@ -131,24 +146,20 @@ The update_function is added to a `library.Plugin()` object as a method. The upd
 Checklist:
 - [ ] `update_function` must accept `*args, **kwargs` even if they are not used
 - [ ] `update_function` must return a tuple of: (is_updated(bool), data(dict), priority(int))
-  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not operating
+  * `is_updated` indicates if the module is up-to-date and functioning; return `False` if your module is not functioning properly or is not currently operating (e.g. has no relevant data to display)
   * `data` is a dictionary that contains key/value pairs of either strings or an image (path to an image or PIL image object).
   * `priority` indicates your modules priority
     * The default should be to return `self.max_priority`; it is allowed to return a negative number if your plugin detects an important event.
     * If the module is in a passive state (e.g. there is no interesting data to show) set `priority` to `2**15` to ensure it is not included in the display loop
 - [ ] Returns a 3 tuple of `(is_updated(bool), data(dict), priority(int))`
 - [ ] Required docstring:
->>>>>>> documentation
-    ```
+
+    ```python
     '''
     update function for my_plugin_name provides foo information
     
-<<<<<<< HEAD
     # longer description of what this plugin does
     This plugin provides...
-=======
-    This plugin provides...functionality
->>>>>>> documentation
     
     # required configuration elements that must be passed to this plugin
     Requirements:
@@ -174,7 +185,7 @@ Checklist:
 
 To provide a sample image and automatically create documentation provide a `sample.py` file. When documentation is automatically generated, a sample image will be produced using each available layout. 
 
-```
+```python
 config = {
     # this is required
     'layout': 'layout_name_to_use_for_sample_img',
