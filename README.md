@@ -9,7 +9,6 @@
 |:---:|:---:|
 |<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> | <img src=./documentation/images/paperpiV3.gif alt="PaperPi" width=400 />|
 
-[f](./documentation/images/paperpiV3.gif)
 
 ## About PaperPi
 
