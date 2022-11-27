@@ -218,6 +218,8 @@ def update_function(self, *args, **kwargs):
 
     # pull the most recently displayed images 
     recent_image_pickle = self.cache.path/constants.name/constants.recent_images
+    dict_failure = False
+
     try:
         with open(recent_image_pickle, 'rb') as f:
             recent_image_dict = pickle.load(f)            
@@ -230,7 +232,6 @@ def update_function(self, *args, **kwargs):
         return failure
     
     # check that dictionary is not corrupt:
-    dict_failure = False
     if not isinstance(recent_image_dict, dict):
         logging.debug('dictionary pickle does not contain type `dict`')
         dict_failure = True
@@ -272,18 +273,7 @@ def update_function(self, *args, **kwargs):
         if len(image_array) < 1:
             logging.warning('no images could be found; aborting')
             return failure
-    
-#     logging.info(f'scanning {image_path} for images')    
-#     image_array = []
-#     for (dir_path, dir_names, file_names) in walk(image_path):
-#         for f in file_names:
-#             p = Path(dir_path)/f
-#             if p.suffix in constants.supported_image_types:
-#                 image_array.append(p)
-#             else:
-#                 logging.info(f'skipping unsupported file type: {f}')
-#     image_array.sort()
-                
+                    
     logging.debug(f'found {len(image_array)} images')
     
     # set strategy for chosing image
