@@ -12,11 +12,9 @@
 
 ## About PaperPi
 
-PaperPi is an e-Paper display with multiple rotating display plugins that contain dynamic content.
+PaperPi is a lovely, quiet, *slow internet* e-Paper radio. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose.
 
 To get started, jump to the **[Setup Instructions](#setup_install)**.
-
-PaperPi is a quiet and clean portal to the internet. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose.
 
 ### Why it's great
 
