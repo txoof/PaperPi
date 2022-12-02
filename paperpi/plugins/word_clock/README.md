@@ -1,7 +1,7 @@
 # word_clock
-![sample image for plugin ...paperpi.plugins.word_clock](./word_clock.layout-sample.png) 
 
-```
+![sample image for plugin word_clock](./word_clock.layout-sample.png)
+```ini
  
 PLUGIN: word_clock v:0.1.1
 
@@ -45,7 +45,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.word_clock.wo
    time
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **layout**
 

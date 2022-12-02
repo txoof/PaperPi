@@ -1,7 +1,7 @@
 # met_no
-![sample image for plugin ...paperpi.plugins.met_no](./met_no.layout-sample.png) 
 
-```
+![sample image for plugin met_no](./met_no.layout-sample.png)
+```ini
  
 PLUGIN: met_no v:0.1.5
 
@@ -83,7 +83,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.met_no.met_no
    no keys available
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **layout**
 

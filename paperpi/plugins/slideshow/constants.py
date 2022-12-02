@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-version = '0.1.0'
+version = '0.1.1'
 name = 'slideshow'
 data = {
     'time': 'time in HH:MM format',

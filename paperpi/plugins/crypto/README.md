@@ -1,7 +1,7 @@
 # crypto
-![sample image for plugin ...paperpi.plugins.crypto](./crypto.layout-sample.png) 
 
-```
+![sample image for plugin crypto](./crypto.layout-sample.png)
+```ini
  
 PLUGIN: crypto v:0.2.1
 
@@ -94,7 +94,7 @@ LAYOUTS AVAILABLE:
 DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.crypto.crypto:
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **layout**
 
@@ -114,7 +114,7 @@ layout: **ticker_simple**
 ## Additional Plugin Information
 This plugin can track multiple crypto currencies by adding multiple entries in the configuration file:
 
-```
+```ini
 [Plugin: Crypto Dogecoin v EUR]
 plugin = crypto
 layout = layout

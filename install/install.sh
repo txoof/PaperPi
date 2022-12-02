@@ -568,8 +568,8 @@ fi
 export PIPENV_VENV_IN_PROJECT=1
 
 check_permissions
-check_py_packages
 check_deb_packages
+check_py_packages
 copy_files
 create_pipenv
 install_plugin_requirements

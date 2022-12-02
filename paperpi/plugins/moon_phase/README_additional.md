@@ -1,6 +1,8 @@
 ## Additional Plugin Information
+
 ### Configuration Notes
-**Sample Configuration*
+
+*Sample Configuration*
 ```
 [Plugin: Moon Phases]
 layout = layout

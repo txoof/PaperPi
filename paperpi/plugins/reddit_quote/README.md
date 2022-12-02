@@ -1,7 +1,7 @@
 # reddit_quote
-![sample image for plugin ...paperpi.plugins.reddit_quote](./reddit_quote.layout-sample.png) 
 
-```
+![sample image for plugin reddit_quote](./reddit_quote.layout-sample.png)
+```ini
  
 PLUGIN: reddit_quote v:0.1.2
 
@@ -53,7 +53,7 @@ LAYOUTS AVAILABLE:
 DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.reddit_quote.reddit_quote:
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **layout**
 

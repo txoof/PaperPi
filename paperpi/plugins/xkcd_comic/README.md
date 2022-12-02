@@ -1,7 +1,7 @@
 # xkcd_comic
-![sample image for plugin ...paperpi.plugins.xkcd_comic](./xkcd_comic.layout-sample.png) 
 
-```
+![sample image for plugin xkcd_comic](./xkcd_comic.layout-sample.png)
+```ini
  
 PLUGIN: xkcd_comic v:0.1.1
 
@@ -69,7 +69,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.xkcd_comic.xk
    safe_title
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **comic_only**
 
