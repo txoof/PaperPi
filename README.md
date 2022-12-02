@@ -90,6 +90,8 @@ PaperPi plugins work with a variety of other software such as Logitech Media Ser
 
 PaperPi requires only small amount of setup and is packaged with amateurs in mind. By default PaperPi will install as a daemon service that will start at boot.
 
+Check here if you'd like a [step-by-step guide](./documentation/step_by_step_instructions.md).
+
 ### Install
 
 To get started, copy and paste the following command into a terminal window on your RaspberryPi to download the latest stable version of PaperPi and automatically start the install and setup process.
@@ -97,6 +99,8 @@ To get started, copy and paste the following command into a terminal window on y
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
 
 If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh`
+
+
 
 ### Setup
 
@@ -117,6 +121,41 @@ To disable the service from starting on boot, run the command:
 If you would rather run PaperPi on-demand rather than a daemon service you can run it as regular user (e.g. pi) by running `/usr/local/bin/paperpi`. A new configuration file will be created in your user's directory. Make sure to edit this file and add, at minimum, your EPD Screen.
 
 PaperPi can be run on demand in daemon mode using `paperpi -d`
+
+### Configuration
+
+The configuration file is kept in `/etc/defaults/paperpi.ini` for the daemon and `~/.config/com.txoof.paperpi/paperpi.ini` when run as a user. 
+
+The configuration file is written as a `ini` style file. Each section is defined by square brackets `[Section Name]`. White space and comments are ignored. Variables are formatted one-per-line: `variable_name = value`. Strings should not be quoted.
+
+The configuration file has sample values for each plugin that should work for most installations. Plugins such as the LMS and Spotify plugins require configuration.
+
+**Configuration Structure**
+
+`[main]`: The global configuration variables
+
+* `display_type` (string): Name of [display](#supported-screens)
+* `vcom` (float): negative floating point value printed on the ribbon cable of HD screens (e.g. -1.93)
+* `max_refresh` (integer): maximum number of screen refreshes before a total (flashing) wipe (only applies to HD screens)
+* `splash` (boolean): True to display the splash screen on boot; False to launch directly into the display loop
+* `rotation` (integer): rotate the screen 0, 90, 180, 270 degrees. Most screens are oriented with the ribbon cable at the bottom.
+* `mirror` (boolean): True to flip the content. This is useful if everything appears backwards on your screen
+
+`[Plugin: Human Readable Plugin Name]`: Per-plugin configuration
+
+Plugins configurations are always in square brackets and **must** start with the string `Plugin: `. Plugins that have leading characters are ignored and treated as disabled.
+
+The same plugin can be configured multiple times in the same instance. For example, you may want to track multiple LMS players, or display weather for multiple locations.
+
+Each plugin has the following required values and *may* have values specific to the configuration of the plugin. For example your location. Check the [Plugin Documentation](./documentation/Plugins.md) for more information.
+
+* `plugin` (string): plugin_name - this is the exact name of the plugin and can be found on the plugin documentation page
+* `layout` (string): name of layout to use. See the plugin page for an example of every supported layout for each plugin. Every plugin should have a default layout called `layout`.
+* `refresh_rate` (integer): time in seconds before refreshing the data for this plugin. Some plugins connect to external APIs that discourage high rates of requests. A value of around 30-120 seconds is probably good for most plugins.
+* `min_display_time`  (integer): time in seconds that represents the minimum amount of time the plugin should be displayed before cycling to another plugin. Setting this to a value lower than the screen-clear time for your screen is a mistake. 
+* `max_priority` (integer): lower value plugins take priority over higher values. This should be left alone unless you're sure you know what you are doing.
+
+Most plugins should have a maximum priority of 2. This is the default level for plugins that passively cycle. Some plugins such as the Spotify and LMS plugin set their priority to something like 3 when there is no relevant information to display. The value of 3 excludes them from the display loop. When music starts playing, the priority moves to a value of 0 to ensure that the rest of the plugins are displayed. Check the LMS plugin documentation for a full explanation.
 
 ### Uninstall
 
@@ -167,9 +206,9 @@ optional arguments:
 
 ## Developing PaperPi
 
-If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, you will likely need a working build environment.
+If you would like to develop for PaperPi or create [plugins](./documentation/Plugins.md) for PaperPi, you will likely need a working build environment. You can also hack on fonts and layouts directly on an existing install. 
 
-### Requirements
+### Development Requirements
 
 * python 3.7+
 * pipenv
@@ -182,7 +221,7 @@ If you would like to develop [plugins](./documentation/Plugins.md) for PaperPi, 
 
 ## Contributing
 
-Plugins can be pure python, but should follow the [guide provided](./documentation/developing_plugins.md).
+PRs are always welcome! Plugins can be pure python, but should follow the [guide provided](./documentation/developing_plugins.md).
 
 <a name="supportedScreens"> </a>
 
