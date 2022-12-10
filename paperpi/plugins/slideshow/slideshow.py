@@ -28,6 +28,13 @@ from PIL import Image, ImageOps
 
 
 
+from PIL import UnidentifiedImageError
+
+
+
+
+
+
 def _index_images(image_path):
     '''
     index images into an ordered list; rejects all files that do 
@@ -41,18 +48,20 @@ def _index_images(image_path):
     image_path = Path(image_path)
     image_array = []
     logging.info(f'indexing {image_path}')
-    if image_path.is_dir():
-        try:
+    
+    try:
+        if image_path.is_dir():
             for file in listdir(image_path):
                 file = image_path/file
                 if file.is_file() and file.suffix.lower() in constants.supported_image_types:
                     image_array.append(file)
-                else:
                     logging.info(f'skipping unsupported file type: {file}')
-        except (OSError) as e:
-            logging.warning(f'failed to index images in directory: {e}')
-    else: 
-        logging.warning(f'{image_path} does not appear to be a directory')
+        
+        else: 
+            logging.warning(f'{image_path} does not appear to be a directory')
+    except (OSError) as e:
+        logging.warning(f'failed to index images in directory: {e}')
+        
     image_array.sort()
     return image_array
 
@@ -100,16 +109,20 @@ def _add_border(image, borders=constants.f_white_mat_silver_black):
     '''
     logging.debug(f'adding borders: {borders}')
         
-    im = Image.open(image)
+    try:
+        im = Image.open(image)
 
-    if not borders:
-        return im
-    
-    im_new = im.copy()
-    for i in borders:
-        border = round(min(im.size) * i[0])
-        fill = i[1]
-        im_new = ImageOps.expand(im_new, border=border, fill=fill)
+        if not borders:
+            return im
+
+        im_new = im.copy()
+        for i in borders:
+            border = round(min(im.size) * i[0])
+            fill = i[1]
+            im_new = ImageOps.expand(im_new, border=border, fill=fill)
+    except Exception as e:
+        logging.warning(f'failed to open {image} with error: {e}')
+        im_new = None
     return(im_new)    
 
 
@@ -261,6 +274,7 @@ def update_function(self, *args, **kwargs):
     
     # reindex the images each run to handle removed or added images
     image_path = Path(self.config['image_path'])
+        
     
     image_array = _index_images(image_path)
     
