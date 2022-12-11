@@ -1,7 +1,7 @@
 # lms_client
-![sample image for plugin ...paperpi.plugins.lms_client](./lms_client.layout-sample.png) 
 
-```
+![sample image for plugin lms_client](./lms_client.layout-sample.png)
+```ini
  
 PLUGIN: lms_client v:0.1.2
 
@@ -107,7 +107,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.lms_client.lm
    mode
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **layout**
 

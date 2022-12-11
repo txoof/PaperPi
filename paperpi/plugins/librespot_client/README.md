@@ -1,7 +1,7 @@
 # librespot_client
-![sample image for plugin ...paperpi.plugins.librespot_client](./librespot_client.layout-sample.png) 
 
-```
+![sample image for plugin librespot_client](./librespot_client.layout-sample.png)
+```ini
  
 PLUGIN: librespot_client v:0.2.1
 
@@ -77,7 +77,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.librespot_cli
    mode
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **layout**
 

@@ -1,7 +1,7 @@
 # newyorker
-![sample image for plugin ...paperpi.plugins.newyorker](./newyorker.layout-sample.png) 
 
-```
+![sample image for plugin newyorker](./newyorker.layout-sample.png)
+```ini
  
 PLUGIN: newyorker v:0.1.1
 
@@ -53,7 +53,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.newyorker.new
    time
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **default**
 

@@ -1,7 +1,7 @@
 # default
-![sample image for plugin ...paperpi.plugins.default](./default.layout-sample.png) 
 
-```
+![sample image for plugin default](./default.layout-sample.png)
+```ini
  
 PLUGIN: default v:0.1.0
 
@@ -20,7 +20,14 @@ ___________________________________________________________________________
  
 
 SAMPLE CONFIGURATION FOR paperpi.plugins.default.default
-no sample configuration provided in paperpi.plugins.default.default.constants
+
+[Plugin: default fallback plugin]
+layout = layout
+plugin = default
+refresh_rate = 30
+min_display_time = 60
+max_priority = 2**15
+
  
 LAYOUTS AVAILABLE:
   default
@@ -32,7 +39,7 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.default.defau
    msg
 ```
 
-## Provided Layouts:
+## Provided Layouts
 
 layout: **default**
 

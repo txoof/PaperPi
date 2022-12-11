@@ -1,7 +1,7 @@
 ## Additional Plugin Information
 This plugin can track multiple crypto currencies by adding multiple entries in the configuration file:
 
-```
+```ini
 [Plugin: Crypto Dogecoin v EUR]
 plugin = crypto
 layout = layout
