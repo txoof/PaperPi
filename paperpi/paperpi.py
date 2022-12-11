@@ -658,7 +658,7 @@ def main():
         print(constants.VERSION_STRING)
 
     if cmd_args.options.list_plugins:
-        get_help.get_help()
+        get_help.get_help(plugin_path=Path(constants.BASE_DIRECTORY)/'plugins')
         return
     
     if cmd_args.options.plugin_info:
