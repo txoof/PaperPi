@@ -103,11 +103,12 @@ def create_plugins(plugin_dict, resolution=(640, 400)):
     cache = CacheFiles()
 
     for plugin, value in plugin_dict.items():
-        logging.info(f'***** {plugin:^20} *****')
 
         if not value.get('update'):
-            logging.info(f'plugin not queued for update\n')
-            continue        
+            logging.debug(f'***** {plugin:^20} *****')
+            logging.debug(f'plugin not queued for update\n')        
+        else:
+            logging.info(f'***** {plugin:^20} *****')
         
         path = value.get('path', '.None')
         pkg_name = '.'.join([i for i in path.parts if not i.startswith('.')])
@@ -146,26 +147,25 @@ def create_plugins(plugin_dict, resolution=(640, 400)):
             # create valid font paths
             layout = font_path(layout)
             
-#             if not value.get('update'):
+            if not value.get('update'):
 #                     logging.debug(f'skipping plugin update')
-#                     my_plugin = None
-#                     continue
-#             else:
-            logging.info(f'adding layout: {name}')
-            my_plugin = Plugin(resolution=resolution,
-                               cache=cache,
-                               layout=layout,
-                               update_function=module.update_function,
-                               config=config)
-            my_plugin.refresh_rate = 1
+                    my_plugin = None
+            else:
+                logging.info(f'adding plugin with layout: {name}')
+                my_plugin = Plugin(resolution=resolution,
+                                   cache=cache,
+                                   layout=layout,
+                                   update_function=module.update_function,
+                                   config=config)
+                my_plugin.refresh_rate = 1
 
-            try:
-                if 'kwargs' in config:
-                    my_plugin.update(**config['kwargs'])
-                else:
-                    my_plugin.update()
-            except Exception as e:
-                logging.warning(f'[{plugin}]: could not be configured due to errors {e}')
+                try:
+                    if 'kwargs' in config:
+                        my_plugin.update(**config['kwargs'])
+                    else:
+                        my_plugin.update()
+                except Exception as e:
+                    logging.warning(f'[{plugin}]: could not be configured due to errors {e}')
 
             plugin_dict[plugin]['layouts'].append({
                 'plugin': module,
@@ -184,93 +184,185 @@ def create_plugins(plugin_dict, resolution=(640, 400)):
 
 
 def update_readmes(plugin_dict, project_root, overwrite_images=False):
-    '''update readme files for each plugin'''
-    
     logging.info('generating readmes for plugins')
     
-    plugin_path = Path(project_root)/paperpi_constants.PLUGINS
+    base_plugin_path = Path(project_root)/paperpi_constants.PLUGINS
     
     readme_name = 'README'
     readme_additional = '_additional'
     readme_suffix = 'md'    
-
+        
     for plugin, value in plugin_dict.items():
-        logging.info(f'***** {plugin:^20} *****')
-        
-        plugin_path = value.get('path', None)
-        if not plugin_path:
-            logging.warning('plugin not found!')
-            continue
-        
+        logging.info(f'***** {plugin:^20} *****')        
+        if value.get('update', False):
+            logging.info('updating...')
+        else:
+            logging.debug(f'gathering data, skipping update')
+
+        plugin_path = base_plugin_path/plugin
         plugin_readme = plugin_path/f'{readme_name}.{readme_suffix}'
-        value['README'] = plugin_readme
+        logging.debug(f'readme file: {plugin_readme}')
         plugin_readme_additional = plugin_path/f'{readme_name}{readme_additional}.{readme_suffix}'
-        layout_image = Path(plugin_path)/f'{plugin}.layout-sample.png'
-        
-        
+        layout_image = plugin_path/f'{plugin}.layout-sample.png'
         value['default_layout_image'] = {'filename': 'not found',
                                          'path': 'none',
                                          'layout_name': 'layout'}
-        
-        if layout_image.exists():
-            value['default_layout_image'].update({'filename': layout_image.name,
-                                                  'path': layout_image,
-                                                  'layout_name': 'layout'})
-        else:
-            logging.warning('no default layout image exists for this plugin!')
-
-        
-        
-        
-        if not value.get('update', False):
-            logging.info('plugin not queued for update\n')
-            if not plugin_readme.exists():
-                value['README'] = None
-            continue
-            
-        # get the help text  from all the user-facing functions
-        readme_text = get_help.get_help(module=plugin, print_help=False, plugin_path=plugin_path.parent)        
-        if 'error importing' in readme_text:
-            logging.warning(f'could not find any valid plugin information')
-            continue
-            
-        # get the additional information
-        if plugin_readme_additional.exists():
-            with open(plugin_readme_additional, 'r') as file:
-                additional_text = file.read()
-        else:
-            additional_text = ''            
-        
-        
+                
         # produce an image from each layout
         for layout in value['layouts']:
             layout_name = layout.get('layout_name', None)
             image_filename = f'{plugin}.{layout_name}-sample.png'
-            image_path = Path(plugin_path)/image_filename
-                        
-            if (image_path.exists() and overwrite_images) or not image_path.exists():
-                
-                try:
-                    image = layout['plugin_obj'].image
-                except AttributeError:
-                    logging.warning(f'failed to get image for layout {layout_name}')
-                
-                logging.info(f'saving image: {image_path}')
-                image.save(image_path)
-            else:
-                logging.info(f'will not overwrite: {image_path}')
+            image_path = plugin_path/image_filename
 
+            if overwrite_images or not image_path.exists():                
+                try:
+                    logging.info(f'saving image: {image_path}')
+                    image = layout['plugin_obj'].image
+                    image.save(image_path)
+                except (AttributeError, OSError):
+                    logging.warning(f'failed to get image for layout {layout_name}')
+            else:
+                logging.debug(f'will not overwrite: {image_path}')
+            
+            # record the filename
             layout_entry = {'filename': image_filename,
                             'path': image_path,
                             'layout_name': layout_name}        
         
-        
             if layout_name == 'layout':
                 value['default_layout_image'].update(layout_entry)
+                layout['image_data'] = layout_entry
             else:
                 layout['image_data'] = layout_entry
+                            
+        # get the help text  from all the user-facing functions
+        readme_text = get_help.get_help(module=plugin, print_help=False, plugin_path=base_plugin_path)        
+        if 'error importing' in readme_text:
+            logging.warning(f'could not find any valid plugin information')
+            continue
         
+        # get the additional text
+        if plugin_readme_additional.exists():
+            logging.debug(f'adding additional text: {plugin_readme_additional}')
+            with open(plugin_readme_additional, 'r') as file:
+                additional_text = file.read()
+        else:
+            logging.debug(f'no additional text to add')
+            additional_text = ''            
+        
+        # open the readme file and write
+        with open(plugin_readme, 'w') as file:
+            file.write(f'# {plugin}\n\n')
+            file.write(f'![sample image for plugin {plugin}](./{value["default_layout_image"]["filename"]})\n')
+            file.write(f'```ini\n{readme_text}\n```\n\n')
+            file.write(f'## Provided Layouts\n\n')
+            for layout in value['layouts']:
+                file.write(f'layout: **{layout["layout_name"]}**\n\n')  
+                file.write(f'![sample image for plugin {layout["layout_name"]}](./{layout["image_data"]["filename"]}) \n\n\n')
+                
+            file.write(additional_text)
+            
+        if plugin_readme.exists():
+            value['README'] = plugin_readme
+            
     return plugin_dict
+    
+
+
+
+
+
+
+# def update_readmes(plugin_dict, project_root, overwrite_images=False):
+#     '''update readme files for each plugin'''
+    
+#     logging.info('generating readmes for plugins')
+    
+#     plugin_path = Path(project_root)/paperpi_constants.PLUGINS
+    
+#     readme_name = 'README'
+#     readme_additional = '_additional'
+#     readme_suffix = 'md'    
+
+#     for plugin, value in plugin_dict.items():
+        
+#         if not value.get('update', False):
+#             logging.debug(f'***** {plugin:^20} *****')
+#             logging.debug('plugin not queued for update\n')
+#             continue        
+#         else:
+#             logging.info(f'***** {plugin:^20} *****')
+#             logging.info(f'updating...')
+   
+#         plugin_path = value.get('path', None)
+#         if not plugin_path:
+#             logging.warning('plugin not found!')
+#             continue
+        
+#         plugin_readme = plugin_path/f'{readme_name}.{readme_suffix}'
+#         plugin_readme_additional = plugin_path/f'{readme_name}{readme_additional}.{readme_suffix}'
+        
+#         if not plugin_readme.exists():
+#             value['README'] = None
+#         else:
+#             value['README'] = plugin_readme
+            
+#         layout_image = Path(plugin_path)/f'{plugin}.layout-sample.png'
+        
+#         value['default_layout_image'] = {'filename': 'not found',
+#                                          'path': 'none',
+#                                          'layout_name': 'layout'}
+#         if layout_image.exists():
+#             value['default_layout_image'].update({'filename': layout_image.name,
+#                                                   'path': layout_image,
+#                                                   'layout_name': 'layout'})
+#         else:
+#             logging.warning('no default layout image exists for this plugin!')        
+            
+#         # get the help text  from all the user-facing functions
+#         readme_text = get_help.get_help(module=plugin, print_help=False, plugin_path=plugin_path.parent)        
+#         if 'error importing' in readme_text:
+#             logging.warning(f'could not find any valid plugin information')
+#             continue
+            
+#         # get the additional information
+#         if plugin_readme_additional.exists():
+#             logging.debug(f'adding additional text: {plugin_readme_additional}')
+#             with open(plugin_readme_additional, 'r') as file:
+#                 additional_text = file.read()
+#         else:
+#             logging.debug(f'no additional text to add')
+#             additional_text = ''            
+        
+        
+#         # produce an image from each layout
+#         for layout in value['layouts']:
+#             layout_name = layout.get('layout_name', None)
+#             image_filename = f'{plugin}.{layout_name}-sample.png'
+#             image_path = Path(plugin_path)/image_filename
+                        
+#             if (image_path.exists() and overwrite_images) or not image_path.exists():                
+#                 try:
+#                     image = layout['plugin_obj'].image
+#                 except AttributeError:
+#                     logging.warning(f'failed to get image for layout {layout_name}')
+                
+#                 logging.info(f'saving image: {image_path}')
+#                 image.save(image_path)
+#             else:
+#                 logging.debug(f'will not overwrite: {image_path}')
+
+#             layout_entry = {'filename': image_filename,
+#                             'path': image_path,
+#                             'layout_name': layout_name}        
+        
+        
+#             if layout_name == 'layout':
+#                 value['default_layout_image'].update(layout_entry)
+#             else:
+#                 layout['image_data'] = layout_entry
+        
+#     return plugin_dict
 
 
 
@@ -289,7 +381,7 @@ def update_documentation(plugin_dict, doc_path):
     plugin_readme_post_source = Path(doc_path)/'source/Plugins_post.md'
     plugin_readme_final = Path(doc_path)/plugin_readme_source.name
     
-    logging.info(f'updating {plugin_readme_final}')
+    logging.info(f'updating master documentation at: {plugin_readme_final}')
     
     final_text = ''
 
@@ -434,27 +526,36 @@ def main():
     
     args = parser.parse_args()
     
-        
+    logging.root.setLevel(args.log_level)
+            
     try:
-        find_plugins(args.project_root)
+        plugin_dict = find_plugins(args.project_root, args.plugin_list)
     except OSError as e:
         do_exit(f'could not access project at path: {args.project_root}')
     
-    logging.root.setLevel(args.log_level)
-    
-    plugin_dict = find_plugins(args.project_root, args.plugin_list)
-    
-    plugin_dict = create_plugins(plugin_dict, )
+#     plugin_dict = find_plugins(args.project_root, args.plugin_list)
+        
+    plugin_dict = create_plugins(plugin_dict, )    
     
     plugin_dict = update_readmes(plugin_dict=plugin_dict, 
                                  project_root=args.project_root, 
                                  overwrite_images=args.overwrite_images)
+    
+    
 
     ret_val = update_documentation(plugin_dict=plugin_dict, doc_path=args.documentation_path)
     
+    if not ret_val:
+        logging.warning('problem updating main documentation archive -- see previous errors')
+    
     ret_val = update_ini(plugin_dict=plugin_dict, project_root=args.project_root)
     
+    if not ret_val:
+        logging.warning('problem updating base ini file -- see previous errors')
 
+    # do something with the ret_val??!
+    
+    
     return plugin_dict
     
 
