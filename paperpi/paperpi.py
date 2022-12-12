@@ -479,7 +479,8 @@ def setup_display(config):
     
     epd = config['main'].get('display_type', None)
     vcom = config['main'].get('vcom', None)
-    
+    mirror = config['main'].get('mirror', False)
+        
     try:
         screen = Screen(epd=epd, vcom=vcom)
         screen.clearEPD()
@@ -502,10 +503,18 @@ def setup_display(config):
     
     try:
         screen.rotation = config['main'].get('rotation', 0)
-    except ValueError as e:
+    except (TypeError, ValueError) as e:
         logger.error('invalid screen rotation [main][rotation] - acceptable values are (0, 90, -90, 180)')
         return_val = ret_obj(None, 1, keyError_format.format('main', 'rotation'))
         return return_val
+    
+    try:
+        screen.mirror = config['main'].get('mirror', False)
+    except (TypeError, ValueError) as e:
+        logger.error('invalid mirror value [main][mirror] - acceptable values are: (True, False)')
+        return_val = ret_obj(None, 1, keyError_format.format('main', 'rotation'))
+        return return_val
+            
     
     return ret_obj(obj=screen)    
 
@@ -750,14 +759,12 @@ def main():
 if __name__ == "__main__":
     # remove jupyter runtime junk for testing
     if len(sys.argv) >= 2 and 'ipykernel' in sys.argv[0]:
-        t = 'foo'
         r = sys.argv[3:]
-        sys.argv = [t]
         sys.argv.extend(r)
-#         sys.argv = [sys.argv[0]]
-#         sys.argv.extend(sys.argv[2:])
+        sys.argv = [sys.argv[0]]
+        sys.argv.extend(sys.argv[2:])
     exit_code = main()
-#     sys.exit(exit_code)
+    sys.exit(exit_code)
 
 
 
