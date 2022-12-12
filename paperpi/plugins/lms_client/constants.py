@@ -1,4 +1,5 @@
-version = '0.1.2'
+# layouts for lms_client
+version = '0.1.3'
 name = 'lms_client'
 #  path for private cache with the temp directory
 private_cache = f'{name}/'

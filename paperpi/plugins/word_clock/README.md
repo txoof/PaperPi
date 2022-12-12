@@ -1,9 +1,9 @@
-# word_clock
+# word_clock <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
 
-![sample image for plugin word_clock](./word_clock.layout-sample.png)
+![sample image for plugin word_clock](./word_clock.layout-L-sample.png)
 ```ini
  
-PLUGIN: word_clock v:0.1.1
+PLUGIN: word_clock v:0.1.2
 
  
 FUNCTION: update_function
@@ -32,6 +32,9 @@ plugin = word_clock
 refresh_rate = 125
 min_display_time = 255
 max_priority = 2
+# Text color [RED, ORANGE, YELLOW, GREEN, BLUE, BLACK WHITE] or random
+# text_color = random
+# bkground_color = random
 
  
 LAYOUTS AVAILABLE:
@@ -49,16 +52,31 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.word_clock.wo
 
 layout: **layout**
 
-![sample image for plugin layout](./word_clock.layout-sample.png) 
+![sample image for plugin layout](./word_clock.layout-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+
+![sample image for plugin layout](./word_clock.layout-RGB-sample.png) 
 
 
 layout: **word_clock**
 
-![sample image for plugin word_clock](./word_clock.word_clock-sample.png) 
+![sample image for plugin word_clock](./word_clock.word_clock-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> word_clock**
+
+![sample image for plugin word_clock](./word_clock.word_clock-RGB-sample.png) 
 
 
 layout: **word_clock_lg**
 
-![sample image for plugin word_clock_lg](./word_clock.word_clock_lg-sample.png) 
+![sample image for plugin word_clock_lg](./word_clock.word_clock_lg-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> word_clock_lg**
+
+![sample image for plugin word_clock_lg](./word_clock.word_clock_lg-RGB-sample.png) 
 
 

@@ -42,5 +42,9 @@ min_display_time = 50
 max_priority = 2
 # maximum length of quote (in characters) including spaces, a la Twitter
 max_length = 144
+# Text/background color [RED, ORANGE, YELLOW, GREEN, BLUE, BLACK WHITE] or random
+# bkground color is not supported in this plugin 
+# text_color = RED
+# bkground_color = random
 '''
 

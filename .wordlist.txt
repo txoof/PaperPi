@@ -170,3 +170,17 @@ numpy
 blackbkground
 whitebkground
 vcom
+GTK
+PCManFM
+automount
+usbmount
+PaperCloud
+RaspberryOS
+MagPi
+sudo
+CTRL
+GitHub
+hackable
+boolean
+uncheck
+

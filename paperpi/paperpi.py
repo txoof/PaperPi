@@ -264,76 +264,6 @@ def get_config_files(cmd_args):
 
 
 
-# def get_config_files(cmd_args):
-#     '''read config.ini style files(s)
-    
-#     Args: 
-#         cmd_args(`ArgConfigParse.CmdArgs` obj)
-        
-#     Returns:
-#         ArgConfigParse.ConfgifFile'''
-    
-#     logger.debug('gathering configuration files')
-    
-#     config_files_dict = {'base': constants.CONFIG_BASE,
-#                          'system': constants.CONFIG_SYSTEM,
-#                          'user': constants.CONFIG_USER,
-#                          'cmd_line': cmd_args.options.user_config}
-    
-#     config_files_list = [config_files_dict['base']]
-    
-    
-# #     cmd_line_config = cmd_args.nested_opts_dict.get('__cmd_line', {}).get('user_config', None)
-    
-    
-
-    
-#     if cmd_args.options.main__daemon:
-#         logging.debug(f'using daemon configuration: {constants.CONFIG_SYSTEM}')
-#         config_files_list.append(config_files_dict['system'])
-#     else:
-#         if constants.CONFIG_USER.exists():
-#             config_files_list.append(config_files_dict['user'])
-#         else:
-#             try:
-#                 constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
-#             except PermissionError as e:
-#                 msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
-#                 logger.critical(msg)
-#                 do_exit(1, msg)
-#             try:
-#                 shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
-#             except Exception as e:
-#                 msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
-#                 logging.critical(1, msg)
-#                 do_exit(1, msg)
-#             msg = f'''This appears to be the first time PaperPi has been run.
-# A user configuration file created: {constants.CONFIG_USER}
-# At minimum you edit this file and add a display_type and enable one plugin.
-        
-# Edit the configuration file with:
-#    $ nano {constants.CONFIG_USER}'''
-#             do_exit(0, msg)
-            
-    
-
-    
-#     logger.info(f'using configuration files to configure PaperPi: {config_files_list}')
-#     config_files = ArgConfigParse.ConfigFile(config_files_list, ignore_missing=True)
-#     try:
-#         config_files.parse_config()
-#     except DuplicateSectionError as e:
-#         logger.error(f'{e}')
-#         config_files = None
-        
-
-#     return config_files
-
-
-
-
-
-
 def clean_up(cache=None, screen=None):
     '''clean up the screen and cache
     
@@ -406,9 +336,11 @@ def build_plugins_list(config, resolution, cache):
             plugin_config['resolution'] = resolution
             plugin_config['config'] = plugin_kwargs
             plugin_config['cache'] = cache
+            plugin_config['force_onebit'] = config['main']['force_onebit']
+            plugin_config['screen_mode'] = config['main']['screen_mode']
             # force layout to one-bit mode for non-HD screens
-            if not config['main'].get('display_type') == 'HD':
-                plugin_config['force_onebit'] = True
+#             if not config['main'].get('display_type') == 'HD':
+#                 plugin_config['force_onebit'] = True
             try:
                 module = import_module(f'{constants.PLUGINS}.{values["plugin"]}')
                 plugin_config['update_function'] = module.update_function
@@ -454,7 +386,7 @@ def setup_splash(config, resolution):
             'name': 'Splash Screen',
             'layout': splash_screen.layout.layout,
             'update_function': splash_screen.update_function,
-            'resolution': resolution
+            'resolution': resolution,
         }
         splash = Plugin(**splash_config)
         splash.update(constants.APP_NAME, constants.VERSION, constants.URL)
@@ -483,7 +415,8 @@ def setup_display(config):
         
     try:
         screen = Screen(epd=epd, vcom=vcom)
-        screen.clearEPD()
+        # this may not be necessary; most writes necessarily involve wiping the screen
+#         screen.clearEPD()
     except ScreenError as e:
         logging.critical('Error loading epd from configuration')
         return_val = ret_obj(None, 1, moduleNotFoundError_fmt.format(epd, e))
@@ -699,12 +632,11 @@ def main():
     log_level = config['main'].get('log_level', 'INFO')
 
     logger.setLevel(log_level)
-#     logger.root.setLevel(log_level)
     logging.root.setLevel(log_level)
 
     logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
     logger.debug(f'configuration:\n{config}\n\n')
-    
+        
     screen_return = setup_display(config)
     
     if screen_return['obj']:
@@ -713,7 +645,18 @@ def main():
         clean_up(None, None)
         logger.error(f'config files used: {config_files.config_files}')
         do_exit(**screen_return)
-                    
+    
+    # force to one-bit mode for non HD and non-color screens
+    if screen.mode == '1' or not config['main'].get('color', True):
+        one_bit = True
+    else:
+        one_bit = False
+            
+    config['main']['force_onebit'] = one_bit
+    config['main']['screen_mode'] = screen.mode
+    
+    logging.info('configured')
+            
     splash = setup_splash(config, screen.resolution)
     
     if splash:
@@ -730,13 +673,7 @@ def main():
             
     cache = CacheFiles(path_prefix=constants.APP_NAME)
     
-    #force onebit mode if screen is not HD
-    if screen.HD:
-        one_bit = False
-    else:
-        one_bit = True
-    config['main']['force_onebit'] = one_bit
-    
+
     
     plugins = build_plugins_list(config=config, resolution=screen.resolution, 
                                 cache=cache)
@@ -749,7 +686,10 @@ def main():
 
 
 
-    
+
+
+
+# sys.argv.extend(['-c', './test_config.ini'])
 
 
 
@@ -758,11 +698,12 @@ def main():
 
 if __name__ == "__main__":
     # remove jupyter runtime junk for testing
-    if len(sys.argv) >= 2 and 'ipykernel' in sys.argv[0]:
-        r = sys.argv[3:]
-        sys.argv.extend(r)
-        sys.argv = [sys.argv[0]]
-        sys.argv.extend(sys.argv[2:])
+    try:
+        i = sys.argv.index('-f')
+        t = sys.argv[:i] + sys.argv[i+2:]
+        sys.argv = t
+    except ValueError:
+        pass
     exit_code = main()
     sys.exit(exit_code)
 

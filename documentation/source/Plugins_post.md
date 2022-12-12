@@ -5,7 +5,7 @@ Plugins can be added multiple times (e.g. to show weather in multiple locations 
 
 To use a plugin, add a configuration section for each plugin instance to the appropriate configuration file:
  * user: `~/.config/com.txoof.paperpi/paperpi.ini`
-  * daemon: `/etc/defaults/paperpi.ini`
+  * daemon: `/etc/default/paperpi.ini`
    
    Plugin configuration sections follow this pattern. Some plugins require extra configuration such as API keys or lat/lon data.
 

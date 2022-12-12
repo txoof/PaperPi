@@ -2,35 +2,56 @@
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+cover_art_only = {
+    'coverart':
+       {'type': 'ImageBlock',
+        'image': True,
+        'mode': 'L',
+        'padding': 5,
+        'width': 1,
+        'height': 1,
+        'vcenter': True,
+        'hcenter': True,
+        'relative': False,
+        'abs_coordinates': (0, 0),
+        'bkground': 'WHITE',
+        'rgb_support': True}
+      
+}
+
 two_rows_text_only = {
     'title':
-            {'type': 'TextBlock',
-             'image': None,
-             'max_lines': 2,
-             'padding': 10,
-             'width': 1,
-             'height': .8,
-             'abs_coordinates': (0, 0),
-             'hcenter': True,
-             'vcenter': True,
-             'align': 'center',
-             'relative': False,
-             'font': dir_path+'/../../fonts/Oswald/static/Oswald-Regular.ttf',
-             'font_size': None},
+        {'type': 'TextBlock',
+         'image': None,
+         'max_lines': 2,
+         'padding': 10,
+         'width': 1,
+         'height': .8,
+         'abs_coordinates': (0, 0),
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'relative': False,
+         'font': dir_path+'/../../fonts/Oswald/static/Oswald-Regular.ttf',
+         'font_size': None,
+         'fill': 'BLACK',
+         'bkground': 'WHITE'},
 
     'artist':
-            {'type': 'TextBlock',
-             'image': None,
-             'max_lines': 2,
-             'padding': 10,
-             'width': 1,
-             'height': .2,
-             'abs_coordinates': (0, None),
-             'hcenter': True,
-             'vcenter': True,
-             'relative': ['artist', 'title'],
-             'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
-             'font_size': None},
+        {'type': 'TextBlock',
+         'image': None,
+         'max_lines': 2,
+         'padding': 10,
+         'width': 1,
+         'height': .2,
+         'abs_coordinates': (0, None),
+         'hcenter': True,
+         'vcenter': True,
+         'relative': ['artist', 'title'],
+         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
+         'font_size': None,
+         'fill': 'BLACK',
+         'bkground': 'WHITE'},
 }
 
 
@@ -48,7 +69,9 @@ three_rows_text_only = {
         'align': 'left',
         'relative': False,
         'mode': 'L',
-        'font': dir_path+'/../../fonts/Oswald/static/Oswald-Medium.ttf'
+        'font': dir_path+'/../../fonts/Oswald/static/Oswald-Medium.ttf',
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
     },
     'artist': {
         'type': 'TextBlock',
@@ -61,7 +84,9 @@ three_rows_text_only = {
         'vcenter': True,
         'relative': ['artist', 'title'],
         'mode': 'L',
-        'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf'
+        'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
     },
     'album': {
         'type': 'TextBlock',
@@ -74,7 +99,9 @@ three_rows_text_only = {
         'vcenter': True,
         'relative': ['album', 'artist'],
         'mode': 'L',
-        'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf'
+        'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
     },     
 }
 
@@ -89,7 +116,11 @@ two_column_three_row = {
         'vcenter': True,
         'hcenter': True,
         'relative': False,
-        'abs_coordinates': (0, 0)
+        'abs_coordinates': (0, 0),
+        'rgb_support': True,
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
+
     },
     'artist': {
         'type': 'TextBlock',
@@ -105,6 +136,8 @@ two_column_three_row = {
         'height': .40,
         'relative': ['coverart', 'artist'],
         'abs_coordinates': (None, 0),
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
         
     },
     'album': {
@@ -121,6 +154,8 @@ two_column_three_row = {
         'height': .1,
         'relative': ['coverart', 'artist'],
         'abs_coordinates': (None, 0),
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
         
     },
     'title': {
@@ -136,7 +171,47 @@ two_column_three_row = {
         'width': 1,
         'height': .5,
         'relative': ['title', 'album'],
-        'abs_coordinates': (0, None)
+        'abs_coordinates': (0, None),
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
     },
 }
+
+
+album_art_title = {
+    'coverart':
+       {'type': 'ImageBlock',
+        'image': True,
+        'mode': 'L',
+        'padding': 5,
+        'width': 1,
+        'height': .8,
+        'vcenter': True,
+        'hcenter': True,
+        'relative': False,
+        'abs_coordinates': (0, 0),
+        'bkground': 'WHITE',
+        'rgb_support': True,
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
+       },
+    'title':
+        {'type': 'TextBlock',
+         'image': None,
+         'max_lines': 2,
+         'padding': 5,
+         'width': 1,
+         'height': .2,
+         'mode':'L',
+         'abs_coordinates': [0, None],
+         'relative': ['title', 'coverart'],
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'font': dir_path+'/../../fonts/Oswald/static/Oswald-Regular.ttf',
+         'font_size': None,
+         'fill': 'BLACK',
+         'bkground': 'WHITE'},      
+}
+
 layout = two_column_three_row

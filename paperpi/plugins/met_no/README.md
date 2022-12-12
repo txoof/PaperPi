@@ -1,9 +1,9 @@
-# met_no
+# met_no <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
 
-![sample image for plugin met_no](./met_no.layout-sample.png)
+![sample image for plugin met_no](./met_no.layout-L-sample.png)
 ```ini
  
-PLUGIN: met_no v:0.1.5
+PLUGIN: met_no v:0.1.6
 
  
 FUNCTION: get_coord
@@ -70,6 +70,9 @@ lat = 9.000
 lon = 38.750
 # this is required by Met.no -- please use a real value
 email = you@host.diamond
+# Text color [RED, ORANGE, YELLOW, GREEN, BLUE, BLACK WHITE] or random
+# bkground color is not supported in this plugin 
+# text_color = BLUE 
 
  
 LAYOUTS AVAILABLE:
@@ -87,21 +90,41 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.met_no.met_no
 
 layout: **layout**
 
-![sample image for plugin layout](./met_no.layout-sample.png) 
+![sample image for plugin layout](./met_no.layout-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+
+![sample image for plugin layout](./met_no.layout-RGB-sample.png) 
 
 
 layout: **three_column_icon_wind_temp_precip**
 
-![sample image for plugin three_column_icon_wind_temp_precip](./met_no.three_column_icon_wind_temp_precip-sample.png) 
+![sample image for plugin three_column_icon_wind_temp_precip](./met_no.three_column_icon_wind_temp_precip-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> three_column_icon_wind_temp_precip**
+
+![sample image for plugin three_column_icon_wind_temp_precip](./met_no.three_column_icon_wind_temp_precip-RGB-sample.png) 
 
 
 layout: **three_row_icon_wind_temp**
 
-![sample image for plugin three_row_icon_wind_temp](./met_no.three_row_icon_wind_temp-sample.png) 
+![sample image for plugin three_row_icon_wind_temp](./met_no.three_row_icon_wind_temp-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> three_row_icon_wind_temp**
+
+![sample image for plugin three_row_icon_wind_temp](./met_no.three_row_icon_wind_temp-RGB-sample.png) 
 
 
 layout: **two_column_icon_wind_temp_precip**
 
-![sample image for plugin two_column_icon_wind_temp_precip](./met_no.two_column_icon_wind_temp_precip-sample.png) 
+![sample image for plugin two_column_icon_wind_temp_precip](./met_no.two_column_icon_wind_temp_precip-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> two_column_icon_wind_temp_precip**
+
+![sample image for plugin two_column_icon_wind_temp_precip](./met_no.two_column_icon_wind_temp_precip-RGB-sample.png) 
 
 

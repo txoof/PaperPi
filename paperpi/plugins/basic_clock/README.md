@@ -1,6 +1,6 @@
 # basic_clock
 
-![sample image for plugin basic_clock](./basic_clock.layout-sample.png)
+![sample image for plugin basic_clock](./basic_clock.layout-L-sample.png)
 ```ini
  
 PLUGIN: basic_clock v:0.1.1
@@ -43,11 +43,11 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.basic_clock.b
 
 layout: **basic_clock**
 
-![sample image for plugin basic_clock](./basic_clock.basic_clock-sample.png) 
+![sample image for plugin basic_clock](./basic_clock.basic_clock-L-sample.png) 
 
 
 layout: **layout**
 
-![sample image for plugin layout](./basic_clock.layout-sample.png) 
+![sample image for plugin layout](./basic_clock.layout-L-sample.png) 
 
 
