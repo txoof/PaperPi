@@ -45,13 +45,14 @@ See the [Developing Plugins](./documentation/developing_plugins.md) guide for mo
 
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
 
-**V 0.4.0**
+**V 0.4.1**
 
 * PaperPi is no longer distributed as a PyInstaller frozen blob and now installs into `/usr/local/paperpi` and places an executable entry script in `/usr/local/bin/`.
 * Plugins can now be edited easily in `/usr/local/paperpi/plugins/`
 * Additional plugins can be placed in `/usr/local/paperpi/plugins` without rebuilding
 * Add support for mirroring output 
 * Add additional plugins
+* Add mirror option
 
 <a name="requirements"></a>
 
