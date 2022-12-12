@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.4.1.0
+
+* Add mirror option
+* Move to version 0.5.2.1 of epdlib
+
 ## 0.4.0.0
 
 * Add [Slideshow](../paperpi/plugins/slideshow/README.md) plugin
