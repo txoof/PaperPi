@@ -70,7 +70,7 @@ splash = True
 # rotation of EPD display
 # (cable bottom: 0; cable left: -90; cable right: 90; cable top: 180)
 rotation = 0
-# mirror screen outuput - useful if output to screen appears backwards
+# mirror screen output - useful if output to screen appears backwards
 mirror = False
 ```
 

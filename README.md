@@ -95,7 +95,7 @@ Check here if you'd like a [step-by-step guide](./documentation/step_by_step_ins
 
 ### Install
 
-To get started, copy and paste the following command into a terminal window on your RaspberryPi to download the latest stable version of PaperPi and automatically start the install and setup process.
+To get started, copy and paste the following command into a terminal window on your Raspberry Pi to download the latest stable version of PaperPi and automatically start the install and setup process.
 
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
 
