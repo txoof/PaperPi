@@ -100,7 +100,7 @@ PaperPi is now ready to run and just needs to be started as a daemon!
 If things don't go smoothly there's a few things you can do to figure out what went wrong.
 
 1. Check the system log type `tail -f /var/log/syslog`. Look for lines that start with paperpi to get some clues as to the problem
-2. If this doesn't help, edit the config file and set the log level to 'DEBUG'. `sudo nano /etc/defaults/paperpi.ini`
+2. If this doesn't help, edit the config file and set the log level to 'DEBUG'. `sudo nano /etc/default/paperpi.ini`
 3. Restart paperpi: `sudo systemctl restart paperpi-daemon.service` and check the logs again and see if there's anything more useful 
 4. If you're still struggling to figure out what went wrong stop paperpi with `sudo systemctl stop paperpi-daemon.service`
 5. Start paperpi manually with `sudo /usr/local/bin/paperpi -d` this should output all the logs directly to the terminal making it easier to follow. Press CTRL+C to stop PaperPi

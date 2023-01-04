@@ -107,7 +107,7 @@ If you would rather install PaperPi yourself, [clone this repo](https://github.c
 
 **Daemon Mode**
 
-The installer should prompt you to edit `/etc/defaults/paperpi.ini`. At minimum you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
+The installer should prompt you to edit `/etc/default/paperpi.ini`. At minimum you must add your EPD Screen and enable several plugins. A complete list of supported EPD Screens are [listed below](#supportedScreens).
 
 Any changes to the PaperPi configuration require a restart of the service:
 
@@ -125,7 +125,7 @@ PaperPi can be run on demand in daemon mode using `paperpi -d`
 
 ### Configuration
 
-The configuration file is kept in `/etc/defaults/paperpi.ini` for the daemon and `~/.config/com.txoof.paperpi/paperpi.ini` when run as a user. 
+The configuration file is kept in `/etc/default/paperpi.ini` for the daemon and `~/.config/com.txoof.paperpi/paperpi.ini` when run as a user. 
 
 The configuration file is written as a `ini` style file. Each section is defined by square brackets `[Section Name]`. White space and comments are ignored. Variables are formatted one-per-line: `variable_name = value`. Strings should not be quoted.
 
@@ -293,7 +293,14 @@ NN. Board        Supported:
 See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
-Please [open tickets at GitHub](https://github.com/txoof/epd_display/issues).
+Please [open tickets at GitHub](https://github.com/txoof/PaperPi/issues).
 
 ## Helping Out
 If you're interested in helping out, check out the [issues](https://github.com/txoof/PaperPi/issues) and jump in. Collaborators are always welcome
+
+## Thanks
+
+* @blbal - typos
+* @aaronr8684 - writing installer, catching hundreds of errors and generally be a great person
+* @veebch - inspiration for Reddit and Crypto plugins
+* @PaperCloud10 - testing of new versions and debugging slideshow plugin

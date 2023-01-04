@@ -1,5 +1,5 @@
 # Plugins
-All plugins are configured through the `paperpi.ini` files. For a single-user configuration the file is stored in `~/.config/com.txoof.paperpi/` for system-wide daemon configuration the file is stored in `/etc/defaults/`.
+All plugins are configured through the `paperpi.ini` files. For a single-user configuration the file is stored in `~/.config/com.txoof.paperpi/` for system-wide daemon configuration the file is stored in `/etc/default/`.
 
 
 ## Plugins Currently Available
@@ -40,7 +40,7 @@ Plugins can be added multiple times (e.g. to show weather in multiple locations 
 
 To use a plugin, add a configuration section for each plugin instance to the appropriate configuration file:
  * user: `~/.config/com.txoof.paperpi/paperpi.ini`
-  * daemon: `/etc/defaults/paperpi.ini`
+  * daemon: `/etc/default/paperpi.ini`
    
    Plugin configuration sections follow this pattern. Some plugins require extra configuration such as API keys or lat/lon data.
 
