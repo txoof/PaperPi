@@ -20,9 +20,66 @@ See the included [`demo_plugin`](../paperpi/plugins/demo_plugin) for a simple, w
 5. Add any python modules your plugin requires using `pipenv install --dev ModuleName`
     - this will help keep your additional modules separate from the PaperPi core modules
 
+### TOOLS AVAILABLE TO PLUGINS
+
+PaperPi offers additional tools that can be used for setting up managing plugins.
+
+The tools are part of the `PluginTools` library. To take advantage of this library append the following import to your plugin:
+
+```Python
+import sys
+sys.path.append('../../library/')
+from library import PluginTools
+```
+
+#### text_color
+
+Sanely set text fill and background colors and falling back to default  values for 1 bit and grayscale displays. This is useful for setting color for RGB screens
+    
+Args:
+    * `config` (dict): dictionary containing configuration variables (see below)
+    * `mode` (str): string screen mode: '1', 'L', 'RGB'
+    * `default_text` (str): color string in `['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']`
+    * `default_bkground` (str) color string in `['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']`
+
+Returns:
+    * dict of `{text_color: string, bkground_color: string}`
+    
+Notes:
+`config` should include `'text_color'` and `'bkground_color'` and should be one of `['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']` or `'random'`
+    
+Choosing 'random' will try choose a random color from the set. Using random for both text and bkground will always result in different colors for the text and bkground values.
+    
+`config = {'text_color': 'RED', 'bkground_color': 'BLUE'}`
+
+##### Example
+
+```Python
+def update_function(self):
+
+    foo = {'bar': 'spam'}
+
+    # handle colors passed from the config file  in the self.config property
+    if 'text_color' in self.config or 'bkground_color' in self.config:
+        logging.info('using user-defined colors')
+        colors = PluginTools.text_color(config=self.config, mode=self.screen_mode,
+                               default_text=self.layout.get('fill', 'WHITE'),
+                               default_bkground=self.layout.get('bkground', 'BLACK'))
+
+        text_color = colors['text_color']
+        bkground_color = colors['bkground_color']
+
+
+        # set the colors
+        for section in self.layout:
+            logging.debug(f'setting {section} layout colors to fill: {text_color}, bkground: {bkground_color}')
+            self.layout_obj.update_block_props(section, {'fill': text_color, 'bkground': bkground_color})
+    
+    return (True, foo, self.max_priority)
+```
+
 
 ### BUILTIN PROPERTIES AVAILABLE TO PLUGINS
->>>>>>> documentation
 
 All plugins have the following functions and properties available. Call the builtin functions by using `self.[method/property]`.
 
@@ -71,6 +128,45 @@ Within the `layout.py` file, the default layout should be named `layout`. It is 
 Layouts that require fonts should use paths in the following format: `'font': dir_path+'/../../fonts/<FONT NAME>/<FONT FILE>` Add additional publicly available fonts to the `fonts` directory (<https://fonts.google.com/> is a good source)
 
 See the [epdlib Layout module](https://github.com/txoof/epdlib#layout-module) for more information on creating layouts
+
+In addition to the keys supported by the `epdlib.Layout` module, the following block keys are also accepted:
+
+#### `'rgb_support': True`
+
+Adding the `rgb_support` key within a plugin block indicates that that block should attempt to use RGB color when rendering. If the attached screen does not support RGB color, the block will default to gray or 1 bit mode.
+
+```Python
+# example layout with `rgb_support`
+my_layout = {
+        'number': {
+            # this block will render as a 1 bit block always
+            'type': 'TextBlock',
+            'image': None,
+            'max_lines': 1,
+            'width': 1,
+            'height': .5,
+            'abs_coordinates': (0, 0),
+            'rand': True,
+            'font': '../fonts/Anton/Anton-Regular.ttf',
+            },
+        'text': {
+            # this block will render as an RGB block 
+            # only if an RGB screen is attached
+            'rgb_support': True,
+            'abs_coordinates': (0, None),
+            'relative': ('text', 'number'),
+            'type': 'TextBlock',
+            'image': None,
+            'max_lines': 3,
+            'height': .5,
+            'width': 1,
+            'rand': True,
+            'font': '../fonts/Anton/Anton-Regular.ttf',
+            'fill': 'ORANGE',
+            'bkground': 'BLACK'
+            }   
+}
+```
 
 See the [`basic_clock` layout](../paperpi/plugins/basic_clock/layout.py) for a simple layout template
 
