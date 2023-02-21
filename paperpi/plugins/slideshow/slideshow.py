@@ -55,6 +55,7 @@ def _index_images(image_path):
                 file = image_path/file
                 if file.is_file() and file.suffix.lower() in constants.supported_image_types:
                     image_array.append(file)
+                else:
                     logging.info(f'skipping unsupported file type: {file}')
         
         else: 
@@ -163,13 +164,6 @@ def _sample_frames(i, size=(300, 300)):
         
 #     img = Image.open(i)
     
-
-
-
-
-
-
-# _sample_frames('./fallback_images/zebra.jpg')
 
 
 
@@ -378,13 +372,13 @@ def update_function(self, *args, **kwargs):
 # # this code snip simulates running from within the display loop use this and the following
 # # cell to test the output
 # import logging
-# logging.root.setLevel('DEBUG')
+# logging.root.setLevel('WARNING')
 # from library.CacheFiles import CacheFiles
 # from library import Plugin
 # from IPython.display import display
-# test_plugin = Plugin(resolution=(800, 600))
+# test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
 # test_plugin.config = {
-#         'image_path': './fallback_images', 
+#         'image_path': '/home/pi/img/', 
 #         'order': 'sequential',
 #         'frame': 'black & silver: matted'}
 # test_plugin.layout = layout.image_only_centered_whitebkground
@@ -397,7 +391,7 @@ def update_function(self, *args, **kwargs):
 
 
 
-# # 
+# # # 
 # test_plugin.force_update()
 # display(test_plugin.image)
 

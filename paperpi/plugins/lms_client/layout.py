@@ -2,35 +2,52 @@
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+cover_art_only = {
+    'coverart':
+       {'type': 'ImageBlock',
+        'image': True,
+        'mode': 'L',
+        'padding': 5,
+        'width': 1,
+        'height': 1,
+        'vcenter': True,
+        'hcenter': True,
+        'relative': False,
+        'abs_coordinates': (0, 0),
+        'bkground': 'WHITE',
+        'rgb_support': True}
+      
+}
+
 two_rows_text_only = {
     'title':
-            {'type': 'TextBlock',
-             'image': None,
-             'max_lines': 2,
-             'padding': 10,
-             'width': 1,
-             'height': .8,
-             'abs_coordinates': (0, 0),
-             'hcenter': True,
-             'vcenter': True,
-             'align': 'center',
-             'relative': False,
-             'font': dir_path+'/../../fonts/Oswald/static/Oswald-Regular.ttf',
-             'font_size': None},
+        {'type': 'TextBlock',
+         'image': None,
+         'max_lines': 2,
+         'padding': 10,
+         'width': 1,
+         'height': .8,
+         'abs_coordinates': (0, 0),
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'relative': False,
+         'font': dir_path+'/../../fonts/Oswald/static/Oswald-Regular.ttf',
+         'font_size': None},
 
     'artist':
-            {'type': 'TextBlock',
-             'image': None,
-             'max_lines': 2,
-             'padding': 10,
-             'width': 1,
-             'height': .2,
-             'abs_coordinates': (0, None),
-             'hcenter': True,
-             'vcenter': True,
-             'relative': ['artist', 'title'],
-             'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
-             'font_size': None},
+        {'type': 'TextBlock',
+         'image': None,
+         'max_lines': 2,
+         'padding': 10,
+         'width': 1,
+         'height': .2,
+         'abs_coordinates': (0, None),
+         'hcenter': True,
+         'vcenter': True,
+         'relative': ['artist', 'title'],
+         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
+         'font_size': None},
 }
 
 
@@ -89,7 +106,10 @@ two_column_three_row = {
         'vcenter': True,
         'hcenter': True,
         'relative': False,
-        'abs_coordinates': (0, 0)
+        'abs_coordinates': (0, 0),
+        'rgb_support': True,
+        'bkground': 'WHITE'
+
     },
     'artist': {
         'type': 'TextBlock',
@@ -136,7 +156,41 @@ two_column_three_row = {
         'width': 1,
         'height': .5,
         'relative': ['title', 'album'],
-        'abs_coordinates': (0, None)
+        'abs_coordinates': (0, None),
     },
 }
+
+
+album_art_title = {
+    'coverart':
+       {'type': 'ImageBlock',
+        'image': True,
+        'mode': 'L',
+        'padding': 5,
+        'width': 1,
+        'height': .8,
+        'vcenter': True,
+        'hcenter': True,
+        'relative': False,
+        'abs_coordinates': (0, 0),
+        'bkground': 'WHITE',
+        'rgb_support': True
+       },
+    'title':
+        {'type': 'TextBlock',
+         'image': None,
+         'max_lines': 2,
+         'padding': 5,
+         'width': 1,
+         'height': .2,
+         'mode':'L',
+         'abs_coordinates': [0, None],
+         'relative': ['title', 'coverart'],
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'font': dir_path+'/../../fonts/Oswald/static/Oswald-Regular.ttf',
+         'font_size': None},      
+}
+
 layout = two_column_three_row

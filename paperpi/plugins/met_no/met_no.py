@@ -6,7 +6,6 @@
 
 
 
-
 from copy import deepcopy
 import requests
 from requests import RequestException
@@ -18,6 +17,15 @@ from pathlib import Path
 from PIL import Image
 import dateutil
 import datetime
+import sys
+
+
+
+
+
+
+sys.path.append('../../library/')
+from library import PluginTools
 
 
 
@@ -503,10 +511,27 @@ def update_function(self):
         timeseries_data = process_data(timeseries_data, meta_data_flat, self.cache.path)
     else:
         return failure
-    
+        
     data = timeseries_data    
     data = flatten_json(timeseries_data)
     data = post_process(data, self)
+    
+    if 'text_color' in self.config or 'bkground_color' in self.config:
+        logging.info('using user-defined colors')
+        colors = PluginTools.text_color(config=self.config, mode=self.screen_mode,
+                               default_text=self.layout.get('fill', 'BLACK'),
+                               default_bkground=self.layout.get('bkground', 'WHITE'))
+
+        text_color = colors['text_color']
+        # this is ignored, only white backgrounds make sense with the pasted weather images
+        logging.debug('ignoring bkground_color ')
+        bkground_color = colors['bkground_color']
+
+
+        # set the colors
+        for section in self.layout:
+            logging.debug(f'setting {section} layout color to fill: {text_color}')
+            self.layout_obj.update_block_props(section, {'fill': text_color})    
     
     return is_updated, data, priority
 
@@ -515,45 +540,34 @@ def update_function(self):
 
 
 
-# from CacheFiles import CacheFiles
-# from SelfDummy import SelfDummy
 
-# logging.root.setLevel('WARNING')
-# coord = get_coord('Den Haag, Netherlands')
-# self = SelfDummy()
-# self.config = {'lat': coord[0], 
+
+# # this code snip simulates running from within the display loop use this and the following
+# # cell to test the output
+# import logging
+# logging.root.setLevel('DEBUG')
+# from library.CacheFiles import CacheFiles
+# from library import Plugin
+# from IPython.display import display
+# test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
+# coord = get_coord('Santiago, Chili')
+# test_plugin.config = {'lat': coord[0], 
 #                'lon': coord[1], 
-#                'location_name': 'Den Haag',
+#                'location_name': 'Santiago, Chilli',
 # #                'temp_units': 'knot',
 # #                'rain_units': 'inch', 
-#                'windspeed': 'knot',
-#                'email': 'aaron.ciuffo@gmail.com'
+# #                'windspeed': 'knot',
+#                'email': 'aaron.ciuffo@gmail.com',
+#                'text_color': 'BLUE',
+#                'bkground_color': 'RED'
 #               }
-# self.cache = CacheFiles()
-
-# from epdlib import Screen
-# from epdlib import Layout
-# logging.root.setLevel('WARNING')
-
-
-
-
-
-
-# i, d, p = update_function(self)
-
-# l = Layout(resolution=(300, 200))
-
-# import layout
-# # l.layout = layout.two_column_icon_wind_temp_precip
-# l.layout = layout.layout
-# # l.layout = layout.two_column_icon_wind_temp_time
-# # l.layout = layout.three_row
-
-
-# l.update_contents(d)
-
-# l.concat()
+# test_plugin.refresh_rate = 5
+# l = deepcopy(layout.layout)
+# test_plugin.layout = l
+# test_plugin.cache = CacheFiles()
+# test_plugin.update_function = update_function
+# test_plugin.update()
+# test_plugin.image
 
 
 

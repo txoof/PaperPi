@@ -1,7 +1,7 @@
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-version = "0.1.5"
+version = "0.1.6"
 name = "PaperPi Met No Weather plugin"
 
 # open street maps location lookup
@@ -50,4 +50,7 @@ lat = 9.000
 lon = 38.750
 # this is required by Met.no -- please use a real value
 email = you@host.diamond
+# Text color [RED, ORANGE, YELLOW, GREEN, BLUE, BLACK WHITE] or random
+# bkground color is not supported in this plugin 
+# text_color = BLUE 
 '''

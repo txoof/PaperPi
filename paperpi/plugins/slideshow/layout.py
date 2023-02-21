@@ -17,7 +17,8 @@ image_only_centered_blackbkground = {
         'relative': False,
         'hcenter': True,
         'vcenter': True,
-        'bkground': 0,     
+        'bkground': 'BLACK',  
+        'rgb_support': True
     }
 }
 
@@ -33,8 +34,8 @@ image_only_centered_whitebkground = {
         'relative': False,
         'hcenter': True,
         'vcenter': True,
-        'bkground': 255,
-        
+        'bkground': 'WHITE',
+        'rgb_support': True        
     }
 }
 
@@ -51,7 +52,9 @@ image_time_centered_blackbkground = {
         'relative': False,
         'hcenter': True,
         'vcenter': True,
-        'bkground': 0
+        'bkground': 'BLACK',
+        'rgb_support': True        
+
     },
     'time': {
         'type': 'TextBlock',
@@ -81,7 +84,9 @@ image_time_centered_whitebkground = {
         'relative': False,
         'hcenter': True,
         'vcenter': True,
-        'bkground': 255
+        'bkground': 'WHITE',
+        'rgb_support': True        
+
     },
     'time': {
         'type': 'TextBlock',
@@ -98,8 +103,6 @@ image_time_centered_whitebkground = {
         'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
     }
 }
-
-
 
 # set the default layout here
 layout = image_only_centered_whitebkground

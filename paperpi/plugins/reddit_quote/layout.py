@@ -1,3 +1,5 @@
+# layouts for reddit plugin
+
 # handling file locations with relative paths is hard
 # this simplifies locating the fonts needed for this layout
 import os
@@ -61,7 +63,10 @@ quote = {
           # absolute coordinates of the text block (top left is 0,0)
           'abs_coordinates': (0, 0),
           # coordinates are not calculated relative to another block
-          'relative': False
+          'relative': False,
+          'fill': 'BLACK',
+          'bkground': 'WHITE',
+          'rgb_support': True
       },
       # this block will contain the string provided by  data['time']
       'attribution': {
@@ -80,6 +85,10 @@ quote = {
           'border_config': {'fill': 0, 'width': 3, 'sides': ['top']},
           'abs_coordinates': (0, None),
           'relative': ('attribution', 'text'),
+          'fill': 'BLACK',
+          'bkground': 'WHITE',
+          'rgb_support': True
+          
       },
       'time': {
           'mode': 'L',          
@@ -94,6 +103,10 @@ quote = {
           'abs_coordinates': (0, None),
           # Use X from 'time', Y from the bottom of 'string'
           'relative': ['time', 'attribution'],
+          'fill': 'BLACK',
+          'bkground': 'WHITE',
+          'rgb_support': True
+          
       },
 }
 
@@ -115,7 +128,9 @@ quote_inverse = {
           'abs_coordinates': (0, 0),
           # coordinates are not calculated relative to another block
           'relative': False,
-          'inverse': True
+          'bkground': 'BLACK',
+          'fill': 'WHITE',
+          'rgb_support': True
       },
       # this block will contain the string provided by  data['time']
       'attribution': {
@@ -134,7 +149,9 @@ quote_inverse = {
           'border_config': {'fill': 255, 'width': 3, 'sides': ['top']},
           'abs_coordinates': (0, None),
           'relative': ('attribution', 'text'),
-          'inverse': True          
+          'bkground': 'BLACK',
+          'fill': 'WHITE',
+          'rgb_support': True,
       },
       'time': {
           'mode': 'L',          
@@ -149,7 +166,9 @@ quote_inverse = {
           'abs_coordinates': (0, None),
           # Use X from 'time', Y from the bottom of 'string'
           'relative': ['time', 'attribution'],
-          'inverse': True          
+          'bkground': 'BLACK',
+          'fill': 'WHITE',
+          'rgb_support': True
       },
 }
 

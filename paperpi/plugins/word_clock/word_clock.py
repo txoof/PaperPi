@@ -4,9 +4,21 @@
 
 
 
+
+
 import logging
 from datetime import datetime
 from random import choice
+from copy import deepcopy
+import sys
+
+
+
+
+
+
+sys.path.append('../../library/')
+from library import PluginTools
 
 
 
@@ -122,7 +134,59 @@ def update_function(self, time=None):
     myTime = {'wordtime': f'{choice(stems)} {time_str}',
               'time': now}
     
+
+    if 'text_color' in self.config or 'bkground_color' in self.config:
+        logging.info('using user-defined colors')
+        colors = PluginTools.text_color(config=self.config, mode=self.screen_mode,
+                               default_text=self.layout.get('fill', 'WHITE'),
+                               default_bkground=self.layout.get('bkground', 'BLACK'))
+
+        text_color = colors['text_color']
+        bkground_color = colors['bkground_color']
+
+
+        # set the colors
+        for section in self.layout:
+            logging.debug(f'setting {section} layout colors to fill: {text_color}, bkground: {bkground_color}')
+            self.layout_obj.update_block_props(section, {'fill': text_color, 'bkground': bkground_color})
+    
+    
     return (True, myTime, self.max_priority)
+
+
+
+
+
+
+# # this code snip simulates running from within the display loop use this and the following
+# # cell to test the output
+# import logging
+# logging.root.setLevel('INFO')
+# from library.CacheFiles import CacheFiles
+# from library import Plugin
+# from IPython.display import display
+# test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
+# test_plugin.config = {
+#     'text_color': 'random',
+#     'bkground_color': 'BLACK'
+# }
+# test_plugin.refresh_rate = 5
+# l = layout.layout
+# test_plugin.layout = l
+# test_plugin.cache = CacheFiles()
+# test_plugin.update_function = update_function
+# test_plugin.update()
+# test_plugin.image
+
+
+
+
+
+
+# test_plugin.force_update()
+# test_plugin.image
+
+
 
 
 
