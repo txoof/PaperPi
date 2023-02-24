@@ -386,7 +386,7 @@ def setup_splash(config, resolution):
             'name': 'Splash Screen',
             'layout': splash_screen.layout.layout,
             'update_function': splash_screen.update_function,
-            'resolution': resolution
+            'resolution': resolution,
         }
         splash = Plugin(**splash_config)
         splash.update(constants.APP_NAME, constants.VERSION, constants.URL)
@@ -636,7 +636,7 @@ def main():
 
     logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
     logger.debug(f'configuration:\n{config}\n\n')
-    
+        
     screen_return = setup_display(config)
     
     if screen_return['obj']:
@@ -647,7 +647,7 @@ def main():
         do_exit(**screen_return)
     
     # force to one-bit mode for non HD and non-color screens
-    if screen.mode == '1' or not config['main']['color']:
+    if screen.mode == '1' or not config['main'].get('color', True):
         one_bit = True
     else:
         one_bit = False
@@ -656,9 +656,7 @@ def main():
     config['main']['screen_mode'] = screen.mode
     
     logging.info('configured')
-    
-#     return screen, config            
-        
+            
     splash = setup_splash(config, screen.resolution)
     
     if splash:
@@ -691,7 +689,7 @@ def main():
 
 
 
-sys.argv.extend(['-c', './test_config.ini'])
+# sys.argv.extend(['-c', './test_config.ini'])
 
 
 
