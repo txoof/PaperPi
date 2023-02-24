@@ -17,7 +17,6 @@ import sys
 
 
 
-sys.path.append('../../library/')
 from library import PluginTools
 
 
@@ -147,8 +146,11 @@ def update_function(self, time=None):
 
         # set the colors
         for section in self.layout:
-            logging.debug(f'setting {section} layout colors to fill: {text_color}, bkground: {bkground_color}')
-            self.layout_obj.update_block_props(section, {'fill': text_color, 'bkground': bkground_color})
+            if self.layout[section].get('rgb_support', False):
+                logging.debug(f'setting {section} layout colors to fill: {text_color}, bkground: {bkground_color}')
+                self.layout_obj.update_block_props(section, {'fill': text_color, 'bkground': bkground_color})
+            else:
+                logging.debug(f'section {section} does not support RGB colors')
     
     
     return (True, myTime, self.max_priority)
@@ -161,14 +163,14 @@ def update_function(self, time=None):
 # # this code snip simulates running from within the display loop use this and the following
 # # cell to test the output
 # import logging
-# logging.root.setLevel('INFO')
+# logging.root.setLevel('DEBUG')
 # from library.CacheFiles import CacheFiles
-# from library import Plugin
+# from library.Plugin import Plugin
 # from IPython.display import display
 # test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
 # test_plugin.config = {
 #     'text_color': 'random',
-#     'bkground_color': 'BLACK'
+#     'bkground_color': 'White'
 # }
 # test_plugin.refresh_rate = 5
 # l = layout.layout
@@ -185,8 +187,6 @@ def update_function(self, time=None):
 
 # test_plugin.force_update()
 # test_plugin.image
-
-
 
 
 

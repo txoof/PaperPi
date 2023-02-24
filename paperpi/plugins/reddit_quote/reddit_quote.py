@@ -26,6 +26,14 @@ from os import path
 
 import requests
 from dictor import dictor
+import sys
+
+
+
+
+
+
+from library import PluginTools
 
 
 
@@ -214,6 +222,27 @@ def update_function(self, *args, **kwargs):
         data['tag_image'] = constants.tag_image
         is_updated = True
         priority = self.max_priority
+
+    if 'text_color' in self.config or 'bkground_color' in self.config:
+        logging.info('using user-defined colors')
+        colors = PluginTools.text_color(config=self.config, mode=self.screen_mode,
+                               default_text=self.layout.get('fill', 'WHITE'),
+                               default_bkground=self.layout.get('bkground', 'BLACK'))
+
+        text_color = colors['text_color']
+        bkground_color = colors['bkground_color']
+
+
+        # set the colors
+        logging.debug(f'trying to set fill and background for sections: {list(self.layout.keys())}')
+        for section in self.layout:
+            if self.layout[section].get('rgb_support', False):
+                logging.debug(f'setting {section} layout colors to fill: {text_color}, bkground: {bkground_color}')
+                self.layout_obj.update_block_props(section, {'fill': text_color, 'bkground': bkground_color}) 
+
+            else:
+                logging.debug(f'section {section} does not support RGB colors')
+        
         
     return (is_updated, data, priority)
 
@@ -222,72 +251,30 @@ def update_function(self, *args, **kwargs):
 
 
 
+
+
+
+
+# # this code snip simulates running from within the display loop use this and the following
+# # cell to test the output
+# import logging
 # logging.root.setLevel('DEBUG')
-
-# # use this for testing
-# from library.SelfDummy import SelfDummy
 # from library.CacheFiles import CacheFiles
-# from epdlib import Layout
-# self = SelfDummy()
-# self.max_priority = 1
-# self.cache = CacheFiles()
+# from library.Plugin import Plugin
+# from IPython.display import display
 
-
-
-
-
-
-# update_function(self)
-
-
-
-
-
-
-
-
-
-
-# from library.CacheFiles import CacheFiles
-# def test_plugin():
-#     '''This code snip is useful for testing a plugin from within Jupyter Notebook'''
-#     from library import Plugin
-#     from IPython.display import display
-#     # this is set by PaperPi based on the configured schreen
-#     test_plugin = Plugin(resolution=(264, 176))
-#     # this is pulled from the configuration file; the appropriate section is passed
-#     # to this plugin by PaperPi during initial configuration
-#     test_plugin.config = {'max_length': '88'}
-#     test_plugin.layout = layout.quote_small_screen
-    
-#     # this is done automatically by PaperPi when loading the plugin
-#     test_plugin.cache = CacheFiles()
-#     test_plugin.update_function = update_function
-#     test_plugin.update()
-#     display(test_plugin.image)
-#     return test_plugin
-# my_plugin = test_plugin
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # this simulates calling the plugin from PaperPi
-# d = my_plugin()
-
-
-
-
-
-
-
+# test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
+# test_plugin.refresh_rate = 5
+# l = layout.layout
+# # l = layout.quote
+# test_plugin.config = {
+#     'text_color': 'RED',
+#     'bkground_color': 'random'
+# }
+# test_plugin.layout = l
+# test_plugin.cache = CacheFiles()
+# test_plugin.update_function = update_function
+# test_plugin.update()
+# test_plugin.image
 
 

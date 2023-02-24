@@ -24,7 +24,6 @@ import sys
 
 
 
-sys.path.append('../../library/')
 from library import PluginTools
 
 
@@ -530,8 +529,11 @@ def update_function(self):
 
         # set the colors
         for section in self.layout:
-            logging.debug(f'setting {section} layout color to fill: {text_color}')
-            self.layout_obj.update_block_props(section, {'fill': text_color})    
+            if self.layout[section].get('rgb_support', False):
+                logging.debug(f'setting {section} layout color to fill: {text_color}')
+                self.layout_obj.update_block_props(section, {'fill': text_color})    
+            else:
+                logging.debug(f'section {section} does not support RGB colors')
     
     return is_updated, data, priority
 
@@ -546,9 +548,8 @@ def update_function(self):
 # # cell to test the output
 # import logging
 # logging.root.setLevel('DEBUG')
-# from library.CacheFiles import CacheFiles
-# from library import Plugin
-# from IPython.display import display
+# from CacheFiles import CacheFiles
+# from Plugin import Plugin
 # test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
 # coord = get_coord('Santiago, Chili')
 # test_plugin.config = {'lat': coord[0], 
@@ -568,8 +569,6 @@ def update_function(self):
 # test_plugin.update_function = update_function
 # test_plugin.update()
 # test_plugin.image
-
-
 
 
 
