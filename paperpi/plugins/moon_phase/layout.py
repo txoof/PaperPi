@@ -90,7 +90,6 @@ moon_data = {
 #        'inverse': True,
        'bkground': 'Black',
        'fill': 'White',
-
        'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',       
    }
 }
