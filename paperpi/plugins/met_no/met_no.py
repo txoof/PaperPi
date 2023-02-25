@@ -24,19 +24,21 @@ import sys
 
 
 
-from library import PluginTools
-
-
-
-
-
-
 try:
     from . import layout
     from . import constants
 except ImportError:
     import layout
     import constants
+
+
+
+
+
+
+# fugly hack for making the library module available to the plugins
+sys.path.append(layout.dir_path+'/../..')
+from library import PluginTools
 
 
 
@@ -536,8 +538,6 @@ def update_function(self):
                 logging.debug(f'section {section} does not support RGB colors')
     
     return is_updated, data, priority
-
-
 
 
 

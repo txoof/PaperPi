@@ -234,6 +234,10 @@ def update_function(self):
 
 # # this code snip simulates running from within the display loop use this and the following
 # # cell to test the output
+# # fugly hack for making the library module available to the plugins
+# import sys
+# sys.path.append(layout.dir_path+'/../..')
+# from library import PluginTools
 # import logging
 # logging.root.setLevel('WARNING')
 # from library.CacheFiles import CacheFiles

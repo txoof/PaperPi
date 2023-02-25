@@ -33,6 +33,8 @@ import sys
 
 
 
+# fugly hack for making the library module available to the plugins
+sys.path.append(layout.dir_path+'/../..')
 from library import PluginTools
 
 
@@ -253,8 +255,6 @@ def update_function(self, *args, **kwargs):
 
 
 
-
-
 # # this code snip simulates running from within the display loop use this and the following
 # # cell to test the output
 # import logging
@@ -276,5 +276,12 @@ def update_function(self, *args, **kwargs):
 # test_plugin.update_function = update_function
 # test_plugin.update()
 # test_plugin.image
+
+
+
+
+
+
+
 
 
