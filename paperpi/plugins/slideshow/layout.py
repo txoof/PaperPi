@@ -67,8 +67,9 @@ image_time_centered_blackbkground = {
         'hcenter': True,
         'vcenter': True,
         'align': 'center',
-        'inverse': True,
         'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
+        'bkground': 'BLACK',
+        'fill': 'WHITE'
     }
 }
 
@@ -101,6 +102,7 @@ image_time_centered_whitebkground = {
         'inverse': False,
         'align': 'center',        
         'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
+        'bkground': 'WHITE'
     }
 }
 

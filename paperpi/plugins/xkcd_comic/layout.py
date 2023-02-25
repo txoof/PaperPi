@@ -18,7 +18,9 @@ comic_only = {
           'hcenter': True,
           'vcenter': True,
           'abs_coordinates': (0, 0),
-          'relative': False
+          'relative': False,
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
       },
 }
 
@@ -34,7 +36,9 @@ comic_title = {
           'hcenter': True,
           'vcenter': True,
           'abs_coordinates': (0, 0),
-          'relative': False
+          'relative': False,
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
       },
      'safe_title': {
           'type': 'TextBlock',
@@ -48,6 +52,8 @@ comic_title = {
           'max_lines': 2,
           'abs_coordinates': (0, None),
           'relative': ('safe_title', 'image_file'),
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
      }
 }
 
@@ -64,7 +70,9 @@ comic_title_alttext = {
           'hcenter': True,
           'vcenter': True,
           'abs_coordinates': (0, 0),
-          'relative': False
+          'relative': False,
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
       },
      'safe_title': {
           'type': 'TextBlock',
@@ -78,6 +86,8 @@ comic_title_alttext = {
           'max_lines': 1,
           'abs_coordinates': (0, None),
           'relative': ('safe_title', 'image_file'),
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
      },
      'alt': {
           'type': 'TextBlock',
@@ -91,6 +101,8 @@ comic_title_alttext = {
           'max_lines': 3,
           'abs_coordinates': (0, None),
           'relative': ('alt', 'safe_title'),
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
      },
 
 }

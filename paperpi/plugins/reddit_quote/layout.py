@@ -22,7 +22,10 @@ quote_small_screen = {
           # absolute coordinates of the text block (top left is 0,0)
           'abs_coordinates': (0, 0),
           # coordinates are not calculated relative to another block
-          'relative': False
+          'relative': False,
+          'rgb_support': True,
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
       },
       # this block will contain the string provided by  data['time']
       'attribution': {
@@ -38,9 +41,11 @@ quote_small_screen = {
           'vcenter': True,
           'align': 'center',
           'padding': 5,
-#           'border_config': {'fill': 0, 'width': 3, 'sides': ['top']},
           'abs_coordinates': (0, None),
           'relative': ('attribution', 'text'),
+          'rgb_support': True,
+          'bkground': 'WHITE',
+          'fill': 'BLACK'
       },
 }
 

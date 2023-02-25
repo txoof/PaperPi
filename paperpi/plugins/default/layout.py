@@ -12,6 +12,8 @@ default = {
         'abs_coordinates': (0, 0),
         'rand': True,
         'font': '{}/Kanit/Kanit-Medium.ttf',
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
     },
     'msg': {
         'type': 'TextBlock',
@@ -23,6 +25,8 @@ default = {
         'relative': ['msg', 'digit_time'],
         'rand': True,
         'font': '{}/Kanit/Kanit-Medium.ttf',
+        'fill': 'BLACK',
+        'bkground': 'WHITE'
     },
 }
 

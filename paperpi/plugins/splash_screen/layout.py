@@ -18,7 +18,10 @@ layout =  {
             'relative': False,
             'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
             'mode': 'L',
-            'font_size': None},
+            'font_size': None,
+            'bkground': 'WHITE',
+            'fill': 'BLACK'
+  },
 
   'version':
           {
@@ -36,7 +39,11 @@ layout =  {
            'relative': ['version', 'app_name'],
            'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
            'font_size': None,
-           'mode': 'L'},
+           'mode': 'L',
+           'rgb_support': True,
+           'bkground': 'WHITE',
+           'fill': 'BLACK'
+  },
 
   'url':
           {
@@ -54,5 +61,7 @@ layout =  {
            'relative': ['url', 'version'],
            'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
            'font_size': None,
-           'mode': 'L'}
+           'mode': 'L',
+           'bkground': 'WHITE',
+           'fill': 'BLACK'}
 }

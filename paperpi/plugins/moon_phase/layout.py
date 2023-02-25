@@ -39,7 +39,6 @@ moon_data = {
        'relative': False,
        'hcenter': False,
        'vcenter': True,
-#        'inverse': True,
        'bkground': 'Black',
        'fill': 'White',
        'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
@@ -54,7 +53,6 @@ moon_data = {
        'relative': ('moonrise', 'moonset'),
        'hcenter': False,
        'vcenter': True,
-#        'inverse': True,
        'bkground': 'Black',
        'fill': 'White',
 
@@ -87,7 +85,6 @@ moon_data = {
        'relative': ('phase_desc', 'image_file'),
        'hcenter': True,
        'vcenter': True,
-#        'inverse': True,
        'bkground': 'Black',
        'fill': 'White',
        'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',       

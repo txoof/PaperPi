@@ -11,7 +11,9 @@ default = {
         'padding': 5,
         'hcenter': True,
         'vcenter': True,
-        'mode': 'L'
+        'mode': 'L',
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     'caption': {
         'type': 'TextBlock',        
@@ -25,7 +27,9 @@ default = {
         'vcenter': True,
         'max_lines': 3,
         'mode': 'L',
-        'font': dir_path+'/../../fonts/LibreCaslonText/LibreCaslonText-Regular.ttf'  
+        'font': dir_path+'/../../fonts/LibreCaslonText/LibreCaslonText-Regular.ttf',
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     'time': {
         'type': 'TextBlock',
@@ -40,7 +44,9 @@ default = {
         'rand': False,
         'mode': 'L',
         'padding': 5,
-        'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf'
+        'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     }
     
 }
