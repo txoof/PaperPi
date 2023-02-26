@@ -8,7 +8,7 @@ ipykernel = "*"
 pipreqs = "*"
 ArgConfigParse = "*"
 it8951 = {editable = true, git = "https://github.com/GregDMeyer/IT8951.git"}
-epdlib = {editable = true, path = "./../epdlib"}
+epdlib = {editable = true, ref = "I48_wavesharecolors", git = "https://github.com/txoof/epdlib.git"}
 
 [requires]
 python_version = "3"
