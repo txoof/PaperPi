@@ -2,11 +2,7 @@
 from copy import deepcopy
 
 config = {
-        'layout': 'layout'
+        'layout': 'layout',
+        'text_color': 'ORANGE',
+        'bkground_color': 'WHITE'
 }
-
-config_color = deepcopy(config)
-config_color.update({
-    'text_color': 'random',
-    'bkground_color': 'random'
-})
