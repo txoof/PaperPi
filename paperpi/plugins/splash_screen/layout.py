@@ -40,7 +40,6 @@ layout =  {
            'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
            'font_size': None,
            'mode': 'L',
-           'rgb_support': True,
            'bkground': 'WHITE',
            'fill': 'BLACK'
   },
