@@ -79,7 +79,7 @@ def map_val(a, b, s):
 
 
 
-def update_function(self, time=None):
+def update_function(self, time=None, *args, **kwargs):
     '''update function for word_clock provides time as text
     
     This plugin provides the time as a string such as:
