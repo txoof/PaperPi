@@ -1,6 +1,6 @@
 # default
 
-![sample image for plugin default](./default.layout-sample.png)
+![sample image for plugin default](./default.layout-L-sample.png)
 ```ini
  
 PLUGIN: default v:0.1.0
@@ -43,11 +43,11 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.default.defau
 
 layout: **default**
 
-![sample image for plugin default](./default.default-sample.png) 
+![sample image for plugin default](./default.default-L-sample.png) 
 
 
 layout: **layout**
 
-![sample image for plugin layout](./default.layout-sample.png) 
+![sample image for plugin layout](./default.layout-L-sample.png) 
 
 

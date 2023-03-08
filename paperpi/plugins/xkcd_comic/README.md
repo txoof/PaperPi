@@ -1,6 +1,6 @@
 # xkcd_comic
 
-![sample image for plugin xkcd_comic](./xkcd_comic.layout-sample.png)
+![sample image for plugin xkcd_comic](./xkcd_comic.layout-L-sample.png)
 ```ini
  
 PLUGIN: xkcd_comic v:0.1.1
@@ -73,22 +73,22 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.xkcd_comic.xk
 
 layout: **comic_only**
 
-![sample image for plugin comic_only](./xkcd_comic.comic_only-sample.png) 
+![sample image for plugin comic_only](./xkcd_comic.comic_only-L-sample.png) 
 
 
 layout: **comic_title**
 
-![sample image for plugin comic_title](./xkcd_comic.comic_title-sample.png) 
+![sample image for plugin comic_title](./xkcd_comic.comic_title-L-sample.png) 
 
 
 layout: **comic_title_alttext**
 
-![sample image for plugin comic_title_alttext](./xkcd_comic.comic_title_alttext-sample.png) 
+![sample image for plugin comic_title_alttext](./xkcd_comic.comic_title_alttext-L-sample.png) 
 
 
 layout: **layout**
 
-![sample image for plugin layout](./xkcd_comic.layout-sample.png) 
+![sample image for plugin layout](./xkcd_comic.layout-L-sample.png) 
 
 
 ## Additional Plugin Information

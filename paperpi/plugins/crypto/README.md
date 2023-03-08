@@ -1,6 +1,6 @@
 # crypto
 
-![sample image for plugin crypto](./crypto.layout-sample.png)
+![sample image for plugin crypto](./crypto.layout-L-sample.png)
 ```ini
  
 PLUGIN: crypto v:0.2.1
@@ -98,17 +98,17 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.crypto.crypto
 
 layout: **layout**
 
-![sample image for plugin layout](./crypto.layout-sample.png) 
+![sample image for plugin layout](./crypto.layout-L-sample.png) 
 
 
 layout: **ticker_hd**
 
-![sample image for plugin ticker_hd](./crypto.ticker_hd-sample.png) 
+![sample image for plugin ticker_hd](./crypto.ticker_hd-L-sample.png) 
 
 
 layout: **ticker_simple**
 
-![sample image for plugin ticker_simple](./crypto.ticker_simple-sample.png) 
+![sample image for plugin ticker_simple](./crypto.ticker_simple-L-sample.png) 
 
 
 ## Additional Plugin Information
