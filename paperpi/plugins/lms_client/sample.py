@@ -2,7 +2,7 @@
 from copy import deepcopy
 config = {
         'layout': 'layout',
-        'player_name': 'MacPlay',
+        'player_name': 'SqueezePlay',
         'idle_timeout': 10 
 }
 
