@@ -11,7 +11,7 @@ default = {
         'height': 1/2,
         'abs_coordinates': (0, 0),
         'rand': True,
-        'font': '{}/Kanit/Kanit-Medium.ttf',
+        'font': dir_path+'/../../fonts/Kanit/Kanit-Medium.ttf',
         'fill': 'BLACK',
         'bkground': 'WHITE'
     },
@@ -24,7 +24,7 @@ default = {
         'abs_coordinates': (0, None),
         'relative': ['msg', 'digit_time'],
         'rand': True,
-        'font': '{}/Kanit/Kanit-Medium.ttf',
+        'font': dir_path+'/../../fonts/Kanit/Kanit-Medium.ttf',
         'fill': 'BLACK',
         'bkground': 'WHITE'
     },
