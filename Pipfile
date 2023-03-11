@@ -4,11 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-ipykernel = "*"
 pipreqs = "*"
 ArgConfigParse = "*"
 it8951 = {editable = true, git = "https://github.com/GregDMeyer/IT8951.git"}
-epdlib = "*" 
+epdlib = "*"
 
 [requires]
 python_version = "3"
