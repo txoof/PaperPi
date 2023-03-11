@@ -4,9 +4,13 @@
 
 
 
+
+
 import logging
 from datetime import datetime
 from random import choice
+from copy import deepcopy
+import sys
 
 
 
@@ -19,6 +23,15 @@ try:
 except ImportError:
     import layout 
     import constants
+
+
+
+
+
+
+# fugly hack for making the library module available to the plugins
+sys.path.append(layout.dir_path+'/../..')
+from library import PluginTools
 
 
 
@@ -66,7 +79,7 @@ def map_val(a, b, s):
 
 
 
-def update_function(self, time=None):
+def update_function(self, time=None, *args, **kwargs):
     '''update function for word_clock provides time as text
     
     This plugin provides the time as a string such as:
@@ -122,7 +135,60 @@ def update_function(self, time=None):
     myTime = {'wordtime': f'{choice(stems)} {time_str}',
               'time': now}
     
+
+    if 'text_color' in self.config or 'bkground_color' in self.config:
+        logging.info('using user-defined colors')
+        colors = PluginTools.text_color(config=self.config, mode=self.screen_mode,
+                               default_text=self.layout.get('fill', 'WHITE'),
+                               default_bkground=self.layout.get('bkground', 'BLACK'))
+
+        text_color = colors['text_color']
+        bkground_color = colors['bkground_color']
+
+
+        # set the colors
+        for section in self.layout:
+            if self.layout[section].get('rgb_support', False):
+                logging.debug(f'setting {section} layout colors to fill: {text_color}, bkground: {bkground_color}')
+                self.layout_obj.update_block_props(section, {'fill': text_color, 'bkground': bkground_color})
+            else:
+                logging.debug(f'section {section} does not support RGB colors')
+    
+    
     return (True, myTime, self.max_priority)
+
+
+
+
+
+
+# # this code snip simulates running from within the display loop use this and the following
+# # cell to test the output
+# import logging
+# logging.root.setLevel('DEBUG')
+# from library.CacheFiles import CacheFiles
+# from library.Plugin import Plugin
+# from IPython.display import display
+# test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
+# test_plugin.config = {
+#     'text_color': 'random',
+#     'bkground_color': 'White'
+# }
+# test_plugin.refresh_rate = 5
+# l = layout.layout
+# test_plugin.layout = l
+# test_plugin.cache = CacheFiles()
+# test_plugin.update_function = update_function
+# test_plugin.update()
+# test_plugin.image
+
+
+
+
+
+
+# test_plugin.force_update()
+# test_plugin.image
 
 
 

@@ -46,6 +46,8 @@ my_layout_one = {
           'abs_coordinates': (0, None),
           # Use X from 'time', Y from the bottom of 'string'
           'relative': ['time', 'string'],
+          'fill': 'BLACK',
+          'bkground': 'WHITE'
       },
       'extra': {
           'type': 'TextBlock',  
@@ -58,7 +60,9 @@ my_layout_one = {
           'font': dir_path+'/../../fonts/BenchNine/BenchNine-Regular.ttf',
           # X coordinate is absolute, Y is calculated
           'abs_coordinates': (0, None),
-          'relative': ['extra', 'time']
+          'relative': ['extra', 'time'],
+          'fill': 'BLACK',
+          'bkground': 'WHITE'
       },
       'image': {
           'type': 'ImageBlock',         
@@ -71,7 +75,9 @@ my_layout_one = {
           'abs_coordinates': (None, None),
           # calculate relative to the right side of 'time' (X) and 
           # bottom of 'string' (Y)
-          'relative': ['time', 'string']
+          'relative': ['time', 'string'],
+          'fill': 'BLACK',
+          'bkground': 'WHITE'
       }
 }
 

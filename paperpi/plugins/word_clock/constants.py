@@ -1,6 +1,8 @@
-version = '0.1.1'
+version = '0.1.2'
 
 name = 'word_time'
+
+COLORS = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']
 
 data = {
         'word_time': 'string containing time',
@@ -56,4 +58,7 @@ plugin = word_clock
 refresh_rate = 125
 min_display_time = 255
 max_priority = 2
+# Text color [RED, ORANGE, YELLOW, GREEN, BLUE, BLACK WHITE] or random
+# text_color = random
+# bkground_color = random
 '''

@@ -1,39 +1,173 @@
+[start: introduction]: #
 # Plugins
 All plugins are configured through the `paperpi.ini` files. For a single-user configuration the file is stored in `~/.config/com.txoof.paperpi/` for system-wide daemon configuration the file is stored in `/etc/default/`.
 
+[end: introduction]: #
 
-## Plugins Currently Available
+[start: plugin_header]: #
+## Available Plugins
+
+[end: plugin_header]: #
+
+[start: basic_clock]: #
 ### [basic_clock](../paperpi/plugins/basic_clock/README.md)
-![basic_clock sample image](../paperpi/plugins/basic_clock/basic_clock.layout-sample.png)
+![basic_clock sample image](../paperpi/plugins/basic_clock/basic_clock.layout-L-sample.png)
+
+[end: basic_clock]: #
+
+[start: crypto]: #
 ### [crypto](../paperpi/plugins/crypto/README.md)
-![crypto sample image](../paperpi/plugins/crypto/crypto.layout-sample.png)
+![crypto sample image](../paperpi/plugins/crypto/crypto.layout-L-sample.png)
+
+[end: crypto]: #
+
+[start: dec_binary_clock]: #
 ### [dec_binary_clock](../paperpi/plugins/dec_binary_clock/README.md)
-![dec_binary_clock sample image](../paperpi/plugins/dec_binary_clock/dec_binary_clock.layout-sample.png)
+![dec_binary_clock sample image](../paperpi/plugins/dec_binary_clock/dec_binary_clock.layout-L-sample.png)
+
+[end: dec_binary_clock]: #
+
+[start: default]: #
 ### [default](../paperpi/plugins/default/README.md)
-![default sample image](../paperpi/plugins/default/default.layout-sample.png)
+![default sample image](../paperpi/plugins/default/default.layout-L-sample.png)
+
+[end: default]: #
+
+[start: demo_plugin]: #
 ### [demo_plugin](../paperpi/plugins/demo_plugin/README.md)
-![demo_plugin sample image](../paperpi/plugins/demo_plugin/demo_plugin.layout-sample.png)
-### [librespot_client](../paperpi/plugins/librespot_client/README.md)
-![librespot_client sample image](../paperpi/plugins/librespot_client/librespot_client.layout-sample.png)
-### [lms_client](../paperpi/plugins/lms_client/README.md)
-![lms_client sample image](../paperpi/plugins/lms_client/lms_client.layout-sample.png)
-### [met_no](../paperpi/plugins/met_no/README.md)
-![met_no sample image](../paperpi/plugins/met_no/met_no.layout-sample.png)
+![demo_plugin sample image](../paperpi/plugins/demo_plugin/demo_plugin.layout-L-sample.png)
+
+[end: demo_plugin]: #
+[start: librespot_client]: #
+### [librespot_client](../paperpi/plugins/librespot_client/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+![librespot_client sample image](../paperpi/plugins/librespot_client/librespot_client.layout-L-sample.png)
+
+[end: librespot_client]: #
+[start: lms_client]: #
+### [lms_client](../paperpi/plugins/lms_client/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+![lms_client sample image](../paperpi/plugins/lms_client/lms_client.layout-L-sample.png)
+
+[end: lms_client]: #
+[start: met_no]: #
+### [met_no](../paperpi/plugins/met_no/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+![met_no sample image](../paperpi/plugins/met_no/met_no.layout-L-sample.png)
+
+[end: met_no]: #
+
+[start: moon_phase]: #
 ### [moon_phase](../paperpi/plugins/moon_phase/README.md)
-![moon_phase sample image](../paperpi/plugins/moon_phase/moon_phase.layout-sample.png)
+![moon_phase sample image](../paperpi/plugins/moon_phase/moon_phase.layout-L-sample.png)
+
+[end: moon_phase]: #
+
+[start: newyorker]: #
 ### [newyorker](../paperpi/plugins/newyorker/README.md)
-![newyorker sample image](../paperpi/plugins/newyorker/newyorker.layout-sample.png)
-### [reddit_quote](../paperpi/plugins/reddit_quote/README.md)
-![reddit_quote sample image](../paperpi/plugins/reddit_quote/reddit_quote.layout-sample.png)
-### [slideshow](../paperpi/plugins/slideshow/README.md)
-![slideshow sample image](../paperpi/plugins/slideshow/slideshow.layout-sample.png)
+![newyorker sample image](../paperpi/plugins/newyorker/newyorker.layout-L-sample.png)
+
+[end: newyorker]: #
+
+[start: reddit_quote]: #
+### [reddit_quote](../paperpi/plugins/reddit_quote/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+![reddit_quote sample image](../paperpi/plugins/reddit_quote/reddit_quote.layout-L-sample.png)
+
+[end: reddit_quote]: #
+
+[start: slideshow]: #
+### [slideshow](../paperpi/plugins/slideshow/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+![slideshow sample image](../paperpi/plugins/slideshow/slideshow.layout-L-sample.png)
+
+[end: slideshow]: #
+
+[start: splash_screen]: #
 ### [splash_screen](../paperpi/plugins/splash_screen/README.md)
-![splash_screen sample image](../paperpi/plugins/splash_screen/splash_screen.layout-sample.png)
-### [word_clock](../paperpi/plugins/word_clock/README.md)
-![word_clock sample image](../paperpi/plugins/word_clock/word_clock.layout-sample.png)
+![splash_screen sample image](../paperpi/plugins/splash_screen/splash_screen.layout-L-sample.png)
+
+[end: splash_screen]: #
+[start: word_clock]: #
+
+### [word_clock](../paperpi/plugins/word_clock/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+
+![word_clock sample image](../paperpi/plugins/word_clock/word_clock.layout-L-sample.png)
+
+
+[end: word_clock]: #
+
+[start: xkcd_comic]: #
 ### [xkcd_comic](../paperpi/plugins/xkcd_comic/README.md)
-![xkcd_comic sample image](../paperpi/plugins/xkcd_comic/xkcd_comic.layout-sample.png)
+![xkcd_comic sample image](../paperpi/plugins/xkcd_comic/xkcd_comic.layout-L-sample.png)
+
+[end: xkcd_comic]: #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[start: configuration]: #
 ## Configuration
+
 Each plugin is configured through a [Plugin: Name] section in the configuration files. 
 
 Plugins can be added multiple times (e.g. to show weather in multiple locations or track multiple LMS Players), but each plugin configuration section must have a unique name.
@@ -113,14 +247,16 @@ To use a plugin, add a configuration section for each plugin instance to the app
 * number of seconds plugin should stay on the screen before another plugin is cycled
 * recommended values can be found using `--plugin_info plugin_name`
 
-
 ### Additional Configuration Elements
 
 Some plugins require additional configuration such as API keys, location information or other configuration details. Use `--plugin_info plugin_name` to find a sample configuration. Check the plugin README for additional information.
 
+[end: configuration]: #
 
+[start: developing]: #
 ## Developing Plugins
 
 PaperPi is designed to support additional plugins written in Python 3. Any modules available through PyPi or through a git repository may be used.
 
 For more information see [Developing Plugins](./developing_plugins.md)
+[end: developing]: #

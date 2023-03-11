@@ -1,3 +1,8 @@
+#wordclock sample config
+from copy import deepcopy
+
 config = {
-        'layout': 'layout'
+        'layout': 'layout',
+        'text_color': 'ORANGE',
+        'bkground_color': 'WHITE'
 }
