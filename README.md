@@ -246,13 +246,13 @@ PRs are always welcome! Plugins can be pure python, but should follow the [guide
 
 ## Supported Screens
 
-Most NON-IT8951 screens are only supported in 1 bit (black and white) mode. Color output is not supported at this time. Some waveshare drivers do not provide 'standard' `display` and `Clear` methods; these displays are not supported at this time.
+Virtually all WaveShare E-Paper screens are now supported!
 
-All IT8951 Screens now support 8 bit grayscale output.
+* **WaveShare 7-Color displays are now fully supported**
+* HD IT8951 Screens support partial refresh, fast update and 8 bit grayscale
+* 2 and 3 Color screens (b/c variants) are only supported in Black/White mode
 
-Some WaveShare screens that support color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `waveshare_epd.epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `waveshare_epd.epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
-
-**WaveShare Screen**
+Most of the WaveShare screens that support 2/3 color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `waveshare_epd.epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `waveshare_epd.epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
 
 
 |Screen            |Supported      |Mode          |
