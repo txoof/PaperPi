@@ -6,7 +6,7 @@ from os import path
 APP_NAME = 'PaperPi'
 CONTACT='aaron.ciuffo@gmail.com'
 DEVEL_NAME = f'com.txoof.{APP_NAME.lower()}'
-VERSION='0.5.0.0 - I#79_color_display'
+VERSION='0.5.0.1 - development (RGB)'
 URL = 'https://github.com/ txoof/PaperPi'
 
 
