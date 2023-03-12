@@ -165,6 +165,10 @@ def get_cmd_line_args():
                          type=str, dest='user_config',
                          help='use the specified configuration file')
     
+    cmd_args.add_argument('-C', '--compatible', required=False,
+                         default=False, action='store_true', 
+                         help='list compatible displays and exit')
+    
     cmd_args.add_argument('-l', '--log_level', ignore_none=True, metavar='LOG_LEVEL',
                          type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                          dest='main__log_level', help='change the log output level')
@@ -600,6 +604,11 @@ def main():
         print(constants.VERSION_STRING)
         return
 
+    if cmd_args.options.compatible:
+        print('Compatible WaveShare Displays:\n')
+        Screen.list_compatible()
+        return
+    
     if cmd_args.options.list_plugins:
         get_help.get_help(plugin_path=Path(constants.BASE_DIRECTORY)/'plugins')
         return
