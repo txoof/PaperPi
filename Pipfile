@@ -25,6 +25,6 @@ pygal = "*"
 qrcode = "*"
 cairocffi = "*"
 cffi = "*"
-QueryLMS = "*"
+QueryLMS = {version="==0.1.2"} 
 Pillow = "*"
 CairoSVG = "*"
