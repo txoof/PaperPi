@@ -790,6 +790,66 @@ def update_documentation(plugin_dict, doc_path='../documentation', insert_after=
 
 
 
+def update_ini_file(plugin_dict):
+    
+    project_root = plugin_dict['project_root']
+    base_ini=Path(project_root)/'config/paperpi_base.ini'
+    full_ini=Path(project_root)/'config/paperpi.ini'
+    errorlog = ErrorLog()
+    
+    print(f'Updating {full_ini} file using sample configs from plugins')
+    
+    
+    config_sections = {}
+    
+    for plugin, values in plugin_dict.get('plugins').items():
+        print(f'processing [[{plugin}]]')
+        
+        layouts = values.get('layouts', [None])
+        my_plugin = layouts[0].get('plugin', None)
+        if my_plugin:
+            try:
+                sample_config = my_plugin.constants.sample_config
+                config_sections[plugin] = sample_config
+            except AttributeError as e:
+                errorlog.log_error(f'failed to find sample_config for plugin {plugin}.', 'WARNING', e)
+                sample_config = None
+            
+        
+    
+    for c, value in sorted(config_sections.items()):
+        match = re.match('^\s{0,}\[Plugin', value)
+        
+        try:
+            if match.string:
+                value = re.sub('^\s{0,}\[Plugin', '[xPlugin', value)
+                config_sections[c] = value
+        except AttributeError as e:
+            errorlog.log_error(f'sample configuration is does not have a valid header!', 'WARNING', e)
+    
+    output_ini = []
+    with open(base_ini, 'r') as base_f:
+        for i in base_f:
+            output_ini.append(i)
+    
+    for i, v in config_sections.items():
+        output_ini.append(v)
+        output_ini.append('\n')
+            
+    print(f'writing updated .ini file to {full_ini}')
+    with open(full_ini, 'w') as out_f:
+        for i in output_ini:
+            out_f.write(i)
+                
+    plugin_dict['errors'][errorlog.name] = errorlog
+    return plugin_dict
+    
+
+
+
+
+
+
 def main():
     logging.info('Creating documentation...')
     
@@ -822,7 +882,7 @@ def main():
                         help='resolution to use when generating sample images (default: 640x400)')
     
     parser.add_argument('-t', '--insert_after_tag', default='plugin_header', 
-                        help='header in Plugin.md file after which to add plugin documentation strings')
+                        help='header in Plugin.md file after which to add plugin documentation strings (default: "plugin_header")')
     args = parser.parse_args()
     
     logging.root.setLevel(args.log_level)
@@ -862,8 +922,17 @@ def main():
         return plugin_dict
         do_exit(msg=f'Fatal error updating Plugin.md: {e}')
     
+
     check_errors(errorlog=plugin_dict.get('errors', {}), func_name='update_documentation', exit=False)
     
+    
+    try:
+        plugin_dict = update_ini_file(plugin_dict)
+    except Exception as e:
+        return plugin_dict
+        do_exit(msg=f'Fatal error writing paperpi.ini file: {e}')
+    
+    check_errors(errorlog=plugin_dict.get('errors', {}), func_name='update_ini_file', exit=False)
     return plugin_dict
     
         
@@ -880,6 +949,13 @@ if __name__ == "__main__":
         idx = sys.argv.index('-f')
         del sys.argv[idx:idx+2]    
     r = main()
+
+
+
+
+
+
+check_errors(r['errors'], func_name='update_documentation', exit=False)
 
 
 

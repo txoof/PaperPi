@@ -79,7 +79,7 @@ days = 14
 interval = hourly
 # rss news feed to display
 rss_feed = https://bitcoinmagazine.com/.rss/full/
-min_display_time = 30
+min_display_time = 60
 # refresh data every 5 minutes
 refresh_rate = 300
 max_priority = 2

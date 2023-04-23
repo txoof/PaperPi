@@ -63,7 +63,7 @@ SAMPLE CONFIGURATION FOR paperpi.plugins.met_no.met_no
 layout = layout
 plugin = met_no
 refresh_rate = 300
-min_display_time = 40
+min_display_time = 50
 max_priority = 2
 location_name = Adis Ababa
 lat = 9.000
@@ -88,19 +88,14 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.met_no.met_no
 
 ## Provided Layouts
 
-layout: **layout**
-
-![sample image for plugin layout](./met_no.layout-L-sample.png) 
-
-
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
 
 ![sample image for plugin layout](./met_no.layout-RGB-sample.png) 
 
 
-layout: **three_column_icon_wind_temp_precip**
+layout: **layout**
 
-![sample image for plugin three_column_icon_wind_temp_precip](./met_no.three_column_icon_wind_temp_precip-L-sample.png) 
+![sample image for plugin layout](./met_no.layout-L-sample.png) 
 
 
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> three_column_icon_wind_temp_precip**
@@ -108,9 +103,9 @@ layout: **<font color="red">R</font><font color="green">G</font><font color="blu
 ![sample image for plugin three_column_icon_wind_temp_precip](./met_no.three_column_icon_wind_temp_precip-RGB-sample.png) 
 
 
-layout: **three_row_icon_wind_temp**
+layout: **three_column_icon_wind_temp_precip**
 
-![sample image for plugin three_row_icon_wind_temp](./met_no.three_row_icon_wind_temp-L-sample.png) 
+![sample image for plugin three_column_icon_wind_temp_precip](./met_no.three_column_icon_wind_temp_precip-L-sample.png) 
 
 
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> three_row_icon_wind_temp**
@@ -118,13 +113,18 @@ layout: **<font color="red">R</font><font color="green">G</font><font color="blu
 ![sample image for plugin three_row_icon_wind_temp](./met_no.three_row_icon_wind_temp-RGB-sample.png) 
 
 
-layout: **two_column_icon_wind_temp_precip**
+layout: **three_row_icon_wind_temp**
 
-![sample image for plugin two_column_icon_wind_temp_precip](./met_no.two_column_icon_wind_temp_precip-L-sample.png) 
+![sample image for plugin three_row_icon_wind_temp](./met_no.three_row_icon_wind_temp-L-sample.png) 
 
 
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> two_column_icon_wind_temp_precip**
 
 ![sample image for plugin two_column_icon_wind_temp_precip](./met_no.two_column_icon_wind_temp_precip-RGB-sample.png) 
+
+
+layout: **two_column_icon_wind_temp_precip**
+
+![sample image for plugin two_column_icon_wind_temp_precip](./met_no.two_column_icon_wind_temp_precip-L-sample.png) 
 
 

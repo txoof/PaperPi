@@ -18,7 +18,7 @@ plugin = slideshow
 # time between choosing new image (seconds)
 refresh_rate = 90
 # recommended display time (seconds)
-min_display_time = 30
+min_display_time = 50
 # maximum priority in display loop
 max_priority = 2
 # path to image directory
