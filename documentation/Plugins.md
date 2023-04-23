@@ -38,16 +38,19 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 ![demo_plugin sample image](../paperpi/plugins/demo_plugin/demo_plugin.layout-L-sample.png)
 
 [end: demo_plugin]: #
+
 [start: librespot_client]: #
 ### [librespot_client](../paperpi/plugins/librespot_client/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
 ![librespot_client sample image](../paperpi/plugins/librespot_client/librespot_client.layout-L-sample.png)
 
 [end: librespot_client]: #
+
 [start: lms_client]: #
 ### [lms_client](../paperpi/plugins/lms_client/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
 ![lms_client sample image](../paperpi/plugins/lms_client/lms_client.layout-L-sample.png)
 
 [end: lms_client]: #
+
 [start: met_no]: #
 ### [met_no](../paperpi/plugins/met_no/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
 ![met_no sample image](../paperpi/plugins/met_no/met_no.layout-L-sample.png)
@@ -83,12 +86,10 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 ![splash_screen sample image](../paperpi/plugins/splash_screen/splash_screen.layout-L-sample.png)
 
 [end: splash_screen]: #
+
 [start: word_clock]: #
-
 ### [word_clock](../paperpi/plugins/word_clock/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
-
 ![word_clock sample image](../paperpi/plugins/word_clock/word_clock.layout-L-sample.png)
-
 
 [end: word_clock]: #
 
@@ -97,73 +98,6 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 ![xkcd_comic sample image](../paperpi/plugins/xkcd_comic/xkcd_comic.layout-L-sample.png)
 
 [end: xkcd_comic]: #
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 [start: configuration]: #
 ## Configuration
