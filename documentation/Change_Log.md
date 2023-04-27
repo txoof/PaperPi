@@ -1,5 +1,14 @@
 # Change Log
 
+## 0.5.0.1
+
+* Add RGB Support for RGB WaveShare Screens
+  * Must be enabled in `paperpi.ini`
+* Update Plugins for RGB Support
+  * LMS Client, LibreSpot, met_no, reddit_quote, slideshow, word_clock
+* LMS Client now supports now-playing information for radio stations via QueryLMS v0.2
+
+
 ## 0.4.1.0
 
 * Add mirror option
