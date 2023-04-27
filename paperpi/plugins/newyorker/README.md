@@ -1,6 +1,6 @@
 # newyorker
 
-![sample image for plugin newyorker](./newyorker.layout-sample.png)
+![sample image for plugin newyorker](./newyorker.layout-L-sample.png)
 ```ini
  
 PLUGIN: newyorker v:0.1.1
@@ -57,11 +57,11 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.newyorker.new
 
 layout: **default**
 
-![sample image for plugin default](./newyorker.default-sample.png) 
+![sample image for plugin default](./newyorker.default-L-sample.png) 
 
 
 layout: **layout**
 
-![sample image for plugin layout](./newyorker.layout-sample.png) 
+![sample image for plugin layout](./newyorker.layout-L-sample.png) 
 
 

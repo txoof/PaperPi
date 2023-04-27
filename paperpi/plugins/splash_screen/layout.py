@@ -1,3 +1,4 @@
+# layout for splash screen
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -8,7 +9,7 @@ layout =  {
             'max_lines': 1,
             'padding': 10,
             'width': 1,
-            'height': 6/10,
+            'height': .6,
             'abs_coordinates': (0, 0),
             'hcenter': True,
             'vcenter': True,
@@ -17,7 +18,10 @@ layout =  {
             'relative': False,
             'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
             'mode': 'L',
-            'font_size': None},
+            'font_size': None,
+            'bkground': 'WHITE',
+            'fill': 'BLACK'
+  },
 
   'version':
           {
@@ -26,7 +30,7 @@ layout =  {
            'max_lines': 1,
            'padding': 10,
            'width': 1,
-           'height': 1/10,
+           'height': .1,
            'abs_coordinates': (0, None),
            'hcenter': True,
            'vcenter': True,
@@ -35,7 +39,10 @@ layout =  {
            'relative': ['version', 'app_name'],
            'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
            'font_size': None,
-           'mode': 'L'},
+           'mode': 'L',
+           'bkground': 'WHITE',
+           'fill': 'BLACK'
+  },
 
   'url':
           {
@@ -44,7 +51,7 @@ layout =  {
            'max_lines': 2,
            'padding': 10,
            'width': 1,
-           'height': 3/10,
+           'height': .3,
            'abs_coordinates': (0, None),
            'hcenter': True,
            'vcenter': True,
@@ -52,7 +59,8 @@ layout =  {
            'inverse': False,
            'relative': ['url', 'version'],
            'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
-           'maxchar': 35,
            'font_size': None,
-           'mode': 'L'}
+           'mode': 'L',
+           'bkground': 'WHITE',
+           'fill': 'BLACK'}
 }

@@ -1,6 +1,6 @@
 # dec_binary_clock
 
-![sample image for plugin dec_binary_clock](./dec_binary_clock.layout-sample.png)
+![sample image for plugin dec_binary_clock](./dec_binary_clock.layout-L-sample.png)
 ```ini
  
 PLUGIN: dec_binary_clock v:0.1.0
@@ -60,11 +60,11 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.dec_binary_cl
 
 layout: **dec_binary_clock**
 
-![sample image for plugin dec_binary_clock](./dec_binary_clock.dec_binary_clock-sample.png) 
+![sample image for plugin dec_binary_clock](./dec_binary_clock.dec_binary_clock-L-sample.png) 
 
 
 layout: **layout**
 
-![sample image for plugin layout](./dec_binary_clock.layout-sample.png) 
+![sample image for plugin layout](./dec_binary_clock.layout-L-sample.png) 
 
 

@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-version = '0.1.1'
+version = '0.1.2'
 name = 'slideshow'
 data = {
     'time': 'time in HH:MM format',
@@ -18,7 +18,7 @@ plugin = slideshow
 # time between choosing new image (seconds)
 refresh_rate = 90
 # recommended display time (seconds)
-min_display_time = 30
+min_display_time = 50
 # maximum priority in display loop
 max_priority = 2
 # path to image directory

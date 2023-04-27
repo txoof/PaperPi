@@ -16,7 +16,9 @@ three_row_icon_wind_temp = {
         'max_lines': 1,
         'mode': 'L',
         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
-        'mode': 'L'
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     'time_updated_local': {
         'type': 'TextBlock',
@@ -32,6 +34,10 @@ three_row_icon_wind_temp = {
         'max_lines': 2,
         'mode': 'L',
         'font': dir_path+'/../../fonts/Montserrat/Montserrat-Regular.ttf',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+
     },
     # row 0
     '000_forecast_time_local': { 
@@ -50,6 +56,10 @@ three_row_icon_wind_temp = {
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },
     '000_data_next_1_hours_summary_symbol_code_image': { 
         'type': 'ImageBlock',
@@ -64,6 +74,11 @@ three_row_icon_wind_temp = {
         'relative': ['000_forecast_time_local', 'forecast_location'],
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },    
     '000_data_instant_details_wind_barb_image': { 
         'type': 'ImageBlock',
@@ -78,6 +93,11 @@ three_row_icon_wind_temp = {
         'relative': ['000_data_next_1_hours_summary_symbol_code_image', 'forecast_location'],
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+
+
     },
     '000_data_instant_details_air_temperature': { 
         'type': 'TextBlock',
@@ -95,6 +115,10 @@ three_row_icon_wind_temp = {
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },    
     
     # row 1
@@ -115,6 +139,10 @@ three_row_icon_wind_temp = {
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     }, 
     '006_data_next_1_hours_summary_symbol_code_image': { 
         'type': 'ImageBlock',
@@ -129,6 +157,10 @@ three_row_icon_wind_temp = {
         'relative': ['006_forecast_time_local', '000_data_next_1_hours_summary_symbol_code_image'],
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },
     '006_data_instant_details_wind_barb_image': { 
         'type': 'ImageBlock',
@@ -143,6 +175,10 @@ three_row_icon_wind_temp = {
         'relative': ['006_data_next_1_hours_summary_symbol_code_image', '000_data_instant_details_wind_barb_image'],
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },
     '006_data_instant_details_air_temperature': { 
         'type': 'TextBlock',
@@ -160,6 +196,10 @@ three_row_icon_wind_temp = {
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
         'mode': 'L',
         'border_config': {'fill': 0, 'width': 3, 'sides': ['bottom']},
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },
     
     # row 2
@@ -177,7 +217,11 @@ three_row_icon_wind_temp = {
         'max_lines': 2,
         'mode': 'L',        
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     }, 
     '012_data_next_1_hours_summary_symbol_code_image': { 
         'type': 'ImageBlock',
@@ -190,7 +234,11 @@ three_row_icon_wind_temp = {
         'vcenter': True,
         'abs_coordinates': (None, None),
         'relative': ['012_forecast_time_local', '006_data_next_1_hours_summary_symbol_code_image'],
-        'mode': 'L',        
+        'mode': 'L',       
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },
     '012_data_instant_details_wind_barb_image': { 
         'type': 'ImageBlock',
@@ -203,7 +251,11 @@ three_row_icon_wind_temp = {
         'vcenter': True,
         'abs_coordinates': (None, None),
         'relative': ['012_data_next_1_hours_summary_symbol_code_image', '006_data_instant_details_wind_barb_image'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+
     },
     '012_data_instant_details_air_temperature': { 
         'type': 'TextBlock',
@@ -219,7 +271,12 @@ three_row_icon_wind_temp = {
         'max_lines': 1,
         'mode': 'L',        
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
+        
     },    
 }
 
@@ -237,7 +294,10 @@ three_column_icon_wind_temp_precip = {
         'relative': False,
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     # Column 0
     '000_data_next_1_hours_summary_symbol_code_image': { 
@@ -251,7 +311,11 @@ three_column_icon_wind_temp_precip = {
         'vcenter': True,
         'abs_coordinates': (0, None),
         'relative': ['000_data_next_1_hours_summary_symbol_code_image', 'forecast_location'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
+        
     },
     '000_data_instant_details_wind_barb_image': { 
         'type': 'ImageBlock',
@@ -264,7 +328,10 @@ three_column_icon_wind_temp_precip = {
         'vcenter': True,
         'abs_coordinates': (0, None),
         'relative': ['000_data_instant_details_wind_barb_image', '000_data_next_1_hours_summary_symbol_code_image'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '000_data_instant_details_wind_speed': {
         'type': 'TextBlock',
@@ -279,7 +346,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_data_instant_details_wind_barb_image', '000_data_next_1_hours_summary_symbol_code_image'],
         'max_lines': 2,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '000_data_instant_details_air_temperature': { 
         'type': 'TextBlock',
@@ -294,7 +364,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_data_instant_details_air_temperature', '000_data_instant_details_wind_speed'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
 
     '000_data_next_1_hours_details_precipitation_amount': { 
@@ -310,7 +383,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_data_next_1_hours_details_precipitation_amount', '000_data_instant_details_air_temperature'],
         'max_lines': 2,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '000_forecast_time_local': { 
         'type': 'TextBlock',
@@ -325,7 +401,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_forecast_time_local', '000_data_next_1_hours_details_precipitation_amount'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
 
     # Column 1
@@ -340,7 +419,10 @@ three_column_icon_wind_temp_precip = {
         'vcenter': True,
         'abs_coordinates': (None, None),
         'relative': ['000_data_next_1_hours_summary_symbol_code_image', 'forecast_location'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '006_data_instant_details_wind_barb_image': { 
         'type': 'ImageBlock',
@@ -353,7 +435,10 @@ three_column_icon_wind_temp_precip = {
         'vcenter': True,
         'abs_coordinates': (None, None),
         'relative': ['000_data_instant_details_wind_speed', '006_data_next_1_hours_summary_symbol_code_image'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '006_data_instant_details_wind_speed': {
         'type': 'TextBlock',
@@ -368,7 +453,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['006_data_instant_details_wind_barb_image', '006_data_next_1_hours_summary_symbol_code_image'],
         'max_lines': 2,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '006_data_instant_details_air_temperature': { 
         'type': 'TextBlock',
@@ -383,7 +471,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_data_instant_details_air_temperature', '006_data_instant_details_wind_speed'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
 
     '000_data_next_6_hours_details_precipitation_amount': { 
@@ -399,7 +490,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_data_next_1_hours_details_precipitation_amount', '006_data_instant_details_air_temperature'],
         'max_lines': 2,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '006_forecast_time_local': { 
         'type': 'TextBlock',
@@ -414,7 +508,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_forecast_time_local', '000_data_next_6_hours_details_precipitation_amount'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },    
     
 
@@ -430,7 +527,10 @@ three_column_icon_wind_temp_precip = {
         'vcenter': True,
         'abs_coordinates': (None, None),
         'relative': ['006_data_next_1_hours_summary_symbol_code_image', 'forecast_location'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '012_data_instant_details_wind_barb_image': { 
         'type': 'ImageBlock',
@@ -443,7 +543,10 @@ three_column_icon_wind_temp_precip = {
         'vcenter': True,
         'abs_coordinates': (None, None),
         'relative': ['006_data_instant_details_wind_speed', '012_data_next_1_hours_summary_symbol_code_image'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '012_data_instant_details_wind_speed': {
         'type': 'TextBlock',
@@ -458,7 +561,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['012_data_instant_details_wind_barb_image', '012_data_next_1_hours_summary_symbol_code_image'],
         'max_lines': 2,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '012_data_instant_details_air_temperature': { 
         'type': 'TextBlock',
@@ -473,7 +579,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['006_data_instant_details_air_temperature', '012_data_instant_details_wind_speed'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
 
     '011_data_next_1_hours_details_precipitation_amount': { 
@@ -489,7 +598,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['000_data_next_6_hours_details_precipitation_amount', '012_data_instant_details_air_temperature'],
         'max_lines': 2,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '012_forecast_time_local': { 
         'type': 'TextBlock',
@@ -504,7 +616,10 @@ three_column_icon_wind_temp_precip = {
         'relative': ['006_forecast_time_local', '011_data_next_1_hours_details_precipitation_amount'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Bold.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },    
 }
 
@@ -520,7 +635,10 @@ two_column_icon_wind_temp_precip = {
         'hcenter': True,
         'vcenter': True,
         'abs_coordinates': (0, 0),
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '000_data_instant_details_wind_barb_image': { 
         'type': 'ImageBlock',
@@ -533,7 +651,12 @@ two_column_icon_wind_temp_precip = {
         'vcenter': True,
         'abs_coordinates': (0, None),
         'relative': ['000_data_instant_details_wind_barb_image', '000_data_next_1_hours_summary_symbol_code_image'],
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     'forecast_location': { 
         'type': 'TextBlock',
@@ -548,7 +671,10 @@ two_column_icon_wind_temp_precip = {
         'relative': ['forecast_location', '000_data_instant_details_wind_barb_image'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     't_max': { 
         'type': 'TextBlock',
@@ -563,7 +689,10 @@ two_column_icon_wind_temp_precip = {
         'relative': ['000_data_next_1_hours_summary_symbol_code_image',  't_max'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     't_min': { 
         'type': 'TextBlock',
@@ -578,7 +707,10 @@ two_column_icon_wind_temp_precip = {
         'relative': ['t_max',  't_min'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '000_data_next_6_hours_details_air_temperature_min': { 
         'type': 'TextBlock',
@@ -593,7 +725,10 @@ two_column_icon_wind_temp_precip = {
         'relative': ['000_data_next_1_hours_summary_symbol_code_image',  't_max'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '000_data_next_6_hours_details_air_temperature_max': { 
         'type': 'TextBlock',
@@ -608,7 +743,10 @@ two_column_icon_wind_temp_precip = {
         'relative': ['000_data_next_6_hours_details_air_temperature_min',  't_max'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     't_precipitation': { 
         'type': 'TextBlock',
@@ -623,7 +761,10 @@ two_column_icon_wind_temp_precip = {
         'relative': ['000_data_instant_details_wind_barb_image',  '000_data_next_6_hours_details_air_temperature_max'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
     '000_data_next_1_hours_details_precipitation_amount': { 
         'type': 'TextBlock',
@@ -638,7 +779,10 @@ two_column_icon_wind_temp_precip = {
         'relative': ['000_data_instant_details_wind_barb_image',  't_precipitation'],
         'max_lines': 1,
         'font': dir_path+'/../../fonts/Economica/Economica-Regular.ttf',
-        'mode': 'L'
+        'mode': 'L',
+        'rgb_support': True,
+        'bkground': 'WHITE',
+        'fill': 'BLACK'
     },
 }
 

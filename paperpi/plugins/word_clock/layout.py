@@ -1,3 +1,4 @@
+# wordclock layouts
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -13,11 +14,13 @@ word_clock_lg = {
           'hcenter': False,
           'vcenter': False,
           'rand': True,
-          'inverse': True,
           'relative': False,
           'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
           'mode': 'L',
-          'font_size': None},
+          'font_size': None,
+          'rgb_support': True,
+          'bkground': 'BLACK',
+          'fill': 'WHITE'},
   'time':
          {'type': 'TextBlock', 
           'image': None,
@@ -27,12 +30,14 @@ word_clock_lg = {
           'height': 1/10,
           'abs_coordinates': (0, None),
           'vcenter': False,
-          'inverse': True,
           'rand': True,
           'relative': ['time', 'wordtime'],
           'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
           'mode': 'L',       
-          'font_size': None},
+          'font_size': None,
+          'rgb_support': True,
+          'bkground': 'BLACK',
+          'fill': 'WHITE'},
 }
 
 word_clock = {
@@ -47,11 +52,13 @@ word_clock = {
           'hcenter': False,
           'vcenter': False,
           'rand': True,
-          'inverse': True,
           'relative': False,
           'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
           'mode': 'L',
-          'font_size': None},
+          'font_size': None,
+          'rgb_support': True,
+          'bkground': 'BLACK',
+          'fill': 'WHITE'},
   'time':
          {'type': 'TextBlock', 
           'image': None,
@@ -61,12 +68,14 @@ word_clock = {
           'height': 1/7,
           'abs_coordinates': (0, None),
           'vcenter': False,
-          'inverse': True,
           'rand': True,
           'relative': ['time', 'wordtime'],
           'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
           'mode': 'L',          
-          'font_size': None},
+          'font_size': None,
+          'rgb_support': True,
+          'bkground': 'BLACK',
+          'fill': 'WHITE'},
 }
 
 # set default layout here

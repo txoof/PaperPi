@@ -230,106 +230,32 @@ def update_function(self):
 
 
 
-# # use this for testing
-# from SelfDummy import SelfDummy
-# from CacheFiles import CacheFiles
-# from epdlib import Layout
 
 
-# logger.root.setLevel('DEBUG')
-# logging.debug('foo')
-
-# self = SelfDummy()
-# self.max_priority = 0
-# self.config = {'player_name': 'MacPlay',
-#                'idle_timeout': 5,
-#                'layout': 'two_columns_album_art'}
-# self.cache = CacheFiles()
-
-# dir_path = '.'
-# my_l =  {
-#     'coverart': {
-#         'image': True,
-#         'mode': 'L',
-#         'padding': 5,
-#         'width':.4,
-#         'height': .5,
-#         'vcenter': True,
-#         'hcenter': True,
-#         'relative': False,
-#         'abs_coordinates': (0, 0)
-#     },
-#     'artist': {
-#         'image': False,
-#         'max_lines': 3,
-#         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
-#         'mode': 'L',
-#         'vcenter': True,
-#         'hcenter': False,
-#         'align': 'left',
-#         'padding': 5,
-#         'width': .6,
-#         'height': .40,
-#         'relative': ['coverart', 'artist'],
-#         'abs_coordinates': (None, 0),
-        
-#     },
-#     'album': {
-#         'image': False,
-#         'max_lines': 2,
-#         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf',
-#         'mode': 'L',
-#         'vcenter': True,
-#         'hcenter': False,
-#         'align': 'left',
-#         'padding': 5,
-#         'width': .6,
-#         'height': .1,
-#         'relative': ['coverart', 'artist'],
-#         'abs_coordinates': (None, 0),
-        
-#     },
-#     'title': {
-#         'image': False,
-#         'max_lines': 2,
-#         'font': dir_path+'/../../fonts/Oswald/static/Oswald-Medium.ttf',
-#         'mode': 'L',
-#         'vcenter': True,
-#         'hcenter': True,
-#         'align': 'left',
-#         'padding': 5,
-#         'width': 1,
-#         'height': .5,
-#         'relative': ['title', 'album'],
-#         'abs_coordinates': (0, None)
-#     },
+# # this code snip simulates running from within the display loop use this and the following
+# # cell to test the output
+# # fugly hack for making the library module available to the plugins
+# import sys
+# sys.path.append(layout.dir_path+'/../..')
+# from library import PluginTools
+# import logging
+# logging.root.setLevel('WARNING')
+# from library.CacheFiles import CacheFiles
+# from library import Plugin
+# from IPython.display import display
+# test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
+# test_plugin.config = {
+#     'player_name': 'SqueezePlay',
+#     'idle_timeout': 5,
+#     'layout': 'two_columns_album_art'
 # }
-
-
-# l = Layout(resolution=(800, 600))
-# l.layout = my_l
-
-
-
-
-
-
-# # test layouts with this code snip
-# u, d, p = update_function(self)
-# # if u != self.data:
-# self.data = d
-# print(f'idle timer: {self.idle_timer.last_updated}, idle_timeout {self.config["idle_timeout"]}')
-# print(p)
-# print(d)
-# # print('*'*50)
-# # print(self.data)
-
-
-# logging.root.setLevel('DEBUG')
-
-
-# l.update_contents(d)
-# l.concat()
+# test_plugin.refresh_rate = 5
+# l = layout.layout
+# test_plugin.layout = l
+# test_plugin.cache = CacheFiles()
+# test_plugin.update_function = update_function
+# test_plugin.update()
+# test_plugin.image
 
 
 
@@ -366,10 +292,6 @@ def scan_servers(*args, **kwargs):
             print('\n')
         except KeyError as e:
             pass 
-
-
-
-
 
 
 

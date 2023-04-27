@@ -1,13 +1,15 @@
 
-# PaperPi V3 <!-- omit in toc -->
+# PaperPi V3<!-- omit in toc -->
+
 [![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
+
 
 **This version is compatible with Raspberry Pi OS Bullseye and does not work properly with Buster.**
 
 
 |     |     |
 |:---:|:---:|
-|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-sample.png alt="Splash Screen" width=400/> | <img src=./documentation/images/paperpiV3.gif alt="PaperPi" width=400 />|
+|<img src=./paperpi/plugins/splash_screen/splash_screen.layout-L-sample.png alt="Splash Screen" width=400/> | <img src=./documentation/images/paperpiV3.gif alt="PaperPi" width=400 />|
 
 
 ## About PaperPi
@@ -19,6 +21,7 @@ To get started, jump to the **[Setup Instructions](#setup_install)**.
 ### Why it's great
 
 * Works with almost all of the [WaveShare](https://www.waveshare.com/product/displays/e-paper.htm) SPI displays out of the box with minimal setup or configuration
+* Supports RGB screens
 * Scales plugin output to match your display size from tiny 2" 1 bit displays all the way to 10" HD 8 bit displays
 * Supports an open and hackable plugin architecture
 * Easy install and configuration
@@ -30,20 +33,35 @@ For information on building a frame, case and custom cable, see [these instructi
 
 ## Plugins
 
-PaperPi supports many different plugins and layouts for each plugin.
+PaperPi supports many different plugins and multiple layouts for each plugin that can provide different data. 
+|     |     |
+|:---:|:---:|
+|<img src=./paperpi/plugins/lms_client/lms_client.two_column_three_row-RGB-sample.png alt="two_column_three_row layout" width=400/><br />LMS Client: `two_column_three_row` | <img src=paperpi/plugins/lms_client/lms_client.two_rows_text_only-L-sample.png alt="two_rows_text_only layout" width=400 /><br />LMS Client: `two_rows_text_only`|
+
+Some plugins, marked with <font color="red">R</font><font color="green">G</font><font color="blue">B</font>, also support 7-Color Screens. 
+
 
 ### [Complete Plugins List](./documentation/Plugins.md)
 
+**Plugin Samples**
+
 | | | |
 |:-------------------------:|:-------------------------:|:-------------------------:|
-|<img src=./paperpi/plugins/librespot_client/librespot_client.layout-sample.png alt="librespot plugin" width=300 /><br />[LibreSpot (spotify) Plugin](./paperpi/plugins/librespot_client/README.md)|<img src=./paperpi/plugins/word_clock/word_clock.layout-sample.png alt="word clock plugin" width=300 /><br />[Word Clock](./paperpi/plugins/word_clock/README.md)|<img src=./paperpi/plugins/slideshow/slideshow.layout-sample.png alt="lms client plugin" width=300 /><br />[Slideshow](./paperpi/plugins/slideshow/README.md)|
-|<img src=./paperpi/plugins/moon_phase/moon_phase.layout-sample.png alt="decimal binary clock" width=300 /><br />[Moon Phase](./paperpi/plugins/moon_phase/README.md)|<img src=./paperpi/plugins/met_no/met_no.layout-sample.png alt="met_no plugin" width=300 /><br />[Met.no Weather](./paperpi/plugins/met_no/README.md)|<img src=./paperpi/plugins/crypto/crypto.layout-sample.png alt="Crypto Currency Ticker" width=300 /><br />[Crypto Currency](./paperpi/plugins/crypto/README.md)|
-|<img src=./paperpi/plugins/reddit_quote/reddit_quote.layout-sample.png alt="reddit/r/quotes" width=300 /><br />[Reddit Quotes](./paperpi/plugins/reddit_quote/README.md)|<img src=./paperpi/plugins/xkcd_comic/xkcd_comic.layout-sample.png alt="XKCD Comic" width=300 /><br />[XKCD Comic](./paperpi/plugins/xkcd_comic/README.md)|<img src=./paperpi/plugins/basic_clock/basic_clock.layout-sample.png alt="Basic Clock" width=300 /><br />[Basic Clock](./paperpi/plugins/basic_clock/README.md)| |
+|<img src=./paperpi/plugins/librespot_client/librespot_client.layout-L-sample.png alt="librespot plugin" width=300 /><br />[LibreSpot (spotify) Plugin](./paperpi/plugins/librespot_client/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>|<img src=./paperpi/plugins/word_clock/word_clock.layout-L-sample.png alt="word clock plugin" width=300 /><br />[Word Clock](./paperpi/plugins/word_clock/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>|<img src=./paperpi/plugins/slideshow/slideshow.layout-L-sample.png alt="lms client plugin" width=300 /><br />[Slideshow](./paperpi/plugins/slideshow/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>|
+|<img src=./paperpi/plugins/moon_phase/moon_phase.layout-L-sample.png alt="decimal binary clock" width=300 /><br />[Moon Phase](./paperpi/plugins/moon_phase/README.md)|<img src=./paperpi/plugins/met_no/met_no.layout-L-sample.png alt="met_no plugin" width=300 /><br />[Met.no Weather](./paperpi/plugins/met_no/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>|<img src=./paperpi/plugins/crypto/crypto.layout-L-sample.png alt="Crypto Currency Ticker" width=300 /><br />[Crypto Currency](./paperpi/plugins/crypto/README.md)|
+|<img src=./paperpi/plugins/reddit_quote/reddit_quote.layout-L-sample.png alt="reddit/r/quotes" width=300 /><br />[Reddit Quotes](./paperpi/plugins/reddit_quote/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>|<img src=./paperpi/plugins/xkcd_comic/xkcd_comic.layout-L-sample.png alt="XKCD Comic" width=300 /><br />[XKCD Comic](./paperpi/plugins/xkcd_comic/README.md)|<img src=./paperpi/plugins/basic_clock/basic_clock.layout-L-sample.png alt="Basic Clock" width=300 /><br />[Basic Clock](./paperpi/plugins/basic_clock/README.md)| |
 
 See the [Developing Plugins](./documentation/developing_plugins.md) guide for more information on creating your own plugins.
 ## Changes
 
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
+
+**V 0.5.0**
+
+* PaperPi migrated to EPD Lib V0.6
+* 7 Color, <font color="red">R</font><font color="green">G</font><font color="blue">B</font> screens now supported. **NB!** 2/3 Color screens are only supported in 1 bit black/white mode
+* 
+
 
 **V 0.4.1**
 
@@ -228,63 +246,65 @@ PRs are always welcome! Plugins can be pure python, but should follow the [guide
 
 ## Supported Screens
 
-Most NON-IT8951 screens are only supported in 1 bit (black and white) mode. Color output is not supported at this time. Some waveshare drivers do not provide 'standard' `display` and `Clear` methods; these displays are not supported at this time.
+Virtually all WaveShare E-Paper screens are now supported!
 
-All IT8951 Screens now support 8 bit grayscale output.
+* **WaveShare 7-Color displays are now fully supported**
+* HD IT8951 Screens support partial refresh, fast update and 8 bit grayscale
+* 2 and 3 Color screens (b/c variants) are only supported in Black/White mode
 
-Some WaveShare screens that support color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `waveshare_epd.epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `waveshare_epd.epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
-
-**WaveShare Screen**
+Most of the WaveShare screens that support 2/3 color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `waveshare_epd.epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `waveshare_epd.epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
 
 
-NN. Board        Supported:
----------------------------
-00. epd1in02     False
-    - Issues:
-     * AttributeError: module does not support `EPD.display()`
-01. epd1in54     True
-02. epd1in54_V2  True
-03. epd1in54b    True
-04. epd1in54b_V2 True
-05. epd1in54c    True
-06. epd2in13     True
-07. epd2in13_V2  True
-08. epd2in13_V3  True
-09. epd2in13b_V3 True
-10. epd2in13b_V4 True
-11. epd2in13bc   True
-12. epd2in13d    True
-13. epd2in66     True
-14. epd2in66b    True
-15. epd2in7      True
-16. epd2in7b     True
-17. epd2in7b_V2  True
-18. epd2in9      True
-19. epd2in9_V2   True
-20. epd2in9b_V3  True
-21. epd2in9bc    True
-22. epd2in9d     True
-23. epd3in7      False
-    - Issues:
-     * Non-standard, unsupported `EPD.Clear()` function
-     * AttributeError: module does not support `EPD.display()`
-24. epd4in01f    True
-25. epd4in2      True
-26. epd4in2b_V2  True
-27. epd4in2bc    True
-28. epd5in65f    True
-29. epd5in83     True
-30. epd5in83_V2  True
-31. epd5in83b_V2 True
-32. epd5in83bc   True
-33. epd7in5      True
-34. epd7in5_HD   True
-35. epd7in5_V2   True
-36. epd7in5b_HD  True
-37. epd7in5b_V2  True
-38. epd7in5bc    True
-39. HD IT8951 Based Screens True
-
+|Screen            |Supported      |Mode          |
+|:-----------------|:--------------|:-------------|
+|00. epd1in02      |False          |Unsupported   |
+|01. epd1in54      |True           |"1" 1 bit     |
+|02. epd1in54_V2   |True           |"1" 1 bit     |
+|03. epd1in54b     |True           |"1" 1 bit     |
+|04. epd1in54b_V2  |True           |"1" 1 bit     |
+|05. epd1in54c     |True           |"1" 1 bit     |
+|06. epd1in64g     |True           |"1" 1 bit     |
+|07. epd2in13      |True           |"1" 1 bit     |
+|08. epd2in13_V2   |True           |"1" 1 bit     |
+|09. epd2in13_V3   |True           |"1" 1 bit     |
+|10. epd2in13b_V3  |True           |"1" 1 bit     |
+|11. epd2in13b_V4  |True           |"1" 1 bit     |
+|12. epd2in13bc    |True           |"1" 1 bit     |
+|13. epd2in13d     |True           |"1" 1 bit     |
+|14. epd2in36g     |True           |"1" 1 bit     |
+|15. epd2in66      |True           |"1" 1 bit     |
+|16. epd2in66b     |True           |"1" 1 bit     |
+|17. epd2in7       |True           |"1" 1 bit     |
+|18. epd2in7_V2    |True           |"1" 1 bit     |
+|19. epd2in7b      |True           |"1" 1 bit     |
+|20. epd2in7b_V2   |True           |"1" 1 bit     |
+|21. epd2in9       |True           |"1" 1 bit     |
+|22. epd2in9_V2    |True           |"1" 1 bit     |
+|23. epd2in9b_V3   |True           |"1" 1 bit     |
+|24. epd2in9bc     |True           |"1" 1 bit     |
+|25. epd2in9d      |True           |"1" 1 bit     |
+|26. epd3in0g      |True           |"1" 1 bit     |
+|27. epd3in52      |True           |"1" 1 bit     |
+|28. epd3in7       |False          |Unsupported   |
+|29. epd4in01f     |True           |"RGB" 7 Color |
+|30. epd4in2       |True           |"1" 1 bit     |
+|31. epd4in2b_V2   |True           |"1" 1 bit     |
+|32. epd4in2bc     |True           |"1" 1 bit     |
+|33. epd4in37g     |True           |"1" 1 bit     |
+|34. epd5in65f     |True           |"RGB" 7 Color |
+|35. epd5in83      |True           |"1" 1 bit     |
+|36. epd5in83_V2   |True           |"1" 1 bit     |
+|37. epd5in83b_V2  |True           |"1" 1 bit     |
+|38. epd5in83bc    |True           |"1" 1 bit     |
+|39. epd7in3f      |True           |"RGB" 7 Color |
+|40. epd7in3g      |True           |"1" 1 bit     |
+|41. epd7in5       |True           |"1" 1 bit     |
+|42. epd7in5_HD    |True           |"1" 1 bit     |
+|43. epd7in5_V2    |True           |"1" 1 bit     |
+|44. epd7in5b_HD   |True           |"1" 1 bit     |
+|45. epd7in5b_V2   |True           |"1" 1 bit     |
+|46. epd7in5bc     |True           |"1" 1 bit     |
+|47. All HD IT8951 |True           |"L" 8 bit     |
 
 <a name="knownIssues"> </a>
 ## Issues
