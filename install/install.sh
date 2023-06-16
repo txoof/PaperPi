@@ -65,9 +65,12 @@ function copy_files {
 
   if [ $INSTALL -ge 1 ]
   then
-    echo "Installing files to $INSTALLPATH"
-    rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $INSTALLPATH
-    cp $SCRIPT_DIR/../Pipfile $INSTALLPATH$APPNAME
+
+  # check if existing paperpi is installed
+  if [[ -d $INSTALLPATH ]] 
+  then
+    echo "Removing existing installation found at $INSTALLPATH$APPNAME"
+    rm -rf $INSTALLPATH$APPNAME
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
@@ -76,6 +79,14 @@ function copy_files {
     rm -rf $INSTALLPATH$APPNAME
   fi
 
+
+
+    echo "Installing files to $INSTALLPATH$APPNAME"
+    rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $INSTALLPATH
+    cp $SCRIPT_DIR/../Pipfile $INSTALLPATH$APPNAME
+  fi
+
+
 }
 
 # create the pipenv for the install using the local python3 interpreter
@@ -83,7 +94,7 @@ function create_pipenv {
 
   if [ $INSTALL -gt 0 ]
   then
-    echo "Creating virtual environment for $APPNAME in $INSTALLPATH"
+    echo "Creating virtual environment for $APPNAME in $INSTALLPATH$APPNAME"
     pushd $INSTALLPATH$APPNAME
     if ! command pipenv install --skip-lock
     then

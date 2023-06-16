@@ -3,8 +3,8 @@ import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 dec_binary_clock = {
-    'bin_img':
-            {'type': 'ImageBlock',
+    'bin_img': {
+             'type': 'ImageBlock',
              'image': True,
              'max_lines': None,
              'padding': 5,
@@ -15,23 +15,30 @@ dec_binary_clock = {
              'vcenter': True,
              'rand': False,
              'inverse': False,
-             'relative': False
+             'relative': False,
+             'fill': 'BLACK',
+             'bkground': 'WHITE'
+},
+
+    'time': {
+            'type': 'TextBlock',
+            'image': None,
+            'max_lines': 1,
+            'padding': 5,
+            'width': 1,
+            'height': 1/9,
+            'abs_coordinates': (0, None),
+            'hcenter': False,
+            'vcenter': False,
+            'rand': True,
+            'inverse': False,
+            'relative': ['time', 'bin_img'],
+            'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
+            'font_size': None, 
+            'fill': 'BLACK',
+            'bkground': 'WHITE'
             },
-    'time':
-          {'type': 'TextBlock',
-           'image': None,
-           'max_lines': 1,
-           'padding': 5,
-           'width': 1,
-           'height': 1/9,
-           'abs_coordinates': (0, None),
-           'hcenter': False,
-           'vcenter': False,
-           'rand': True,
-           'inverse': False,
-           'relative': ['time', 'bin_img'],
-           'font': dir_path+'/../../fonts/Anton/Anton-Regular.ttf',
-           'font_size': None},
+          
 }
 
 # default layout

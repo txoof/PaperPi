@@ -1,6 +1,6 @@
 # moon_phase
 
-![sample image for plugin moon_phase](./moon_phase.layout-sample.png)
+![sample image for plugin moon_phase](./moon_phase.layout-L-sample.png)
 ```ini
  
 PLUGIN: moon_phase v:0.1.0
@@ -94,6 +94,7 @@ layout = layout
 plugin = moon_phase
 min_display_time = 30
 max_priority = 2
+refresh_rate = 1200
 # your email address for MET.no API access -- failure to specify may lead to a perma-ban
 email = you@host.diamond
 # Timezone locale name in Region/City format (see --run_plugin_func moon_phase.list_country_locales)
@@ -122,17 +123,17 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.moon_phase.mo
 
 layout: **layout**
 
-![sample image for plugin layout](./moon_phase.layout-sample.png) 
+![sample image for plugin layout](./moon_phase.layout-L-sample.png) 
 
 
 layout: **moon_data**
 
-![sample image for plugin moon_data](./moon_phase.moon_data-sample.png) 
+![sample image for plugin moon_data](./moon_phase.moon_data-L-sample.png) 
 
 
 layout: **moon_only**
 
-![sample image for plugin moon_only](./moon_phase.moon_only-sample.png) 
+![sample image for plugin moon_only](./moon_phase.moon_only-L-sample.png) 
 
 
 ## Additional Plugin Information

@@ -1,6 +1,6 @@
 # demo_plugin
 
-![sample image for plugin demo_plugin](./demo_plugin.layout-sample.png)
+![sample image for plugin demo_plugin](./demo_plugin.layout-L-sample.png)
 ```ini
  
 PLUGIN: demo_plugin v:0.1.0
@@ -78,12 +78,12 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.demo_plugin.d
 
 layout: **layout**
 
-![sample image for plugin layout](./demo_plugin.layout-sample.png) 
+![sample image for plugin layout](./demo_plugin.layout-L-sample.png) 
 
 
 layout: **my_layout_one**
 
-![sample image for plugin my_layout_one](./demo_plugin.my_layout_one-sample.png) 
+![sample image for plugin my_layout_one](./demo_plugin.my_layout_one-L-sample.png) 
 
 
 ## Additional Plugin Information

@@ -1,9 +1,9 @@
-# slideshow
+# slideshow <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
 
-![sample image for plugin slideshow](./slideshow.layout-sample.png)
+![sample image for plugin slideshow](./slideshow.layout-L-sample.png)
 ```ini
  
-PLUGIN: slideshow v:0.1.1
+PLUGIN: slideshow v:0.1.2
 
  
 FUNCTION: update_function
@@ -44,7 +44,7 @@ plugin = slideshow
 # time between choosing new image (seconds)
 refresh_rate = 90
 # recommended display time (seconds)
-min_display_time = 30
+min_display_time = 50
 # maximum priority in display loop
 max_priority = 2
 # path to image directory
@@ -71,29 +71,54 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.slideshow.sli
 
 ## Provided Layouts
 
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_only_centered_blackbkground**
+
+![sample image for plugin image_only_centered_blackbkground](./slideshow.image_only_centered_blackbkground-RGB-sample.png) 
+
+
 layout: **image_only_centered_blackbkground**
 
-![sample image for plugin image_only_centered_blackbkground](./slideshow.image_only_centered_blackbkground-sample.png) 
+![sample image for plugin image_only_centered_blackbkground](./slideshow.image_only_centered_blackbkground-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_only_centered_whitebkground**
+
+![sample image for plugin image_only_centered_whitebkground](./slideshow.image_only_centered_whitebkground-RGB-sample.png) 
 
 
 layout: **image_only_centered_whitebkground**
 
-![sample image for plugin image_only_centered_whitebkground](./slideshow.image_only_centered_whitebkground-sample.png) 
+![sample image for plugin image_only_centered_whitebkground](./slideshow.image_only_centered_whitebkground-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_time_centered_blackbkground**
+
+![sample image for plugin image_time_centered_blackbkground](./slideshow.image_time_centered_blackbkground-RGB-sample.png) 
 
 
 layout: **image_time_centered_blackbkground**
 
-![sample image for plugin image_time_centered_blackbkground](./slideshow.image_time_centered_blackbkground-sample.png) 
+![sample image for plugin image_time_centered_blackbkground](./slideshow.image_time_centered_blackbkground-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_time_centered_whitebkground**
+
+![sample image for plugin image_time_centered_whitebkground](./slideshow.image_time_centered_whitebkground-RGB-sample.png) 
 
 
 layout: **image_time_centered_whitebkground**
 
-![sample image for plugin image_time_centered_whitebkground](./slideshow.image_time_centered_whitebkground-sample.png) 
+![sample image for plugin image_time_centered_whitebkground](./slideshow.image_time_centered_whitebkground-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+
+![sample image for plugin layout](./slideshow.layout-RGB-sample.png) 
 
 
 layout: **layout**
 
-![sample image for plugin layout](./slideshow.layout-sample.png) 
+![sample image for plugin layout](./slideshow.layout-L-sample.png) 
 
 
 ## Additional Plugin Information

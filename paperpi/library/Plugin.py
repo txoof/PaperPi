@@ -71,6 +71,7 @@ class Plugin:
                  config={},
                  cache=None,
                  force_onebit=False,
+                 screen_mode='1',
                  **kwargs):
         
         '''Create a plugin object that provides consistent methods for providing an image and querying
@@ -103,6 +104,7 @@ class Plugin:
         self.name = name
         self.resolution = resolution
         self.force_onebit = force_onebit
+        self.screen_mode = screen_mode
         self.layout = layout
         self.config = config
         self.cache = cache
@@ -206,7 +208,6 @@ class Plugin:
     @strict_enforce((list, tuple))
     def resolution(self, resolution):
         self._resolution = resolution
-        
     
     @property
     def update_function(self):
@@ -249,9 +250,16 @@ class Plugin:
     
     @layout.setter
     def layout(self, layout):
+        # convert blocks to RGB when possible
+        for block, values in layout.items():
+            if values.get('rgb_support', False) and self.screen_mode == 'RGB' and not self.force_onebit:
+                logging.debug(f'{block} supports RGB')
+                values['mode'] = 'RGB'
+        
         self.layout_obj = Layout(resolution=self.resolution, 
                                  layout=layout,
-                                 force_onebit=self.force_onebit)
+                                 force_onebit=self.force_onebit,
+                                 mode=self.screen_mode)
         
     def force_update(self, *args, **kwargs):
         '''force an immediate update'''
@@ -275,7 +283,7 @@ class Plugin:
 
 def main():
     '''demo of Plugin data type'''
-    from random import randint
+    from random import randint, choice
     from IPython.display import display
     from time import sleep
     bogus_layout = {
@@ -284,31 +292,54 @@ def main():
             'image': None,
             'max_lines': 1,
             'width': 1,
-            'height': 1,
+            'height': .5,
             'abs_coordinates': (0, 0),
             'rand': True,
-            'font': '../core_fonts/Anton/Anton-Regular.ttf'
+            'font': '../fonts/Anton/Anton-Regular.ttf',
         },
+        'text': {
+            'abs_coordinates': (0, None),
+            'relative': ('text', 'number'),
+            'type': 'TextBlock',
+            'image': None,
+            'max_lines': 3,
+            'height': .5,
+            'width': 1,
+            'rand': True,
+            'font': '../fonts/Anton/Anton-Regular.ttf',
+            'fill': 'ORANGE',
+            'bkground': 'BLACK',
+            'rgb_support': True
+        }
     }
 
     # update_function that is added to the plugin as the method self.update_function
-    def bogus_plugin(self):
-        data = {'number': str(randint(99,9999))}
+    def bogus_plugin(self):        
+        text = [
+            'The quick brown fox jumps over the lazy dog.',
+            'Jackdaws love my big sphinx of quartz.',
+            'Two driven jocks help fax my big quiz.',
+            'By Jove, my quick study of lexicography won a prize!',
+            'How vexingly quick daft zebras jump!'
+        ]
+        data = {'number': str(randint(99,9999)), 'text': choice(text)}
         priority = self.max_priority
         is_updated = True
+        
 
         return (is_updated, data, priority) 
 
 
     p = Plugin(resolution=(300, 210), 
-               refresh_rate=3, 
+               refresh_rate=2, 
                max_priority=1, 
                update_function=bogus_plugin, 
-               layout=bogus_layout)
+               layout=bogus_layout,
+               screen_mode='RGB')
 
 #     Plugin.update_function = bogus_plugin
     
-    logger.root.setLevel('DEBUG')
+    logger.root.setLevel('INFO')
     print('this demo is best run from inside jupyter notebook')
     p.force_update()
     print('this is a forced update')
@@ -318,6 +349,11 @@ def main():
     display(p.image)
 
     for i in range(10):
+        colors = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']
+        fill = choice(colors)
+        colors.remove(fill)
+        bkground = choice(colors)
+        p.layout_obj.update_block_props(block='text', props={'bkground': bkground, 'fill': fill})        
         print('trying to update plugin')
         p.update()
         print('displaying image')
