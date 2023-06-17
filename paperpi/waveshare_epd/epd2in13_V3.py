@@ -4,8 +4,8 @@
 # * | Function    :   Electronic paper driver
 # * | Info        :
 # *----------------
-# * | This version:   V1.1
-# * | Date        :   2021-10-30
+# * | This version:   V1.2
+# * | Date        :   2022-08-9
 # # | Info        :   python demo
 # -----------------------------------------------------------------------------
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,7 +30,6 @@
 
 import logging
 from . import epdconfig
-#import numpy as np
 
 # Display resolution
 EPD_WIDTH       = 122
@@ -123,6 +122,13 @@ class EPD:
         epdconfig.digital_write(self.dc_pin, 1)
         epdconfig.digital_write(self.cs_pin, 0)
         epdconfig.spi_writebyte([data])
+        epdconfig.digital_write(self.cs_pin, 1)
+
+    # send a lot of data   
+    def send_data2(self, data):
+        epdconfig.digital_write(self.dc_pin, 1)
+        epdconfig.digital_write(self.cs_pin, 0)
+        epdconfig.spi_writebyte2(data)
         epdconfig.digital_write(self.cs_pin, 1)
     
     '''
@@ -303,11 +309,6 @@ class EPD:
         image : Image data
     '''
     def displayPartial(self, image):
-        if self.width%8 == 0:
-            linewidth = int(self.width/8)
-        else:
-            linewidth = int(self.width/8) + 1
-
         epdconfig.digital_write(self.reset_pin, 0)
         epdconfig.delay_ms(1)
         epdconfig.digital_write(self.reset_pin, 1)  
@@ -337,9 +338,10 @@ class EPD:
         self.SetCursor(0, 0)
         
         self.send_command(0x24) # WRITE_RAM
-        for j in range(0, self.height):
-            for i in range(0, linewidth):
-                self.send_data(image[i + j * linewidth])   
+        # for j in range(0, self.height):
+        #     for i in range(0, linewidth):
+        #         self.send_data(image[i + j * linewidth])   
+        self.send_data2(image)  
         self.TurnOnDisplayPart()
 
     '''
@@ -348,20 +350,11 @@ class EPD:
         image : Image data
     '''
     def displayPartBaseImage(self, image):
-        if self.width%8 == 0:
-            linewidth = int(self.width/8)
-        else:
-            linewidth = int(self.width/8) + 1
-
         self.send_command(0x24)
-        for j in range(0, self.height):
-            for i in range(0, linewidth):
-                self.send_data(image[i + j * linewidth])   
+        self.send_data2(image)  
                 
         self.send_command(0x26)
-        for j in range(0, self.height):
-            for i in range(0, linewidth):
-                self.send_data(image[i + j * linewidth])  
+        self.send_data2(image)  
         self.TurnOnDisplay()
     
     '''
@@ -376,10 +369,7 @@ class EPD:
         # logger.debug(linewidth)
         
         self.send_command(0x24)
-        for j in range(0, self.height):
-            for i in range(0, linewidth):
-                self.send_data(color)
-                
+        self.send_data2([color] * int(self.height * linewidth))  
         self.TurnOnDisplay()
 
     '''
