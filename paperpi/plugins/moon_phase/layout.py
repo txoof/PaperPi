@@ -61,7 +61,6 @@ moon_data = {
    'image_file': {
       'type': 'ImageBlock',
       'mode': 'L',
-      # this block does not contain an image
       'image': True,
       # width of block as fraction of entire display
       'width': 1,
