@@ -33,3 +33,12 @@ The moon images are the first full lunar cycle of 2022: 2022.01.02 - 2022.02.01 
 
 ### Moon Phase Data
 The moon phase data is sourced from the [Norwegian Meteorolgisk Institutt](https://api.met.no/weatherapi/sunrise/2.0/documentation#!/data/get_format) API. MET provides tons of amazing free APIs with oceanic, meterological and air quality forecasts. Some of the information is limited to Norwegian locales, but other information such as the weather forecasts are available world-wide.
+
+## Change Log
+
+*v0.2.0*
+
+* Update plugin to use new [Sunrise 3.0](https://docs.api.met.no/doc/sunrise/celestial.html) from Met.no
+    * Migrate to GeoJSON format
+    * Improve error handling
+    * Improve user notification of errors via visual output - [error_message.jpg](./images/error_message.jpg)
