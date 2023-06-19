@@ -209,82 +209,175 @@ def _col_print(lines, term_width=None, indent=0, pad=2):
 
 
 
-def _process_data(data):
+def _tryconvert(value, default, *types):
+    '''try to convert a given value to a member of `types` or return a default value
     
-    def get_value(my_data, key, address, default=None):
-        success = True
-        value = None
+    Args:
+        value: value to convert
+        default: value to return if all else fails
+        types: list of types to attempt to convert value to
         
-        try:
-            my_dict = dictor(my_data, address)
-            value = my_dict[key]
-        except KeyError as e:
-            logging.error(f'KeyError: {address}.{e} not found in API data')
-            success = False
-        except TypeError as e:
-            logging.error(f'No valid data found in API data')
-            logging.debug(f'API Data: {data}')
-            
-        if default and not success:
-            logging.warning(f'failed to set data, returning default value: {default}')
-            value = default            
-        
-        return value
+    Returns:
+        `valu`e converted to a member of `types` or `default`'''
     
-    def convert_time(dt_str, dt_format='%H:%M'):
+    for t in types:
         try:
-            dt_obj = datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%S%z')
-            converted = datetime.strftime(dt_obj, dt_format)
+            return t(value)
+        except (ValueError, TypeError):
+            continue
+    return default
+
+
+
+
+
+
+def _get_value(my_data, key, address, default=None):
+    '''get data from JSON dictionary and handle errors gracefully
+
+    Args:
+        json_data(`dict`): json formatted dictionary
+        key(`str`): key to retrieve from address
+        address(`str`): dotted address and index to find in dictionary e.g. foo.bar[0]
+        default: value to return if address/key are not found'''
+    success = True
+    value = None
+
+    try:
+        my_dict = dictor(my_data, address)
+        value = my_dict[key]
+    except KeyError as e:
+        logging.error(f'KeyError: {address}.{e} not found in API data')
+        success = False
+    except TypeError as e:
+        logging.error(f'TypeError processing JSON data: {e}')
+        success = False
+
+    if default and not success:
+        logging.warning(f'failed to set data, returning default value: {default}')
+        value = default            
+
+    return value
+
+
+
+
+
+
+def _process_data(json_data, timezone=constants.required_config_options['location_name']):
+    
+    '''process JSON data into data dictionary for the Plugin'''
+    
+    
+    logging.debug(f'JSON Data: {json_data}')
+    logging.debug(f'timezone: {timezone}')
+    
+    # return value defaults
+    failure = False
+    data = {
+        'Moonrise': '00:00',
+        'moonset': '00:00',
+        'Image_file': constants.error_image,
+        'phase_desc': 'Error: Check Logs'
+    }
+    
+    # set default values for rise/set time
+    rise_set = {
+                    'moonrise': {
+                        'iso_str': '1970-01-01T00:00+00:00',
+                        'time': ''
+                    },
+                    'moonset': {
+                        'iso_str': '1970-01-01T00:00+00:00',
+                        'time': ''
+                    }
+                }
+    
+    moon_images = {file.stem: file for file in Path(constants.image_path).glob('*.jpeg')}
+    
+    # time conversion manipulation
+    
+    # set local timezone based on timezone name
+    try:
+        local_tz = pytz.timezone(timezone)
+    except pytz.exceptions.UnknownTimeZoneError as e:
+        logging.warning(f"unusable timezone: '{timezone}'; falling back to: {constants.required_config_options['location_name']}")
+        local_tz = pytz.timezone(constants.required_config_options['location_name'])
+        
+    logging.debug(f'local_tz: {local_tz}')
+    
+    # extract the rise/set time from the json data
+    rise_set['moonrise']['iso_str'] = _get_value(json_data, 'time', 'properties.moonrise', constants.fallback_time)
+    rise_set['moonset']['iso_str'] = _get_value(json_data, 'time', 'properties.moonset', constants.fallback_time)
+    
+    
+    # convert the times into local time strings for display
+    for i in rise_set:
+        iso_str = rise_set[i]['iso_str']
+        # create a datetime object
+        try:
+            dt = datetime.fromisoformat(iso_str)
         except (ValueError, TypeError) as e:
-            logging.warning('could not convert time string')
-            converted = None
-        return converted
+            logging.warning(f'error setting date time: {e}')
+            dt = datetime.fromisoformat(constants.fallback_time)
+            failure = True
+        
+        try:
+            local_dt = dt.astimezone(local_tz)
+        except (TypeError, ValueError) as e:
+            logging.warning(f"could not set local dt due to errors: {e}; falling back to best guess")
+            local_dt = dt.astimezone()
+            failure = True
+        
+        try:
+            time = local_dt.strftime("%H:%M")
+        except Exception as e:
+            logging.warning(f'error setting local time string: {e}')
+            logging.warning(f'falling back to "ER: See Log"')
+            failure = True
+        
+        rise_set[i]['time'] = time
     
-    temp_data = {}
-    rise_str = get_value(data, 'time', constants.addr_rise, default='None')
-    temp_data['moonrise'] = convert_time(rise_str)
+    logging.debug(f'moonrise/moonset: {rise_set}')
     
-    set_str = get_value(data, 'time', constants.addr_set, default='None')
-    temp_data['moonset'] = convert_time(set_str)
+    # get the appropriate image file and description
+    phase = _get_value(json_data, 'moonphase', 'properties', None)
     
-    try:
-        phase_float = get_value(data, 'value', constants.addr_phase, default=0)
-        phase_float = float(phase_float)
-    except ValueError as e:
-        logging.error(f'cannot obtain float for: {phase_float}')
-        phase_float = 0
-#     temp_data['phase_value'] = round(phase_float, 1)
-    # round to the nearest 0.5
-    temp_data['phase_value']  = 5 * round(10*phase_float/5)/10
+    phase = _tryconvert(phase, 1000., float)
+        
+    logging.debug(f'JSON phase value: {phase}')
+        
+    if  phase < 0. or phase > 360.:
+        logging.warning(f'bad phase data in JSON: {phase}')
+        failure = True
+        moon_image = constants.error_image
+        phase_desc = 'Error: Check Logs'
+    else:
+        # use the lambda function to find the closest value in the filenames
+        moon_img_key = min(moon_images.keys(), key=lambda x:
+                           abs(_tryconvert(x, 0, float) - _tryconvert(phase, 0, float)))
+        moon_image = moon_images[moon_img_key]
+        
+        # use the lambda function to find the closest value in the constants descriptions 
+        phase_desc_key = min(constants.phase_desc.keys(), key=lambda x:
+                             abs(x - _tryconvert(phase, 0, float)))
+        
+        phase_desc = constants.phase_desc[phase_desc_key]
+        
+    logging.debug(f'moon_image: {moon_image}')
+    logging.debug(f'phase_desc: {phase_desc}')
     
-    age = (29.5 * (phase_float/100))
-    temp_data['age'] = round(age, 1)
+    # set the data to be returned 
+    data['moonrise'] = f"Moonrise: {rise_set['moonrise']['time']}"
+    data['moonset'] = f"Moonset: {rise_set['moonset']['time']}"
+    data['image_file'] = moon_image
+    data['phase_desc']= phase_desc
     
-    temp_data['image_file'] = Path(f'{constants.image_path}/{temp_data["phase_value"]}{constants.img_suffix}')
+    if failure:
+        data['image_file'] = constants.error_image
     
-    phase_string = get_value(data, 'desc', constants.addr_phase, default='None')
-    # search for description: 'LOCAL MOON STATE * MOON PHASE= 28.0 (waxing gibbous)'
-    match = re.search( '.*\((.*)\)', phase_string)
     
-
-    
-    try:
-        desc = match.group(1).title()
-    except AttributeError:
-        logging.warning(f'no description found in supplied string: {s}')
-        desc = 'None'
-    finally:
-        temp_data['phase_desc'] = desc
-    
-
-        for each, value in constants.data_template.items():
-            try:
-                temp_data[each] = value.format(temp_data[each])
-            except KeyError as e:
-                logging.error(f'error processing key: {each}')
-                temp_data[each] = value.format('None')
-    
-    return temp_data
+    return data
 
 
 
@@ -328,12 +421,10 @@ def update_function(self, *args, **kwargs):
     %U'''   
     
     is_updated = False
-    data = {}
-    priority = self.max_priority +1
+    data = constants.default_data
+    priority = self.max_priority
     
     failure = (is_updated, data, priority)
-
-    required_config_options = constants.required_config_options
     
     json_file = self.cache.path/constants.json_file
     json_data = None
@@ -344,7 +435,7 @@ def update_function(self, *args, **kwargs):
         pass
     else:
         # if add any missing configuration keys
-        for k, v in required_config_options.items():
+        for k, v in constants.required_config_options.items():
             if not k in self.config:
                 logging.debug(f'missing config value: {k}')
                 logging.debug(f'using config value: {v}')
@@ -370,7 +461,8 @@ def update_function(self, *args, **kwargs):
         self.configured = True
         
 
-    # build a header see: https://api.met.no/weatherapi/locationforecast/2.0/documentation#AUTHENTICATION
+    # build a request see: https://api.met.no/weatherapi/sunrise/3.0/documentation#!/data/get_moon
+    # header format: https://api.met.no/doc/FAQ
     if self.config['user_agent']:
         user_agent = self.config['user_agent']
         logging.debug(f'user_agent string: {user_agent}')
@@ -384,7 +476,7 @@ def update_function(self, *args, **kwargs):
     param = {
         'lat': self.config['lat'],
         'lon': self.config['lon'],
-        'date': datetime.now().strftime('%Y-%m-%d'),
+#         'date': datetime.now().strftime('%Y-%m-%d'),
         'offset': self.config['offset']}
         
     # get the mtime of the cached json file
@@ -400,6 +492,7 @@ def update_function(self, *args, **kwargs):
         mtime = 2**16
         
     
+    # if a recent, readable json data file exists, use the cached data
     if json_file.exists() and mtime < constants.json_max_age:
         try:
             logging.debug('using cached met.no data')
@@ -414,27 +507,28 @@ def update_function(self, *args, **kwargs):
         json_data = None
             
     
+    # if the json data is not available from the cache, request
     if not json_data:
         # make the request
         try:
             logging.debug('downloading fresh data from met.no API')
-            sunrise = requests.get(constants.met_endpoint, param, headers=headers)
+            moonrise = requests.get(constants.met_endpoint, param, headers=headers)
         except requests.RequestException as e:
             logging.warning(f'failed to download JSON data: {e}')
             return failure
             
         # check there is valid data
-        if sunrise.status_code == 200:
+        if moonrise.status_code in [200]:
             try:
                 with open(json_file, 'w')  as jf:
-                    json.dump(sunrise.json(), jf)
+                    json.dump(moonrise.json(), jf)
             except OSError as e:
                 logging.warning(f'failed to cache {json_file}: {e}')
-            json_data = sunrise.json()
+            json_data = moonrise.json()
         else: 
+            logging.warning(f'api error with status_code: {moonrise.status_code}')
             json_data = None
-    
-
+                    
     if json_data:
         data = _process_data(json_data)
         is_updated = True
@@ -442,7 +536,7 @@ def update_function(self, *args, **kwargs):
         
     else:
         logging.warning('all attempts to fetch API data has failed. No result.')
-            
+        return failure
     
     return (is_updated, data, priority)
 
@@ -468,7 +562,7 @@ def update_function(self, *args, **kwargs):
 #     'text_color': 'random',
 #     'bkground_color': 'White',
 #     'location_name': 'Europe/Amsterdam',
-#     'email': 'you@domain.tld',
+#     'email': 'aaron.ciuffo@gmail.com',
 #     'lat': 52.3,
 #     'lon': 4.9
 
@@ -482,6 +576,13 @@ def update_function(self, *args, **kwargs):
 # test_plugin.image
 
 
+
+
+
+
+# test_plugin.update_function = update_function
+# test_plugin.update()
+# test_plugin.image
 
 
 
