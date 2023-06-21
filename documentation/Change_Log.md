@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.5.3.0
+
+* System_Info Plugin:
+  * Add plugin
+* Utilities
+  * ignore local library imports that are not needed
+
 ## 0.5.2.0
 
 * Moon_phase:
