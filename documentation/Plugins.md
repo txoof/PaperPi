@@ -9,6 +9,13 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 
 [end: plugin_header]: #
 
+
+
+[start: system_info]: #
+### [system_info](../paperpi/plugins/system_info/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+![system_info sample image](../paperpi/plugins/system_info/system_info.layout-L-sample.png)
+
+[end: system_info]: #
 [start: basic_clock]: #
 ### [basic_clock](../paperpi/plugins/basic_clock/README.md)
 ![basic_clock sample image](../paperpi/plugins/basic_clock/basic_clock.layout-L-sample.png)
