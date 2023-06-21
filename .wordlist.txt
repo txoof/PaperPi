@@ -192,3 +192,6 @@ blbal
 aaronr
 Github
 QueryLMS
+GeoJSON
+jpg
+jpeg
