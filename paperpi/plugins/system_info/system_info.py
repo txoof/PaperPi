@@ -26,6 +26,15 @@ import psutil
 
 
 
+# fugly hack for making the library module available to the plugins
+sys.path.append(layout.dir_path+'/../..')
+from library import PluginTools
+
+
+
+
+
+
 def _temperature():
     '''return a dictionary with the current CPU temperature on a raspberry pi in degrees C'''
     try:
@@ -226,16 +235,6 @@ def update_function(self, *args, **kwargs):
 # test_plugin.update_function = update_function
 # test_plugin.update()
 # test_plugin.image
-
-
-
-
-
-
-test_plugin.layout = layout.layout
-
-test_plugin.update()
-test_plugin.image
 
 
 
