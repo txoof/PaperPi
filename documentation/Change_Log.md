@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.5.2.0
+
+* Moon_phase:
+ * update to met.no API Sunrise V3
+ * improve error logging and user notifications
+  
 ## 0.5.0.1
 
 * Add RGB Support for RGB WaveShare Screens
