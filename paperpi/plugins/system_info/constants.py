@@ -18,6 +18,8 @@ data = {
 
 }
 
+image_path = dir_path+'/images/'
+
 storage_units = {
     'KB': 10**3,
     'MB': 10**6,

@@ -58,9 +58,9 @@ def _cpu_load():
     
         
     return {
-        'cpuload_5': f'5 min: {load[0]}',
-        'cpuload_10': f'10 min: {load[1]}',
-        'cpuload_15': f'15 min: {load[2]}'
+        'cpuload_5': f'5 min avg: {load[0]}',
+        'cpuload_10': f'10 min avg: {load[1]}',
+        'cpuload_15': f'15 min avg: {load[2]}'
     }
 
 
@@ -171,8 +171,8 @@ def update_function(self, *args, **kwargs):
     data.update(_cpu_load())
     data.update(_temperature())
     data['time'] = datetime.now().strftime("%H:%M")
-    data['disk_icon'] = './images/hdd.jpg'
-    data['cpu_icon'] = './images/chip.jpg'
+    data['disk_icon'] = Path(constants.image_path)/'hdd.jpg'
+    data['cpu_icon'] = Path(constants.image_path)/'chip.jpg'
     
     if 'text_color' in self.config or 'bkground_color' in self.config:
         logging.info('using user-defined colors')
@@ -209,12 +209,12 @@ def update_function(self, *args, **kwargs):
 # sys.path.append(layout.dir_path+'/../..')
 # from library import PluginTools
 # import logging
-# logging.root.setLevel('INFO')
+# logging.root.setLevel('WARNING')
 # from library.CacheFiles import CacheFiles
 # from library.Plugin import Plugin
 # from IPython.display import display
-# test_plugin = Plugin(resolution=(264, 176), screen_mode='RGB')
-# test_plugin.layout = basic_layout
+# test_plugin = Plugin(resolution=(640, 400), screen_mode='RGB')
+# test_plugin.layout = layout.layout
 # test_plugin.config = {
 #     'text_color': 'Black',
 #     'bkground_color': 'white',
@@ -226,6 +226,16 @@ def update_function(self, *args, **kwargs):
 # test_plugin.update_function = update_function
 # test_plugin.update()
 # test_plugin.image
+
+
+
+
+
+
+test_plugin.layout = layout.layout
+
+test_plugin.update()
+test_plugin.image
 
 
 
