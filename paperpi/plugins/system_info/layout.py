@@ -1,0 +1,210 @@
+# system info layouts
+# handling file locations with relative paths is hard
+# this simplifies locating the fonts needed for this layout
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+# this is the layout that the Screen() module will use
+# to format the output of your plugin
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+# set the default layout here
+basic_layout = {
+      'hostname': {
+         'type': 'TextBlock',  
+         'mode': 'RGB',          
+         'image': False,
+         'max_lines': 1,
+         'width': .5,
+         'height': .1,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         # X, Y coordinate is absolute
+         'abs_coordinates': (0, 0),
+         # Use X from 'time', Y from the bottom of 'string'
+         'fill': 'BLACK',
+         'bkground': 'WHITE',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'border_config': {'fill': 0, 'width': 2, 'sides': ['bottom']},
+         'rgb_support': True
+  },
+     'ipaddress': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': .5,
+         'height': .1,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (None, 0),
+         'relative': ['hostname', 'ipaddress'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'border_config': {'fill': 0, 'width': 2, 'sides': ['bottom']},
+         'rgb_support': True
+     },
+     'disk_icon': {
+         'type': 'ImageBlock',
+         'mode': 'RGB',
+         'width': .3,
+         'height': .399,
+         'abs_coordinates': (0, None),
+         'relative': ['disk_icon', 'hostname'],
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'border_config': {'fill': 0, 'width': 2, 'sides': ['right', 'bottom']},
+         'rgb_support': True
+     },
+     'disk_total': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': .7,
+         'height': .133,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (None, None),
+         'relative': ['disk_icon', 'ipaddress'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'rgb_support': True
+     },
+     'diskfree_pct': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': .7,
+         'height': .133,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (None, None),
+         'relative': ['disk_icon', 'disk_total'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'rgb_support': True
+     },    
+     'diskuse_pct': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': .7,
+         'height': .133,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (None, None),
+         'relative': ['disk_icon', 'diskfree_pct'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'border_config': {'fill': 0, 'width': 2, 'sides': ['bottom']},
+         'rgb_support': True
+     }, 
+     'cpu_icon': {
+         'type': 'ImageBlock',
+         'mode': 'RGB',
+         'width': .3,
+         'height': .399,
+         'abs_coordinates': (0, None),
+         'relative': ['cpu_icon', 'disk_icon'],
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'border_config': {'fill': 0, 'width': 2, 'sides': ['right', 'bottom']},
+         'rgb_support': True
+     },
+    'cputemp': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': .7,
+         'height': .133,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (None, None),
+         'relative': ['cpu_icon', 'diskuse_pct'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'rgb_support': True
+    },
+    'cpuload_5': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': .7,
+         'height': .133,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (None, None),
+         'relative': ['cpu_icon', 'cputemp'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'rgb_support': True
+    },
+    'cpuload_10': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': .7,
+         'height': .133,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (None, None),
+         'relative': ['cpu_icon', 'cpuload_5'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'border_config': {'fill': 0, 'width': 2, 'sides': ['bottom']},
+         'rgb_support': True
+    }, 
+    'time': {
+         'type': 'TextBlock',
+         'mode': 'RGB',
+         'image': False,
+         'max_lines': 1,
+         'width': 1,
+         'height': .102,
+         'font': dir_path+'/../../fonts/Dosis/static/Dosis-SemiBold.ttf',
+         'abs_coordinates': (0, None),
+         'relative': ['time', 'cpu_icon'],
+         'fill': 'black',
+         'bkground': 'white',
+         'padding': 2,
+         'hcenter': True,
+         'vcenter': True,
+         'align': 'center',
+         'rgb_support': True
+    },      
+
+
+}
+layout = basic_layout
+
