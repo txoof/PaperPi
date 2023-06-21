@@ -76,8 +76,17 @@ def _get_modules(root='./plugins/'):
     p = Path(root).resolve()
     for i in p.glob('*'):
         if i.is_dir() and i.name[0] not in ('_', '.'):
-            module_list.append(i.name)
-    return module_list
+            module_name = i.name
+            module_path = i / f"{module_name}.py"
+            if module_path.exists() and module_path.is_file():
+                module_list.append(module_name)
+            else:
+                if not module_path.exists():
+                    print(f"Warning: Plugin '{module_name}' does not have a corresponding '.py' file and will be ignored.")
+                elif not module_path.is_file():
+                    print(f"Warning: Plugin '{module_name}' has a non-file entry with the same name and will be ignored.")
+    return sorted(module_list)
+
 
 
 
