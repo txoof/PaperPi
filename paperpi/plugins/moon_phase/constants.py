@@ -2,23 +2,22 @@
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-version = '0.1.0'
+version = '0.2.0'
 name = 'moon_phase'
 data = {
     'moonrise': 'time moon appears above horizon',
     'moonset': 'time moon sets below horizon',
-    'age': 'days since new (no) moon',
     'image_file': 'location of image file to display',
     'phase_desc': 'description of phase e.g. Waxing Crescent'
-
 }
+
 
 # open street maps location lookup
 osm_endpoint = 'https://nominatim.openstreetmap.org/search/'
 osm_query = "?format=json&addressdetails=0&limit=0"
 
 # met.no endpoints
-met_endpoint = "https://api.met.no/weatherapi/sunrise/2.0/.json?"
+met_endpoint = "https://api.met.no/weatherapi/sunrise/3.0/moon?"
 
 # configuration keys required for opperation
 required_config_options = {
@@ -28,29 +27,34 @@ required_config_options = {
     'email': None,
 }
 
+phase_desc = {
+    0: 'New Moon',
+    5: 'Waxing Gibbous',
+    175: 'Full Moon',
+    180: 'Full Moon',
+    184: 'Waning Gibbous',
+    355: 'Waning Gibbous',
+    360: 'New Moon'
+}
+
+fallback_time = '1970-01-01T00:00+00:00'
+
 
 json_file = f'{name}.json'
-# set to 6 hrs * 60 min * 60 seconds 
-json_max_age = 60*60*6
-
-#API JSON dictionary locations
-addr_phase = 'location.time.0.moonphase'
-addr_rise = 'location.time.0.moonrise'
-addr_set = 'location.time.0.moonset'
+# set to 4 hrs * 60 min * 60 seconds 
+json_max_age = 60*60*4
 
 # image file constants
 image_path = dir_path+"/./images/"
 img_suffix = '.jpeg'
 
-# data template
-data_template = {
-    'moonrise': 'Moonrise: {}',
-    'moonset': 'Moonset: {}',
-    'phase_desc': 'Phase: {}',
-    'age': 'Age: {} days',
-    'image_file': '{}',
-    'phase_desc': '{}'
-    
+error_image = image_path+'error_message.jpg'
+
+default_data = {
+    'moonrise': 'moon rise: 00:00',
+    'moonset': 'moon set: 00:00',
+    'image_file': error_image,
+    'phase_desc': 'ER: Check Log'
 }
 
 sample_config = '''
