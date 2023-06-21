@@ -195,3 +195,10 @@ QueryLMS
 GeoJSON
 jpg
 jpeg
+diskuse
+diskuse_pct
+diskfree
+diskfree_pct
+cpuload_5
+ipaddress
+cputemp
