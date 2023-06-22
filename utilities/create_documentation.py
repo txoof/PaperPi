@@ -663,7 +663,7 @@ def update_readmes(plugin_dict, overwrite_images=False):
                 except (OSError) as e:
                     errorlog.log_error(f'could not write file for layout \"{layout_name}\": {e}', 'ERROR', e)
                 except Exception as e:
-                    errorlog.log_erro(f'general error caused failure of documentation for \"{layout_name}\": {e}', 'ERROR', e)
+                    errorlog.log_error(f'general error caused failure of documentation for \"{layout_name}\": {e}', 'ERROR', e)
             else:
                 logging.info('skipping image update due to settings')
                 
@@ -949,13 +949,6 @@ if __name__ == "__main__":
         idx = sys.argv.index('-f')
         del sys.argv[idx:idx+2]    
     r = main()
-
-
-
-
-
-
-check_errors(r['errors'], func_name='update_documentation', exit=False)
 
 
 
