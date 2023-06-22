@@ -50,8 +50,8 @@ def strict_enforce(*types):
     return decorator
 
 
-
-
+class PluginError(Exception):
+    pass
 
 
 class Plugin:
@@ -101,23 +101,99 @@ class Plugin:
             kwargs(): any additional kwargs will be ignored
             '''
         
-        self.name = name
-        self.resolution = resolution
-        self.force_onebit = force_onebit
-        self.screen_mode = screen_mode
-        self.layout = layout
-        self.config = config
-        self.cache = cache
-        self.update_function = update_function
-        self.refresh_rate = refresh_rate
-        self.min_display_time = min_display_time
+        # self.name = name
+        # self.resolution = resolution
+        # self.force_onebit = force_onebit
+        # self.screen_mode = screen_mode
+        # self.layout = layout
+        # self.config = config
+        # self.cache = cache
+        # self.update_function = update_function
+        # self.refresh_rate = refresh_rate
+        # self.min_display_time = min_display_time
         
         self._last_ask = 0
         self.data = {}
         self.image = None
-        self.max_priority = max_priority
+        #self.max_priority = max_priority
         self.hash = self._generate_hash()
         
+        # Validate resolution
+        if not isinstance(resolution, tuple) or len(resolution) != 2 or not all(isinstance(val, int) and val > 0 for val in resolution):
+            raise PluginError(
+                "Invalid resolution. Resolution should be a tuple of positive integers.")
+
+        self.resolution = resolution
+
+        # Validate name
+        if name is not None and not isinstance(name, str):
+            raise PluginError("Invalid name. Name should be a string.")
+
+        self.name = name
+
+        # Validate layout
+        if not isinstance(layout, dict):
+            raise PluginError("Invalid layout. Layout should be a dictionary.")
+
+        self.layout = layout
+
+        # Validate update_function
+        if update_function is not None and not callable(update_function):
+            raise PluginError(
+                "Invalid update_function. update_function should be a callable function.")
+
+        self.update_function = update_function
+
+        # Validate max_priority
+        if not isinstance(max_priority, int) or max_priority <= 0:
+            raise PluginError(
+                "Invalid max_priority. max_priority should be a positive integer.")
+
+        self.max_priority = max_priority
+
+        # Validate refresh_rate
+        if not isinstance(refresh_rate, int) or refresh_rate <= 0:
+            raise PluginError(
+                "Invalid refresh_rate. refresh_rate should be a positive integer.")
+
+        self.refresh_rate = refresh_rate
+
+        # Validate min_display_time
+        if not isinstance(min_display_time, int) or min_display_time <= 0:
+            raise PluginError(
+                "Invalid min_display_time. min_display_time should be a positive integer.")
+
+        self.min_display_time = min_display_time
+
+        # Validate config
+        if not isinstance(config, dict):
+            raise PluginError("Invalid config. config should be a dictionary.")
+
+        self.config = config
+
+        # Validate cache
+        if cache is not None and not isinstance(cache, CacheFiles):
+            raise PluginError(
+                "Invalid cache. cache should be None or a CacheFiles object.")
+
+        self.cache = cache
+
+        # Validate force_onebit
+        if not isinstance(force_onebit, bool):
+            raise PluginError(
+                "Invalid force_onebit. force_onebit should be a boolean value.")
+
+        self.force_onebit = force_onebit
+
+        # Validate screen_mode
+        if screen_mode not in epdlib.constants.modes:
+            raise PluginError(
+                "Invalid screen_mode. screen_mode should be one of the supported modes.")
+
+        self.screen_mode = screen_mode
+
+        # Handle additional kwargs if needed
+        self.kwargs = kwargs
     
         
     
