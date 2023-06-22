@@ -17,6 +17,8 @@ except ImportError:
     
 from datetime import datetime
 from pathlib import Path
+import logging
+import sys
 import shutil
 import socket
 import psutil
@@ -186,8 +188,8 @@ def update_function(self, *args, **kwargs):
     if 'text_color' in self.config or 'bkground_color' in self.config:
         logging.info('using user-defined colors')
         colors = PluginTools.text_color(config=self.config, mode=self.screen_mode,
-                               default_text=self.layout.get('fill', 'WHITE'),
-                               default_bkground=self.layout.get('bkground', 'BLACK'))
+                               default_text=self.layout.get('fill', 'BLACK'),
+                               default_bkground=self.layout.get('bkground', 'WHITE'))
 
         text_color = colors['text_color']
         bkground_color = colors['bkground_color']
@@ -213,21 +215,20 @@ def update_function(self, *args, **kwargs):
 
 # # this code snip simulates running from within the display loop use this and the following
 # # cell to test the output
-# # fugly hack for making the library module available to the plugins
 # import sys
 # sys.path.append(layout.dir_path+'/../..')
 # from library import PluginTools
 # import logging
-# logging.root.setLevel('WARNING')
+# logging.root.setLevel('DEBUG')
 # from library.CacheFiles import CacheFiles
 # from library.Plugin import Plugin
 # from IPython.display import display
-# test_plugin = Plugin(resolution=(640, 400), screen_mode='RGB')
+# test_plugin = Plugin(resolution=(640, 400), screen_mode='L')
 # test_plugin.layout = layout.layout
 # test_plugin.config = {
-#     'text_color': 'Black',
-#     'bkground_color': 'white',
 #     'storage_unit': 'KB',
+#     'text_color': 'RED',
+#     'bkground_color': 'WHITE'
 # }
 # test_plugin.refresh_rate = 5
 # # l = layout.layout
