@@ -92,7 +92,6 @@ def _get_modules(root='./plugins/'):
 
 
 
-
 def _get_module_docs(module):
     '''return only user-facing docstrings that contain "%U"
         
@@ -298,8 +297,6 @@ def get_help(module=None, print_help=True, plugin_path='./plugins'):
     if print_help:
         print(mls.string)
     return mls.string
-
-
 
 
 
