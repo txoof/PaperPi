@@ -208,3 +208,5 @@ MegaByte
 TeraByte
 hostname
 Hostname
+cpu
+cpuload
