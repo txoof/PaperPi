@@ -362,17 +362,28 @@ def build_plugins_list(config, resolution, cache):
                 logger.warning(f'could not find layout "{plugin_config["layout"]}" in {plugin_config["name"]}')
                 logger.warning(f'skipping plugin')
                 continue
-            my_plugin = Plugin(**plugin_config)
-            try:
-                my_plugin.update()
-            except AttributeError as e:
-                logger.warning(f'ignoring plugin {my_plugin.name} due to missing update_function')
-                logger.warning(f'plugin threw error: {e}')
-                continue    
-            logger.info(f'appending plugin {my_plugin.name}')
-            
-            
-            plugins.append(my_plugin)
+
+            for plugin_config in config:
+                try:
+                    my_plugin = Plugin(resolution=resolution,
+                                    cache=cache, **plugin_config)
+                except PluginError as e:
+                    logger.warning(f'Ignoring plugin due to error: {e}')
+                    continue
+
+                try:
+                    my_plugin.update()
+                except AttributeError:
+                    logger.warning(
+                        f'Ignoring plugin {my_plugin.name} due to missing update_function')
+                    continue
+                except Exception as e:
+                    logger.warning(
+                        f'Plugin {my_plugin.name} threw an error during update: {e}')
+                    continue
+
+                logger.info(f'Appending plugin {my_plugin.name}')
+                plugins.append(my_plugin)
             
     
     return plugins
