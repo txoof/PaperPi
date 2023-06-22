@@ -12,7 +12,9 @@ data = {
     'diskuse_pct': 'disk use as percent of total',
     'diskfree': 'disk use as units',
     'diskfree_pct': 'disk use as percent of total',
-    'cpuload': 'cpu load',
+    'cpuload_5': '5 min cpu load',
+    'cpuload_10': '10 min cpu load',
+    'cpuload_15': '15 min cpu load',    
     'ipaddress': 'ip address',
     'cputemp': 'cpu temperature',
 
@@ -42,5 +44,8 @@ min_display_time = 45
 max_priority = 2
 # storage units in decimal: [KB] KiloByte 10^3; [MB] MegaByte 10^6; [GB] GigaByte 10^12; [TB] TeraByte 10^12
 storage_unit = GB
+# colors for RGB screens
+text_color = BLUE
+bkground_color = WHITE
 '''
 img_file = dir_path+'/image.jpg'
