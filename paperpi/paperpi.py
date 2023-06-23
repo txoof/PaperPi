@@ -17,6 +17,7 @@ from pathlib import Path
 from distutils.util import strtobool
 from time import sleep
 from configparser import DuplicateSectionError
+from configparser import Error as ConfigParserError
 
 
 
@@ -258,6 +259,9 @@ def get_config_files(cmd_args):
         config_files.parse_config()
     except DuplicateSectionError as e:
         logger.error(f'{e}')
+        config_files = None
+    except ConfigParserError as e:
+        logging.error(f'error processing config file: {e}')
         config_files = None
 
     return config_files
@@ -587,7 +591,7 @@ def main():
         print(f'Unknown arguments: {cmd_args.unknown}\n\n')
         cmd_args.parser.print_help()
         return
-        
+    
     config_files = get_config_files(cmd_args)
     
     if not config_files:
@@ -701,13 +705,6 @@ def main():
     clean_up(cache, screen)
     
     return  exit_code
-
-
-
-
-
-
-# sys.argv.extend(['-d'])
 
 
 
