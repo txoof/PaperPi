@@ -101,99 +101,147 @@ class Plugin:
             kwargs(): any additional kwargs will be ignored
             '''
         
-        # self.name = name
-        # self.resolution = resolution
-        # self.force_onebit = force_onebit
-        # self.screen_mode = screen_mode
-        # self.layout = layout
-        # self.config = config
-        # self.cache = cache
-        # self.update_function = update_function
-        # self.refresh_rate = refresh_rate
-        # self.min_display_time = min_display_time
+        self.name = name
+        self.resolution = resolution
+        self.force_onebit = force_onebit
+        self.screen_mode = screen_mode
+        self.layout = layout
+        self.config = config
+        self.cache = cache
+        self.update_function = update_function
+        self.refresh_rate = refresh_rate
+        self.min_display_time = min_display_time
         
         self._last_ask = 0
         self.data = {}
         self.image = None
-        #self.max_priority = max_priority
+        self.max_priority = max_priority
         self.hash = self._generate_hash()
         
-        # Validate resolution
-        if not isinstance(resolution, tuple) or len(resolution) != 2 or not all(isinstance(val, int) and val > 0 for val in resolution):
-            raise PluginError(
-                "Invalid resolution. Resolution should be a tuple of positive integers.")
+        @property
+        def resolution(self):
+            return self._resolution
 
-        self.resolution = resolution
+        @resolution.setter
+        def resolution(self, value):
+            if not isinstance(value, tuple) or len(value) != 2 or not all(isinstance(x, int) and x > 0 for x in value):
+                raise TypeError(
+                    "resolution should be a tuple of positive integers.")
+            self._resolution = value
 
-        # Validate name
-        if name is not None and not isinstance(name, str):
-            raise PluginError("Invalid name. Name should be a string.")
+        @property
+        def name(self):
+            return self._name
 
-        self.name = name
+        @name.setter
+        def name(self, value):
+            if value is not None and not isinstance(value, str):
+                raise TypeError("name should be a string or None.")
+            self._name = value
 
-        # Validate layout
-        if not isinstance(layout, dict):
-            raise PluginError("Invalid layout. Layout should be a dictionary.")
+        @property
+        def layout(self):
+            return self._layout
 
-        self.layout = layout
+        @layout.setter
+        def layout(self, value):
+            if not isinstance(value, dict):
+                raise TypeError("layout should be a dictionary.")
+            self._layout = value
 
-        # Validate update_function
-        if update_function is not None and not callable(update_function):
-            raise PluginError(
-                "Invalid update_function. update_function should be a callable function.")
+        @property
+        def update_function(self):
+            return self._update_function
 
-        self.update_function = update_function
+        @update_function.setter
+        def update_function(self, value):
+            if value is not None and not callable(value):
+                raise TypeError("update_function should be a function or None.")
+            self._update_function = value
 
-        # Validate max_priority
-        if not isinstance(max_priority, int) or max_priority <= 0:
-            raise PluginError(
-                "Invalid max_priority. max_priority should be a positive integer.")
+        @property
+        def max_priority(self):
+            return self._max_priority
 
-        self.max_priority = max_priority
+        @max_priority.setter
+        def max_priority(self, value):
+            if not isinstance(value, int) or value <= 0:
+                raise ValueError("max_priority should be a positive integer.")
+            self._max_priority = value
 
-        # Validate refresh_rate
-        if not isinstance(refresh_rate, int) or refresh_rate <= 0:
-            raise PluginError(
-                "Invalid refresh_rate. refresh_rate should be a positive integer.")
+        @property
+        def refresh_rate(self):
+            return self._refresh_rate
 
-        self.refresh_rate = refresh_rate
+        @refresh_rate.setter
+        def refresh_rate(self, value):
+            if not isinstance(value, int) or value <= 0:
+                raise ValueError("refresh_rate should be a positive integer.")
+            self._refresh_rate = value
 
         # Validate min_display_time
-        if not isinstance(min_display_time, int) or min_display_time <= 0:
-            raise PluginError(
-                "Invalid min_display_time. min_display_time should be a positive integer.")
+        @property
+        def min_display_time(self):
+            return self._min_display_time
 
-        self.min_display_time = min_display_time
+        @min_display_time.setter
+        def min_display_time(self, value):
+            if not isinstance(value, int) or value <= 0:
+                raise ValueError("min_display_time should be a positive integer.")
+            self._min_display_time = value
 
-        # Validate config
-        if not isinstance(config, dict):
-            raise PluginError("Invalid config. config should be a dictionary.")
+        @property
+        def config(self):
+            return self._config
 
-        self.config = config
+        @config.setter
+        def config(self, value):
+            if not isinstance(value, dict):
+                raise TypeError("config should be a dictionary.")
+            self._config = value
 
-        # Validate cache
-        if cache is not None and not isinstance(cache, CacheFiles):
-            raise PluginError(
-                "Invalid cache. cache should be None or a CacheFiles object.")
+        @property
+        def cache(self):
+            return self._cache
 
-        self.cache = cache
+        @cache.setter
+        def cache(self, value):
+            if value is not None and not isinstance(value, CacheFiles):
+                raise ValueError(
+                    "cache should be an instance of CacheFiles or None.")
+            self._cache = value
 
-        # Validate force_onebit
-        if not isinstance(force_onebit, bool):
-            raise PluginError(
-                "Invalid force_onebit. force_onebit should be a boolean value.")
+        @property
+        def force_onebit(self):
+            return self._force_onebit
 
-        self.force_onebit = force_onebit
+        @force_onebit.setter
+        def force_onebit(self, value):
+            if not isinstance(value, bool):
+                raise TypeError("force_onebit should be a boolean.")
+            self._force_onebit = value
 
-        # Validate screen_mode
-        if screen_mode not in epdlib.constants.modes:
-            raise PluginError(
-                "Invalid screen_mode. screen_mode should be one of the supported modes.")
+        @property
+        def screen_mode(self):
+            return self._screen_mode
 
-        self.screen_mode = screen_mode
+        @screen_mode.setter
+        def screen_mode(self, value):
+            if value not in epdlib.constants.modes:
+                raise ValueError(
+                    "screen_mode should be one of the supported modes.")
+            self._screen_mode = value
 
         # Handle additional kwargs if needed
-        self.kwargs = kwargs
+        @property
+        def kwargs(self):
+            return self._kwargs
+
+        @kwargs.setter
+        def kwargs(self, value):
+            if not isinstance(value, dict):
+                raise TypeError("kwargs should be a dictionary.")
+            self._kwargs = value
     
         
     
