@@ -714,27 +714,6 @@ def main():
 
 
 
-sys.argv.pop(3)
-
-
-
-
-
-
-sys.argv
-
-
-
-
-
-
-sys.argv.extend(['-c', './foo.ini'])
-
-
-
-
-
-
 if __name__ == "__main__":
     # remove jupyter runtime junk for testing
     try:
