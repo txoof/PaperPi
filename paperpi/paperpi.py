@@ -272,25 +272,28 @@ def get_config_files(cmd_args):
 
 
 
-def clean_up(cache=None, screen=None):
+def clean_up(cache=None, screen=None, no_wipe=True):
     '''clean up the screen and cache
     
     Args:
         cache(cache obj): cache object to use for cleanup up
         screen(Screen obj): screen to clear
     '''
-    logging.info('cleaning up cache and screen')
+    logging.info('cleaning up')
     try:
         logging.debug('clearing cache')
         cache.cleanup()
     except AttributeError:
         logging.debug('no cache passed, skipping')
-    try:
-#         screen.initEPD()
-        logging.debug('clearing screen')
-        screen.clearEPD()
-    except AttributeError:
-        logging.debug('no screen passed, skipping')
+    
+    if no_wipe:
+        logging.info('not clearing screen due to [main][no_wipe]=True')
+    else:
+        try:
+            logging.debug('clearing screen')
+            screen.clearEPD()
+        except AttributeError:
+            logging.debug('no screen passed, skipping cleanup')
         
     logging.debug('cleanup completed')
     return    
@@ -702,9 +705,30 @@ def main():
     
     exit_code = update_loop(plugins=plugins, screen=screen, max_refresh=config['main'].get('max_refresh', 5))
     
-    clean_up(cache, screen)
+    clean_up(cache=cache, screen=screen, no_wipe=config['main'].get('no_wipe', False))
     
     return  exit_code
+
+
+
+
+
+
+sys.argv.pop(3)
+
+
+
+
+
+
+sys.argv
+
+
+
+
+
+
+sys.argv.extend(['-c', './foo.ini'])
 
 
 
