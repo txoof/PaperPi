@@ -591,7 +591,7 @@ def main():
     config_files = get_config_files(cmd_args)
     
     if not config_files:
-        print('Fatal error collectinc configuration files. See the logs.')
+        print('Fatal error collecting configuration files. See the logs.')
         return
     
     # merge the config files and the command line arguments (right-most overwrites left)
@@ -641,12 +641,20 @@ def main():
     
     log_level = config['main'].get('log_level', 'INFO')
 
+    logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
+    if cmd_args.options.main__daemon:
+        logger.info(f'{constants.APP_NAME} is running in daemon mode')
+    else:
+        logger.info(f'{constants.APP_NAME} is running in on-demand mode')
+        
     logger.setLevel(log_level)
     logging.root.setLevel(log_level)
 
-    logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
-    logger.debug(f'configuration:\n{config}\n\n')
         
+    logger.debug(f'configuration:\n{config}\n\n')
+
+    
+    
     screen_return = setup_display(config)
     
     if screen_return['obj']:
@@ -699,7 +707,7 @@ def main():
 
 
 
-# sys.argv.extend(['-c', './test_config.ini'])
+# sys.argv.extend(['-d'])
 
 
 
