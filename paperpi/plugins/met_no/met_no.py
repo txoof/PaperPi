@@ -463,7 +463,7 @@ def update_function(self):
                 logging.debug(f'using config value: {v}')
                 self.config[k] = v
         if self.config['email']:
-            self.config['user_agent'] = f'{constants.name}, v{constants.version} -- {self.config["email"]}'
+            self.config['user_agent'] = f'{constants.name}:{constants.app_source}, v{constants.version} -- {self.config["email"]}'
         else:
             logging.warning('missing email address in configuration file -- cannot create user agent string')
             self.config['user_agent'] = None
@@ -546,10 +546,13 @@ def update_function(self):
 
 # # this code snip simulates running from within the display loop use this and the following
 # # cell to test the output
+# import sys
+# sys.path.append(layout.dir_path+'/../..')
+# from library import PluginTools
 # import logging
 # logging.root.setLevel('DEBUG')
-# from CacheFiles import CacheFiles
-# from Plugin import Plugin
+# from library.CacheFiles import CacheFiles
+# from library.Plugin import Plugin
 # test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
 # coord = get_coord('Santiago, Chili')
 # test_plugin.config = {'lat': coord[0], 
