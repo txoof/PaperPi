@@ -441,7 +441,7 @@ def update_function(self, *args, **kwargs):
                 logging.debug(f'using config value: {v}')
                 self.config[k] = v
         if self.config['email']:
-            self.config['user_agent'] = f'{constants.name}, v{constants.version} -- {self.config["email"]}'
+            self.config['user_agent'] = f'{constants.name}:{constants.app_source}, v{constants.version} -- {self.config["email"]}'
         else:
             logging.warning('missing email address in configuration file -- cannot create user agent string')
             self.config['user_agent'] = None

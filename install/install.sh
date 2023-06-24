@@ -37,6 +37,28 @@ function abort {
 }
 
 
+function stop_daemon {
+    echo "checking if $SYSTEMD_UNIT_FILE_NAME is running"
+
+    if /usr/bin/systemctl is-active --quiet $SYSTEMD_UNIT_FILE_NAME
+    then
+
+      echo "stopping PaperPi daemon"
+      /usr/bin/systemctl stop $SYSTEMD_UNIT_FILE_NAME
+      if [ $? -ne 0 ]
+      then
+        echo "failed to stop daemon"
+        echo "try to stop manually with:"
+        echo "$ sudo systemctl stop $SYSTEMD_UNIT_FILE_NAME"
+        echo "exiting"
+        abort
+      fi
+    else  
+      echo "   $SYSTEMD_UNIT_FILE_NAME not running"
+    fi
+    echo "done"
+}
+
 # install requirements from the plugin requirements-*.txt files
 function install_plugin_requirements {
 
@@ -303,23 +325,25 @@ function install_unit_file {
       echo ""
       echo "you selected to run on demand"
       echo "you can enable the daemon later by typing:"
-      echo "$ sudo systemctl enable $SYSTEMMD_UNIT_FILE_NAME"
+      echo "$ sudo systemctl enable $SYSTEMD_UNIT_FILE_NAME"
       echo ""
     fi
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
   then
-    echo "stopping daemon"
-    /usr/bin/systemctl stop $SYSTEMD_UNIT_FILE_NAME
-    if [ $? -ne 0 ]
-    then
-      echo "failed to stop daemon"
-      echo "try to stop manually with:"
-      echo "$ sudo systemctl stop $SYSTEMD_UNIT_FILE_NAME"
-      echo "exiting"
-      abort
-    fi
+
+    stop_daemon
+    # echo "stopping daemon"
+    # /usr/bin/systemctl stop $SYSTEMD_UNIT_FILE_NAME
+    # if [ $? -ne 0 ]
+    # then
+    #   echo "failed to stop daemon"
+    #   echo "try to stop manually with:"
+    #   echo "$ sudo systemctl stop $SYSTEMD_UNIT_FILE_NAME"
+    #   echo "exiting"
+    #   abort
+    # fi
     
     echo "removing $SYSTEMD_UNIT_PATH"
 
@@ -486,7 +510,9 @@ function check_permissions {
   Try:
     $ sudo $0
 
-  This installer will setup/uninstall $APPNAME to run at system boot and does the following:
+This installer requires root permissions and will setup/uninstall 
+$APPNAME to run at system boot. The installer does the following:
+
   * copy $APPNAME excutable to $BINPATH
   * create configuration files in $SYSTEM_CONFIG_PATH
   * setup systemd unit files in $SYSTEMD_UNIT_FILE_NAME
@@ -578,6 +604,7 @@ fi
 # set the pipenv venv to be within the project directory (1)
 export PIPENV_VENV_IN_PROJECT=1
 
+stop_daemon
 check_permissions
 check_deb_packages
 check_py_packages
