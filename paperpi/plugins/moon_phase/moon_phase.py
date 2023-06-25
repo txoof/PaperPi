@@ -314,10 +314,19 @@ def _process_data(json_data, timezone=constants.required_config_options['locatio
     # convert the times into local time strings for display
     for i in rise_set:
         iso_str = rise_set[i]['iso_str']
+        
+        # during some times during the year, the moon does not set from the sky (or rise)
+        # the moonrise/set time is reported as None
+        
+        if iso_str == None:
+            logging.info(f'{i} does not occur today; this is normal')
+            rise_set[i]['time'] = 'None'
+            continue
+        
         # create a datetime object
         try:
             dt = datetime.fromisoformat(iso_str)
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError) as e: 
             logging.warning(f'error setting date time: {e}')
             dt = datetime.fromisoformat(constants.fallback_time)
             failure = True
@@ -528,7 +537,7 @@ def update_function(self, *args, **kwargs):
         else: 
             logging.warning(f'api error with status_code: {moonrise.status_code}')
             json_data = None
-                    
+        
     if json_data:
         data = _process_data(json_data)
         is_updated = True
@@ -574,6 +583,13 @@ def update_function(self, *args, **kwargs):
 # test_plugin.update_function = update_function
 # test_plugin.update()
 # test_plugin.image
+
+
+
+
+
+
+# test_plugin.update_function()
 
 
 
