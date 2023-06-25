@@ -2,7 +2,7 @@
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-version = '0.2.2'
+version = '0.2.3'
 name = 'moon_phase'
 app_source = "github.com/txoof/PaperPi"
 data = {
