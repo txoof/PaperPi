@@ -9,7 +9,7 @@ set -eu
 
 
 PP_GITREPO="https://github.com/txoof/PaperPi.git"
-PP_GITBRANCH="development"
+PP_GITBRANCH="I108_broken_installer"
 
 INSTALLER="/install/install.sh"
 
