@@ -1,5 +1,10 @@
 [[source]]
-url = "https://pypi.org/simple"
+url = "https://www.piwheels.org/simple/"
+verify_ssl = true
+name = "piwheels"
+
+[[source]]
+url = "https://www.pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
@@ -23,7 +28,7 @@ pycoingecko = "*"
 pygal = "*"
 qrcode = "*"
 cairocffi = "*"
-cffi = "*"
-QueryLMS = {version="==0.1.2"} 
+cffi ="*"
+QueryLMS = "*"
 Pillow = "*"
 CairoSVG = "*"

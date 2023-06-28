@@ -71,7 +71,7 @@ function install_plugin_requirements {
     find $SCRIPT_DIR/../paperpi/plugins -type f -name "requirements-*.txt" -exec cat {} >> $tempfile \; 
     echo "installing Plugin requirements:"
     cat $tempfile
-    if ! command pipenv install -r $tempfile --skip-lock
+    if ! command pipenv install -r $tempfile 
     then
       popd
       abort "failed to install python modules" 
@@ -118,7 +118,7 @@ function create_pipenv {
   then
     echo "Creating virtual environment for $APPNAME in $INSTALLPATH$APPNAME"
     pushd $INSTALLPATH$APPNAME
-    if ! command pipenv install --skip-lock
+    if ! command pipenv install 
     then
       popd
       abort "failed to install python modules"
