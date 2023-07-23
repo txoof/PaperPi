@@ -349,9 +349,13 @@ def build_plugins_list(config, resolution, cache):
             plugin_config['cache'] = cache
             plugin_config['force_onebit'] = config['main']['force_onebit']
             plugin_config['screen_mode'] = config['main']['screen_mode']
+            plugin_config['plugin_timeout'] = config['main'].get('plugin_timeout', 35)
             # force layout to one-bit mode for non-HD screens
 #             if not config['main'].get('display_type') == 'HD':
 #                 plugin_config['force_onebit'] = True
+
+            logging.debug(f'plugin_config: {plugin_config}')
+    
             try:
                 module = import_module(f'{constants.PLUGINS}.{values["plugin"]}')
                 plugin_config['update_function'] = module.update_function
@@ -378,7 +382,7 @@ def build_plugins_list(config, resolution, cache):
                 continue    
             logger.info(f'appending plugin {my_plugin.name}')
             
-            
+    
             plugins.append(my_plugin)
             
     
@@ -400,7 +404,9 @@ def setup_splash(config, resolution):
             'resolution': resolution,
         }
         splash = Plugin(**splash_config)
-        splash.update(constants.APP_NAME, constants.VERSION, constants.URL)
+        splash.update(app_name=constants.APP_NAME, 
+                      version=constants.VERSION, 
+                      url=constants.URL)
     else:
         logger.debug('skipping splash screen')
         splash = False
@@ -661,6 +667,7 @@ def main():
     logger.debug(f'configuration:\n{config}\n\n')
 
     
+#     return(config)
     
     screen_return = setup_display(config)
     
@@ -685,7 +692,12 @@ def main():
     splash = setup_splash(config, screen.resolution)
     
     if splash:
-        splash.force_update(constants.APP_NAME, constants.VERSION, constants.URL)
+        splash_kwargs = {
+            'app_name': constants.APP_NAME,
+            'version': constants.VERSION,
+            'url': constants.URL            
+        }
+        splash.force_update(**splash_kwargs)
         logger.debug('display splash screen')
         try:
             screen.writeEPD(splash.image)

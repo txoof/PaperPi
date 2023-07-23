@@ -1,5 +1,10 @@
 [[source]]
-url = "https://pypi.org/simple"
+url = "https://www.piwheels.org/simple/"
+verify_ssl = true
+name = "piwheels"
+
+[[source]]
+url = "https://www.pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
@@ -8,6 +13,7 @@ pipreqs = "*"
 ArgConfigParse = "*"
 it8951 = {editable = true, git = "https://github.com/GregDMeyer/IT8951.git"}
 epdlib = "*"
+wrapt-timeout-decorator = "*"
 
 [requires]
 python_version = "3"
@@ -23,7 +29,10 @@ pycoingecko = "*"
 pygal = "*"
 qrcode = "*"
 cairocffi = "*"
-cffi = "*"
-QueryLMS = {version="==0.1.2"} 
-Pillow = "*"
-CairoSVG = "*"
+cffi ="*"
+psutil = "*"
+pillow = "*"
+epdlib = "*"
+querylms = "*"
+cairosvg = "*"
+ipykernel = "*"
