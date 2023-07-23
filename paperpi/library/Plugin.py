@@ -9,6 +9,7 @@
 import logging
 import hashlib
 import time
+import signal
 from epdlib import Layout
 
 
@@ -54,6 +55,14 @@ def strict_enforce(*types):
 
 
 
+class TimeOutException(Exception):
+    pass
+
+
+
+
+
+
 class Plugin:
     def __repr__(self):
         return f'Plugin({self.name})'
@@ -72,6 +81,7 @@ class Plugin:
                  cache=None,
                  force_onebit=False,
                  screen_mode='1',
+                 plugin_timeout=20,
                  **kwargs):
         
         '''Create a plugin object that provides consistent methods for providing an image and querying
@@ -98,6 +108,7 @@ class Plugin:
             config(`dict`): any kwargs that update function requires
             cache(`CacheFiles` obj): object that can be used for downloading remote files and caching
             force_onebit(`bool`): force layouts to 1bit mode
+            plugin_timeout(`int`): time in seconds to wait for plugin function to return (default: 20)
             kwargs(): any additional kwargs will be ignored
             '''
         
@@ -111,12 +122,12 @@ class Plugin:
         self.update_function = update_function
         self.refresh_rate = refresh_rate
         self.min_display_time = min_display_time
-        
         self._last_ask = 0
         self.data = {}
         self.image = None
         self.max_priority = max_priority
         self.hash = self._generate_hash()
+        self.plugin_timeout = plugin_timeout
         
     
         
@@ -142,8 +153,12 @@ class Plugin:
         else:
             logger.debug(f'throttling in effect {self.refresh_rate - (time.monotonic() - self._last_ask):.1f} seconds left in cooldown period')
             return False
-        
-    def update(self, *args, **kwargs):
+
+    def _alarm_handler(self, signum, frame):
+        raise TimeOutException(f'Plugin "{self.name}" update function timed-out after a max of {self.plugin_timeout} seconds')
+    
+    
+    def update(self, force=False, *args, **kwargs):
         '''request an update of the plugin data
             requests are throttled if they occur sooner than the cool-down period
             defined by self.refresh_rate
@@ -163,18 +178,54 @@ class Plugin:
                 self.data
                 self.layout_obj.update_contents(self.data)
                 self.hash'''        
-        if self._is_ready():
-            is_updated, data, priority = self.update_function(*args, **kwargs)
-            if data != self.data:
-                self.data = data
-                self.layout_obj.update_contents(data)
-                self.image = self.layout_obj.concat()
-                self.hash = self._generate_hash()
-            self.priority = priority
+        if self._is_ready() or force:
+            logging.info(f'starting update - timeout: {self.plugin_timeout} sec')
+            signal.signal(signal.SIGALRM, self._alarm_handler)
+            signal.alarm(self.plugin_timeout)
+            try:
+                is_updated, data, priority = self.update_function(*args, **kwargs)
+            except TimeOutException as e:
+                logging.warning(e)
+            else:
+                if data != self.data:
+                    self.data = data
+                    self.layout_obj.update_contents(data)
+                    self.image = self.layout_obj.concat()
+                    self.hash = self._generate_hash()
+                self.priority = priority
+            finally:
+                signal.alarm(0)        
         else:
             pass
         
         return self.hash
+    
+    def force_update(self, *args, **kwargs):
+        '''force an immediate update'''
+        logging.info(f'forced update of plugin: {self.name}')
+#         is_updated, data, priority = self.update_function(*args, **kwargs)
+#         self.data = data
+#         self.layout_obj.update_contents(data)
+#         self.image = self.layout_obj.concat()
+#         self.hash = self._generate_hash()
+#         self.priority = priority
+#         logging.debug(f'Data: {self.data}')
+        
+        return self.update(force=True, *args, **kwargs)       
+    
+    
+    @property
+    def plugin_timeout(self):
+        '''timeout in seconds for plugin to respond with data'''
+        return self._plugin_timeout
+    
+    @plugin_timeout.setter
+    def plugin_timeout(self, timeout):
+        if not isinstance(timeout, int):
+            raise ValueError('timeouts must be integers')
+        if timeout < 1:
+            raise ValueError('timeouts must be integer values > 0')
+        self._plugin_timeout = timeout
     
     @property
     def cache(self):
@@ -261,18 +312,6 @@ class Plugin:
                                  force_onebit=self.force_onebit,
                                  mode=self.screen_mode)
         
-    def force_update(self, *args, **kwargs):
-        '''force an immediate update'''
-        logging.info(f'forced update of plugin: {self.name}')
-        is_updated, data, priority = self.update_function(*args, **kwargs)
-        self.data = data
-        self.layout_obj.update_contents(data)
-        self.image = self.layout_obj.concat()
-        self.hash = self._generate_hash()
-        self.priority = priority
-        logging.debug(f'Data: {self.data}')
-        
-        return self.hash        
         
         
 
@@ -326,6 +365,9 @@ def main():
         priority = self.max_priority
         is_updated = True
         
+        sleep_time = randint(1, 10)
+        print(f'plugin sleeping for {sleep_time} seconds to simulate delayed response')
+        sleep(sleep_time)
 
         return (is_updated, data, priority) 
 
@@ -335,7 +377,8 @@ def main():
                max_priority=1, 
                update_function=bogus_plugin, 
                layout=bogus_layout,
-               screen_mode='RGB')
+               screen_mode='RGB',
+               plugin_timeout=5)
 
 #     Plugin.update_function = bogus_plugin
     
@@ -348,17 +391,17 @@ def main():
     print('this is a forced update')
     display(p.image)
 
-    for i in range(10):
+    for i in range(5):
         colors = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']
         fill = choice(colors)
         colors.remove(fill)
         bkground = choice(colors)
         p.layout_obj.update_block_props(block='text', props={'bkground': bkground, 'fill': fill})        
         print('trying to update plugin')
-        p.update()
+        p.force_update()
         print('displaying image')
         display(p.image)
-        print('sleep for 1 second')
+#         print('sleep for 1 second')
         sleep(1)
     return p
 
