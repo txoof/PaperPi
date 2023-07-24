@@ -115,7 +115,12 @@ Check here if you'd like a [step-by-step guide](./documentation/step_by_step_ins
 
 To get started, copy and paste the following command into a terminal window on your Raspberry Pi to download the latest stable version of PaperPi and automatically start the install and setup process.
 
+**Stable Version**
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
+
+
+**Development Version**
+`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/development/install/remote_install_development.sh)`
 
 If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh`
 
