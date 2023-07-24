@@ -9,11 +9,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pipreqs = "*"
-ArgConfigParse = "*"
 it8951 = {editable = true, git = "https://github.com/GregDMeyer/IT8951.git"}
 epdlib = "*"
-wrapt-timeout-decorator = "*"
+argconfigparse = "*"
 
 [requires]
 python_version = "3"
@@ -36,3 +34,5 @@ epdlib = "*"
 querylms = "*"
 cairosvg = "*"
 ipykernel = "*"
+pipreqs = "*"
+
