@@ -191,53 +191,90 @@ function check_deb_packages {
 
 function check_py_packages {
   halt=0
-  missing=()
 
   if [ $INSTALL -lt 1 ]
   then
     # nothing to do here for purge or uninstall
     echo ""
   else
-    echo "checking python environment"
-    echo ""
-    source $SCRIPT_DIR/required_python_packages.txt
-    for i in "${REQUIRED_PY[@]}"
-    do
-      echo "verifying python package $i"
-      if ! pip3 show $i > /dev/null 2>&1
-      then
-        echo ""
-        echo "missing $i, attempting to install"
-        echo ""
-        pip3 install $i 
-        if pip3 show $i > /dev/null 2>&1
-        then
-          echo ""
-          echo "missing $i installed successfully. continuing..."
-          echo ""
-        else
-          echo ""
-          echo "automatic install of $i failed. Manual installation may be required"
-          echo ""
-          halt=$((halt+1))
-          missing+=( $i )
-        fi
-      else
-        echo "...OK"
-      fi
-    done
-  fi
+    echo "installing required python packages with pip3"
+    pip_output=$(pip3 install -r $SCRIPT_DIR/requirements.txt)
+    exit_code=$?
 
-  if [[ $halt -gt 0 ]]
-  then
-    echo "$halt required python packages are missing. See messages above."
-    echo "install missing packages with:"
-    echo "sudo pip3 install ${missing[*]}"
-    echo ""
-    echo "stopping install"
-    abort
+    if [ $exit_code -eq 0 ]
+    then
+      echo "successfully installed requirements"
+    else
+      halt=$((halt+1))
+      echo "failed to install requirements: "
+      echo $pip_output
+    fi
   fi
+  
+  if [[ $halt -gt 0 ]]
+    then
+      echo "$halt required python packages are not installed. See messages above."
+      echo "Try a manual install with of the packages listed below using:"
+      echo "pip3 install <package name>"
+      echo ""
+      cat $SCRIPT_DIR/requirements.txt
+      echo ""
+      echo "stopping install"
+      abort
+    fi
+
 }
+
+
+# function check_py_packages {
+#   halt=0
+#   missing=()
+
+#   if [ $INSTALL -lt 1 ]
+#   then
+#     # nothing to do here for purge or uninstall
+#     echo ""
+#   else
+#     echo "checking python environment"
+#     echo ""
+#     source $SCRIPT_DIR/required_python_packages.txt
+#     for i in "${REQUIRED_PY[@]}"
+#     do
+#       echo "verifying python package $i"
+#       if ! pip3 show $i > /dev/null 2>&1
+#       then
+#         echo ""
+#         echo "missing $i, attempting to install"
+#         echo ""
+#         pip3 install $i 
+#         if pip3 show $i > /dev/null 2>&1
+#         then
+#           echo ""
+#           echo "missing $i installed successfully. continuing..."
+#           echo ""
+#         else
+#           echo ""
+#           echo "automatic install of $i failed. Manual installation may be required"
+#           echo ""
+#           halt=$((halt+1))
+#           missing+=( $i )
+#         fi
+#       else
+#         echo "...OK"
+#       fi
+#     done
+#   fi
+
+#   if [[ $halt -gt 0 ]]
+#   then
+#     echo "$halt required python packages are missing. See messages above."
+#     echo "install missing packages with:"
+#     echo "sudo pip3 install ${missing[*]}"
+#     echo ""
+#     echo "stopping install"
+#     abort
+#   fi
+# }
 
 function install_executable {
   if [ $INSTALL -gt 0 ]

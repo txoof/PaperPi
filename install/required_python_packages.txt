@@ -1,2 +1,0 @@
-# python packages required to install paperpi
-REQUIRED_PY=( "pipenv" )
