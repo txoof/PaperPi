@@ -272,12 +272,13 @@ def get_config_files(cmd_args):
 
 
 
-def clean_up(cache=None, screen=None, no_wipe=True):
+def clean_up(cache=None, screen=None, no_wipe=False):
     '''clean up the screen and cache
     
     Args:
         cache(cache obj): cache object to use for cleanup up
         screen(Screen obj): screen to clear
+        no_wipe(bool): True - leave last image on screen; False - wipe screen
     '''
     logging.info('cleaning up')
     try:
