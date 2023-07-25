@@ -22,7 +22,7 @@ It would be a good idea to add
 
 ### Config file version updated
 
-`CONFIG_VERSION` ile is now at V1.2 and includes the new variable `plugin_timeout`.
+`CONFIG_VERSION` file is now at V1.2 and includes the new variable `plugin_timeout`.
 
 ### Various Installer Issues Resolved
 
