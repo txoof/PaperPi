@@ -1,5 +1,5 @@
 
-# PaperPi V3<!-- omit in toc -->
+# PaperPi V0.5<!-- omit in toc -->
 
 [![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
@@ -56,11 +56,11 @@ See the [Developing Plugins](./documentation/developing_plugins.md) guide for mo
 
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
 
-**V 0.5.0**
+**V 0.5**
 
 * PaperPi migrated to EPD Lib V0.6
 * 7 Color, <font color="red">R</font><font color="green">G</font><font color="blue">B</font> screens now supported. **NB!** 2/3 Color screens are only supported in 1 bit black/white mode
-* 
+* Stalled plugins now timeout after a configurable time
 
 
 **V 0.4.1**
