@@ -2,7 +2,7 @@
 
 # -u: treat unset variables as an error and exit immediately
 # -e: exit when command fails
-set -eu
+set -e
 
 # print commands prior to executing (for debuging)
 #set -x
@@ -20,7 +20,7 @@ else
   PP_GITBRANCH="main"
 fi
 
-echo "installing from branch: $PP_GITBRANCH"
+echo "installing PaperPi from branch: $PP_GITBRANCH"
 
 INSTALLER="/install/install.sh"
 
