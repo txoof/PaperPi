@@ -504,13 +504,12 @@ function finish_install()
       if [ $DAEMON_INSTALL -gt 1 ]
       then
         echo ""
-        echo "When completed, run the following command or reboot to start"
-        echo "the $APPNAME daemon will start automatcially"
+        echo "When you are satisfied with your configuration, run the following command or reboot."
+        echo "On boot, the $APPNAME daemon will start automatcially."
         echo ""
         echo "$ sudo systemctl start $SYSTEMD_UNIT_FILE_NAME"
-      else
         echo ""
-        echo "to manually start $APPNAME please run"
+        echo "to manually start $APPNAME run:"
         echo "$ $BINPATH$APPNAME"
       fi
     fi
