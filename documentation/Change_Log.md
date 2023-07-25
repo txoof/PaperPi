@@ -3,9 +3,9 @@
 ## 0.5.4.0
 
 ### Plugin Timeout feature implemented
-Plugins will time out and not be displayed if they fail to return within a set time. Timeout is managed through config variable in `[main]` section and defaults to 30 seconds. Valid values are integers > 0. A minimum of 30 (default if left unset in config) seconds is recommended for most plugins.
+Plugins will time out and not be displayed if they fail to return within a set time. Timeout is managed through config variable `plugin_timeout` in `[main]` section and defaults to 30 seconds. Valid values are integers > 0. A minimum of 30 (default if left unset in config) seconds is recommended for most plugins.
 
-It is advised to update your config files 
+It is advised to update your config files to include this option.
 
 This change prevents plugins from hanging indefinitely in some situations such as extremely slow network performance. This adds an extra layer of protection when plugins fail to handle such issues appropriately.
 
@@ -18,11 +18,28 @@ This may need to be adjusted to 60+ seconds when debugging as some plugins (e.g.
 plugin_timeout = 30
 ```
 
-It would be a good idea to add 
+### Do not wipe screen on shutdown
+
+Leave the last image on the screen when shutting down instead of setting to blank. Note: [according to WaveShare](https://www.waveshare.com/wiki/2.13inch_Touch_e-Paper_HAT_Manual), leaving a static image for more than 24 hours can damage the screen.
+
+This option is controlled through config variable `no_wipe` in the `[main]` section.
+
+```
+[main]
+...
+# do not wipe screen when shutting down. True: leave image; False: wipe screen (default)
+no_wipe = False
+```
 
 ### Config file version updated
 
 `CONFIG_VERSION` file is now at V1.2 and includes the new variable `plugin_timeout`.
+
+Adding options:
+* `no_wipe` - Boolean: Do not wipe screen during shutdown 
+  - Default: `False`
+* `plugin_timeout` - Integer: time in seconds before terminating a plugin update
+  - Default: `30`
 
 ### Various Installer Issues Resolved
 
