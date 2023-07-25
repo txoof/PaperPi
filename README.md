@@ -115,16 +115,24 @@ Check here if you'd like a [step-by-step guide](./documentation/step_by_step_ins
 
 To get started, copy and paste the following command into a terminal window on your Raspberry Pi to download the latest stable version of PaperPi and automatically start the install and setup process.
 
-**Stable Version**
+**Stable**
+
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
 
 
-**Development Version**
-`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/development/install/remote_install_development.sh)`
+**Development**
 
-If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh`
+`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/I113_install_scripts/install/remote_install.sh | /bin/bash -s -- -b development`
 
+**Self Install**
 
+If you would rather install PaperPi yourself without running a remote script, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh` from within the repo root.
+
+**Other Branches**
+
+If you would like to remote install from a different remote branch, use:
+
+`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/I113_install_scripts/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
 
 ### Setup
 
