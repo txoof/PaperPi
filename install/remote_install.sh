@@ -13,6 +13,15 @@ PP_GITREPO="https://github.com/txoof/PaperPi.git"
 #PP_GITBRANCH="manage_modules"
 PP_GITBRANCH="main"
 
+if [[ $1 == "-b" && ! -z $2 ]]
+then
+  PP_GITBRANCH="$2"
+else  
+  PP_GITBRANCH="main"
+fi
+
+echo "installing from branch: $PP_GITBRANCH"
+
 INSTALLER="/install/install.sh"
 
 # string formatters
@@ -73,12 +82,20 @@ fi
 git_temp=$(mktemp -d -t PaperPi_XXXXX)
 echo "cloning git repo into $git_temp"
 
-git clone -b $PP_GITBRANCH --single-branch $PP_GITREPO $git_temp
+git_output=$(git clone -b $PP_GITBRANCH --single-branch $PP_GITREPO $git_temp)
+git_exitcode=$?
 
-#git_temp="/tmp/PaperPi_syhzR/"
+if [ $git_exitcode -eq 0 ]
+then
+  echo "sucessfully cloned branch $PP_GITREPO into $git_temp"
+else
+  echo "failed to clone branch $PP_GITREPO with the following errors:"
+  echo $git_output
+  echo ""
+  abort "$(printf "Failed during: %s" "$(shell_join "$@")")"
+fi
 
 unset HAVE_SUDO_ACCESS # unset this from the environment
-
 
 have_sudo_access() {
   if [[ ! -x "/usr/bin/sudo" ]]
