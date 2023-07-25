@@ -9,10 +9,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pipreqs = "*"
-ArgConfigParse = "*"
 it8951 = {editable = true, git = "https://github.com/GregDMeyer/IT8951.git"}
 epdlib = "*"
+argconfigparse = "*"
 
 [requires]
 python_version = "3"
@@ -29,6 +28,11 @@ pygal = "*"
 qrcode = "*"
 cairocffi = "*"
 cffi ="*"
-QueryLMS = "*"
-Pillow = "*"
-CairoSVG = "*"
+psutil = "*"
+pillow = "*"
+epdlib = "*"
+querylms = "*"
+cairosvg = "*"
+ipykernel = "*"
+pipreqs = "*"
+

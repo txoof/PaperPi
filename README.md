@@ -1,5 +1,5 @@
 
-# PaperPi V3<!-- omit in toc -->
+# PaperPi V0.5<!-- omit in toc -->
 
 [![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
 
@@ -56,11 +56,11 @@ See the [Developing Plugins](./documentation/developing_plugins.md) guide for mo
 
 See the [Change Log](./documentation/Change_Log.md) for a complete list of updates
 
-**V 0.5.0**
+**V 0.5**
 
 * PaperPi migrated to EPD Lib V0.6
 * 7 Color, <font color="red">R</font><font color="green">G</font><font color="blue">B</font> screens now supported. **NB!** 2/3 Color screens are only supported in 1 bit black/white mode
-* 
+* Stalled plugins now timeout after a configurable time
 
 
 **V 0.4.1**
@@ -115,11 +115,24 @@ Check here if you'd like a [step-by-step guide](./documentation/step_by_step_ins
 
 To get started, copy and paste the following command into a terminal window on your Raspberry Pi to download the latest stable version of PaperPi and automatically start the install and setup process.
 
+**Stable**
+
 `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
 
-If you would rather install PaperPi yourself, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh`
 
+**Development**
 
+`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/I113_install_scripts/install/remote_install.sh | /bin/bash -s -- -b development`
+
+**Self Install**
+
+If you would rather install PaperPi yourself without running a remote script, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh` from within the repo root.
+
+**Other Branches**
+
+If you would like to remote install from a different remote branch, use:
+
+`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/I113_install_scripts/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
 
 ### Setup
 

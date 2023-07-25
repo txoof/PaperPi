@@ -17,6 +17,7 @@ from pathlib import Path
 from distutils.util import strtobool
 from time import sleep
 from configparser import DuplicateSectionError
+from configparser import Error as ConfigParserError
 
 
 
@@ -259,6 +260,9 @@ def get_config_files(cmd_args):
     except DuplicateSectionError as e:
         logger.error(f'{e}')
         config_files = None
+    except ConfigParserError as e:
+        logging.error(f'error processing config file: {e}')
+        config_files = None
 
     return config_files
     
@@ -268,25 +272,29 @@ def get_config_files(cmd_args):
 
 
 
-def clean_up(cache=None, screen=None):
+def clean_up(cache=None, screen=None, no_wipe=False):
     '''clean up the screen and cache
     
     Args:
         cache(cache obj): cache object to use for cleanup up
         screen(Screen obj): screen to clear
+        no_wipe(bool): True - leave last image on screen; False - wipe screen
     '''
-    logging.info('cleaning up cache and screen')
+    logging.info('cleaning up')
     try:
         logging.debug('clearing cache')
         cache.cleanup()
     except AttributeError:
         logging.debug('no cache passed, skipping')
-    try:
-#         screen.initEPD()
-        logging.debug('clearing screen')
-        screen.clearEPD()
-    except AttributeError:
-        logging.debug('no screen passed, skipping')
+    
+    if no_wipe:
+        logging.info('not clearing screen due to [main][no_wipe]=True')
+    else:
+        try:
+            logging.debug('clearing screen')
+            screen.clearEPD()
+        except AttributeError:
+            logging.debug('no screen passed, skipping cleanup')
         
     logging.debug('cleanup completed')
     return    
@@ -342,9 +350,13 @@ def build_plugins_list(config, resolution, cache):
             plugin_config['cache'] = cache
             plugin_config['force_onebit'] = config['main']['force_onebit']
             plugin_config['screen_mode'] = config['main']['screen_mode']
+            plugin_config['plugin_timeout'] = config['main'].get('plugin_timeout', 35)
             # force layout to one-bit mode for non-HD screens
 #             if not config['main'].get('display_type') == 'HD':
 #                 plugin_config['force_onebit'] = True
+
+            logging.debug(f'plugin_config: {plugin_config}')
+    
             try:
                 module = import_module(f'{constants.PLUGINS}.{values["plugin"]}')
                 plugin_config['update_function'] = module.update_function
@@ -371,7 +383,7 @@ def build_plugins_list(config, resolution, cache):
                 continue    
             logger.info(f'appending plugin {my_plugin.name}')
             
-            
+    
             plugins.append(my_plugin)
             
     
@@ -393,7 +405,9 @@ def setup_splash(config, resolution):
             'resolution': resolution,
         }
         splash = Plugin(**splash_config)
-        splash.update(constants.APP_NAME, constants.VERSION, constants.URL)
+        splash.update(app_name=constants.APP_NAME, 
+                      version=constants.VERSION, 
+                      url=constants.URL)
     else:
         logger.debug('skipping splash screen')
         splash = False
@@ -587,11 +601,11 @@ def main():
         print(f'Unknown arguments: {cmd_args.unknown}\n\n')
         cmd_args.parser.print_help()
         return
-        
+    
     config_files = get_config_files(cmd_args)
     
     if not config_files:
-        print('Fatal error collectinc configuration files. See the logs.')
+        print('Fatal error collecting configuration files. See the logs.')
         return
     
     # merge the config files and the command line arguments (right-most overwrites left)
@@ -641,12 +655,21 @@ def main():
     
     log_level = config['main'].get('log_level', 'INFO')
 
+    logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
+    if cmd_args.options.main__daemon:
+        logger.info(f'{constants.APP_NAME} is running in daemon mode')
+    else:
+        logger.info(f'{constants.APP_NAME} is running in on-demand mode')
+        
     logger.setLevel(log_level)
     logging.root.setLevel(log_level)
 
-    logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
-    logger.debug(f'configuration:\n{config}\n\n')
         
+    logger.debug(f'configuration:\n{config}\n\n')
+
+    
+#     return(config)
+    
     screen_return = setup_display(config)
     
     if screen_return['obj']:
@@ -670,7 +693,12 @@ def main():
     splash = setup_splash(config, screen.resolution)
     
     if splash:
-        splash.force_update(constants.APP_NAME, constants.VERSION, constants.URL)
+        splash_kwargs = {
+            'app_name': constants.APP_NAME,
+            'version': constants.VERSION,
+            'url': constants.URL            
+        }
+        splash.force_update(**splash_kwargs)
         logger.debug('display splash screen')
         try:
             screen.writeEPD(splash.image)
@@ -690,16 +718,9 @@ def main():
     
     exit_code = update_loop(plugins=plugins, screen=screen, max_refresh=config['main'].get('max_refresh', 5))
     
-    clean_up(cache, screen)
+    clean_up(cache=cache, screen=screen, no_wipe=config['main'].get('no_wipe', False))
     
     return  exit_code
-
-
-
-
-
-
-# sys.argv.extend(['-c', './test_config.ini'])
 
 
 
