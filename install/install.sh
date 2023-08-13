@@ -37,7 +37,7 @@ function abort {
 }
 
 function check_os {
-  if [ "$SKIP_OS_CHECK" -eq 1 ]
+  if [ $SKIP_OS_CHECK -eq 1 ]
   then
     echo "skiping OS version checking. YOU'RE ON YOUR OWN!"
     return 0
