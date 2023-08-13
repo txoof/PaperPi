@@ -74,7 +74,7 @@ then
 fi
 
 # fail if 
-if [ ! "$long_bit" -eq 32 ]
+if [ ! $long_bit -eq 32 ]
 then
   abort "PaperPi is officially supported only on 32 bit versions of RaspberryPi OS"
 fi
