@@ -591,6 +591,7 @@ function Help {
   -h        This help screen
   -u        uninstall $APPNAME
   -p        uninstall $APPNAME and purge all config files
+  -s        skip OS version check for manuall install on 64 bit systems
   "
 
 }
@@ -670,14 +671,16 @@ if [ "$SKIP_OS_CHECK" -eq 1 ]
 then
   echo " "
   printf "Basic install completed. You must now manually:
-  - create a pipenv in $INSTALLPATH/$appname
-  - install development plugin requirements from the Pipfile in $INSTALLPATH/$appname
-  - install the config in /etc/defaults
+  - create a pipenv in $INSTALLPATH/$APPNAME
+  - install development plugin requirements from the Pipfile in $INSTALLPATH/$APPNAME
+  - install the entry script in $BINPATH
+  - install the config in /etc/default
   - install and enable the unit file (optional) 
   - enable SPI
   - edit the config in /etc/defaults
   - cleanup temporary files
-  - start the daemon (optional)"
+  - start the daemon (optional)
+"
   exit 0
 fi
 create_pipenv
