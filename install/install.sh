@@ -36,6 +36,15 @@ function abort {
   exit 1
 }
 
+function check_os {
+  echo "checking OS"
+  long_bit=$(getconf LONG_BIT)
+  if [ ! "$long_bit" -eq 32 ]
+  then 
+    abort "PaperPi is supported only on 32 bit versions of RaspberryPi OS. Your version: $long_bit bit"
+  fi
+}
+
 
 function stop_daemon {
     echo "checking if $SYSTEMD_UNIT_FILE_NAME is running"
@@ -640,6 +649,7 @@ fi
 # set the pipenv venv to be within the project directory (1)
 export PIPENV_VENV_IN_PROJECT=1
 
+check_os
 stop_daemon
 check_permissions
 check_deb_packages
