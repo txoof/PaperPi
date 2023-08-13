@@ -28,6 +28,8 @@ SYSTEMD_UNIT_PATH="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
 CONFIG_FILE_NAME=$APPNAME.ini
 SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
 
+SKIP_OS_CHECK=0
+
 function abort {
   # abort installation with message
   printf "%s\n" "$@"
@@ -37,7 +39,7 @@ function abort {
 }
 
 function check_os {
-  if [ $SKIP_OS_CHECK -eq 1 ]
+  if [ "$SKIP_OS_CHECK" -eq 1 ]
   then
     echo "skiping OS version checking. YOU'RE ON YOUR OWN!"
     return 0
@@ -47,7 +49,7 @@ function check_os {
   long_bit=$(getconf LONG_BIT)
   if [ ! "$long_bit" -eq 32 ]
   then 
-    abort "PaperPi is supported only on 32 bit versions of RaspberryPi OS. Your version: $long_bit bit"
+    abort "PaperPi is supported only on 32 bit versions of RaspberryPi OS. Your version: $long_bit bit. Check README for manual install instructions"
   fi
 }
 

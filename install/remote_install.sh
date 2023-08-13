@@ -73,10 +73,10 @@ then
   abort "Bash is required to interpret this script."
 fi
 
-# fail if 
-if [ ! $long_bit -eq 32 ]
+# fail if not 32 bit os
+if [ ! "$long_bit" == "32" ]
 then
-  abort "PaperPi is officially supported only on 32 bit versions of RaspberryPi OS"
+  abort "PaperPi is officially supported only on 32 bit versions of RaspberryPi OS. See the READMEfor manual install instructions."
 fi
 
 # check if git is available
