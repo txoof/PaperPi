@@ -210,3 +210,5 @@ hostname
 Hostname
 cpu
 cpuload
+VaporwareII
+harperreed
