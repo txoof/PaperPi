@@ -37,6 +37,12 @@ function abort {
 }
 
 function check_os {
+  if [ "$SKIP_OS_CHECK" -eq 1 ]
+  then
+    echo "skiping OS version checking. YOU'RE ON YOUR OWN!"
+    return 0
+  fi
+
   echo "checking OS"
   long_bit=$(getconf LONG_BIT)
   if [ ! "$long_bit" -eq 32 ]
@@ -603,6 +609,11 @@ while [[ $# -gt 0 ]]; do
     shift
     shift
     ;;
+  -s) # skip OS version check
+    SKIP_OS_CHECK=1
+    shift
+    shift
+    ;;
   -u) # uninstall
     INSTALL=0
     UNINSTALL=1
@@ -655,6 +666,20 @@ check_permissions
 check_deb_packages
 check_py_packages
 copy_files
+if [ "$SKIP_OS_CHECK" -eq 1 ]
+then
+  echo " "
+  printf "Basic install completed. You must now manually:
+  - create a pipenv in $INSTALLPATH/$appname
+  - install development plugin requirements from the Pipfile in $INSTALLPATH/$appname
+  - install the config in /etc/defaults
+  - install and enable the unit file (optional) 
+  - enable SPI
+  - edit the config in /etc/defaults
+  - cleanup temporary files
+  - start the daemon (optional)"
+  exit 0
+fi
 create_pipenv
 install_plugin_requirements
 install_executable
