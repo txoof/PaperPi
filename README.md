@@ -124,7 +124,7 @@ To get started, copy and paste the following command into a terminal window on y
 
 **Development**
 
-`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/I113_install_scripts/install/remote_install.sh | /bin/bash -s -- -b development`
+`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | /bin/bash -s -- -b development`
 
 **Self Install**
 
