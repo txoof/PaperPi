@@ -76,7 +76,9 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 ## PaperPi Requirements
 
-PaperPi is compatible with Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* will may not build properly under Buster.
+PaperPi is compatible with 32 bit Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* may not build properly under Buster.
+
+PaperPi will not automatically install under the 64 bit versions of Raspberry Pi OS. See the [Manual Installation Instructions](#manual-install-for-rpios-64-bit) for 64 bit installs below.
 
 ### Required Hardware
 
@@ -132,7 +134,60 @@ If you would rather install PaperPi yourself without running a remote script, [c
 
 If you would like to remote install from a different remote branch, use:
 
-`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/I113_install_scripts/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
+`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
+
+### Manual Install for RPiOS 64 bit
+
+PaperPi depends on pre-built wheels from PiWheels to create it's virtual environment. Installing PaperPi. Several critical modules (e.g. Pillow) will fail to install correctly and cause **shed-loads** of dependency errors. 
+
+It is possible to manually install PaperPi on a 64 bit system, but it requires some extra work and is not officially supported. These instructions are intended for those that are savvy on the command line and can do some of their own problem solving. 
+
+Thanks to @VaporwareII & @harperreed for helping sort this out.
+
+This is all best done as root. Be careful and good luck: you're on your own!
+
+1. Clone PaperPi into a temporary directory: 
+```
+git clone https://github.com/txoof/PaperPi.git
+```
+2. Run the install script and skip the OS Version Check: 
+```
+# ./install/install.sh -s
+```
+3. Change to the install directory and create a virtual environment: 
+```
+# export PIPENV_VENV_IN_PROJECT=1
+# pipenv --python 3
+```
+4. Install `pillow` manually: `# pipenv install pillow`
+  - this *should* avoid dependency issues
+5. Install development modules 
+```
+# pipenv install --dev
+```
+6. Copy the entry script into `/usr/bin/`: 
+```
+# cp ./PaperPi/install/paperpi /usr/bin/
+```
+7. Enable SPI:
+```
+# sudo raspi-config nonint do_spi 0
+```
+8. Copy the configuration file to `/etc/default`
+```
+# cp ./PaperPi/install/paperpi.ini /etc/default/
+```
+9. Install and enable the daemon unit file (optional)
+```
+# cp ./PaperPi/install/paperpi-daemon.service /etc/systemd/system/
+# /bin/systemctl daemon-reload
+# /bin/systemctl enable /etc/systemd/system/paperpi-daemon.service
+```
+10. Edit the config file in `/etc/default`
+11. Start the daemon (optional)
+```
+# systemctl restart paperpi-daemon.service
+```
 
 ### Setup
 
@@ -337,3 +392,4 @@ If you're interested in helping out, check out the [issues](https://github.com/t
 * @aaronr8684 - writing installer, catching hundreds of errors and generally be a great person
 * @veebch - inspiration for Reddit and Crypto plugins
 * @PaperCloud10 - testing of new versions and debugging slideshow plugin
+* @VaporwareII, @harperreed  - diagnosing remote installation failures

@@ -28,12 +28,29 @@ SYSTEMD_UNIT_PATH="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
 CONFIG_FILE_NAME=$APPNAME.ini
 SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
 
+SKIP_OS_CHECK=0
+
 function abort {
   # abort installation with message
   printf "%s\n" "$@"
   printf "%s\n\nThis installer can be resumed with:\n"
   printf "sudo $SCRIPT_DIR/$(basename "$0")\n"
   exit 1
+}
+
+function check_os {
+  if [ "$SKIP_OS_CHECK" -eq 1 ]
+  then
+    echo "skiping OS version checking. YOU'RE ON YOUR OWN!"
+    return 0
+  fi
+
+  echo "checking OS"
+  long_bit=$(getconf LONG_BIT)
+  if [ ! "$long_bit" -eq 32 ]
+  then 
+    abort "PaperPi is supported only on 32 bit versions of RaspberryPi OS. Your version: $long_bit bit. Check README for manual install instructions"
+  fi
 }
 
 
@@ -576,6 +593,7 @@ function Help {
   -h        This help screen
   -u        uninstall $APPNAME
   -p        uninstall $APPNAME and purge all config files
+  -s        skip OS version check for manuall install on 64 bit systems
   "
 
 }
@@ -591,6 +609,11 @@ while [[ $# -gt 0 ]]; do
   -h) # display help
     Help
     exit
+    shift
+    shift
+    ;;
+  -s) # skip OS version check
+    SKIP_OS_CHECK=1
     shift
     shift
     ;;
@@ -640,11 +663,28 @@ fi
 # set the pipenv venv to be within the project directory (1)
 export PIPENV_VENV_IN_PROJECT=1
 
+check_os
 stop_daemon
 check_permissions
 check_deb_packages
 check_py_packages
 copy_files
+if [ "$SKIP_OS_CHECK" -eq 1 ]
+then
+  echo " "
+  printf "Basic install completed. You must now manually:
+  - create a pipenv in $INSTALLPATH/$APPNAME
+  - install development plugin requirements from the Pipfile in $INSTALLPATH/$APPNAME
+  - install the entry script in $BINPATH
+  - install the config in /etc/default
+  - install and enable the unit file (optional) 
+  - enable SPI
+  - edit the config in /etc/defaults
+  - cleanup temporary files
+  - start the daemon (optional)
+"
+  exit 0
+fi
 create_pipenv
 install_plugin_requirements
 install_executable

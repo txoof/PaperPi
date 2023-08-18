@@ -13,6 +13,9 @@ PP_GITREPO="https://github.com/txoof/PaperPi.git"
 #PP_GITBRANCH="manage_modules"
 PP_GITBRANCH="main"
 
+long_bit=$(getconf LONG_BIT)
+
+
 if [[ $1 == "-b" && ! -z $2 ]]
 then
   PP_GITBRANCH="$2"
@@ -60,11 +63,20 @@ ohai() {
   printf "${tty_blue}==>${tty_bold} %s${tty_reset}\n" "$(shell_join "$@")"
 }
 
+
+
+
 # Fail fast with a concise message when not using bash
 # Single brackets are needed here for POSIX compatibility
 if [ -z "${BASH_VERSION:-}" ]
 then
   abort "Bash is required to interpret this script."
+fi
+
+# fail if not 32 bit os
+if [ ! "$long_bit" == "32" ]
+then
+  abort "PaperPi is officially supported only on 32 bit versions of RaspberryPi OS. See the READMEfor manual install instructions."
 fi
 
 # check if git is available
