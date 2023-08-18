@@ -220,3 +220,5 @@ PiWheels
 pre
 dev
 cp
+usr
+spi
