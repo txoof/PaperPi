@@ -212,3 +212,11 @@ cpu
 cpuload
 VaporwareII
 harperreed
+systemctl
+nonint
+raspi
+RPiOS
+PiWheels
+pre
+dev
+cp

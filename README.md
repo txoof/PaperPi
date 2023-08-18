@@ -186,7 +186,7 @@ git clone https://github.com/txoof/PaperPi.git
 10. Edit the config file in `/etc/default`
 11. Start the daemon (optional)
 ```
-# systemclt restart paperpi-daemon.service
+# systemctl restart paperpi-daemon.service
 ```
 
 ### Setup
