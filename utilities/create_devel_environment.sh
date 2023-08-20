@@ -42,7 +42,7 @@ function check_deb_packages {
 
     # get all the debian_packages-*.txt
     array=()
-    find $LOCALPATH -name "debian_packages-*.txt" -print0 >tmpfile
+    find $PROJECT_DIR -name "debian_packages-*.txt" -print0 >tmpfile
     while IFS=  read -r -d $'\0'; do
         array+=("$REPLY")
     done <tmpfile
@@ -101,7 +101,7 @@ function install_devel_requirements {
     pushd $PROJECT_DIR  > /dev/null 2>&1
     # add all the modules from the plugins
     echo "tempfile: $tempfile"
-    pipenv install --dev -r $tempfile --skip-lock
+    pipenv install --dev -r $tempfile
     popd > /dev/null 2>&1
   fi
 }
@@ -122,7 +122,7 @@ function clean_devel_modules {
   then
     echo "removing all previous development modules"
     pushd $PROJECT_DIR/../  > /dev/null 2>&1
-    pipenv uninstall --all-dev --skip-lock
+    pipenv uninstall --all-dev
     popd > /dev/null 2>&1
   fi
 }
@@ -239,7 +239,7 @@ fi
 
 if ! command pipenv > /dev/null 2>&1
 then
-  echo "pipenv is not installed and is required for this development environemnt"
+  echo "pipenv is not installed and is required for this development environment"
   echo "try:
   pip3 install pipenv
 
@@ -249,11 +249,25 @@ for a system-wide install try:
   exit 1
 fi
 
-check_system
+# check if jupyter is installed
+! command jupyter > /dev/null 2>&1
+JUPY_RESULT=$?
+
+if [[  $JUPY_RESULT>0 &&  $JUPYTER==1 ]]
+then
+  echo "jupyter is not installed and is required with the '-j' switch"
+  echo "try:
+  pip3 install jupyter"
+else 
+  echo "jupyter installed..."
+fi
+
+
+#check_system
 check_deb_packages
-clean_devel_modules
-install_devel_requirements
-add_kernel
-clean_kernel
-rm_venv
+#clean_devel_modules
+#install_devel_requirements
+#add_kernel
+#clean_kernel
+#rm_venv
 
