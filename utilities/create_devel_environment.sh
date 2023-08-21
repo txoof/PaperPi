@@ -111,6 +111,8 @@ function add_kernel() {
   then
     venvDir=$(pipenv --venv)
     projectName=$(basename $venvDir)
+    echo "installing ipykernel module"
+    pipenv install --dev ipykernel
     echo "adding kernel spec: $projectName"
     pipenv run python -m ipykernel install --user --name="${projectName}"
   fi
