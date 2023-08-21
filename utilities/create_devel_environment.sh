@@ -20,7 +20,7 @@ function check_system {
     echo ""
     echo "SPI is not enabled and is required for PaperPi to function"
     echo "enable with:"
-    echo "$ sudo raspi-config nonint do spi 0"
+    echo "$ sudo raspi-config nonint do_spi 0"
     echo "exiting"
     exit 0
   else
@@ -42,7 +42,7 @@ function check_deb_packages {
 
     # get all the debian_packages-*.txt
     array=()
-    find $LOCALPATH -name "debian_packages-*.txt" -print0 >tmpfile
+    find $PROJECT_DIR -name "debian_packages-*.txt" -print0 >tmpfile
     while IFS=  read -r -d $'\0'; do
         array+=("$REPLY")
     done <tmpfile
@@ -101,7 +101,7 @@ function install_devel_requirements {
     pushd $PROJECT_DIR  > /dev/null 2>&1
     # add all the modules from the plugins
     echo "tempfile: $tempfile"
-    pipenv install --dev -r $tempfile --skip-lock
+    pipenv install --dev -r $tempfile
     popd > /dev/null 2>&1
   fi
 }
@@ -111,6 +111,8 @@ function add_kernel() {
   then
     venvDir=$(pipenv --venv)
     projectName=$(basename $venvDir)
+    echo "installing ipykernel module"
+    pipenv install --dev ipykernel
     echo "adding kernel spec: $projectName"
     pipenv run python -m ipykernel install --user --name="${projectName}"
   fi
@@ -121,8 +123,8 @@ function clean_devel_modules {
   if [ $INSTALL -gt 0 ] 
   then
     echo "removing all previous development modules"
-    pushd $PROJECT_DIR/../  > /dev/null 2>&1
-    pipenv uninstall --all-dev --skip-lock
+    pushd $PROJECT_DIR  > /dev/null 2>&1
+    pipenv uninstall --all-dev
     popd > /dev/null 2>&1
   fi
 }
@@ -228,6 +230,8 @@ if [[ $INSTALL -eq 0 ]] && [[ $PURGE -eq 0 ]]; then
   Help
 fi
 
+# fail fast for required software
+
 if ! command pip3 > /dev/null 2>&1
 then
   echo "pip3 is not installed and is required for this development enviornment"
@@ -239,7 +243,7 @@ fi
 
 if ! command pipenv > /dev/null 2>&1
 then
-  echo "pipenv is not installed and is required for this development environemnt"
+  echo "pipenv is not installed and is required for this development environment"
   echo "try:
   pip3 install pipenv
 
@@ -248,6 +252,18 @@ for a system-wide install try:
   "
   exit 1
 fi
+
+# check if jupyter is installed
+! command jupyter > /dev/null 2>&1
+JUPY_RESULT=$?
+
+if [[  $JUPY_RESULT>0 &&  $JUPYTER==1 ]]
+then
+  echo "jupyter is not installed and is required with the '-j' switch"
+  echo "try:
+  pip3 install jupyter"
+fi
+
 
 check_system
 check_deb_packages
