@@ -20,7 +20,7 @@ function check_system {
     echo ""
     echo "SPI is not enabled and is required for PaperPi to function"
     echo "enable with:"
-    echo "$ sudo raspi-config nonint do spi 0"
+    echo "$ sudo raspi-config nonint do_spi 0"
     echo "exiting"
     exit 0
   else
@@ -121,7 +121,7 @@ function clean_devel_modules {
   if [ $INSTALL -gt 0 ] 
   then
     echo "removing all previous development modules"
-    pushd $PROJECT_DIR/../  > /dev/null 2>&1
+    pushd $PROJECT_DIR  > /dev/null 2>&1
     pipenv uninstall --all-dev
     popd > /dev/null 2>&1
   fi
@@ -228,6 +228,8 @@ if [[ $INSTALL -eq 0 ]] && [[ $PURGE -eq 0 ]]; then
   Help
 fi
 
+# fail fast for required software
+
 if ! command pip3 > /dev/null 2>&1
 then
   echo "pip3 is not installed and is required for this development enviornment"
@@ -258,16 +260,14 @@ then
   echo "jupyter is not installed and is required with the '-j' switch"
   echo "try:
   pip3 install jupyter"
-else 
-  echo "jupyter installed..."
 fi
 
 
-#check_system
+check_system
 check_deb_packages
-#clean_devel_modules
-#install_devel_requirements
-#add_kernel
-#clean_kernel
-#rm_venv
+clean_devel_modules
+install_devel_requirements
+add_kernel
+clean_kernel
+rm_venv
 
