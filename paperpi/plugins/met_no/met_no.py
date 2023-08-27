@@ -86,7 +86,8 @@ def get_coord(*args, **kwargs):
     osm_endpoint = constants.osm_endpoint
     osm_query = constants.osm_query
     place_quote = quote(place)
-    url = f'{osm_endpoint}{place_quote}{osm_query}'
+    url = f'{osm_endpoint}q={place_quote}&{osm_query}'
+    logging.debug(f'OSM URL: {url}')
     try:
         result = requests.get(url)
     except requests.RequestException as e:

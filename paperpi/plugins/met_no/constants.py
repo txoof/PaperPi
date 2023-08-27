@@ -6,8 +6,8 @@ name = "PaperPi Met No Weather plugin"
 app_source = "github.com/txoof/PaperPi"
 
 # open street maps location lookup
-osm_endpoint = 'https://nominatim.openstreetmap.org/search/'
-osm_query = "?format=json&addressdetails=0&limit=0"
+osm_endpoint = 'https://nominatim.openstreetmap.org/search?'
+osm_query = "format=json&addressdetails=0&limit=0"
 
 # met.no endpoints
 yr_endpoint = "https://api.met.no/weatherapi/locationforecast/2.0/complete.json?"
