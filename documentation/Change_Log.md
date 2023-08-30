@@ -1,8 +1,16 @@
 # Change Log
 
+## 0.5.4.1
+
+### Update installer scripts
+
+Check the OS version and refuse to install on non-32 bit systems. This can be overridden with `install.sh -s`, but requires several manual steps. 
+
+
 ## 0.5.4.0
 
 ### Plugin Timeout feature implemented
+
 Plugins will time out and not be displayed if they fail to return within a set time. Timeout is managed through config variable `plugin_timeout` in `[main]` section and defaults to 30 seconds. Valid values are integers > 0. A minimum of 30 (default if left unset in config) seconds is recommended for most plugins.
 
 It is advised to update your config files to include this option.
