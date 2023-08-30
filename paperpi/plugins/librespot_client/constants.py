@@ -43,6 +43,23 @@ spot_map = {
   'id': 'item.id',
 }
 
+json_config = {
+  "layout": "layout",
+  "plugin": "librespot_client",
+  "refresh_rate": 10,
+  "min_display_time": 15,
+  "max_priority": 0,
+  "player_name": {
+    "description": "Name of SpoCon-Spotify player running on *this* device",
+    "value": "SpoCon-Spotify",
+    "idle_timeout": {
+      "description": "Time in seconds after playback stops before removing this plugin from the display loop",
+      "value": 10,
+      "type": "int"
+    }
+  }
+}
+
 sample_config = '''
 [Plugin: Librespot]
 layout = layout

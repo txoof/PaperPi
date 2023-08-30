@@ -31,6 +31,35 @@ storage_units = {
     
 }
 
+json_config = {
+  "layout": "layout",
+  "plugin": "system_info",
+  "refresh_rate": 90,
+  "min_display_time": 45,
+  "max_priority": 2,
+  "storage_units": {
+    "description": "Units to use when displaying disk useage",
+    "value": "GB",
+    "choice": [
+      "KB",
+      "MB",
+      "GB",
+      "TB",
+      "EB"
+    ]
+  },
+  "bkground": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "WHITE",
+    "choice": ["RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  },
+  "text_color": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "BLACK",
+    "choice": ["RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  }
+}
+
 sample_config = '''
 [Plugin: System Info]
 # show basic facts about the system including IP, Hostname, CPU usage, temperature and storage

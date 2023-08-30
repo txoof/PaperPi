@@ -20,6 +20,29 @@ required_config = {
     'resize': 0,
 }
 
+json_config = {
+  "layout": "layout",
+  "plugin": "xkcd_comic",
+  "refresh_rate": 1200,
+  "min_display_time": 120,
+  "max_priority": 2,
+  "max_x": {
+    "description": "Maximum x dimension of original comic image",
+    "value": 800,
+    "type": "int"
+  },
+  "max_y": {
+    "description": "Maximum y dimension of original comic image",
+    "value": 600,
+    "type": "int"
+  },
+  "max_retries": {
+    "description": "Maximum attempts to choose a random comic",
+    "value": 10,
+    "type": "int"
+  }  
+}
+
 sample_config = '''
 [Plugin: XKCD Comic Plugin]
 # default layout

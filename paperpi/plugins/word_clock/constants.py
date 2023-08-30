@@ -51,6 +51,24 @@ stems = ['The time is nearly',
          "It's nearly",
         ]
 
+json_config = {
+  "layout": "layout",
+  "plugin": "word_clock",
+  "refresh_rate": 125,
+  "min_display_time": 255,
+  "max_priority": 2,
+  "bkground": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "BLACK",
+    "choice": ["RANDOM", "RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  },
+  "text_color": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "WHITE",
+    "choice": ["RANDOM", "RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  }
+}
+
 sample_config = '''
 [Plugin: Word Clock]
 layout = layout

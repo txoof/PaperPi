@@ -58,6 +58,27 @@ default_data = {
     'phase_desc': 'ER: Check Log'
 }
 
+json_config = {
+  "layout": "layout",
+  "plugin": "moon_phase",
+  "refresh_rate": 1200,
+  "min_display_time": 30,
+  "max_priority": 2,
+  "location_name": {
+    "description": "Timezone locale name in Region/City format",
+    "value": "Europe/Amsterdam"
+  },
+  "lat": {
+    "description": "Latitude of location",
+    "value": 9.000,
+    "type": "float"
+  },
+  "email": {
+    "description": "Your email address - required by met.no API. Failure to use a real value can lead to a perma-ban from the service",
+    "value": "you@host.diamond"
+  }
+}
+
 sample_config = '''
 [Plugin: Moon Phase]
 # default layout

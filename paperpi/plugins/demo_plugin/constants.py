@@ -10,6 +10,23 @@ data = {
     'extra': 'extra text under "special" conditions',
     'image': 'a static image',
 }
+
+json_config = {
+  "layout": "layout",
+  "plugin": "demo_plugin",
+  "refresh_rate": 30,
+  "min_display_time": 60,
+  "max_priority": 1,
+  "your_name": {
+    "description": "Name that will be used in plugin",
+    "value": "Slartybartfast"
+  },
+  "your_color": {
+    "description": "Color that will be used in plugin",
+    "value": "chartruse"
+  } 
+}
+
 sample_config = '''
 [Plugin: A Demo Plugin]
 # this is a sample config users can use to help setup the plugin

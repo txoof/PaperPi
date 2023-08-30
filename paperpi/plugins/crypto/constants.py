@@ -8,6 +8,36 @@ version = '0.2.1'
 name = 'crypto'
 data = {}
 
+json_config = {
+  "layout": "layout",
+  "plugin": "crypto",
+  "refresh_rate": 30,
+  "min_display_time": 50,
+  "max_priority": 2,
+  "fiat": {
+    "description": "Fiat Currency",
+    "value": "usd"
+  },
+  "coin": {
+    "description": "Crypto Currency",
+    "value": "bitcoin"
+  },
+  "days": {
+    "description": "Days of data to display on chart",
+    "value": 14,
+    "type": "float"
+  },
+  "interval": {
+    "description": "Interval to show on sparkline",
+    "value": "hourly",
+    "choice": ["hourly", "daily"]
+  },
+  "rss_feed": {
+    "description": "RSS feed to fetch news from",
+    "value": "https://bitcoinmagazine.com/.rss/full/"
+  }
+}
+
 REQUIRED_CONFIG_OPTIONS = {
     'fiat': 'usd',
     'coin': 'bitcoin',

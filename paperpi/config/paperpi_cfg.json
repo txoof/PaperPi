@@ -1,0 +1,17 @@
+{
+    "config_version": 2.0,
+    "main": {
+        "display_type": "None",
+        "vcom": 0.0,
+        "max_refresh": 4,
+        "log_level": "INFO",
+        "splash": true,
+        "rotation": 0,
+        "mirror": false,
+        "no_wipe": false,
+        "plugin_timeout": 30,
+        "daemon": false
+    },
+    "plugins": {
+    }
+}

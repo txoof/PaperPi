@@ -39,6 +39,37 @@ text = {'t_precipitation': 'Precipitation',
         't_uv_index': 'UV Index',
         }
 
+json_config = {
+  "layout": "layout",
+  "plugin": "met_no",
+  "refresh_rate": 300,
+  "min_display_time": 50,
+  "max_priority": 2,
+  "location_name": {
+    "description": "Name of location to display on screen",
+    "value": "Adis Ababa"
+  },
+  "lat": {
+    "description": "Latitude of location",
+    "value": 9.000,
+    "type": "float"
+  },
+  "email": {
+    "description": "Your email address - required by met.no API. Failure to use a real value can lead to a perma-ban from the service",
+    "value": "you@host.diamond"
+  },
+  "bkground": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "WHITE",
+    "choice": ["RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  },
+  "text_color": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "BLACK",
+    "choice": ["RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  }
+}
+
 sample_config = '''
 [Plugin: Weather Adis Ababa]
 layout = layout

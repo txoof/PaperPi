@@ -33,6 +33,29 @@ attribution_char = '―'
 
 error_text = '"Could not fetch quotes from reddit. Please see the logs." - The Developers'
 
+json_config = {
+  "layout": "layout",
+  "plugin": "reddit_quote",
+  "refresh_rate": 100,
+  "min_display_time": 50,
+  "max_priority": 2,
+  "max_length": {
+    "description": "Maximum Length in characters of quote",
+    "value": 144,
+    "type": "int"
+  },
+  "bkground": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "WHITE",
+    "choice": ["RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  },
+  "text_color": {
+    "description": "Color to use for display background on 7 Color displays",
+    "value": "BLACK",
+    "choice": ["RED", "ORANGE", "YELLOW", "GREEN", "BLUE", "BLACK", "WHITE"]
+  }
+}
+
 sample_config = '''
 [Plugin: Reddit Quotes]
 layout = layout

@@ -10,6 +10,34 @@ data = {
     'filename': 'filename',
     'image': 'a static image',
 }
+
+json_config = {
+  "layout": "layout",
+  "plugin": "slideshow",
+  "refresh_rate": 90,
+  "min_display_time": 50,
+  "max_priority": 2,
+  "image_path": {
+    "description": "Path to images on local device",
+    "value": "/pi/documents/images"
+  },
+  "order": {
+    "description": "Order to pull images",
+    "value": "random",
+    "choice": ["random", "sequential"]
+  },
+  "frame": {
+    "description": "Frame to display around image",
+    "value": "black & silver: matted",
+    "choice": [
+      "black & silver: matted",
+      "dim-gray & silver: matted",
+      "thick black: matted",
+      "thick black",
+      "thin black"]
+  }
+}
+
 sample_config = '''
 [Plugin: Slideshow]
 # default layout

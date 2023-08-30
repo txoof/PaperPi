@@ -19,6 +19,19 @@ private_cache = f'{name}/'
 
 expire_cache = 10
 
+json_config = {
+  "layout": "layout",
+  "plugin": "newyorker",
+  "refresh_rate": 120,
+  "min_display_time": 60,
+  "max_priority": 2,
+  "day_range": {
+    "description": "Number of past days to choose from",
+    "value": 5,
+    "type": "int"
+  }
+}
+
 sample_config = '''
 [Plugin: New Yorker Comic]
 layout = layout

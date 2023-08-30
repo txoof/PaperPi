@@ -6,6 +6,14 @@ data = {
     'time': 'system time as string HH:MM',
 }
 
+json_config = {
+  "layout": "layout",
+  "plugin": "dec_bin_clock",
+  "refresh_rate": 30,
+  "min_display_time": 50,
+  "max_priority": 2
+}
+
 sample_config ='''
 [Plugin: decimal binary clock]
 layout = layout
