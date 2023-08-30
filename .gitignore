@@ -12,3 +12,4 @@ tmp/*
 .vscode*
 version.txt
 paperpi/plugins/*/library
+Untitled.ipynb
