@@ -10,6 +10,8 @@ import logging
 import logging.config
 import sys
 import shutil
+import json
+from json import JSONDecodeError
 from itertools import cycle
 from inspect import getfullargspec
 from importlib import import_module
@@ -18,6 +20,7 @@ from distutils.util import strtobool
 from time import sleep
 from configparser import DuplicateSectionError
 from configparser import Error as ConfigParserError
+import jsonmerge
 
 
 
@@ -206,65 +209,154 @@ def get_cmd_line_args():
 
 
 
-def get_config_files(cmd_args):
-    '''read config.ini style files(s)
+def get_config_files(cmd_args=None):
+    '''Load json configuration files and merge options destructively
     
-    Args: 
-        cmd_args(`ArgConfigParse.CmdArgs` obj)
+    Args:
+        cmd_args(`ArgConfigPars.CmdArgs` obj)
         
     Returns:
-        ArgConfigParse.ConfgifFile'''
+        json dict of configuration
     
-    config_files_dict = {'base': constants.CONFIG_BASE,
-                         'system': constants.CONFIG_SYSTEM,
-                         'user': constants.CONFIG_USER,
-                         'cmd_line': cmd_args.options.user_config}
+    '''
+    # FIXME - consider removing ArgConfigParse and switching to standard python lib
     
+
+    # all the possible config files
+    config_files_dict = {
+        'base': constants.CONFIG_BASE,
+        'system': constants.CONFIG_SYSTEM,
+        'user': constants.CONFIG_USER,
+        'cmd_line': None
+    }
+    
+    # always include the base configuration file
     config_files_list = [config_files_dict['base']]
-    
-    if config_files_dict['cmd_line']:
-        config_file = config_files_dict['cmd_line']
-    else:
-        if cmd_args.options.main__daemon:
-            config_file = config_files_dict['system']
-        else:
-            config_file = config_files_dict['user']
-            if not config_file.exists():
-                try:
-                    constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
-                except PermissionError as e:
-                    msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
-                    logger.critical(msg)
-                    do_exit(1, msg)
-                try:
-                    shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
-                except Exception as e:
-                    msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
-                    logging.critical(1, msg)
-                    do_exit(1, msg)
-                msg = f'''This appears to be the first time PaperPi has been run.
-    A user configuration file created: {constants.CONFIG_USER}
-    At minimum you edit this file and add a display_type and enable one plugin.
 
-    Edit the configuration file with:
-       $ nano {constants.CONFIG_USER}'''
-                do_exit(0, msg)
-        
-    config_files_list.append(config_file)
+    json_config = {}
     
     
-    logger.info(f'using configuration files to configure PaperPi: {config_files_list}')
-    config_files = ArgConfigParse.ConfigFile(config_files_list, ignore_missing=True)
     try:
-        config_files.parse_config()
-    except DuplicateSectionError as e:
-        logger.error(f'{e}')
-        config_files = None
-    except ConfigParserError as e:
-        logging.error(f'error processing config file: {e}')
-        config_files = None
+        daemon_mode = cmd_args.options.main__daemon
+    except AttributeError:
+        logging.info(f'daemon mode not set')
+        daemon_mode = False
+    
+    # use the user provided config file if possible
+    try:
+        config_file_user = cmd_args.options.user_config
+    except AttributeError:
+        logging.debug('no user specified config file')
+        user_config_file = None
+    else:
+        config_files_dict['cmd_line'] = config_file_user
+        
+    if config_files_dict['cmd_line']:
+        if daemon_mode:
+            logging.warning(f'daemon mode was set, but is ignored due to user specified config file')
+        config_files_list.append(config_files_dict['cmd_line'])
+    elif daemon_mode:
+        config_files_list.append(config_files_dict['system'])
+    else:
+        config_files_list.append(config_files_dict['user'])
+        if not config_files_dict['user'].exists():
+            try:
+                constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
+            except PermissionError as e:
+                msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
+                logger.critical(msg)
+                do_exit(1, msg)
+            try:
+                shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
+            except Exception as e:
+                msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
+                logging.critical(1, msg)
+                do_exit(1, msg)
+            
+    logging.debug(f'using config files: {config_files_list}')
+        
+    for cfg_file in config_files_list:
+        logging.info(f'parsing {cfg_file}')
+        try:
+            with open(cfg_file) as f:
+                data = json.load(f)
+        except OSError as e:
+            logging.warning(f'failed to load config file: {e}')
+            data = {}
+        except JSONDecodeError as e:
+            logging.warning(f'error in JSON file "{f.name}": {e}')
+            data = {}
+        logging.debug(f'data: {data}')
+        json_config = jsonmerge.merge(json_config, data)
+    
+    return json_config
+            
+    
 
-    return config_files
+
+
+
+
+
+# def get_config_files(cmd_args):
+#     '''read config.ini style files(s)
+    
+#     Args: 
+#         cmd_args(`ArgConfigParse.CmdArgs` obj)
+        
+#     Returns:
+#         ArgConfigParse.ConfgifFile'''
+    
+#     config_files_dict = {'base': constants.CONFIG_BASE,
+#                          'system': constants.CONFIG_SYSTEM,
+#                          'user': constants.CONFIG_USER,
+#                          'cmd_line': cmd_args.options.user_config}
+    
+#     config_files_list = [config_files_dict['base']]
+    
+#     if config_files_dict['cmd_line']:
+#         config_file = config_files_dict['cmd_line']
+#     else:
+#         if cmd_args.options.main__daemon:
+#             config_file = config_files_dict['system']
+#         else:
+#             config_file = config_files_dict['user']
+#             if not config_file.exists():
+#                 try:
+#                     constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
+#                 except PermissionError as e:
+#                     msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
+#                     logger.critical(msg)
+#                     do_exit(1, msg)
+#                 try:
+#                     shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
+#                 except Exception as e:
+#                     msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
+#                     logging.critical(1, msg)
+#                     do_exit(1, msg)
+#                 msg = f'''This appears to be the first time PaperPi has been run.
+#     A user configuration file created: {constants.CONFIG_USER}
+#     At minimum you edit this file and add a display_type and enable one plugin.
+
+#     Edit the configuration file with:
+#        $ nano {constants.CONFIG_USER}'''
+#                 do_exit(0, msg)
+        
+#     config_files_list.append(config_file)
+    
+    
+#     logger.info(f'using configuration files to configure PaperPi: {config_files_list}')
+#     config_files = ArgConfigParse.ConfigFile(config_files_list, ignore_missing=True)
+#     try:
+#         config_files.parse_config()
+#     except DuplicateSectionError as e:
+#         logger.error(f'{e}')
+#         config_files = None
+#     except ConfigParserError as e:
+#         logging.error(f'error processing config file: {e}')
+#         config_files = None
+
+#     return config_files
     
 
 
@@ -607,7 +699,10 @@ def main():
     if not config_files:
         print('Fatal error collecting configuration files. See the logs.')
         return
-    
+   
+
+    # FIXME - everything below this point needs to be rewritten
+
     # merge the config files and the command line arguments (right-most overwrites left)
     config = ArgConfigParse.merge_dict(config_files.config_dict, cmd_args.nested_opts_dict)
     
@@ -666,9 +761,6 @@ def main():
 
         
     logger.debug(f'configuration:\n{config}\n\n')
-
-    
-#     return(config)
     
     screen_return = setup_display(config)
     
