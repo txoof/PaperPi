@@ -21,6 +21,7 @@ from time import sleep
 from configparser import DuplicateSectionError
 from configparser import Error as ConfigParserError
 import jsonmerge
+from dictor import dictor
 
 
 
@@ -235,6 +236,8 @@ def get_config_files(cmd_args=None):
 
     json_config = {}
     
+    json_config['config_files'] = config_files_list
+    
     
     try:
         daemon_mode = cmd_args.options.main__daemon
@@ -289,9 +292,118 @@ def get_config_files(cmd_args=None):
         logging.debug(f'data: {data}')
         json_config = jsonmerge.merge(json_config, data)
     
+    # convert command line options into 'key' {'value': value} format
+    # this is a little round-about, but keeps all of the merging in one place
+    cmd_options_dict = {}
+
+    if isinstance(d, dict):
+        for section, options in d.items():
+            cmd_options_dict[section] = {}
+            try:
+                for key, value in options.items():
+                    cmd_options_dict[section][key] = {"value": value}
+            except AttributeError as e:
+                logging.warning(f'{e}: skipping unparsable command arg: {section}: {options}')
+    else:
+        logging.warning('invalid ArgConfigParse.CmdArgs object')
+
+    # merge command lines options into main configuration
+    try:
+        json_config = jsonmerge.merge(json_config, cmd_options_dict)
+    except AttributeError:
+        logging.debug(f'ArgConfigPars.CmdArgs object was not provided or was malformed')
+    
+    
     return json_config
             
     
+
+
+
+
+
+
+def parse_config(json_config=None):
+    '''Parse configuration file and return only the values for each dictionary entry
+    
+    Args:
+        json_config(`dict`): json formatted configuration file
+        
+    Returns:
+        dict of dict key/values
+        '''
+    
+    parsed_config = {}
+
+    for section in json_config:
+        parsed_config[section] = {}
+        config_opts = dictor(json_config, section)
+        
+        # handle config "sections" that are not dictionaries
+        if not isinstance(config_opts, dict):
+            data = json_config.get(section, None)
+            logging.info(f'section "{section}" did not contain parsable values, storing data: {data}')
+            parsed_config[section] = data
+            continue
+
+        # search for the key 'value' in each option
+        for option, values in config_opts.items():
+            value = dictor(values, search='value', default=[None])
+            parsed_config[section][option] = value[0]
+
+    return parsed_config
+    
+
+
+
+
+
+
+# def parse_config(json_config=None):
+#     '''Parse configuration file and return only the values for each dictionary entry
+    
+#     Args:
+#         json_config(`dict`): json formatted configuration file
+        
+#     Returns:
+#         dict of dict key/values
+#         '''
+    
+#     if not isinstance(json_config, dict):
+#         logging.error('config file did not contain a valid json like object')
+#         return None
+    
+#     parsed_config = {}
+#     warnings = []
+    
+#     for section, section_keys in json_config.items():
+#         logging.debug(f'processing section "{section}"')
+#         parsed_config[section] = {}
+#         if isinstance(section_keys, dict):
+#             for config_opt, opt_keys in section_keys.items():
+                
+#                 for key, value in opt_keys.items():
+#                     found_value = False
+#                     if key == 'value':
+#                         found_value = value
+#                         logging.debug(f'found_value: {found_value}')
+                    
+#                 if found_value:
+#                     parsed_config[section][config_opt][key] = found_value
+#                 else:
+#                     warnings.append(f'{section}[{key}] did not contain a value')
+  
+#         else:
+#             logging.info(f'section "{section}" did not contain parsable values')
+#             parsed_config[section] = section_keys
+#             continue
+        
+        
+#     print(warnings)
+        
+#     return parsed_config
+
+        
 
 
 
@@ -687,27 +799,28 @@ def update_loop(plugins, screen, max_refresh=5):
 
 def main():
     cmd_args = get_cmd_line_args()
-    
-    
+        
     if hasattr(cmd_args, 'unknown'):
         print(f'Unknown arguments: {cmd_args.unknown}\n\n')
         cmd_args.parser.print_help()
         return
-    
-    config_files = get_config_files(cmd_args)
-    
-    if not config_files:
-        print('Fatal error collecting configuration files. See the logs.')
-        return
-   
 
-    # FIXME - everything below this point needs to be rewritten
-
-    # merge the config files and the command line arguments (right-most overwrites left)
-    config = ArgConfigParse.merge_dict(config_files.config_dict, cmd_args.nested_opts_dict)
     
+#     config_files = get_config_files(cmd_args)
+    config_json = get_config_files(cmd_args)
+    
+    if not config_json:
+        print('Fatal error collecting and processing configuration files. See the logs.')
+        return 1
+    
+    config = parse_config(config_json)
+    
+    if not config:
+        print('Fatal error parssing configuartion files. See the logs.')
+        return 1    
+ 
     # convert all config values to int, float, etc.
-    config = config_str_to_val(config)
+#     config = config_str_to_val(config)
         
     if cmd_args.options.version:
         print(constants.VERSION_STRING)
@@ -780,7 +893,7 @@ def main():
     config['main']['force_onebit'] = one_bit
     config['main']['screen_mode'] = screen.mode
     
-    logging.info('configured')
+    logging.info('screen configured')
             
     splash = setup_splash(config, screen.resolution)
     
