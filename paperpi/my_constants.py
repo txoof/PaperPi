@@ -6,7 +6,7 @@ from os import path
 APP_NAME = 'PaperPi'
 CONTACT='aaron.ciuffo@gmail.com'
 DEVEL_NAME = f'com.txoof.{APP_NAME.lower()}'
-VERSION='0.5.4.1 RGB'
+VERSION='0.6.0.0 WebConfig'
 URL = 'https://github.com/ txoof/PaperPi'
 
 
@@ -34,8 +34,17 @@ CONFIG_SYSTEM = Path(f'/etc/default/{CONFIG_FILENAME}')
 PLUGINS = 'plugins'
 FONTS = Path(f'{BASE_DIRECTORY}/fonts').resolve()
 
+
+# configuration expected sections - only these will be processed
+CONFIG_SECTIONS = ['config_version', 'main', 'plugins']
+
+
 # required keys that every plugin configuration needs to have
 REQ_PLUGIN_KEYS = {
+  "name": {
+    "description": "Human readable plugin identifier",
+    "value": ""
+  },
   "layout": {
     "description": "Layout to use in displaying plugin output",
     "value": "layout"

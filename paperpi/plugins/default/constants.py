@@ -11,7 +11,7 @@ data = {
 json_config = {
   "layout": "layout",
   "plugin": "default",
-  "configurable": false,
+  "configurable": False,
   "refresh_rate": 30,
   "min_display_time": 60,
   "max_priority": 32768

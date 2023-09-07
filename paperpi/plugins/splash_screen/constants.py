@@ -1,4 +1,4 @@
-version = '0.1.0'
+version = '0.1.2'
 
 data = { 
         'app_name': 'application name',
@@ -6,10 +6,10 @@ data = {
         'url': 'url to application',
        }
 
-json_config = json_config = {
+json_config = {
   "layout": "layout",
   "plugin": "splash_screen",
-  "configurable": false,
+  "configurable": False,
   "refresh_rate": 30,
   "min_display_time": 60,
   "max_priority": 32768

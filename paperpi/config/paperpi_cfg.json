@@ -48,7 +48,6 @@
           "type": "int"
         }
     },
-    "plugins": {
-    }
+    "plugins": []
 }
 
