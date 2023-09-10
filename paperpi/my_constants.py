@@ -45,6 +45,10 @@ REQ_PLUGIN_KEYS = {
     "description": "Human readable plugin identifier",
     "value": ""
   },
+  "enabled": {
+    "description": "Plugin is enabled and should be displayed",
+    "value": True
+  },
   "layout": {
     "description": "Layout to use in displaying plugin output",
     "value": "layout"

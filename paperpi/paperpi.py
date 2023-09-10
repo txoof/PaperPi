@@ -22,6 +22,7 @@ from configparser import DuplicateSectionError
 from configparser import Error as ConfigParserError
 import jsonmerge
 from dictor import dictor
+from jsonpath_ng import jsonpath, parse
 
 
 
@@ -81,71 +82,71 @@ def do_exit(status=0, message=None, **kwargs):
 
 
 
-def config_str_to_val(config):
-    '''convert strings in config dictionary into appropriate types
-             float like strings ('7.1', '100.2', '-1.3') -> to float
-             int like strings ('1', '100', -12) -> int
-             boolean like strings (yes, no, Y, t, f, on, off) -> 0 or 1
+# def config_str_to_val(config):
+#     '''convert strings in config dictionary into appropriate types
+#              float like strings ('7.1', '100.2', '-1.3') -> to float
+#              int like strings ('1', '100', -12) -> int
+#              boolean like strings (yes, no, Y, t, f, on, off) -> 0 or 1
              
-         Args:
-             config(`dict`): nested config.ini style dictionary
+#          Args:
+#              config(`dict`): nested config.ini style dictionary
 
-         Returns:
-             `dict`'''    
+#          Returns:
+#              `dict`'''    
 
-    def eval_expression(string):
-        '''safely evaluate strings allowing only specific names
-        see: https://realpython.com/python-eval-function/
+#     def eval_expression(string):
+#         '''safely evaluate strings allowing only specific names
+#         see: https://realpython.com/python-eval-function/
         
-        e.g. "2**3" -> 8; "True" -> True; '-10.23' -> 10.23
+#         e.g. "2**3" -> 8; "True" -> True; '-10.23' -> 10.23
         
-        Args:
-            string(str): string to attempt to evaluate
+#         Args:
+#             string(str): string to attempt to evaluate
             
-        Returns:
-            evaluated as bool, int, real, etc.'''
+#         Returns:
+#             evaluated as bool, int, real, etc.'''
         
-        # set dict of allowed strings to and related names e.g. {"len": len}
-        allowed_names = {}
+#         # set dict of allowed strings to and related names e.g. {"len": len}
+#         allowed_names = {}
         
-        # compile the string into bytecode
-        code = compile(string, "<string>", "eval")
+#         # compile the string into bytecode
+#         code = compile(string, "<string>", "eval")
         
-        # check .co_names on the bytecode object to make sure it only contains allowed names
-        for name in code.co_names:
-            if name not in allowed_names:
-                # raise a NameError for any name that's not allowed
-                raise NameError(f'use of {name} not allowed')
-        return eval(code, {"__builtins__": {}}, allowed_names)
+#         # check .co_names on the bytecode object to make sure it only contains allowed names
+#         for name in code.co_names:
+#             if name not in allowed_names:
+#                 # raise a NameError for any name that's not allowed
+#                 raise NameError(f'use of {name} not allowed')
+#         return eval(code, {"__builtins__": {}}, allowed_names)
     
-    def convert(d, function, exceptions):
-        '''convert value strings in dictionary to appropriate type using `function`
+#     def convert(d, function, exceptions):
+#         '''convert value strings in dictionary to appropriate type using `function`
         
-        d(dict): dictionary of dictionary of key/value pairs
-        function(`func`): type to convert d into
-        exceptions(tuple of Exceptions): tuple of exception types to ignore'''
-        for section, values in d.items():
-            for key, value in values.items():
-                if isinstance(value, str):
-                    try:
-                        sanitized = function(value)
-                    except exceptions:
-                        sanitized = value
+#         d(dict): dictionary of dictionary of key/value pairs
+#         function(`func`): type to convert d into
+#         exceptions(tuple of Exceptions): tuple of exception types to ignore'''
+#         for section, values in d.items():
+#             for key, value in values.items():
+#                 if isinstance(value, str):
+#                     try:
+#                         sanitized = function(value)
+#                     except exceptions:
+#                         sanitized = value
 
-                    d[section][key] = sanitized
-                else:
-                    d[section][key] = value
-        return d
+#                     d[section][key] = sanitized
+#                 else:
+#                     d[section][key] = value
+#         return d
     
-    # evaluate int, float, basic math: 2+2, 2**15, 23.2 - 19
-    convert(config, eval_expression, (NameError, SyntaxError))
-    # convert remaining strings into booleans (if possible)
-    # use the distuitls strtobool function
-    convert(config, strtobool, (ValueError, AttributeError))
+#     # evaluate int, float, basic math: 2+2, 2**15, 23.2 - 19
+#     convert(config, eval_expression, (NameError, SyntaxError))
+#     # convert remaining strings into booleans (if possible)
+#     # use the distuitls strtobool function
+#     convert(config, strtobool, (ValueError, AttributeError))
     
-    # return converted values and original strings
+#     # return converted values and original strings
     
-    return config
+#     return config
 
 
 
@@ -160,11 +161,11 @@ def get_cmd_line_args():
     
     cmd_args = ArgConfigParse.CmdArgs()
     
-    cmd_args.add_argument('--add_config', 
-                         required=False, default=None, nargs=2,
-                         metavar=('plugin', 'user|daemon'),
-                         ignore_none = True,
-                         help='copy sample config to the user or daemon configuration file')    
+#     cmd_args.add_argument('--add_config', 
+#                          required=False, default=None, nargs=2,
+#                          metavar=('plugin', 'user|daemon'),
+#                          ignore_none = True,
+#                          help='copy sample config to the user or daemon configuration file')    
     
     cmd_args.add_argument('-c', '--config', ignore_none=True, metavar='CONFIG_FILE.ini',
                          type=str, dest='user_config',
@@ -295,18 +296,22 @@ def get_config_files(cmd_args=None):
     # convert command line options into 'key' {'value': value} format
     # this is a little round-about, but keeps all of the merging in one place
     cmd_options_dict = {}
-
-    if isinstance(d, dict):
-        for section, options in d.items():
+    
+    try:
+        cmd_nested_dict = cmd_args.nested_opts_dict
+    except AttributeError:
+        logging.warning('cmd_args: invalid ArgConfigParse.CmdArgs object')
+        cmd_nested_dict = None
+    
+    if isinstance(cmd_nested_dict, dict):
+        for section, options in cmd_nested_dict.items():
             cmd_options_dict[section] = {}
             try:
                 for key, value in options.items():
                     cmd_options_dict[section][key] = {"value": value}
             except AttributeError as e:
                 logging.warning(f'{e}: skipping unparsable command arg: {section}: {options}')
-    else:
-        logging.warning('invalid ArgConfigParse.CmdArgs object')
-
+   
     # merge command lines options into main configuration
     try:
         json_config = jsonmerge.merge(json_config, cmd_options_dict)
@@ -332,27 +337,59 @@ def parse_config(json_config=None):
     Returns:
         dict of dict key/values
         '''
-    
+    logging.debug('processing configuration values')    
     parsed_config = {}
-
-    for section in json_config:
-        parsed_config[section] = {}
-        config_opts = dictor(json_config, section)
-        
-        # handle config "sections" that are not dictionaries
-        if not isinstance(config_opts, dict):
-            data = json_config.get(section, None)
-            logging.info(f'section "{section}" did not contain parsable values, storing data: {data}')
-            parsed_config[section] = data
-            continue
-
-        # search for the key 'value' in each option
-        for option, values in config_opts.items():
-            value = dictor(values, search='value', default=[None])
-            parsed_config[section][option] = value[0]
-
-    return parsed_config
     
+    if not isinstance(json_config, dict):
+        logging.error('no valid JSON data passed')
+        return parsed_config
+
+    # match all keys
+    key_expression = parse('$[*].*')
+    # search specifically for the key 'value'
+    value_expression = parse('$.value')
+
+
+    # process all the expected sections in the config
+    for section in constants.CONFIG_SECTIONS:
+        logging.debug(f'section: {section}')
+        
+        # set the jsonpath search string
+        jsonpath_expression = parse(f'$.{section}.[*]')
+        # find all matching 
+        try:
+            section_vals = [match.value for match in jsonpath_expression.find(json_config)]
+        except TypeError:
+            # pass over key: value sections that have no depth (e.g. config_version: 2.0)
+            parsed_config[section] = json_config[section]
+            continue
+        
+        # create a list of extracted dictionary values
+        extracted_values = []
+        
+        for each in section_vals:
+            value_dict = {}
+            
+            # process all the matched values extracted from the section
+            for match in key_expression.find(each):
+                # further process dictionaries to find the `value` key
+                if isinstance(match.value, dict):
+                    my_match = value_expression.find(match.value)[0].value
+                else:
+                    # else take the flat value
+                    my_match = match.value
+                    
+                value_dict[str(match.path)] = my_match
+            extracted_values.append(value_dict)
+            
+        # flatten out the main section into a dict
+        if section == 'main':
+            parsed_config[section] = extracted_values[0]
+        else:
+            parsed_config[section] = extracted_values
+    
+    
+    return parsed_config
 
 
 
@@ -528,70 +565,96 @@ def build_plugins_list(config, resolution, cache):
                 block['font'] = font
         return layout
     
+    # always append the default plugin and ensure there is at least one plugin in the list
+    config['plugins'].append(
+            {'name': 'Default Plugin',
+             'plugin': 'default'}
+    )
+    plugin_list = config.get('plugins', [])
+       
+    if not isinstance(plugin_list, list):
+        logging.error(f'missing or malformed "plugin" section in config file')
+        return None
+    
     # get the expected key-word args from the Plugin() spec
     spec_kwargs = getfullargspec(Plugin).args
+    try:
+        spec_kwargs.remove('self')
+    except ValueError as e:
+        logging.warning(f'excpected to find kwarg `self` in kwargs: {e}')
+    
+    logging.debug(f'Plugin() spec: {spec_kwargs}')
 
-    plugins = []
-    
-    for section, values in config.items():
-        if section.startswith('Plugin:'):
-            logger.info(f'[[ {section} ]]')
-            
-            plugin_config = {}
-            # add all the spec_kwargs from the config
-            plugin_kwargs = {}
-            for key, val in values.items():
-                if key in spec_kwargs:
-                    plugin_config[key] = val
-                else:
-                    # add everything that is not one of the spec_kwargs to this dict
-                    plugin_kwargs[key] = val
+    plugin_obj_list = []
 
-            # populate the kwargs plugin_config dict that will be passed to the Plugin() object
-            plugin_config['name'] = section
-            plugin_config['resolution'] = resolution
-            plugin_config['config'] = plugin_kwargs
-            plugin_config['cache'] = cache
-            plugin_config['force_onebit'] = config['main']['force_onebit']
-            plugin_config['screen_mode'] = config['main']['screen_mode']
-            plugin_config['plugin_timeout'] = config['main'].get('plugin_timeout', 35)
-            # force layout to one-bit mode for non-HD screens
-#             if not config['main'].get('display_type') == 'HD':
-#                 plugin_config['force_onebit'] = True
-
-            logging.debug(f'plugin_config: {plugin_config}')
+    logging.info(f'processing {len(plugin_list)} plugins from config file')
+    plugin_obj_list = []
     
-            try:
-                module = import_module(f'{constants.PLUGINS}.{values["plugin"]}')
-                plugin_config['update_function'] = module.update_function
-                layout = getattr(module.layout, values['layout'])
-                layout = font_path(layout)
-                plugin_config['layout'] = layout
-            except KeyError as e:
-                logger.info('no module specified; skipping update_function and layout')
-                continue
-            except ModuleNotFoundError as e:
-                logger.warning(f'error: {e} while loading module {constants.PLUGINS}.{values["plugin"]}')
-                logger.warning(f'skipping plugin')
-                continue
-            except AttributeError as e:
-                logger.warning(f'could not find layout "{plugin_config["layout"]}" in {plugin_config["name"]}')
-                logger.warning(f'skipping plugin')
-                continue
-            my_plugin = Plugin(**plugin_config)
-            try:
-                my_plugin.update()
-            except AttributeError as e:
-                logger.warning(f'ignoring plugin {my_plugin.name} due to missing update_function')
-                logger.warning(f'plugin threw error: {e}')
-                continue    
-            logger.info(f'appending plugin {my_plugin.name}')
+    for item in plugin_list:
+        if not isinstance(item, dict):
+            logging.error(f'bad plugin config found in {item}; skipping and attempting to recover')
+            logging.error(f'expected `dict` found: {type(item)}')
+            continue
+           
+        logging.info(f'     >>>configuring {item.get("name", "UNKNOWN")} - {item.get("plugin", "UNKNOWN")}<<<')
+        if not item.get("enabled", True):
+            logging.info('plugin disabled and is not configured')
+            continue
             
+        # extract all of this into separate function 
+        plugin_config = {}
+        plugin_kwargs = {}
+        plugin_module = item.get('plugin', None)
+        for key, value in item.items():
+            if key in spec_kwargs:
+                plugin_config[key] = value
+            else:
+                plugin_kwargs[key] = value
+        
+        # fill in the remaining kwargs
+        plugin_config['resolution'] = resolution
+        plugin_config['cache'] = cache
+        plugin_config['force_onebit'] = config['main']['force_onebit']
+        plugin_config['screen_mode'] = config['main']['screen_mode']
+        plugin_config['plugin_timeout'] = config['main'].get('plugin_timeout', 35)
+        # force layout to one-bit mode for non-HD screens
+        if not config['main'].get('display_type') == 'HD':
+            plugin_config['force_onebit'] = True
     
-            plugins.append(my_plugin)
-            
+        plugin_config['config'] = plugin_kwargs
+        logging.debug(f'plugin_config: {plugin_config}')
+        
+#         plugin_obj_list.append(plugin_config)
+        
+        try:
+            module = import_module(f'{constants.PLUGINS}.{plugin_module}')
+            plugin_config['update_function'] = module.update_function
+            layout = getattr(module.layout, plugin_config.get('layout', 'layout'))
+            layout = font_path(layout)
+            plugin_config['layout'] = layout
+        except KeyError as e:
+            logger.info('no module specified; skipping plugin')
+            continue
+        except ModuleNotFoundError as e:
+            logger.warning(f'error: {e} while loading module {constants.PLUGINS}.{values["plugin"]}')
+            logger.warning(f'skipping plugin')
+            continue
+        except AttributeError as e:
+            logger.warning(f'could not find layout "{plugin_config["layout"]}" in {plugin_config["name"]}')
+            logger.warning(f'skipping plugin')
+            continue
+        my_plugin = Plugin(**plugin_config)
+        try:
+            logging.debug('updating plugin')
+            my_plugin.update()
+        except AttributeError as e:
+            logger.warning(f'ignoring plugin {my_plugin.name} due to missing update_function')
+            logger.warning(f'plugin threw error: {e}')
+            continue    
     
-    return plugins
+        plugin_obj_list.append(my_plugin)   
+        
+    return plugin_obj_list      
 
 
 
@@ -819,9 +882,6 @@ def main():
         print('Fatal error parssing configuartion files. See the logs.')
         return 1    
  
-    # convert all config values to int, float, etc.
-#     config = config_str_to_val(config)
-        
     if cmd_args.options.version:
         print(constants.VERSION_STRING)
         return
@@ -843,23 +903,23 @@ def main():
         run_module.run_module(cmd_args.options.run_plugin_func)
         return    
 
-    if cmd_args.options.add_config:
-        try:
-            my_plugin = cmd_args.options.add_config[0]
-            config_opt = cmd_args.options.add_config[1]
-        except IndexError:
-            my_plugin = None
-            config_opt = None
+#     if cmd_args.options.add_config:
+#         try:
+#             my_plugin = cmd_args.options.add_config[0]
+#             config_opt = cmd_args.options.add_config[1]
+#         except IndexError:
+#             my_plugin = None
+#             config_opt = None
             
-        if config_opt == 'user':
-            config_opt = constants.CONFIG_USER
-        elif config_opt == 'daemon':
-            config_opt = constants.CONFIG_SYSTEM
-        else:
-            config_opt = None
+#         if config_opt == 'user':
+#             config_opt = constants.CONFIG_USER
+#         elif config_opt == 'daemon':
+#             config_opt = constants.CONFIG_SYSTEM
+#         else:
+#             config_opt = None
         
-        run_module.add_config(module=my_plugin, config_file=config_opt)
-        return    
+#         run_module.add_config(module=my_plugin, config_file=config_opt)
+#         return    
     
     log_level = config['main'].get('log_level', 'INFO')
 
@@ -872,7 +932,6 @@ def main():
     logger.setLevel(log_level)
     logging.root.setLevel(log_level)
 
-        
     logger.debug(f'configuration:\n{config}\n\n')
     
     screen_return = setup_display(config)
@@ -920,6 +979,12 @@ def main():
     
     plugins = build_plugins_list(config=config, resolution=screen.resolution, 
                                 cache=cache)
+    
+#     return plugins
+    
+    if not plugins:
+        msg = 'no plugins are configured; see previous errors. Exiting'
+        do_exit(1, msg)
     
     exit_code = update_loop(plugins=plugins, screen=screen, max_refresh=config['main'].get('max_refresh', 5))
     
