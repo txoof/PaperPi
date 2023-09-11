@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "61c6a9ed7766c930284e113183a0cdf9879d311c0a6fc645852d7bc65e5d562c"
+            "sha256": "67fdbeeeb8bd52bf3bd5eb25727ed14b21b72046b88f01621339ca9c58255d21"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -28,6 +28,20 @@
             "index": "piwheels",
             "version": "==0.2.7"
         },
+        "attrs": {
+            "hashes": [
+                "sha256:b5196e1c37ab54ed0a9f528a8c0215a43c4fb666884f5920e0899c0abd8927a4"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==23.1.0"
+        },
+        "decorator": {
+            "hashes": [
+                "sha256:6f519e77644a392d3054e528ba8db527df4246be581d4d43b14f0aacace79cbd"
+            ],
+            "markers": "python_version >= '3.5'",
+            "version": "==5.1.1"
+        },
         "epdlib": {
             "hashes": [
                 "sha256:053da4543cad6a18b58080c64c3616c79bb6d2f264cb6f32eb2d35bd80aa1190"
@@ -40,12 +54,60 @@
             "git": "https://github.com/GregDMeyer/IT8951.git",
             "ref": "67215164a7fc471bc6904f72ad55e51030905a97"
         },
+        "jsonmerge": {
+            "hashes": [
+                "sha256:0a92e05ea8dc80de292c6f603e73280656c38f5954ff844a29c88614a894d5b1"
+            ],
+            "index": "piwheels",
+            "version": "==1.9.2"
+        },
+        "jsonpath-ng": {
+            "hashes": [
+                "sha256:292a93569d74029ba75ac2dc3d3630fc0e17b2df26119a165fa1d498ca47bf65"
+            ],
+            "index": "piwheels",
+            "version": "==1.5.3"
+        },
+        "jsonschema": {
+            "hashes": [
+                "sha256:043dc26a3845ff09d20e4420d6012a9c91c9aa8999fa184e7efcfeccb41e32cb"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==4.19.0"
+        },
+        "jsonschema-specifications": {
+            "hashes": [
+                "sha256:05adf340b659828a004220a9613be00fa3f223f2b82002e273dee62fd50524b1"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==2023.7.1"
+        },
         "pillow": {
             "hashes": [
                 "sha256:c3d151125cf7fad504c9d2b568f546846cb9481169e09c1092f58715d1209e48"
             ],
             "markers": "python_version >= '3.8'",
             "version": "==10.0.0"
+        },
+        "ply": {
+            "hashes": [
+                "sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce"
+            ],
+            "version": "==3.11"
+        },
+        "referencing": {
+            "hashes": [
+                "sha256:449b6669b6121a9e96a7f9e410b245d471e8d48964c67113ce9afe50c8dd7bdf"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==0.30.2"
+        },
+        "rpds-py": {
+            "hashes": [
+                "sha256:b4e104e3312ea704ee9b24c2849a2c214329d6c07d18ca42a9dd9fb21dc12f21"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==0.10.2"
         },
         "rpi.gpio": {
             "hashes": [
@@ -54,6 +116,13 @@
                 "sha256:e5dfec2c4ccb7dbe9eef3dfc76a3b04121fc62d77fd8fbe1a8e841468a1b0c4c"
             ],
             "version": "==0.7.1"
+        },
+        "six": {
+            "hashes": [
+                "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
+            ],
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "version": "==1.16.0"
         },
         "spidev": {
             "hashes": [
@@ -66,9 +135,9 @@
     "develop": {
         "asttokens": {
             "hashes": [
-                "sha256:b15adaccddeeae633d761d331f0f3804d1921f4524067618b2b7ffbb8c55042e"
+                "sha256:02a7aa4502dbf457dd522b0e664fb87aedcee62e16a65a846c0b7d8610e60b62"
             ],
-            "version": "==2.2.1"
+            "version": "==2.4.0"
         },
         "backcall": {
             "hashes": [
@@ -176,6 +245,13 @@
             "index": "piwheels",
             "version": "==0.6.1.3"
         },
+        "exceptiongroup": {
+            "hashes": [
+                "sha256:a94d89a1572b2597e1c610e6f368a88159b410f51c2c46109f4a58e6eca70682"
+            ],
+            "markers": "python_version < '3.11'",
+            "version": "==1.1.3"
+        },
         "executing": {
             "hashes": [
                 "sha256:8a965b7445f3a47d99a8eee45005119eda7efda96242c56d92c2257102379dda"
@@ -205,17 +281,17 @@
         },
         "ipykernel": {
             "hashes": [
-                "sha256:c8a2430b357073b37c76c21c52184db42f6b4b0e438e1eb7df3c4440d120497c"
+                "sha256:2e2ee359baba19f10251b99415bb39de1e97d04e1fab385646f24f0596510b77"
             ],
             "index": "piwheels",
-            "version": "==6.25.1"
+            "version": "==6.25.2"
         },
         "ipython": {
             "hashes": [
-                "sha256:364c04fab135fb30572f194f3fecfc6bfcca848eed39e5c269e10d98f66d00db"
+                "sha256:fb743c445f681db389553e7500a8ddc51b7a15041fda1ea8af4d9dcc620424a5"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==8.14.0"
+            "version": "==8.15.0"
         },
         "jedi": {
             "hashes": [
@@ -226,10 +302,10 @@
         },
         "jupyter-client": {
             "hashes": [
-                "sha256:7441af0c0672edc5d28035e92ba5e32fadcfa8a4e608a434c228836a89df6158"
+                "sha256:5eb9f55eb0650e81de6b7e34308d8b92d04fe4ec41cd8193a913979e33d8e1a5"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==8.3.0"
+            "version": "==8.3.1"
         },
         "jupyter-core": {
             "hashes": [
@@ -371,10 +447,10 @@
         },
         "pytz": {
             "hashes": [
-                "sha256:dcb23b3d3f96b1c61a06ccc55e8b19dbb430b7571dc8a112432909a14dd64063"
+                "sha256:62ed0ef64cf7839badfd9f2552facc9ac55ca72cddcde727c5727c34de3ee8ab"
             ],
             "index": "piwheels",
-            "version": "==2023.3"
+            "version": "==2023.3.post1"
         },
         "pyzmq": {
             "hashes": [
