@@ -1,11 +1,21 @@
 # Change Log
 
+## 0.6.0.0
+
+### Configuration File 
+
+- Configuration file moves to JSON format; INI format is no longer supported.
+
+### Command Line Arguments
+
+- Remove `-a|--add_config` argument
+
+
 ## 0.5.4.1
 
 ### Update installer scripts
 
 Check the OS version and refuse to install on non-32 bit systems. This can be overridden with `install.sh -s`, but requires several manual steps. 
-
 
 ## 0.5.4.0
 
