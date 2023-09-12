@@ -545,16 +545,132 @@ def clean_up(cache=None, screen=None, no_wipe=False):
 
 
 
-def build_plugins_list(config, resolution, cache):
-    '''Build a dictionary of configured plugin objects
+# def build_plugins_list(config, resolution, cache):
+#     '''Build a list of configured plugin objects
     
-    Args:
+#     Args:
+#         config(dict): configuration dictionary 
+#         resolution(tuple): X, Y resolution of screen
+#         cache(obj: Cache): cache object for managing downloads of images
+        
+#     Returns:
+#         list of Plugin'''
+    
+#     def font_path(layout):
+#         '''add font path to layout'''
+#         for k, block in layout.items():
+#             font = block.get('font', None)
+#             if font:
+#                 font = font.format(constants.FONTS)
+#                 block['font'] = font
+#         return layout
+    
+#     # always append the default plugin and ensure there is at least one plugin in the list
+#     config['plugins'].append(
+#             {'name': 'Default Plugin',
+#              'plugin': 'default'}
+#     )
+#     plugin_list = config.get('plugins', [])
+       
+#     if not isinstance(plugin_list, list):
+#         logging.error(f'missing or malformed "plugin" section in config file')
+#         return None
+    
+#     # get the expected key-word args from the Plugin() spec
+#     spec_kwargs = getfullargspec(Plugin).args
+#     try:
+#         spec_kwargs.remove('self')
+#     except ValueError as e:
+#         logging.warning(f'excpected to find kwarg `self` in kwargs: {e}')
+    
+#     logging.debug(f'Plugin() spec: {spec_kwargs}')
+
+#     plugin_obj_list = []
+
+#     logging.info(f'processing {len(plugin_list)} plugins from config file')
+#     plugin_obj_list = []
+    
+#     for item in plugin_list:
+#         if not isinstance(item, dict):
+#             logging.error(f'bad plugin config found in {item}; skipping and attempting to recover')
+#             logging.error(f'expected `dict` found: {type(item)}')
+#             continue
+           
+#         logging.info(f'     >>>configuring {item.get("name", "UNKNOWN")} - {item.get("plugin", "UNKNOWN")}<<<')
+#         if not item.get("enabled", True):
+#             logging.info('plugin disabled and is not configured')
+#             continue
+            
+#         # extract all of this into separate function 
+#         plugin_config = {}
+#         plugin_kwargs = {}
+#         plugin_module = item.get('plugin', None)
+#         for key, value in item.items():
+#             if key in spec_kwargs:
+#                 plugin_config[key] = value
+#             else:
+#                 plugin_kwargs[key] = value
+        
+#         # fill in the remaining kwargs
+#         plugin_config['resolution'] = resolution
+#         plugin_config['cache'] = cache
+#         plugin_config['force_onebit'] = config['main']['force_onebit']
+#         plugin_config['screen_mode'] = config['main']['screen_mode']
+#         plugin_config['plugin_timeout'] = config['main'].get('plugin_timeout', 35)
+#         # force layout to one-bit mode for non-HD screens
+#         if not config['main'].get('display_type') == 'HD':
+#             plugin_config['force_onebit'] = True
+    
+#         plugin_config['config'] = plugin_kwargs
+#         logging.debug(f'plugin_config: {plugin_config}')
+        
+# #         plugin_obj_list.append(plugin_config)
+        
+#         try:
+#             module = import_module(f'{constants.PLUGINS}.{plugin_module}')
+#             plugin_config['update_function'] = module.update_function
+#             layout = getattr(module.layout, plugin_config.get('layout', 'layout'))
+#             layout = font_path(layout)
+#             plugin_config['layout'] = layout
+#         except KeyError as e:
+#             logger.info('no module specified; skipping plugin')
+#             continue
+#         except ModuleNotFoundError as e:
+#             logger.warning(f'error: {e} while loading module {constants.PLUGINS}.{values["plugin"]}')
+#             logger.warning(f'skipping plugin')
+#             continue
+#         except AttributeError as e:
+#             logger.warning(f'could not find layout "{plugin_config["layout"]}" in {plugin_config["name"]}')
+#             logger.warning(f'skipping plugin')
+#             continue
+#         my_plugin = Plugin(**plugin_config)
+#         try:
+#             logging.debug('updating plugin')
+#             my_plugin.update()
+#         except AttributeError as e:
+#             logger.warning(f'ignoring plugin {my_plugin.name} due to missing update_function')
+#             logger.warning(f'plugin threw error: {e}')
+#             continue    
+    
+#         plugin_obj_list.append(my_plugin)   
+        
+#     return plugin_obj_list      
+
+
+
+
+
+
+def configure_plugin(main, config, resolution, cache):
+    '''configure a single plugin
+    
+        Args:
         config(dict): configuration dictionary 
         resolution(tuple): X, Y resolution of screen
         cache(obj: Cache): cache object for managing downloads of images
         
     Returns:
-        dict of Plugin'''
+        list of Plugin'''
     
     def font_path(layout):
         '''add font path to layout'''
@@ -563,19 +679,10 @@ def build_plugins_list(config, resolution, cache):
             if font:
                 font = font.format(constants.FONTS)
                 block['font'] = font
-        return layout
+        return layout    
     
-    # always append the default plugin and ensure there is at least one plugin in the list
-    config['plugins'].append(
-            {'name': 'Default Plugin',
-             'plugin': 'default'}
-    )
-    plugin_list = config.get('plugins', [])
-       
-    if not isinstance(plugin_list, list):
-        logging.error(f'missing or malformed "plugin" section in config file')
-        return None
     
+    logging.info(f'     >>>configuring {config.get("name", "UNKNOWN")} - {config.get("plugin", "UNKNOWN")}<<<')    
     # get the expected key-word args from the Plugin() spec
     spec_kwargs = getfullargspec(Plugin).args
     try:
@@ -583,78 +690,88 @@ def build_plugins_list(config, resolution, cache):
     except ValueError as e:
         logging.warning(f'excpected to find kwarg `self` in kwargs: {e}')
     
-    logging.debug(f'Plugin() spec: {spec_kwargs}')
-
-    plugin_obj_list = []
-
-    logging.info(f'processing {len(plugin_list)} plugins from config file')
-    plugin_obj_list = []
+    logging.debug(f'Plugin() spec: {spec_kwargs}')    
     
-    for item in plugin_list:
-        if not isinstance(item, dict):
-            logging.error(f'bad plugin config found in {item}; skipping and attempting to recover')
-            logging.error(f'expected `dict` found: {type(item)}')
-            continue
-           
-        logging.info(f'     >>>configuring {item.get("name", "UNKNOWN")} - {item.get("plugin", "UNKNOWN")}<<<')
-        if not item.get("enabled", True):
-            logging.info('plugin disabled and is not configured')
-            continue
-            
-        # extract all of this into separate function 
-        plugin_config = {}
-        plugin_kwargs = {}
-        plugin_module = item.get('plugin', None)
-        for key, value in item.items():
-            if key in spec_kwargs:
-                plugin_config[key] = value
-            else:
-                plugin_kwargs[key] = value
-        
-        # fill in the remaining kwargs
-        plugin_config['resolution'] = resolution
-        plugin_config['cache'] = cache
-        plugin_config['force_onebit'] = config['main']['force_onebit']
-        plugin_config['screen_mode'] = config['main']['screen_mode']
-        plugin_config['plugin_timeout'] = config['main'].get('plugin_timeout', 35)
-        # force layout to one-bit mode for non-HD screens
-        if not config['main'].get('display_type') == 'HD':
-            plugin_config['force_onebit'] = True
     
-        plugin_config['config'] = plugin_kwargs
-        logging.debug(f'plugin_config: {plugin_config}')
+    plugin_config = {}
+    plugin_kwargs = {}
+    plugin_module = config.get('plugin', None)
+    exceptions = []
+    
+#     main = config.get('main', {})
+    
+    for key, value in config.items():
+        if key in spec_kwargs:
+            plugin_config[key] = value
+        else:
+            plugin_kwargs[key] = value
+
+    # fill in the remaining kwargs
+    plugin_config['resolution'] = resolution
+    plugin_config['cache'] = cache
+    plugin_config['force_onebit'] = main.get('force_onebit', True)
+    plugin_config['screen_mode'] = main.get('screen_mode', '1')
+    plugin_config['plugin_timeout'] = main.get('plugin_timeout', 35)
+    plugin_config['name'] = main.get('name', 'NO NAME')
+    # force layout to one-bit mode for non-HD screens
+    if not main.get('display_type', None) == 'HD':
+        plugin_config['force_onebit'] = True
+
+    plugin_config['config'] = plugin_kwargs
+    logging.debug(f'plugin_config: {plugin_config}')
+#     except KeyError as e:
+#         msg = f'error configuring plugin: {e}'
+#         logging.warning(msg)
+#         exceptions.append(e)
         
-#         plugin_obj_list.append(plugin_config)
+    try:
+        module = import_module(f'{constants.PLUGINS}.{plugin_module}')
+        plugin_config['update_function'] = module.update_function
+        layout = getattr(module.layout, plugin_config.get('layout', 'layout'))
+        layout = font_path(layout)
+        plugin_config['layout'] = layout
+    except KeyError as e:
+        msg = 'no module specified; skipping plugin'
+        logger.warning(msg)
+        exceptions.append(msg)
+#         continue
+    except ModuleNotFoundError as e:
+        msg = f'error: {e} while loading plugin module; skipping plugin'
+        logger.warning(msg)
+        exceptions.append(msg)
+#         continue
+    except AttributeError as e:
+        msg = f'could not find layout "{plugin_config["layout"]}" in {plugin_config["name"]}; skipping plugin'
+        logger.warning(msg)
+        exceptions.append(msg)
         
-        try:
-            module = import_module(f'{constants.PLUGINS}.{plugin_module}')
-            plugin_config['update_function'] = module.update_function
-            layout = getattr(module.layout, plugin_config.get('layout', 'layout'))
-            layout = font_path(layout)
-            plugin_config['layout'] = layout
-        except KeyError as e:
-            logger.info('no module specified; skipping plugin')
-            continue
-        except ModuleNotFoundError as e:
-            logger.warning(f'error: {e} while loading module {constants.PLUGINS}.{values["plugin"]}')
-            logger.warning(f'skipping plugin')
-            continue
-        except AttributeError as e:
-            logger.warning(f'could not find layout "{plugin_config["layout"]}" in {plugin_config["name"]}')
-            logger.warning(f'skipping plugin')
-            continue
+
+    try:
+        logging.debug(f'creating plugin {plugin_config["name"]}')
         my_plugin = Plugin(**plugin_config)
-        try:
-            logging.debug('updating plugin')
-            my_plugin.update()
-        except AttributeError as e:
-            logger.warning(f'ignoring plugin {my_plugin.name} due to missing update_function')
-            logger.warning(f'plugin threw error: {e}')
-            continue    
+    except TypeError as e:
+        msg = f'failed to create plugin "{plugin_config["name"]}": {e}'
+        logging.warning('msg')
+        exceptions.append(msg)
+        my_plugin = None
     
-        plugin_obj_list.append(my_plugin)   
+    try:
+        logging.debug('updating plugin')
+        my_plugin.update()
+    except (AttributeError, TypeError) as e:
+        msg = f'ignoring plugin "{plugin_config["name"]}" due to errors: {e}'
+        logger.warning(msg)
+        exceptions.append(msg)
+        my_plugin = None
+
         
-    return plugin_obj_list      
+    if len(exceptions) > 0:
+        logging.error(f'errors encountered while creating plugin:')
+        for idx, e in enumerate(exceptions):
+            logging.error(f'     {idx}: {e}')
+
+            
+    return my_plugin       
 
 
 
@@ -901,25 +1018,7 @@ def main():
     
     if cmd_args.options.run_plugin_func:
         run_module.run_module(cmd_args.options.run_plugin_func)
-        return    
-
-#     if cmd_args.options.add_config:
-#         try:
-#             my_plugin = cmd_args.options.add_config[0]
-#             config_opt = cmd_args.options.add_config[1]
-#         except IndexError:
-#             my_plugin = None
-#             config_opt = None
-            
-#         if config_opt == 'user':
-#             config_opt = constants.CONFIG_USER
-#         elif config_opt == 'daemon':
-#             config_opt = constants.CONFIG_SYSTEM
-#         else:
-#             config_opt = None
-        
-#         run_module.add_config(module=my_plugin, config_file=config_opt)
-#         return    
+        return       
     
     log_level = config['main'].get('log_level', 'INFO')
 
@@ -975,10 +1074,44 @@ def main():
             
     cache = CacheFiles(path_prefix=constants.APP_NAME)
     
+    
+    # get a list of all the plugins
+    plugin_list = config.get('plugins', [])
+    
+    # always append the default plugin and ensure there is at least one plugin in the list
+    try:
+        plugin_list.append(
+            {'name': 'Default Plugin',
+             'plugin': 'default'})
+    except (AttributeError) as e:
+        msg = f'error loading plugins: {e}'
+        logging.error(msg)
+        do_exit(1, msg)
 
     
-    plugins = build_plugins_list(config=config, resolution=screen.resolution, 
-                                cache=cache)
+    # list of plugin objects
+    plugins = []
+    
+    if not isinstance(plugin_list, list):
+        msg = f'missing or malformed "plugin" section in config file'
+        logging.error(msg)
+        do_exit(1, msg)
+    
+    for item in plugin_list:
+        if not isinstance(item, dict):
+            logging.error(f'bad plugin config found in {item}; skipping and attempting to recover')
+            logging.error(f'expected `dict` found: {type(item)}')
+            continue 
+        
+        
+        p = configure_plugin(main=config.get('main', {}), config=item, resolution=screen.resolution, cache=cache)
+        if p:
+            plugins.append(p)
+        else:
+            logging.error(f'failed to create plugin due to previous errors')
+    
+#     plugins = build_plugins_list(config=config, resolution=screen.resolution, 
+#                                 cache=cache)
     
 #     return plugins
     
