@@ -183,13 +183,15 @@ class Plugin:
             except TimeOutException as e:
                 logging.warning(e)
             else:
-                if data != self.data:
+                # only update the image if there is new data OR force has been called
+                if data != self.data or force:
                     self.data = data
                     self.layout_obj.update_contents(data)
                     self.image = self.layout_obj.concat()
                     self.hash = self._generate_hash()
                 self.priority = priority
             finally:
+                # reset signal alarm if it was set earlier
                 if self.plugin_timeout > 0:
                     signal.alarm(0)        
         else:
@@ -256,6 +258,10 @@ class Plugin:
     @strict_enforce((list, tuple))
     def resolution(self, resolution):
         self._resolution = resolution
+        try:
+            self.layout_obj.resolution = resolution
+        except AttributeError:
+            pass
     
     @property
     def update_function(self):
@@ -408,7 +414,7 @@ def main():
         priority = self.max_priority
         is_updated = True
         
-        sleep_time = randint(1, 8)
+        sleep_time = randint(1, 4)
         print(f'plugin sleeping for {sleep_time} seconds to simulate delayed response')
         sleep(sleep_time)
 
@@ -440,7 +446,7 @@ def main():
     print('this is a forced update')
     display(p.image)
 
-    for i in range(5):
+    for i in range(4):
         p.resolution = (randint(300, 800), randint(200, 600))
         logging.info(f'plugin resolution set to: {p.resolution}')
 #         p.layout_obj = None
