@@ -24,13 +24,6 @@ logger = logging.getLogger(__name__)
 
 
 
-# logging.basicConfig(level='DEBUG')
-
-
-
-
-
-
 def strict_enforce(*types):
     """strictly enforce type compliance within classes
     
@@ -108,7 +101,7 @@ class Plugin:
             config(`dict`): any kwargs that update function requires
             cache(`CacheFiles` obj): object that can be used for downloading remote files and caching
             force_onebit(`bool`): force layouts to 1bit mode
-            plugin_timeout(`int`): time in seconds to wait for plugin function to return (default: 20)
+            plugin_timeout(`int`): time in seconds to wait for plugin function to return (default: 20, disable timeout: 0)
             kwargs(): any additional kwargs will be ignored
             '''
         
@@ -179,9 +172,12 @@ class Plugin:
                 self.layout_obj.update_contents(self.data)
                 self.hash'''        
         if self._is_ready() or force:
-            logging.info(f'starting update - timeout: {self.plugin_timeout} sec')
-            signal.signal(signal.SIGALRM, self._alarm_handler)
-            signal.alarm(self.plugin_timeout)
+            logging.info(f'starting update')
+            # only timeout when timeout value > 0
+            if self.plugin_timeout > 0:
+                logging.info(f'plugin timeout: {self.plugin_timeout} sec')
+                signal.signal(signal.SIGALRM, self._alarm_handler)
+                signal.alarm(self.plugin_timeout)
             try:
                 is_updated, data, priority = self.update_function(*args, **kwargs)
             except TimeOutException as e:
@@ -194,7 +190,8 @@ class Plugin:
                     self.hash = self._generate_hash()
                 self.priority = priority
             finally:
-                signal.alarm(0)        
+                if self.plugin_timeout > 0:
+                    signal.alarm(0)        
         else:
             pass
         
@@ -216,15 +213,15 @@ class Plugin:
     
     @property
     def plugin_timeout(self):
-        '''timeout in seconds for plugin to respond with data'''
+        '''timeout in seconds for plugin to respond with data. Use 0 to disable timeout'''
         return self._plugin_timeout
     
     @plugin_timeout.setter
     def plugin_timeout(self, timeout):
         if not isinstance(timeout, int):
-            raise ValueError('timeouts must be integers')
-        if timeout < 1:
-            raise ValueError('timeouts must be integer values > 0')
+            raise ValueError('timeout must be integer')
+        if timeout < 0:
+            raise ValueError('timeout must be integer value >= 0')
         self._plugin_timeout = timeout
     
     @property
@@ -306,7 +303,7 @@ class Plugin:
             if values.get('rgb_support', False) and self.screen_mode == 'RGB' and not self.force_onebit:
                 logging.debug(f'{block} supports RGB')
                 values['mode'] = 'RGB'
-        
+    
         self.layout_obj = Layout(resolution=self.resolution, 
                                  layout=layout,
                                  force_onebit=self.force_onebit,
@@ -321,20 +318,61 @@ class Plugin:
 
 
 def main():
-    '''demo of Plugin data type'''
+    '''demo of Plugin object'''
     from random import randint, choice
     from IPython.display import display
     from time import sleep
     bogus_layout = {
+        'l_head': {          
+            'type': 'TextBlock',
+            'image': None,
+            'max_lines': 1,
+            'width': .5,
+            'height': .1,
+            'abs_coordinates': (0, 0),
+            'rand': True,
+            'font': '../fonts/Anton/Anton-Regular.ttf',
+            'bkground': 'BLACK',
+            'fill': 'WHITE'
+        },
+        'r_head': {          
+            'type': 'TextBlock',
+            'image': None,
+            'max_lines': 1,
+            'width': .5,
+            'height': .1,
+            'abs_coordinates': (None, 0),
+            'relative': ('l_head', 'r_head'),
+            'rand': True,
+            'font': '../fonts/Anton/Anton-Regular.ttf',
+            'bkground': 'RED',
+            'fill': 'BLACK'
+        },
+
         'number': {
             'type': 'TextBlock',
             'image': None,
             'max_lines': 1,
-            'width': 1,
-            'height': .5,
-            'abs_coordinates': (0, 0),
+            'width': .6,
+            'height': .4,
+            'abs_coordinates': (0, None),
+            'relative': ('number', 'l_head'),
             'rand': True,
             'font': '../fonts/Anton/Anton-Regular.ttf',
+        },
+        'small_number': {
+            'type': 'TextBlock',
+            'image': None,
+            'max_lines': 1,
+            'width': .4,
+            'height': .5,
+            'abs_coordinates': (None, None),
+            'relative': ('number', 'l_head'),
+            'rand': True,
+            'font': '../fonts/Anton/Anton-Regular.ttf',
+            'fill': 'BLUE',
+            'bkground': 'GREEN',
+            'rgb_support': True
         },
         'text': {
             'abs_coordinates': (0, None),
@@ -342,7 +380,7 @@ def main():
             'type': 'TextBlock',
             'image': None,
             'max_lines': 3,
-            'height': .5,
+            'height': .4,
             'width': 1,
             'rand': True,
             'font': '../fonts/Anton/Anton-Regular.ttf',
@@ -361,24 +399,35 @@ def main():
             'By Jove, my quick study of lexicography won a prize!',
             'How vexingly quick daft zebras jump!'
         ]
-        data = {'number': str(randint(99,9999)), 'text': choice(text)}
+        data = {
+            'l_head': 'This is a header',
+            'r_head': 'aBcD eFgH',
+            'number': str(randint(99,9999)), 
+            'small_number': str(randint(9,99)), 
+            'text': choice(text)}
         priority = self.max_priority
         is_updated = True
         
-        sleep_time = randint(1, 10)
+        sleep_time = randint(1, 8)
         print(f'plugin sleeping for {sleep_time} seconds to simulate delayed response')
         sleep(sleep_time)
 
         return (is_updated, data, priority) 
 
+    config = {
+        'resolution': (300, 200),
+        'max_priority': 1,
+        'refresh_rate': 2,
+        'update_function': bogus_plugin,
+        'layout': bogus_layout,
+        'screen_mode': 'RGB',
+        'plugin_timeout': 3,
+        'name': 'Bogus',
+        'foo': 'bar',
+        'spam': False
+    }
 
-    p = Plugin(resolution=(300, 210), 
-               refresh_rate=2, 
-               max_priority=1, 
-               update_function=bogus_plugin, 
-               layout=bogus_layout,
-               screen_mode='RGB',
-               plugin_timeout=5)
+    p = Plugin(**config)
 
 #     Plugin.update_function = bogus_plugin
     
@@ -392,16 +441,21 @@ def main():
     display(p.image)
 
     for i in range(5):
-        colors = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']
-        fill = choice(colors)
-        colors.remove(fill)
-        bkground = choice(colors)
-        p.layout_obj.update_block_props(block='text', props={'bkground': bkground, 'fill': fill})        
+        p.resolution = (randint(300, 800), randint(200, 600))
+        logging.info(f'plugin resolution set to: {p.resolution}')
+#         p.layout_obj = None
+#         p.layout = bogus_layout
+        for s in bogus_layout:
+            colors = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE', 'BLACK', 'WHITE']
+            fill = choice(colors)
+            colors.remove(fill)
+            bkground = choice(colors)
+            p.layout_obj.update_block_props(block=s, props={'bkground': bkground, 'fill': fill}, force_recalc=True)
+        
         print('trying to update plugin')
         p.force_update()
-        print('displaying image')
+        print(f'displaying image with resolution: {p.resolution}')
         display(p.image)
-#         print('sleep for 1 second')
         sleep(1)
     return p
 
