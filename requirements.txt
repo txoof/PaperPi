@@ -1,0 +1,8 @@
+-i https://www.piwheels.org/simple/
+--extra-index-url https://www.pypi.org/simple
+argconfigparse
+epdlib
+git+https://github.com/GregDMeyer/IT8951.git
+pillow
+rpi.gpio
+spidev

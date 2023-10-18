@@ -1,6 +1,5 @@
 *.pyo
 .python-version
-Pipfile.lock
 */build/*
 */dist/*
 build/*
@@ -12,3 +11,7 @@ tmp/*
 .vscode*
 version.txt
 paperpi/plugins/*/library
+paperpi/IT8951
+venv_*
+*__pycache__*
+venv_activate
