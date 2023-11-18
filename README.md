@@ -76,7 +76,7 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 ## PaperPi Requirements
 
-PaperPi is compatible with 32 bit Raspberry Pi OS Bullseye. Some python dependencies such as *numpy* may not build properly under Buster.
+PaperPi is compatible with 32 bit Raspberry Pi OS Bullseye and Bookworm. 
 
 PaperPi will not automatically install under the 64 bit versions of Raspberry Pi OS. See the [Manual Installation Instructions](#manual-install-for-rpios-64-bit) for 64 bit installs below.
 
@@ -137,6 +137,8 @@ If you would like to remote install from a different remote branch, use:
 `curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
 
 ### Manual Install for RPiOS 64 bit
+
+These instructions are not entirely correct as PaperPi no longer uses Pipenv. Proceed on your own.
 
 PaperPi depends on pre-built wheels from PiWheels to create it's virtual environment. Installing PaperPi. Several critical modules (e.g. Pillow) will fail to install correctly and cause **shed-loads** of dependency errors. 
 
