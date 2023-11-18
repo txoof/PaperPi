@@ -1,2 +1,3 @@
 # core debian packages required for paperpi to function properly
-DEBPKG=( "libtiff5" "libopenjp2-7" "python3-pip" "libatlas-base-dev" "libjpeg-dev")
+# DEBPKG=( "libtiff-dev" "libopenjp2-7" "python3-pip" "libatlas-base-dev" "libjpeg-dev" "cython3" )
+DEBPKG=( "libtiff-dev" "libopenjp2-7" "python3-pip" "python3-venv" )

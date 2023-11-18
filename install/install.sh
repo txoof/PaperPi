@@ -13,7 +13,7 @@ SCRIPT_DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
 
 APPNAME="paperpi"
 LOCALPATH="$SCRIPT_DIR/../paperpi"
-INSTALLPATH="/usr/local/"
+INSTALLPATH="/usr/local/$APPNAME"
 BINPATH="/usr/local/bin/"
 CWD=$(pwd)
 
@@ -28,7 +28,35 @@ SYSTEMD_UNIT_PATH="/etc/systemd/system/$SYSTEMD_UNIT_FILE_NAME"
 CONFIG_FILE_NAME=$APPNAME.ini
 SYSTEM_CONFIG_PATH=/etc/default/$CONFIG_FILE_NAME
 
-SKIP_OS_CHECK=0
+PY_VERSION=$(python3 -c 'import sys; print("{}.{}".format(sys.version_info.major, sys.version_info.minor))')
+PY_MAJOR=$(echo "$PY_VERSION" | cut -d. -f1)
+PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
+
+if [ $PY_MINOR -gt 10 ]
+then
+  PY_311_OPTS="--user --break-system-packages"
+else
+    PY_311_OPTS="--user"
+fi
+
+
+function Help {
+  echo "
+  Install/Uninstall $APPNAME to run at boot
+
+  This installer will install $APPNAME as a daemon service to
+  run at system startup.
+
+  This installer must be run as root.
+
+  options:
+  -h        This help screen
+  -u        uninstall $APPNAME
+  -p        uninstall $APPNAME and purge all config files
+  -s        skip OS version check for manuall install on 64 bit systems
+  "
+
+}
 
 function abort {
   # abort installation with message
@@ -37,22 +65,6 @@ function abort {
   printf "sudo $SCRIPT_DIR/$(basename "$0")\n"
   exit 1
 }
-
-function check_os {
-  if [ "$SKIP_OS_CHECK" -eq 1 ]
-  then
-    echo "skiping OS version checking. YOU'RE ON YOUR OWN!"
-    return 0
-  fi
-
-  echo "checking OS"
-  long_bit=$(getconf LONG_BIT)
-  if [ ! "$long_bit" -eq 32 ]
-  then 
-    abort "PaperPi is supported only on 32 bit versions of RaspberryPi OS. Your version: $long_bit bit. Check README for manual install instructions"
-  fi
-}
-
 
 function stop_daemon {
     echo "checking if $SYSTEMD_UNIT_FILE_NAME is running"
@@ -71,276 +83,230 @@ function stop_daemon {
         abort
       fi
     else  
-      echo "   $SYSTEMD_UNIT_FILE_NAME not running"
+      echo "$SYSTEMD_UNIT_FILE_NAME not running"
     fi
     echo "done"
 }
 
-# install requirements from the plugin requirements-*.txt files
-function install_plugin_requirements {
-
-  if [ $INSTALL -gt 0 ]
-  then
-    echo "Installing requirements in virtual environment for $APPNAME plugins"
-    pushd $INSTALLPATH/$APPNAME
-    # find all the plugin requirements and install using pipenv install 
-    tempfile=$(mktemp)
-    find $SCRIPT_DIR/../paperpi/plugins -type f -name "requirements-*.txt" -exec cat {} >> $tempfile \; 
-    echo "installing Plugin requirements:"
-    cat $tempfile
-    if ! command pipenv install -r $tempfile 
+function check_os {
+    if [ "$SKIP_OS_CHECK" -eq 1 ]
     then
-      popd
-      abort "failed to install python modules" 
+        echo "skiping OS version checking. YOU'RE ON YOUR OWN!"
+        return 0
     fi
-    popd
-  else
-    echo ""
-  fi
+
+    echo "Checking OS"
+
+    long_bit=$(getconf LONG_BIT)
+    if [ ! "$long_bit" -eq 32 ]
+    then 
+        abort "PaperPi is supported only on 32 bit versions of RaspberryPi OS. Your version: $long_bit bit. Check README for manual install instructions"
+    fi
+    echo "OS OK"
+}
+
+function check_permissions {
+    echo "Checking permisisons"
+    if [ "$EUID" -ne 0 ]
+    then
+        echo "
+    This installer requires root permissions and will setup/uninstall 
+    $APPNAME to run at system boot. The installer does the following:
+
+    * copy $APPNAME excutable to $BINPATH
+    * create configuration files in $SYSTEM_CONFIG_PATH
+    * setup systemd unit files in $SYSTEMD_UNIT_FILE_NAME
+    * add user "$APPNAME" to the GPIO and SPI access groups
+
+    Try:
+    $ sudo $0
+
+    To uninstall or purge all files use:
+    $ $0 -u|-p
+        "
+        abort
+    fi
+    echo "Permissions OK"
+}
+
+function check_deb_packages {
+
+    if [ $INSTALL -lt 1 ]
+    then
+        # nothing to do here if not installing
+        echo ""
+    else
+        echo "Checking for required debian packages"
+        halt=0
+
+        missing=()
+
+        # get all the debian_packages-*.txt
+        array=()
+        find $LOCALPATH -name "debian_packages-*.txt" -print0 >tmpfile
+        while IFS=  read -r -d $'\0'; do
+            array+=("$REPLY")
+        done <tmpfile
+        rm -f tmpfile
+
+        # source all the DEBPKG variables 
+        PKGS=()
+        PKGS+=(${CORE_DEB[@]})
+
+        for i in "${array[@]}"
+        do
+            echo "found debian packages for PaperPi module $(basename $i)"
+            source "$i"
+            for i in "${DEBPKG[@]}"
+            do
+            echo "checking $i"
+            if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
+            then
+                echo ""
+                echo "missing $i"
+                echo ""
+                halt=$((halt+1))
+                missing+=( $i )
+            fi
+            done
+        done
+
+        if [[ $halt -gt 0 ]]
+        then
+        echo "$halt required packages are missing."
+        echo "install missing packages with: "
+        echo "sudo apt install ${missing[*]}"
+        echo ""
+        echo "stopping install"
+
+        abort
+        else
+        echo "Required packages OK"
+        fi
+    fi
 
 }
 
+function create_user {
+    if [ $INSTALL -gt 0 ]
+    then
+        echo "Creating user: paperpi"
+        if id "paperpi" &>/dev/null; 
+        then
+            echo "Paperpi user alreay exists"
+        else
+            useradd -m paperpi
+            echo "Created user 'paperpi'"
+        fi
+    fi
+
+    if [ $PURGE -gt 0 ]
+    then
+        echo "Purging paperpi user"
+        userdel -r paperpi
+    fi
+}
+
+
+
 function copy_files {
 
+  rsyncPath=$(dirname $INSTALLPATH)
   if [ $INSTALL -ge 1 ]
   then
 
   # check if existing paperpi is installed
   if [[ -d $INSTALLPATH ]] 
   then
-    echo "Removing existing installation found at $INSTALLPATH$APPNAME"
-    rm -rf $INSTALLPATH$APPNAME
+    echo "Removing existing installation found at $INSTALLPATH"
+    rm -rf $INSTALLPATH
   fi
 
   if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
   then
-    echo "Removing files from $INSTALLPATH$APPNAME"
-    rm -rf $INSTALLPATH$APPNAME
+    echo "Removing files from $INSTALLPATH"
+    rm -rf $INSTALLPATH
   fi
 
-
-
-    echo "Installing files to $INSTALLPATH$APPNAME"
-    rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $INSTALLPATH
-    cp $SCRIPT_DIR/../Pipfile $INSTALLPATH$APPNAME
+    echo "Installing files to $INSTALLPATH"
+    rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $rsyncPath
+    # cp $SCRIPT_DIR/../Pipfile $INSTALLPATH
+    chown -R paperpi:paperpi $INSTALLPATH
   fi
-
-
 }
 
-# create the pipenv for the install using the local python3 interpreter
-function create_pipenv {
 
+function create_venv {
+  venvPath="$INSTALLPATH/venv_$APPNAME"
   if [ $INSTALL -gt 0 ]
   then
-    echo "Creating virtual environment for $APPNAME in $INSTALLPATH$APPNAME"
-    pushd $INSTALLPATH$APPNAME
-    if ! command pipenv install 
-    then
-      popd
-      abort "failed to install python modules"
-    fi
-    popd
-  else
-    echo ""
+    echo "Creating virtual environment in $venvPath"
+    # pushd $INSTALLPATH$APPNAME
+    python3 -m venv $venvPath
+
+
+    tempfile=$(mktemp)
+    # find all the requirements files
+    cat $SCRIPT_DIR/../requirements.txt > $tempfile
+    find $SCRIPT_DIR/../paperpi/plugins -type f -name "requirements-*.txt" -exec cat {} >> $tempfile \;
+    echo "Installing requirements from $tempfile"
+    cat $tempfile
+    $venvPath/bin/python -m pip install -r $tempfile
   fi
-
 }
-
-
-function check_deb_packages {
-
-  if [ $INSTALL -lt 1 ]
-  then
-    # nothing to do here if not installing
-    echo ""
-  else
-    echo "checking for required debian packages"
-    halt=0
-
-    missing=()
-
-    # get all the debian_packages-*.txt
-    array=()
-    find $LOCALPATH -name "debian_packages-*.txt" -print0 >tmpfile
-    while IFS=  read -r -d $'\0'; do
-        array+=("$REPLY")
-    done <tmpfile
-    rm -f tmpfile
-
-    # source all the DEBPKG variables 
-    PKGS=()
-    PKGS+=(${CORE_DEB[@]})
-
-    for i in "${array[@]}"
-    do
-        echo "found debian packages for PaperPi module $(basename $i)"
-        source "$i"
-        for i in "${DEBPKG[@]}"
-        do
-          echo "checking $i"
-          if [ $(dpkg-query -W -f='${Status}' $i | grep -c "ok installed") -eq 0 ]
-          then
-            echo ""
-            echo "missing $i"
-            echo ""
-            halt=$((halt+1))
-            missing+=( $i )
-          fi
-        done
-    done
-
-    if [[ $halt -gt 0 ]]
-    then
-      echo "$halt required packages are missing."
-      echo "install missing packages with: "
-      echo "sudo apt install ${missing[*]}"
-      echo ""
-      echo "stopping install"
-
-      abort
-    else
-      echo "required packages installed"
-    fi
-  fi
-
-}
-
-function check_py_packages {
-  halt=0
-
-  if [ $INSTALL -lt 1 ]
-  then
-    # nothing to do here for purge or uninstall
-    echo ""
-  else
-    echo "installing required python packages with pip3"
-    pip_output=$(pip3 install -r $SCRIPT_DIR/requirements.txt)
-    exit_code=$?
-
-    if [ $exit_code -eq 0 ]
-    then
-      echo "successfully installed requirements"
-    else
-      halt=$((halt+1))
-      echo "failed to install requirements: "
-      echo $pip_output
-    fi
-  fi
-  
-  if [[ $halt -gt 0 ]]
-    then
-      echo "$halt required python packages are not installed. See messages above."
-      echo "Try a manual install with of the packages listed below using:"
-      echo "pip3 install <package name>"
-      echo ""
-      cat $SCRIPT_DIR/requirements.txt
-      echo ""
-      echo "stopping install"
-      abort
-    fi
-
-}
-
-
-# function check_py_packages {
-#   halt=0
-#   missing=()
-
-#   if [ $INSTALL -lt 1 ]
-#   then
-#     # nothing to do here for purge or uninstall
-#     echo ""
-#   else
-#     echo "checking python environment"
-#     echo ""
-#     source $SCRIPT_DIR/required_python_packages.txt
-#     for i in "${REQUIRED_PY[@]}"
-#     do
-#       echo "verifying python package $i"
-#       if ! pip3 show $i > /dev/null 2>&1
-#       then
-#         echo ""
-#         echo "missing $i, attempting to install"
-#         echo ""
-#         pip3 install $i 
-#         if pip3 show $i > /dev/null 2>&1
-#         then
-#           echo ""
-#           echo "missing $i installed successfully. continuing..."
-#           echo ""
-#         else
-#           echo ""
-#           echo "automatic install of $i failed. Manual installation may be required"
-#           echo ""
-#           halt=$((halt+1))
-#           missing+=( $i )
-#         fi
-#       else
-#         echo "...OK"
-#       fi
-#     done
-#   fi
-
-#   if [[ $halt -gt 0 ]]
-#   then
-#     echo "$halt required python packages are missing. See messages above."
-#     echo "install missing packages with:"
-#     echo "sudo pip3 install ${missing[*]}"
-#     echo ""
-#     echo "stopping install"
-#     abort
-#   fi
-# }
 
 function install_executable {
   if [ $INSTALL -gt 0 ]
   then
-    echo "adding executable to ${BINPATH}paperpi"
-    cp $SCRIPT_DIR/paperpi $BINPATH
+    echo "Adding executable to ${BINPATH}paperpi"
+    cp $SCRIPT_DIR/paperpi $BINPATH  
   fi
 
-  if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ] 
+  if [ $UNINSTALL -gt 0 ] || [ $PURGE -gt 0 ]
   then
-    echo "removing excutable at ${BINPATH}paperpi"
-    rm ${BINPATH}paperpi
+    rm $BINPATH/paperpi
   fi
 }
 
-function add_user {
+
+function install_config {
   if [ $INSTALL -gt 0 ]
   then
-    echo "adding user and group $APPNAME"
-    /usr/sbin/useradd --system $APPNAME
-    result=$?
-    if [ $result -ne 0 ] && [ $result -ne 9 ]
-    then
-      echo "failed to add user"
-      echo "install aborted"
-      abort
-    fi
+    echo "Installing system config"
+    INSTALL_CONFIG=0
 
-    /usr/sbin/usermod -a -G spi,gpio $APPNAME
-    if [ $? -ne 0 ]
+    if [[ -f $SYSTEM_CONFIG_PATH ]]
     then
-      echo "failed to add user to groups: spi, gpio"
-      echo "install aborted"
-      abort
+      echo "##########################################
+An existing config file found at $SYSTEM_CONFIG_PATH
+Existing configuration files will not be overwritten
+
+A new version will be added at $SYSTEM_CONFIG_PATH.new
+It may be useful to review the differences between the config files
+Try:
+  $ diff $SYSTEM_CONFIG_PATH $SYSTEM_CONFIG_PATH.new
+"
+    else
+      cp $SCRIPT_DIR/$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH
     fi
   fi
 
   if [ $PURGE -gt 0 ]
   then
-    echo "removing user and group: $APPNAME"
-    /usr/sbin/usermod -G $APPNAME $APPNAME
-    if [ $? -ne 0 ]
+    echo "Purging $SYSTEM_CONFIG_PATH"
+    if [ -f $SYSTEM_CONFIG_PATH ]
     then
-      echo faile to delete user $APPNAME
-      ERRORS=$((ERRORS+1))
+      rm $SYSTEM_CONFIG_PATH
+      if [ $? -ne 0 ]
+      then
+        echo "failed to remove config file"
+        ERRORS=$((ERRORS+1))
+      fi
+    else
+      echo "nothing to remove"
     fi
   fi
 }
-
 
 function install_unit_file {
   if [ $INSTALL -eq 1 ]
@@ -415,47 +381,6 @@ function install_unit_file {
   fi
 }
 
-function install_config {
-  if [ $INSTALL -gt 0 ] 
-  then
-    echo "installing system config"
-    INSTALL_CONFIG=0
-
-    if [[ -f $SYSTEM_CONFIG_PATH ]]
-    then
-      echo "##############################################################"
-      echo "existing config files found at $SYSTEM_CONFIG_PATH"
-      echo "existing files will not be overwritten"
-      echo ""
-      echo "a new version will be added at $SYSTEM_CONFIG_PATH.new"
-      echo "it may be useful to review the differences between the config files"
-      echo "##############################################################"
-      cp $SCRIPT_DIR/$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH.new
-   
-    else
-      echo "adding config file: $SYSTEM_CONFIG_PATH"
-      cp $SCRIPT_DIR/$CONFIG_FILE_NAME $SYSTEM_CONFIG_PATH
-    fi
-  fi
-
-  if [ $PURGE -gt 0 ]
-  then
-    echo "removing $SYSTEM_CONFIG_PATH"
-    if [ -f $SYSTEM_CONFIG_PATH ]
-    then
-      rm $SYSTEM_CONFIG_PATH
-      if [ $? -ne 0 ]
-      then
-        echo "failed to remove config file"
-        ERRORS=$((ERRORS+1))
-      fi
-    else
-      echo "nothing to remove"
-    fi
-  fi
-}
-
-
 function enable_spi {
   if [ $INSTALL -gt 0 ]
   then
@@ -471,7 +396,6 @@ function enable_spi {
     fi
   fi
 }
-
 
 function edit_config {
   if [ $INSTALL -gt 0 ]
@@ -538,11 +462,6 @@ function finish_install()
   then
     echo "uninstall completed"
   fi
-
-  if [ $ERRORS -gt 0 ]
-  then
-    echo "$ERRORS errors occured, please see output above for details"
-  fi
 }
 
   
@@ -555,53 +474,11 @@ function start_service {
 }
 
 
-function check_permissions {
-  if [ "$EUID" -ne 0 ]
-  then
-    echo "
-
-  Try:
-    $ sudo $0
-
-This installer requires root permissions and will setup/uninstall 
-$APPNAME to run at system boot. The installer does the following:
-
-  * copy $APPNAME excutable to $BINPATH
-  * create configuration files in $SYSTEM_CONFIG_PATH
-  * setup systemd unit files in $SYSTEMD_UNIT_FILE_NAME
-  * add user "$APPNAME" to the GPIO and SPI access groups
-
-  To uninstall or purge all files use:
-  $ $0 -u|-p
-"
-  exit 0
-  fi
-}
-
-
-
-function Help {
-  echo "
-  Install/Uninstall $APPNAME to run at boot
-
-  This installer will install $APPNAME as a daemon service to
-  run at system startup.
-
-  This installer must be run as root.
-
-  options:
-  -h        This help screen
-  -u        uninstall $APPNAME
-  -p        uninstall $APPNAME and purge all config files
-  -s        skip OS version check for manuall install on 64 bit systems
-  "
-
-}
-
 ## main program ##
 INSTALL=1
 UNINSTALL=0
 PURGE=0
+SKIP_OS_CHECK=0
 
 while [[ $# -gt 0 ]]; do
   echo "processing $1"
@@ -641,54 +518,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-ERRORS=0
-
-if [ $PURGE -gt 0 ]
-then
-  echo "WARNING all $APPNAME files will be removed including config files!"
-  echo "Proceed?"
-  read -p "n/Y " -n 1 -r
-  echo ""
-
-  if [[ $REPLY =~ ^[Yy]$ ]]
-  then
-    PURGE=1
-  else
-    PURGE=0
-    echo "exiting..."
-    exit 0
-  fi
-fi
-
-# set the pipenv venv to be within the project directory (1)
-export PIPENV_VENV_IN_PROJECT=1
-
 check_os
 stop_daemon
 check_permissions
 check_deb_packages
-check_py_packages
 copy_files
-if [ "$SKIP_OS_CHECK" -eq 1 ]
-then
-  echo " "
-  printf "Basic install completed. You must now manually:
-  - create a pipenv in $INSTALLPATH/$APPNAME
-  - install development plugin requirements from the Pipfile in $INSTALLPATH/$APPNAME
-  - install the entry script in $BINPATH
-  - install the config in /etc/default
-  - install and enable the unit file (optional) 
-  - enable SPI
-  - edit the config in /etc/defaults
-  - cleanup temporary files
-  - start the daemon (optional)
-"
-  exit 0
-fi
-create_pipenv
-install_plugin_requirements
+create_venv
 install_executable
-add_user
 install_config
 install_unit_file
 enable_spi
