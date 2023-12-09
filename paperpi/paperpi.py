@@ -1,10 +1,19 @@
-#!/usr/bin/env python3
-# coding: utf-8
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.0rc0
+#   kernelspec:
+#     display_name: venv_paperpi-9876705927
+#     language: python
+#     name: venv_paperpi-9876705927
+# ---
 
-
-
-
-
+# %load_ext autoreload
+# %autoreload 2
 
 import logging
 import logging.config
@@ -18,41 +27,27 @@ from distutils.util import strtobool
 from time import sleep
 from configparser import DuplicateSectionError
 from configparser import Error as ConfigParserError
+from json import JSONDecodeError
 
-
-
-
-
+# +
 
 import ArgConfigParse
 from epdlib import Screen
 from epdlib.Screen import Update
 from epdlib.Screen import ScreenError
-
-
-
-
-
+# -
 
 from library.Plugin import Plugin
 from library.CacheFiles import CacheFiles
 from library.InterruptHandler import InterruptHandler
 from library import get_help
 from library import run_module
+from library import config_tools
 import my_constants as constants
-
-
-
-
-
 
 # load the logging configuration
 logging.config.fileConfig(constants.LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
-
-
-
-
 
 
 def do_exit(status=0, message=None, **kwargs):
@@ -71,205 +66,6 @@ def do_exit(status=0, message=None, **kwargs):
         sys.exit(status)
     except Exception as e:
         pass
-
-
-
-
-
-
-def config_str_to_val(config):
-    '''convert strings in config dictionary into appropriate types
-             float like strings ('7.1', '100.2', '-1.3') -> to float
-             int like strings ('1', '100', -12) -> int
-             boolean like strings (yes, no, Y, t, f, on, off) -> 0 or 1
-             
-         Args:
-             config(`dict`): nested config.ini style dictionary
-
-         Returns:
-             `dict`'''    
-
-    def eval_expression(string):
-        '''safely evaluate strings allowing only specific names
-        see: https://realpython.com/python-eval-function/
-        
-        e.g. "2**3" -> 8; "True" -> True; '-10.23' -> 10.23
-        
-        Args:
-            string(str): string to attempt to evaluate
-            
-        Returns:
-            evaluated as bool, int, real, etc.'''
-        
-        # set dict of allowed strings to and related names e.g. {"len": len}
-        allowed_names = {}
-        
-        # compile the string into bytecode
-        code = compile(string, "<string>", "eval")
-        
-        # check .co_names on the bytecode object to make sure it only contains allowed names
-        for name in code.co_names:
-            if name not in allowed_names:
-                # raise a NameError for any name that's not allowed
-                raise NameError(f'use of {name} not allowed')
-        return eval(code, {"__builtins__": {}}, allowed_names)
-    
-    def convert(d, function, exceptions):
-        '''convert value strings in dictionary to appropriate type using `function`
-        
-        d(dict): dictionary of dictionary of key/value pairs
-        function(`func`): type to convert d into
-        exceptions(tuple of Exceptions): tuple of exception types to ignore'''
-        for section, values in d.items():
-            for key, value in values.items():
-                if isinstance(value, str):
-                    try:
-                        sanitized = function(value)
-                    except exceptions:
-                        sanitized = value
-
-                    d[section][key] = sanitized
-                else:
-                    d[section][key] = value
-        return d
-    
-    # evaluate int, float, basic math: 2+2, 2**15, 23.2 - 19
-    convert(config, eval_expression, (NameError, SyntaxError))
-    # convert remaining strings into booleans (if possible)
-    # use the distuitls strtobool function
-    convert(config, strtobool, (ValueError, AttributeError))
-    
-    # return converted values and original strings
-    
-    return config
-
-
-
-
-
-
-def get_cmd_line_args():
-    '''process command line arguments
-    
-    Returns:
-        dict of parsed config values'''
-    
-    cmd_args = ArgConfigParse.CmdArgs()
-    
-    cmd_args.add_argument('--add_config', 
-                         required=False, default=None, nargs=2,
-                         metavar=('plugin', 'user|daemon'),
-                         ignore_none = True,
-                         help='copy sample config to the user or daemon configuration file')    
-    
-    cmd_args.add_argument('-c', '--config', ignore_none=True, metavar='CONFIG_FILE.ini',
-                         type=str, dest='user_config',
-                         help='use the specified configuration file')
-    
-    cmd_args.add_argument('-C', '--compatible', required=False,
-                         default=False, action='store_true', 
-                         help='list compatible displays and exit')
-    
-    cmd_args.add_argument('-l', '--log_level', ignore_none=True, metavar='LOG_LEVEL',
-                         type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
-                         dest='main__log_level', help='change the log output level')
-    
-    cmd_args.add_argument('-d', '--daemon', required=False, default=False,
-                         dest='main__daemon', action='store_true', 
-                         help='run in daemon mode (ignore user configuration if found)')    
-    
-    cmd_args.add_argument('--list_plugins', required=False,
-                         default=False, action='store_true', 
-                         help='list all available plugins')
-
-    cmd_args.add_argument('--plugin_info', metavar='[plugin|plugin.function]',
-                         required=False, default=None,
-                         ignore_none=True,
-                         help='get information for plugins and user-facing functions provided by a plugin')   
-    
-    cmd_args.add_argument('--run_plugin_func',
-                         required=False, default=None, nargs='+',
-                         metavar=('plugin.function', 'optional_arg1 arg2 argN'),
-                         ignore_none=True,
-                         help='run a user-facing function for a plugin')
-    
-    cmd_args.add_argument('-V', '--version', required=False, default=False, ignore_false=True,
-                          action='store_true',
-                          help='display version and exit')
-    
-    cmd_args.parse_args()    
-
-    return cmd_args
-
-
-
-
-
-
-def get_config_files(cmd_args):
-    '''read config.ini style files(s)
-    
-    Args: 
-        cmd_args(`ArgConfigParse.CmdArgs` obj)
-        
-    Returns:
-        ArgConfigParse.ConfgifFile'''
-    
-    config_files_dict = {'base': constants.CONFIG_BASE,
-                         'system': constants.CONFIG_SYSTEM,
-                         'user': constants.CONFIG_USER,
-                         'cmd_line': cmd_args.options.user_config}
-    
-    config_files_list = [config_files_dict['base']]
-    
-    if config_files_dict['cmd_line']:
-        config_file = config_files_dict['cmd_line']
-    else:
-        if cmd_args.options.main__daemon:
-            config_file = config_files_dict['system']
-        else:
-            config_file = config_files_dict['user']
-            if not config_file.exists():
-                try:
-                    constants.CONFIG_USER.parent.mkdir(parents=True, exist_ok=True)
-                except PermissionError as e:
-                    msg=f'could not create user configuration directory: {constants.CONFIG_USER.parent}'
-                    logger.critical(msg)
-                    do_exit(1, msg)
-                try:
-                    shutil.copy(constants.CONFIG_BASE, constants.CONFIG_USER)
-                except Exception as e:
-                    msg=f'could not copy user configuration file to {constants.CONFIG_USER}'
-                    logging.critical(1, msg)
-                    do_exit(1, msg)
-                msg = f'''This appears to be the first time PaperPi has been run.
-    A user configuration file created: {constants.CONFIG_USER}
-    At minimum you edit this file and add a display_type and enable one plugin.
-
-    Edit the configuration file with:
-       $ nano {constants.CONFIG_USER}'''
-                do_exit(0, msg)
-        
-    config_files_list.append(config_file)
-    
-    
-    logger.info(f'using configuration files to configure PaperPi: {config_files_list}')
-    config_files = ArgConfigParse.ConfigFile(config_files_list, ignore_missing=True)
-    try:
-        config_files.parse_config()
-    except DuplicateSectionError as e:
-        logger.error(f'{e}')
-        config_files = None
-    except ConfigParserError as e:
-        logging.error(f'error processing config file: {e}')
-        config_files = None
-
-    return config_files
-    
-
-
-
-
 
 
 def clean_up(cache=None, screen=None, no_wipe=False):
@@ -298,10 +94,6 @@ def clean_up(cache=None, screen=None, no_wipe=False):
         
     logging.debug('cleanup completed')
     return    
-
-
-
-
 
 
 def build_plugins_list(config, resolution, cache):
@@ -390,10 +182,6 @@ def build_plugins_list(config, resolution, cache):
     return plugins
 
 
-
-
-
-
 def setup_splash(config, resolution):
     if config['main'].get('splash', False):
         logger.debug('displaying splash screen')
@@ -413,10 +201,6 @@ def setup_splash(config, resolution):
         splash = False
     
     return splash
-
-
-
-
 
 
 def setup_display(config):
@@ -470,10 +254,7 @@ def setup_display(config):
     return ret_obj(obj=screen)    
 
 
-
-
-
-
+# +
 def update_loop(plugins, screen, max_refresh=5):
     def _update_plugins(force_update=False):
         '''private function for updating plugins'''
@@ -587,33 +368,64 @@ def update_loop(plugins, screen, max_refresh=5):
         
     
     
-
-
-
-
-
+# -
 
 def main():
-    cmd_args = get_cmd_line_args()
-    
-    
+    cmd_args = config_tools.get_cmd_line_args()
+
+    # set the default error logging level
+    if not cmd_args.options.main__log_level:
+        logging.root.setLevel('ERROR')
+
+    # bail out and print help when there are unknown args
     if hasattr(cmd_args, 'unknown'):
-        print(f'Unknown arguments: {cmd_args.unknown}\n\n')
+        msg = f'Unknown command line arguments: {cmd_args.unknown}\n\n'
         cmd_args.parser.print_help()
-        return
+        do_exit (1, msg)
+
+    if cmd_args.options.user_config and cmd_args.options.main__daemon:
+        msg = 'Both daemon and user specified config files specified.'
+        cmd_args.parser.print_help()
+        do_exit(1, msg)
+
+    # set the config file
+    if cmd_args.options.main__daemon:
+        daemon_mode = True
+        config_file = Path(constants.CONFIG_SYSTEM)
+    elif cmd_args.options.user_config:
+        config_file = Path(cmd_args.options.user_config).expanduser().absolute()
+    else:
+        daemon_mode = False
+        config_file = Path(constants.CONFIG_USER).expanduser().absolute()
+
+    logger.info(f'configuring {constants.APP_NAME} using config file: {config_file}')
     
-    config_files = get_config_files(cmd_args)
-    
-    if not config_files:
-        print('Fatal error collecting configuration files. See the logs.')
-        return
-    
-    # merge the config files and the command line arguments (right-most overwrites left)
-    config = ArgConfigParse.merge_dict(config_files.config_dict, cmd_args.nested_opts_dict)
-    
-    # convert all config values to int, float, etc.
-    config = config_str_to_val(config)
-        
+    try:
+        config_json = config_tools.load_config(config_file=config_file,
+                                  config_base=constants.CONFIG_BASE,
+                                  plugin_keys=constants.REQ_PLUGIN_KEYS,
+                                  cmd_args=cmd_args)
+    except (PermissionError, OSError, JSONDecodeError) as e:
+        msg = f'Fatal error when loading configuration files: {e}'
+        logger.error(msg)
+        do_exit(1, msg)
+    except Exception as e:
+        msg = f'an unexpected error occured while loading configuration files: {e}'
+        logger.error(msg)
+        do_exit(1, msg)
+
+    config = config_tools.parse_config(json_config=config_json, config_sections=constants.CONFIG_SECTIONS)
+
+    # set the log level
+    log_level = config.get('main', {}).get('log_level', 'WARNING')
+    logger.setLevel(log_level)
+    logging.root.setLevel(log_level)
+
+    if not config:
+        msg = f'fatal error parsing configuration files ({config_file}). See the logs'
+        logger.error(msg)
+        do_exit(1, msg)
+
     if cmd_args.options.version:
         print(constants.VERSION_STRING)
         return
@@ -624,71 +436,53 @@ def main():
         return
     
     if cmd_args.options.list_plugins:
-        get_help.get_help(plugin_path=Path(constants.BASE_DIRECTORY)/'plugins')
+        print('not implemented')
+        # get_help.get_help(plugin_path=Path(constants.BASE_DIRECTORY)/'plugins')
         return
     
     if cmd_args.options.plugin_info:
-        get_help.get_help(cmd_args.options.plugin_info)
+        get_help(cmd_args.options.plugin_info)
         return
     
     if cmd_args.options.run_plugin_func:
         run_module.run_module(cmd_args.options.run_plugin_func)
-        return    
+        return
 
-    if cmd_args.options.add_config:
-        try:
-            my_plugin = cmd_args.options.add_config[0]
-            config_opt = cmd_args.options.add_config[1]
-        except IndexError:
-            my_plugin = None
-            config_opt = None
-            
-        if config_opt == 'user':
-            config_opt = constants.CONFIG_USER
-        elif config_opt == 'daemon':
-            config_opt = constants.CONFIG_SYSTEM
-        else:
-            config_opt = None
-        
-        run_module.add_config(module=my_plugin, config_file=config_opt)
-        return    
     
-    log_level = config['main'].get('log_level', 'INFO')
+    if cmd_args.options.interactive_configure:
+        # interactive_config.main()
+        print('not implemented')
+        return
+
 
     logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
     if cmd_args.options.main__daemon:
         logger.info(f'{constants.APP_NAME} is running in daemon mode')
     else:
         logger.info(f'{constants.APP_NAME} is running in on-demand mode')
-        
-    logger.setLevel(log_level)
-    logging.root.setLevel(log_level)
 
-        
+    # print entire configuration
     logger.debug(f'configuration:\n{config}\n\n')
 
-    
-#     return(config)
-    
     screen_return = setup_display(config)
     
-    if screen_return['obj']:
+    if screen_return.get('obj', False):
         screen = screen_return['obj']
     else:
         clean_up(None, None)
-        logger.error(f'config files used: {config_files.config_files}')
+        logger.error(f'error setting up screen: config files used: {config_files.config_files}')
         do_exit(**screen_return)
     
-    # force to one-bit mode for non HD and non-color screens
-    if screen.mode == '1' or not config['main'].get('color', True):
-        one_bit = True
-    else:
-        one_bit = False
+    # # force to one-bit mode for non HD and non-color screens
+    # if screen.mode == '1' or not config.get('main', {}).get('color', True):
+    #     one_bit = True
+    # else:
+    #     one_bit = False
             
-    config['main']['force_onebit'] = one_bit
-    config['main']['screen_mode'] = screen.mode
+    # config['main']['force_onebit'] = one_bit
+    # config['main']['screen_mode'] = screen.mode
     
-    logging.info('configured')
+    logging.info(f'screen configured: mode: {config.get("main", {}).get("screen_mode", "error getting mode")}, one_bit: {config.get("main", {}).get("force_onebit", "error getting one_bit status")}')
             
     splash = setup_splash(config, screen.resolution)
     
@@ -711,10 +505,50 @@ def main():
             
     cache = CacheFiles(path_prefix=constants.APP_NAME)
     
-
+    # get a list of all the plugins
+    plugin_list = config.get('plugins', [])
     
-    plugins = build_plugins_list(config=config, resolution=screen.resolution, 
-                                cache=cache)
+    # always append the default plugin and ensure there is at least one plugin in the list
+    try:
+        plugin_list.append({'name': 'Default Plugin',
+                           'plugin': 'default'})
+    except (AttributeError) as e:
+        msg = f'error loading plugins: {e}'
+        logging.error(msg)
+        do_exit(1, msg)
+    
+    # list of plugin objects
+    plugins = []
+    
+    if not isinstance(plugin_list, list):
+        msg = f'missing or malformed "plugin" section in config file'
+        logging.error(msg)
+        do_exit(1, msg)
+    
+    for item in plugin_list:
+        if not isinstance(item, dict):
+            logging.error(f'bad plugin config found in {item}; skipping and attempting to recover')
+            logging.error(f'expected `dict` found: {type(item)}')
+            continue 
+        
+        if item.get('enabled', True) == False:
+            logging.info(f'Plugin: {item.get("name", "NO NAME")} is disabled, skipping')
+            continue
+        
+        p = config_tools.configure_plugin(main_cfg=config.get('main', {}), 
+                                         config=item, 
+                                         resolution=screen.resolution, 
+                                         cache=cache,
+                                         font_path=constants.FONTS)
+        if p:
+            plugins.append(p)
+        else:
+            logging.error(f'failed to create plugin due to previous errors')
+    
+
+    if not plugins:
+        msg = 'no plugins are configured; see previous errors. Exiting'
+        do_exit(1, msg)
     
     exit_code = update_loop(plugins=plugins, screen=screen, max_refresh=config['main'].get('max_refresh', 5))
     
@@ -722,13 +556,8 @@ def main():
     
     return  exit_code
 
-
-
-
-
-
 if __name__ == "__main__":
-    # remove jupyter runtime junk for testing
+    # remove jupyter runtime junk for testing in Jupyter
     try:
         i = sys.argv.index('-f')
         t = sys.argv[:i] + sys.argv[i+2:]
@@ -738,6 +567,4 @@ if __name__ == "__main__":
     exit_code = main()
     sys.exit(exit_code)
 
-
-
-
+# !jupyter-nbconvert --to python --template python_clean paperpi.ipynb

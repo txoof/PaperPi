@@ -1,0 +1,58 @@
+{
+    "config_version": 2.0,
+    "main": {
+        "display_type": {
+          "description": "Attached epd display; use HD for all HD screens",
+          "choice": [],
+          "value": "None"
+        },
+        "vcom": {
+          "description": "VCOM voltage for HD screens - see ribbon cable",
+          "value": 0.0,
+          "type": "float"
+        },
+        "max_refresh": {
+          "description": "Maximum partial refreshes before a full screen wipe (HD Screens only)",
+          "value": 4,
+          "type": "int"
+        },
+        "log_level": {
+          "description": "Log output level",
+          "value": "INFO",
+          "choice": ["DEBUG", "INFO", "WARNING", "ERROR"] 
+        },
+        "splash": {
+          "description": "Show splash screen on startup",
+          "value": true,
+          "type": "bool"
+        },
+        "rotation": {
+          "description": "Rotate screen in degrees",
+          "value": 0,
+          "choice": [0, 90, 180, -190],
+          "type": "int"
+        },
+        "mirror": {
+          "description": "Mirror output - Use this only if your screen is reversed (or you like to make your life difficult/interesting)",
+          "value": false,
+          "type": "bool"
+        },
+        "no_wipe": {
+          "description": "Do not wipe screen on shutdown; leave last image on display",
+          "value": false,
+          "type": "bool"
+        },
+        "plugin_timeout": {
+          "description": "Timeout in seconds before a malfunctioning plugin times out",
+          "value": 30,
+          "type": "int"
+        },
+        "daemon": {
+          "description": "Run in daemon mode at boot time (for system installs)",
+          "value": false,
+          "type": "bool"
+        }        
+    },
+    "plugins": {}
+}
+
