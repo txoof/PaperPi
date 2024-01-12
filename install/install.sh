@@ -53,7 +53,6 @@ function Help {
   -h        This help screen
   -u        uninstall $APPNAME
   -p        uninstall $APPNAME and purge all config files
-  -s        skip OS version check for manuall install on 64 bit systems
   "
 
 }
@@ -489,11 +488,11 @@ while [[ $# -gt 0 ]]; do
     shift
     shift
     ;;
-  -s) # skip OS version check
-    SKIP_OS_CHECK=1
-    shift
-    shift
-    ;;
+  # -s) # skip OS version check
+  #   SKIP_OS_CHECK=1
+  #   shift
+  #   shift
+  #   ;;
   -u) # uninstall
     INSTALL=0
     UNINSTALL=1
@@ -518,7 +517,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-check_os
+#check_os
 stop_daemon
 check_permissions
 check_deb_packages

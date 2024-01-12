@@ -327,54 +327,62 @@ Most of the WaveShare screens that support 2/3 color output will also work with 
 
 |Screen            |Supported      |Mode          |
 |:-----------------|:--------------|:-------------|
-|00. epd1in02      |False          |Unsupported   |
-|01. epd1in54      |True           |"1" 1 bit     |
-|02. epd1in54_V2   |True           |"1" 1 bit     |
-|03. epd1in54b     |True           |"1" 1 bit     |
-|04. epd1in54b_V2  |True           |"1" 1 bit     |
-|05. epd1in54c     |True           |"1" 1 bit     |
-|06. epd1in64g     |True           |"1" 1 bit     |
-|07. epd2in13      |True           |"1" 1 bit     |
-|08. epd2in13_V2   |True           |"1" 1 bit     |
-|09. epd2in13_V3   |True           |"1" 1 bit     |
-|10. epd2in13b_V3  |True           |"1" 1 bit     |
-|11. epd2in13b_V4  |True           |"1" 1 bit     |
-|12. epd2in13bc    |True           |"1" 1 bit     |
-|13. epd2in13d     |True           |"1" 1 bit     |
-|14. epd2in36g     |True           |"1" 1 bit     |
-|15. epd2in66      |True           |"1" 1 bit     |
-|16. epd2in66b     |True           |"1" 1 bit     |
-|17. epd2in7       |True           |"1" 1 bit     |
-|18. epd2in7_V2    |True           |"1" 1 bit     |
-|19. epd2in7b      |True           |"1" 1 bit     |
-|20. epd2in7b_V2   |True           |"1" 1 bit     |
-|21. epd2in9       |True           |"1" 1 bit     |
-|22. epd2in9_V2    |True           |"1" 1 bit     |
-|23. epd2in9b_V3   |True           |"1" 1 bit     |
-|24. epd2in9bc     |True           |"1" 1 bit     |
-|25. epd2in9d      |True           |"1" 1 bit     |
-|26. epd3in0g      |True           |"1" 1 bit     |
-|27. epd3in52      |True           |"1" 1 bit     |
-|28. epd3in7       |False          |Unsupported   |
-|29. epd4in01f     |True           |"RGB" 7 Color |
-|30. epd4in2       |True           |"1" 1 bit     |
-|31. epd4in2b_V2   |True           |"1" 1 bit     |
-|32. epd4in2bc     |True           |"1" 1 bit     |
-|33. epd4in37g     |True           |"1" 1 bit     |
-|34. epd5in65f     |True           |"RGB" 7 Color |
-|35. epd5in83      |True           |"1" 1 bit     |
-|36. epd5in83_V2   |True           |"1" 1 bit     |
-|37. epd5in83b_V2  |True           |"1" 1 bit     |
-|38. epd5in83bc    |True           |"1" 1 bit     |
-|39. epd7in3f      |True           |"RGB" 7 Color |
-|40. epd7in3g      |True           |"1" 1 bit     |
-|41. epd7in5       |True           |"1" 1 bit     |
-|42. epd7in5_HD    |True           |"1" 1 bit     |
-|43. epd7in5_V2    |True           |"1" 1 bit     |
-|44. epd7in5b_HD   |True           |"1" 1 bit     |
-|45. epd7in5b_V2   |True           |"1" 1 bit     |
-|46. epd7in5bc     |True           |"1" 1 bit     |
-|47. All HD IT8951 |True           |"L" 8 bit     |
+|00. epd13in3k     |True           |"1" 1 bit     |
+|01. epd1in02      |True           |"1" 1 bit     |
+|02. epd1in54      |True           |"1" 1 bit     |
+|03. epd1in54_V2   |True           |"1" 1 bit     |
+|04. epd1in54b     |True           |"1" 1 bit     |
+|05. epd1in54b_V2  |True           |"1" 1 bit     |
+|06. epd1in54c     |True           |"1" 1 bit     |
+|07. epd1in64g     |True           |"1" 1 bit     |
+|08. epd2in13      |True           |"1" 1 bit     |
+|09. epd2in13_V2   |True           |"1" 1 bit     |
+|10. epd2in13_V3   |True           |"1" 1 bit     |
+|11. epd2in13_V4   |True           |"1" 1 bit     |
+|12. epd2in13b_V3  |True           |"1" 1 bit     |
+|13. epd2in13b_V4  |True           |"1" 1 bit     |
+|14. epd2in13bc    |True           |"1" 1 bit     |
+|15. epd2in13d     |False          |Unsupported   |
+|16. epd2in13g     |True           |"1" 1 bit     |
+|17. epd2in36g     |True           |"1" 1 bit     |
+|18. epd2in66      |True           |"1" 1 bit     |
+|19. epd2in66b     |True           |"1" 1 bit     |
+|20. epd2in66g     |True           |"1" 1 bit     |
+|21. epd2in7       |True           |"1" 1 bit     |
+|22. epd2in7_V2    |True           |"1" 1 bit     |
+|23. epd2in7b      |True           |"1" 1 bit     |
+|24. epd2in7b_V2   |True           |"1" 1 bit     |
+|25. epd2in9       |True           |"1" 1 bit     |
+|26. epd2in9_V2    |True           |"1" 1 bit     |
+|27. epd2in9b_V3   |True           |"1" 1 bit     |
+|28. epd2in9b_V4   |True           |"1" 1 bit     |
+|29. epd2in9bc     |True           |"1" 1 bit     |
+|30. epd2in9d      |False          |Unsupported   |
+|31. epd3in0g      |True           |"1" 1 bit     |
+|32. epd3in52      |True           |"1" 1 bit     |
+|33. epd3in7       |False          |Unsupported   |
+|34. epd4in01f     |True           |"RGB" 7 Color |
+|35. epd4in2       |False          |Unsupported   |
+|36. epd4in26      |True           |"1" 1 bit     |
+|37. epd4in2_V2    |False          |Unsupported   |
+|38. epd4in2b_V2   |True           |"1" 1 bit     |
+|39. epd4in2bc     |True           |"1" 1 bit     |
+|40. epd4in37g     |True           |"1" 1 bit     |
+|41. epd5in65f     |True           |"RGB" 7 Color |
+|42. epd5in83      |True           |"1" 1 bit     |
+|43. epd5in83_V2   |True           |"1" 1 bit     |
+|44. epd5in83b_V2  |True           |"1" 1 bit     |
+|45. epd5in83bc    |True           |"1" 1 bit     |
+|46. epd7in3f      |True           |"RGB" 7 Color |
+|47. epd7in3g      |True           |"1" 1 bit     |
+|48. epd7in5       |True           |"1" 1 bit     |
+|49. epd7in5_HD    |True           |"1" 1 bit     |
+|50. epd7in5_V2    |True           |"1" 1 bit     |
+|51. epd7in5_V2_old|True           |"1" 1 bit     |
+|52. epd7in5b_HD   |True           |"1" 1 bit     |
+|53. epd7in5b_V2   |True           |"1" 1 bit     |
+|54. epd7in5bc     |True           |"1" 1 bit     |
+|55. All HD IT8951 |True           |"L" 8 bit     |
 
 <a name="knownIssues"> </a>
 ## Issues

@@ -7,7 +7,7 @@ VENV_PATH="$PROGRAM_PATH/venv_paperpi"
 
 source "$VENV_PATH/bin/activate"
 
-$(realpath $PROGRAM_PATH/paperpi.py "$@")
+$(realpath $PROGRAM_PATH/paperpi.py) "$@"
 
 deactivate
 

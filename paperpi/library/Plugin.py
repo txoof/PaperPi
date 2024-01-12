@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 # coding: utf-8
-
-
-
-
-
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.0
+#   kernelspec:
+#     display_name: venv_paperpi-9876705927
+#     language: python
+#     name: venv_paperpi-9876705927
+# ---
 
 import logging
 import hashlib
@@ -12,23 +20,7 @@ import time
 import signal
 from epdlib import Layout
 
-
-
-
-
-
 logger = logging.getLogger(__name__)
-
-
-
-
-
-
-# logging.basicConfig(level='DEBUG')
-
-
-
-
 
 
 def strict_enforce(*types):
@@ -51,16 +43,8 @@ def strict_enforce(*types):
     return decorator
 
 
-
-
-
-
 class TimeOutException(Exception):
     pass
-
-
-
-
 
 
 class Plugin:
@@ -113,6 +97,7 @@ class Plugin:
             '''
         
         self.name = name
+        self.priority = 2**15
         self.resolution = resolution
         self.force_onebit = force_onebit
         self.screen_mode = screen_mode
@@ -311,13 +296,6 @@ class Plugin:
                                  layout=layout,
                                  force_onebit=self.force_onebit,
                                  mode=self.screen_mode)
-        
-        
-        
-
-
-
-
 
 
 def main():
@@ -380,8 +358,8 @@ def main():
                screen_mode='RGB',
                plugin_timeout=5)
 
-#     Plugin.update_function = bogus_plugin
-    
+    # Plugin.update_function = bogus_plugin
+
     logger.root.setLevel('INFO')
     print('this demo is best run from inside jupyter notebook')
     p.force_update()

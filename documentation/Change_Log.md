@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.5.5.0
+
+* Deprecated `Crypto` plugin. 
+* Improved install experience for Bookworm (64 Bit)
+
 ## 0.5.4.1
 
 ### Update installer scripts

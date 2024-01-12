@@ -17,16 +17,13 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 
 ![basic_clock sample image](../paperpi/plugins/basic_clock/basic_clock.layout-L-sample.png)
 
-
-
 [end: basic_clock]: #
-
 
 
 [start: crypto]: #
 
-### [crypto](../paperpi/plugins/crypto/README.md)
-![crypto sample image](../paperpi/plugins/crypto/crypto.layout-L-sample.png)
+### crypto
+**NOTE: This plugin is not supported as of V0.5.5**
 
 [end: crypto]: #
 

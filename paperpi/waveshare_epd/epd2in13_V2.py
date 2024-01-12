@@ -128,7 +128,7 @@ class EPD:
         self.send_command(0x20)        
         self.ReadBusy()
         
-    def init(self, update=False):
+    def init(self, update):
         if (epdconfig.module_init() != 0):
             return -1
         # EPD hardware init start

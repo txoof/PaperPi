@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-# coding: utf-8
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.0
+#   kernelspec:
+#     display_name: venv_paperpi-9876705927
+#     language: python
+#     name: venv_paperpi-9876705927
+# ---
 
-
-
-
-
+# %load_ext autoreload
+# %autoreload 2
 
 import logging
 import logging.config
@@ -19,20 +29,10 @@ from time import sleep
 from configparser import DuplicateSectionError
 from configparser import Error as ConfigParserError
 
-
-
-
-
-
 import ArgConfigParse
 from epdlib import Screen
 from epdlib.Screen import Update
 from epdlib.Screen import ScreenError
-
-
-
-
-
 
 from library.Plugin import Plugin
 from library.CacheFiles import CacheFiles
@@ -41,18 +41,9 @@ from library import get_help
 from library import run_module
 import my_constants as constants
 
-
-
-
-
-
 # load the logging configuration
 logging.config.fileConfig(constants.LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
-
-
-
-
 
 
 def do_exit(status=0, message=None, **kwargs):
@@ -71,10 +62,6 @@ def do_exit(status=0, message=None, **kwargs):
         sys.exit(status)
     except Exception as e:
         pass
-
-
-
-
 
 
 def config_str_to_val(config):
@@ -144,10 +131,6 @@ def config_str_to_val(config):
     return config
 
 
-
-
-
-
 def get_cmd_line_args():
     '''process command line arguments
     
@@ -200,10 +183,6 @@ def get_cmd_line_args():
     cmd_args.parse_args()    
 
     return cmd_args
-
-
-
-
 
 
 def get_config_files(cmd_args):
@@ -265,11 +244,6 @@ def get_config_files(cmd_args):
         config_files = None
 
     return config_files
-    
-
-
-
-
 
 
 def clean_up(cache=None, screen=None, no_wipe=False):
@@ -293,15 +267,12 @@ def clean_up(cache=None, screen=None, no_wipe=False):
         try:
             logging.debug('clearing screen')
             screen.clearEPD()
+            screen.module_exit()
         except AttributeError:
             logging.debug('no screen passed, skipping cleanup')
         
     logging.debug('cleanup completed')
     return    
-
-
-
-
 
 
 def build_plugins_list(config, resolution, cache):
@@ -390,10 +361,6 @@ def build_plugins_list(config, resolution, cache):
     return plugins
 
 
-
-
-
-
 def setup_splash(config, resolution):
     if config['main'].get('splash', False):
         logger.debug('displaying splash screen')
@@ -413,10 +380,6 @@ def setup_splash(config, resolution):
         splash = False
     
     return splash
-
-
-
-
 
 
 def setup_display(config):
@@ -470,10 +433,7 @@ def setup_display(config):
     return ret_obj(obj=screen)    
 
 
-
-
-
-
+# +
 def update_loop(plugins, screen, max_refresh=5):
     def _update_plugins(force_update=False):
         '''private function for updating plugins'''
@@ -586,13 +546,9 @@ def update_loop(plugins, screen, max_refresh=5):
         sleep(constants.UPDATE_SLEEP)
         
     
-    
 
 
-
-
-
-
+# +
 def main():
     cmd_args = get_cmd_line_args()
     
@@ -721,11 +677,7 @@ def main():
     clean_up(cache=cache, screen=screen, no_wipe=config['main'].get('no_wipe', False))
     
     return  exit_code
-
-
-
-
-
+# -
 
 if __name__ == "__main__":
     # remove jupyter runtime junk for testing
@@ -737,7 +689,3 @@ if __name__ == "__main__":
         pass
     exit_code = main()
     sys.exit(exit_code)
-
-
-
-

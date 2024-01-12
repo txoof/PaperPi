@@ -1,11 +1,11 @@
 # *****************************************************************************
-# * | File        :	  epd2in7_V2.py
+# * | File        :	  epd4in26.py
 # * | Author      :   Waveshare team
 # * | Function    :   Electronic paper driver
 # * | Info        :
 # *----------------
 # * | This version:   V1.0
-# * | Date        :   2022-09-17
+# * | Date        :   2023-12-20
 # # | Info        :   python demo
 # -----------------------------------------------------------------------------
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,12 +27,13 @@
 # THE SOFTWARE.
 #
 
+
 import logging
 from . import epdconfig
 
 # Display resolution
-EPD_WIDTH       = 176
-EPD_HEIGHT      = 264
+EPD_WIDTH       = 800
+EPD_HEIGHT      = 480
 
 GRAY1  = 0xff #white
 GRAY2  = 0xC0
@@ -54,36 +55,34 @@ class EPD:
         self.GRAY3  = GRAY3 #gray
         self.GRAY4  = GRAY4 #Blackest
 
-    LUT_DATA_4Gray = [
-        0x40,0x48,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-        0x8,0x48,0x10,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-        0x2,0x48,0x4,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-        0x20,0x48,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-        0xA,0x19,0x0,0x3,0x8,0x0,0x0,					
-        0x14,0x1,0x0,0x14,0x1,0x0,0x3,					
-        0xA,0x3,0x0,0x8,0x19,0x0,0x0,					
-        0x1,0x0,0x0,0x0,0x0,0x0,0x1,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x0,0x0,0x0,0x0,0x0,0x0,0x0,					
-        0x22,0x22,0x22,0x22,0x22,0x22,0x0,0x0,0x0,			
-        0x22,0x17,0x41,0x0,0x32,0x1C,
-        ]
+    LUT_DATA_4Gray =  [#  #112bytes										
+        0x80,	0x48,	0x4A,	0x22,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	
+        0x0A,	0x48,	0x68,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	
+        0x88,	0x48,	0x60,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	
+        0xA8,	0x48,	0x45,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	
+        0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,	
+        0x07,	0x1E,	0x1C,	0x02,	0x00,						
+        0x05,	0x01,	0x05,	0x01,	0x02,						
+        0x08,	0x01,	0x01,	0x04,	0x04,						
+        0x00,	0x02,	0x00,	0x02,	0x01,						
+        0x00,	0x00,	0x00,	0x00,	0x00,						
+        0x00,	0x00,	0x00,	0x00,	0x00,						
+        0x00,	0x00,	0x00,	0x00,	0x00,						
+        0x00,	0x00,	0x00,	0x00,	0x00,						
+        0x00,	0x00,	0x00,	0x00,	0x00,						
+        0x00,	0x00,	0x00,	0x00,	0x01,						
+        0x22,	0x22,	0x22,	0x22,	0x22,						
+        0x17,	0x41,	0xA8,	0x32,	0x30,						
+        0x00,	0x00	]
     
     # Hardware reset
     def reset(self):
         epdconfig.digital_write(self.reset_pin, 1)
-        epdconfig.delay_ms(200) 
+        epdconfig.delay_ms(20) 
         epdconfig.digital_write(self.reset_pin, 0)
         epdconfig.delay_ms(2)
         epdconfig.digital_write(self.reset_pin, 1)
-        epdconfig.delay_ms(200)   
+        epdconfig.delay_ms(20)   
 
     def send_command(self, command):
         epdconfig.digital_write(self.dc_pin, 0)
@@ -96,46 +95,86 @@ class EPD:
         epdconfig.digital_write(self.cs_pin, 0)
         epdconfig.spi_writebyte([data])
         epdconfig.digital_write(self.cs_pin, 1)
-        
-    def ReadBusy(self):        
+
+    def send_data2(self, data):
+        epdconfig.digital_write(self.dc_pin, 1)
+        epdconfig.digital_write(self.cs_pin, 0)
+        epdconfig.SPI.writebytes2(data)
+        epdconfig.digital_write(self.cs_pin, 1)
+
+    def ReadBusy(self):
         logger.debug("e-Paper busy")
-        while(epdconfig.digital_read(self.busy_pin) == 1):      #  1: idle, 0: busy
-            epdconfig.delay_ms(20)                
+        busy = epdconfig.digital_read(self.busy_pin)
+        while(busy == 1):
+            busy = epdconfig.digital_read(self.busy_pin)
+            epdconfig.delay_ms(20)
+        epdconfig.delay_ms(20)
         logger.debug("e-Paper busy release")
-    
+
     def TurnOnDisplay(self):
         self.send_command(0x22) #Display Update Control
         self.send_data(0xF7)
         self.send_command(0x20) #Activate Display Update Sequence
         self.ReadBusy()
-        
+
     def TurnOnDisplay_Fast(self):
         self.send_command(0x22) #Display Update Control
         self.send_data(0xC7)
         self.send_command(0x20) #Activate Display Update Sequence
         self.ReadBusy()
-        
-    def TurnOnDisplay_Partial(self):
+
+    def TurnOnDisplay_Part(self):
         self.send_command(0x22) #Display Update Control
         self.send_data(0xFF)
         self.send_command(0x20) #Activate Display Update Sequence
         self.ReadBusy()
-        
+
     def TurnOnDisplay_4GRAY(self):
         self.send_command(0x22) #Display Update Control
         self.send_data(0xC7)
         self.send_command(0x20) #Activate Display Update Sequence
         self.ReadBusy()
+
+    '''
+    function : Setting the display window
+    parameter:
+        xstart : X-axis starting position
+        ystart : Y-axis starting position
+        xend : End position of X-axis
+        yend : End position of Y-axis
+    '''
+    def SetWindow(self, x_start, y_start, x_end, y_end):
+        self.send_command(0x44) # SET_RAM_X_ADDRESS_START_END_POSITION
+        self.send_data(x_start & 0xFF)
+        self.send_data((x_start>>8) & 0x03)
+        self.send_data(x_end & 0xFF)
+        self.send_data((x_end>>8) & 0x03)
         
-    def Lut(self):
-        self.send_command(0x32)
-        for i in range(159):
-            self.send_data(self.LUT_DATA_4Gray[i])
-    
+        self.send_command(0x45) # SET_RAM_Y_ADDRESS_START_END_POSITION
+        self.send_data(y_start & 0xFF)
+        self.send_data((y_start >> 8) & 0xFF)
+        self.send_data(y_end & 0xFF)
+        self.send_data((y_end >> 8) & 0xFF)
+
+    '''
+    function : Set Cursor
+    parameter:
+        x : X-axis starting position
+        y : Y-axis starting position
+    '''
+    def SetCursor(self, x, y):
+        self.send_command(0x4E) # SET_RAM_X_ADDRESS_COUNTER
+        # x point must be the multiple of 8 or the last 3 bits will be ignored
+        self.send_data(x & 0xFF)
+        self.send_data((x>>8) & 0x03)
+        
+        self.send_command(0x4F) # SET_RAM_Y_ADDRESS_COUNTER
+        self.send_data(y & 0xFF)
+        self.send_data((y >> 8) & 0xFF)
+        
     def init(self):
         if (epdconfig.module_init() != 0):
             return -1
-            
         # EPD hardware init start
         self.reset()
         self.ReadBusy()
@@ -143,149 +182,163 @@ class EPD:
         self.send_command(0x12) #SWRESET
         self.ReadBusy()
 
-        self.send_command(0x45) #set Ram-Y address start/end position          
-        self.send_data(0x00)
-        self.send_data(0x00)
-        self.send_data(0x07) #0x0107-->(263+1)=264
+        self.send_command(0x18) # use the internal temperature sensor
+        self.send_data(0x80)
+
+        self.send_command(0x0C) #set soft start     
+        self.send_data(0xAE)
+        self.send_data(0xC7)
+        self.send_data(0xC3)
+        self.send_data(0xC0)
+        self.send_data(0x80)
+
+        self.send_command(0x01)   #      drive output control    
+        self.send_data((self.height-1)%256) #  Y  
+        self.send_data((self.height-1)//256) #  Y 
+        self.send_data(0x02)
+
+        self.send_command(0x3C)        # Border       Border setting 
         self.send_data(0x01)
 
-        self.send_command(0x4F)   # set RAM y address count to 0;    
-        self.send_data(0x00)
-        self.send_data(0x00)
+        self.send_command(0x11)        #    data  entry  mode
+        self.send_data(0x01)           #       X-mode  x+ y-    
 
-        self.send_command(0x11)  # data entry mode
-        self.send_data(0x03)
+        self.SetWindow(0, self.height-1, self.width-1, 0)
+
+        self.SetCursor(0, 0)
+        self.ReadBusy()
+
+        # EPD hardware init end
         return 0
-        
+    
     def init_Fast(self):
         if (epdconfig.module_init() != 0):
             return -1
-            
         # EPD hardware init start
         self.reset()
         self.ReadBusy()
 
         self.send_command(0x12) #SWRESET
         self.ReadBusy()
+        
+        self.send_command(0x18) # use the internal temperature sensor
+        self.send_data(0x80)
+
+        self.send_command(0x0C) #set soft start     
+        self.send_data(0xAE)
+        self.send_data(0xC7)
+        self.send_data(0xC3)
+        self.send_data(0xC0)
+        self.send_data(0x80)
+
+        self.send_command(0x01)   #      drive output control    
+        self.send_data((self.height-1)%256) #  Y  
+        self.send_data((self.height-1)//256) #  Y 
+        self.send_data(0x02)
+
+        self.send_command(0x3C)        # Border       Border setting 
+        self.send_data(0x01)
+
+        self.send_command(0x11)        #    data  entry  mode
+        self.send_data(0x01)           #       X-mode  x+ y-    
+
+        self.SetWindow(0, self.height-1, self.width-1, 0)
+
+        self.SetCursor(0, 0)
+        self.ReadBusy()
+
+        #TEMP (1.5s)
+        self.send_command(0x1A)  
+        self.send_data(0x5A) 
+
+        self.send_command(0x22)  
+        self.send_data(0x91) 
+        self.send_command(0x20) 
+        
+        self.ReadBusy()
+
+        # EPD hardware init end
+        return 0
+
+    def Lut(self):
+        self.send_command(0x32)
+        for count in range(0, 105):
+            self.send_data(self.LUT_DATA_4Gray[count])
+
+        self.send_command(0x03) #VGH      
+        self.send_data(self.LUT_DATA_4Gray[105])
+
+        self.send_command(0x04) #      
+        self.send_data(self.LUT_DATA_4Gray[106]) #VSH1   
+        self.send_data(self.LUT_DATA_4Gray[107]) #VSH2   
+        self.send_data(self.LUT_DATA_4Gray[108]) #VSL   
+
+        self.send_command(0x2C)     #VCOM Voltage
+        self.send_data(self.LUT_DATA_4Gray[109])    #0x1C
+
+    def init_4GRAY(self):
+        if (epdconfig.module_init() != 0):
+            return -1
+        # EPD hardware init start
+        self.reset()
+        self.ReadBusy()
 
         self.send_command(0x12) #SWRESET
         self.ReadBusy()
+        
+        self.send_command(0x18) # use the internal temperature sensor
+        self.send_data(0x80)
 
-        self.send_command(0x18) #Read built-in temperature sensor
-        self.send_data(0x80)	
+        self.send_command(0x0C) #set soft start     
+        self.send_data(0xAE)
+        self.send_data(0xC7)
+        self.send_data(0xC3)
+        self.send_data(0xC0)
+        self.send_data(0x80)
 
-        self.send_command(0x22) # Load temperature value
-        self.send_data(0xB1)	
-        self.send_command(0x20)	
-        self.ReadBusy()
+        self.send_command(0x01)   #      drive output control    
+        self.send_data((self.height-1)%256) #  Y  
+        self.send_data((self.height-1)//256) #  Y 
+        self.send_data(0x02)
 
-        self.send_command(0x1A) # Write to temperature register
-        self.send_data(0x64)	
-        self.send_data(0x00)	
-
-        self.send_command(0x45) #set Ram-Y address start/end position          
-        self.send_data(0x00)   
-        self.send_data(0x00)
-        self.send_data(0x07) #0x0107-->(263+1)=264
+        self.send_command(0x3C)        # Border       Border setting 
         self.send_data(0x01)
 
-        self.send_command(0x4F)   # set RAM y address count to 0;    
-        self.send_data(0x00)
-        self.send_data(0x00)
+        self.send_command(0x11)        #    data  entry  mode
+        self.send_data(0x01)           #       X-mode  x+ y-    
 
-        self.send_command(0x11)   # data entry mode      
-        self.send_data(0x03)
+        self.SetWindow(0, self.height-1, self.width-1, 0)
 
-        self.send_command(0x22) # Load temperature value
-        self.send_data(0x91)	
-        self.send_command(0x20)	
+        self.SetCursor(0, 0)
         self.ReadBusy()
+
+        self.Lut()
+        # EPD hardware init end
         return 0
 
-    def Init_4Gray(self):
-        if (epdconfig.module_init() != 0):
-            return -1
-        self.reset()
-        
-        self.send_command(0x12) # soft reset
-        self.ReadBusy();
-
-        self.send_command(0x74) #set analog block control       
-        self.send_data(0x54)
-        self.send_command(0x7E) #set digital block control          
-        self.send_data(0x3B)
-        
-        self.send_command(0x01) #Driver output control      
-        self.send_data(0x07)
-        self.send_data(0x01)
-        self.send_data(0x00) 
-        
-        self.send_command(0x11) #data entry mode       
-        self.send_data(0x03)
-
-        self.send_command(0x44) #set Ram-X address start/end position   
-        self.send_data(0x00)
-        self.send_data(0x15)   #0x15-->(21+1)*8=176
-
-        self.send_command(0x45) #set Ram-Y address start/end position          
-        self.send_data(0x00)
-        self.send_data(0x00)
-        self.send_data(0x07) #0x0107-->(263+1)=264
-        self.send_data(0x01)
-
-
-        self.send_command(0x3C) #BorderWavefrom
-        self.send_data(0x00)	
-
-
-        self.send_command(0x2C)     #VCOM Voltage
-        self.send_data(self.LUT_DATA_4Gray[158])    #0x1C
-
-
-        self.send_command(0x3F) #EOPQ    
-        self.send_data(self.LUT_DATA_4Gray[153])
-
-        self.send_command(0x03) #VGH      
-        self.send_data(self.LUT_DATA_4Gray[154])
-
-        self.send_command(0x04) #      
-        self.send_data(self.LUT_DATA_4Gray[155]) #VSH1   
-        self.send_data(self.LUT_DATA_4Gray[156]) #VSH2   
-        self.send_data(self.LUT_DATA_4Gray[157]) #VSL   
-
-        self.Lut() #LUT
-
-
-        self.send_command(0x4E)   # set RAM x address count to 0;
-        self.send_data(0x00)
-        self.send_command(0x4F)  # set RAM y address count to 0X199;    
-        self.send_data(0x00)
-        self.send_data(0x00)
-        self.ReadBusy()
-        return 0
 
     def getbuffer(self, image):
         # logger.debug("bufsiz = ",int(self.width/8) * self.height)
-        buf = [0xFF] * (int(self.width/8) * self.height)
+        buf = [0xFF] * (int(self.width / 8) * self.height)
         image_monocolor = image.convert('1')
         imwidth, imheight = image_monocolor.size
         pixels = image_monocolor.load()
         # logger.debug("imwidth = %d, imheight = %d",imwidth,imheight)
-        if(imwidth == self.width and imheight == self.height):
-            logger.debug("Vertical")
+        if imwidth == self.width and imheight == self.height:
+            logger.debug("Horizontal")
             for y in range(imheight):
                 for x in range(imwidth):
                     # Set the bits for the column of pixels at the current position.
                     if pixels[x, y] == 0:
                         buf[int((x + y * self.width) / 8)] &= ~(0x80 >> (x % 8))
-        elif(imwidth == self.height and imheight == self.width):
-            logger.debug("Horizontal")
+        elif imwidth == self.height and imheight == self.width:
+            logger.debug("Vertical")
             for y in range(imheight):
                 for x in range(imwidth):
                     newx = y
                     newy = self.height - x - 1
                     if pixels[x, y] == 0:
-                        buf[int((newx + newy*self.width) / 8)] &= ~(0x80 >> (y % 8))
+                        buf[int((newx + newy * self.width) / 8)] &= ~(0x80 >> (y % 8))
         return buf
     
     def getbuffer_4Gray(self, image):
@@ -323,125 +376,55 @@ class EPD:
                     if(i%4 == 0):
                         buf[int((newx + (newy * self.width))/4)] = ((pixels[x, y-3]&0xc0) | (pixels[x, y-2]&0xc0)>>2 | (pixels[x, y-1]&0xc0)>>4 | (pixels[x, y]&0xc0)>>6) 
         return buf
-    
-    def Clear(self):
-        if(self.width % 8 == 0):
-            Width = self.width // 8
-        else:
-            Width = self.width // 8 +1
-        Height = self.height
-        self.send_command(0x24)
-        for j in range(Height):
-            for i in range(Width):
-                self.send_data(0XFF)
-        self.TurnOnDisplay()
-    
-    def display(self, image):
-        if(self.width % 8 == 0):
-            Width = self.width // 8
-        else:
-            Width = self.width // 8 +1
-        Height = self.height
-        self.send_command(0x24)
-        for j in range(Height):
-            for i in range(Width):
-                self.send_data(image[i + j * Width])
-        self.TurnOnDisplay()
-        
-    def display_Fast(self, image):
-        if(self.width % 8 == 0):
-            Width = self.width // 8
-        else:
-            Width = self.width // 8 +1
-        Height = self.height
-        self.send_command(0x24)
-        for j in range(Height):
-            for i in range(Width):
-                self.send_data(image[i + j * Width])
-        self.TurnOnDisplay_Fast()
-        
-    def display_Base(self, image):
-        if(self.width % 8 == 0):
-            Width = self.width // 8
-        else:
-            Width = self.width // 8 +1
-        Height = self.height
-        self.send_command(0x24)   #Write Black and White image to RAM
-        for j in range(Height):
-            for i in range(Width):
-                self.send_data(image[i + j * Width])
-                
-        self.send_command(0x26)  #Write Black and White image to RAM
-        for j in range(Height):
-            for i in range(Width):
-                self.send_data(image[i + j * Width])
-        self.TurnOnDisplay()
-        
-    def display_Base_color(self, color):
-        if(self.width % 8 == 0):
-            Width = self.width // 8
-        else:
-            Width = self.width // 8 +1
-        Height = self.height
-        self.send_command(0x24)   #Write Black and White image to RAM
-        for j in range(Height):
-            for i in range(Width):
-                self.send_data(color)
-                
-        self.send_command(0x26)  #Write Black and White image to RAM
-        for j in range(Height):
-            for i in range(Width):
-                self.send_data(color)
-        # self.TurnOnDisplay()
-    
-    def display_Partial(self, Image, Xstart, Ystart, Xend, Yend):
-        if((Xstart % 8 + Xend % 8 == 8 & Xstart % 8 > Xend % 8) | Xstart % 8 + Xend % 8 == 0 | (Xend - Xstart)%8 == 0):
-            Xstart = Xstart // 8
-            Xend = Xend // 8
-        else:
-            Xstart = Xstart // 8 
-            if Xend % 8 == 0:
-                Xend = Xend // 8
-            else:
-                Xend = Xend // 8 + 1
-                
-        if(self.width % 8 == 0):
-            Width = self.width // 8
-        else:
-            Width = self.width // 8 +1
-        Height = self.height
 
-        Xend -= 1
-        Yend -= 1
+    def display(self, image):
+        self.send_command(0x24)
+        self.send_data2(image)
+
+        self.TurnOnDisplay()
+
+    def display_Base(self, image):
+        self.send_command(0x24)
+        self.send_data2(image)
+
+        self.send_command(0x26)
+        self.send_data2(image)
+
+        self.TurnOnDisplay()
+
+    def display_Fast(self, image):
+        self.send_command(0x24)
+        self.send_data2(image)
+
+        self.TurnOnDisplay_Fast()
+
+    def display_Partial(self, Image):
         
         # Reset
         self.reset()
 
+        self.send_command(0x18) #BorderWavefrom
+        self.send_data(0x80)
+
         self.send_command(0x3C) #BorderWavefrom
         self.send_data(0x80)
-	
-        self.send_command(0x44)       # set RAM x address start/end, in page 35
-        self.send_data(Xstart & 0xff)    # RAM x address start at 00h;
-        self.send_data(Xend & 0xff)    # RAM x address end at 0fh(15+1)*8->128 
-        self.send_command(0x45)       # set RAM y address start/end, in page 35
-        self.send_data(Ystart & 0xff)    # RAM y address start at 0127h;
-        self.send_data((Ystart>>8) & 0x01)    # RAM y address start at 0127h;
-        self.send_data(Yend & 0xff)    # RAM y address end at 00h;
-        self.send_data((Yend>>8) & 0x01)   
 
-        self.send_command(0x4E)   # set RAM x address count to 0;
-        self.send_data(Xstart & 0xff)
-        self.send_command(0x4F)   # set RAM y address count to 0X127;    
-        self.send_data(Ystart & 0xff)
-        self.send_data((Ystart>>8) & 0x01)
+        self.send_command(0x01)   #      drive output control    
+        self.send_data((self.height-1)%256) #  Y  
+        self.send_data((self.height-1)//256) #  Y 
+
+        self.send_command(0x11)        #    data  entry  mode
+        self.send_data(0x01)           #       X-mode  x+ y-    
+
+        self.SetWindow(0, self.height-1, self.width-1, 0)
+
+        self.SetCursor(0, 0)
 
         self.send_command(0x24)   #Write Black and White image to RAM
-        for j in range(Height):
-            for i in range(Width):
-                if((j > Ystart-1) & (j < (Yend + 1)) & (i > Xstart-1) & (i < (Xend + 1))):
-                    self.send_data(Image[i + j * Width])
-        self.TurnOnDisplay_Partial()
-  
+        self.send_data2(Image)
+
+        self.TurnOnDisplay_Part()
+
     def display_4Gray(self, image):
         self.send_command(0x24)
         for i in range(0, 48000):                     #5808*4  46464
@@ -509,11 +492,19 @@ class EPD:
         
         self.TurnOnDisplay_4GRAY()
 
+    def Clear(self):
+        self.send_command(0x24)
+        self.send_data2([0xFF] * (int(self.width/8) * self.height))
+
+        self.send_command(0x26)
+        self.send_data2([0xFF] * (int(self.width/8) * self.height))
+
+        self.TurnOnDisplay()
+
     def sleep(self):
-        self.send_command(0X10)
+        self.send_command(0x10) # DEEP_SLEEP
         self.send_data(0x01)
         
         epdconfig.delay_ms(2000)
         epdconfig.module_exit()
 ### END OF FILE ###
-
