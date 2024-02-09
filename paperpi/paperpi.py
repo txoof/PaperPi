@@ -569,7 +569,12 @@ def main():
     
     # convert all config values to int, float, etc.
     config = config_str_to_val(config)
+
+    log_level = config['main'].get('log_level', 'INFO')
         
+    logger.setLevel(log_level)
+    logging.root.setLevel(log_level)    
+    
     if cmd_args.options.version:
         print(constants.VERSION_STRING)
         return
@@ -579,17 +584,17 @@ def main():
         Screen.list_compatible()
         return
     
-    if cmd_args.options.list_plugins:
-        get_help.get_help(plugin_path=Path(constants.BASE_DIRECTORY)/'plugins')
-        return
+    # if cmd_args.options.list_plugins:
+    #     get_help.get_help(plugin_path=Path(constants.BASE_DIRECTORY)/'plugins')
+    #     return
     
-    if cmd_args.options.plugin_info:
-        get_help.get_help(cmd_args.options.plugin_info)
-        return
+    # if cmd_args.options.plugin_info:
+    #     get_help.get_help(cmd_args.options.plugin_info)
+    #     return
     
-    if cmd_args.options.run_plugin_func:
-        run_module.run_module(cmd_args.options.run_plugin_func)
-        return    
+    # if cmd_args.options.run_plugin_func:
+    #     run_module.run_module(cmd_args.options.run_plugin_func)
+    #     return    
 
     if cmd_args.options.add_config:
         try:
@@ -611,14 +616,26 @@ def main():
     
     log_level = config['main'].get('log_level', 'INFO')
 
+    if cmd_args.options.list_plugins:
+        get_help.get_help(plugin_path=Path(constants.BASE_DIRECTORY)/'plugins')
+        return
+    
+    if cmd_args.options.plugin_info:
+        get_help.get_help(cmd_args.options.plugin_info)
+        return
+    
+    if cmd_args.options.run_plugin_func:
+        run_module.run_module(cmd_args.options.run_plugin_func)
+        return    
+
+
+    
     logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
     if cmd_args.options.main__daemon:
         logger.info(f'{constants.APP_NAME} is running in daemon mode')
     else:
         logger.info(f'{constants.APP_NAME} is running in on-demand mode')
-        
-    logger.setLevel(log_level)
-    logging.root.setLevel(log_level)
+
 
         
     logger.debug(f'configuration:\n{config}\n\n')
@@ -679,13 +696,26 @@ def main():
     return  exit_code
 # -
 
+# add test arguments here 
+# test_args = ["--run_plugin_func", "lms_client.scan_servers"]
+test_args = []
+
 if __name__ == "__main__":
     # remove jupyter runtime junk for testing
-    try:
+
+    if '-f' in sys.argv:
         i = sys.argv.index('-f')
-        t = sys.argv[:i] + sys.argv[i+2:]
-        sys.argv = t
-    except ValueError:
-        pass
+        if 'jupyter/' in sys.argv[i+1]:
+            try:
+                t = sys.argv[:i] + sys.argv[i+2:]
+                sys.argv = t
+            except ValueError:
+                    pass
+    for i in test_args:
+        if i not in sys.argv:
+            sys.argv.append(i)
+    
     exit_code = main()
     sys.exit(exit_code)
+
+sys.argv

@@ -1,17 +1,18 @@
-#!/usr/bin/env python3
-# coding: utf-8
-
-
-
-
-
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.0
+#   kernelspec:
+#     display_name: venv_paperpi-9876705927
+#     language: python
+#     name: venv_paperpi-9876705927
+# ---
 
 import logging
-
-
-
-
-
 
 import requests
 from epdlib.Screen import Update
@@ -22,11 +23,6 @@ import QueryLMS
 import sys
 from pathlib import Path
 
-
-
-
-
-
 try:
     from . import layout
     from . import constants
@@ -34,16 +30,7 @@ except ImportError:
     import layout
     import constants
 
-
-
-
-
-
 logger = logging.getLogger(__name__)
-
-
-
-
 
 
 def update_function(self):
@@ -226,12 +213,6 @@ def update_function(self):
     return (is_updated, data, priority)
 
 
-
-
-
-
-
-
 # # this code snip simulates running from within the display loop use this and the following
 # # cell to test the output
 # # fugly hack for making the library module available to the plugins
@@ -256,11 +237,6 @@ def update_function(self):
 # test_plugin.update_function = update_function
 # test_plugin.update()
 # test_plugin.image
-
-
-
-
-
 
 def scan_servers(*args, **kwargs):
     """USER FACING HELPER FUNCTION:
@@ -292,7 +268,3 @@ def scan_servers(*args, **kwargs):
             print('\n')
         except KeyError as e:
             pass 
-
-
-
-
