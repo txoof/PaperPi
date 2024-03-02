@@ -3,21 +3,19 @@
 ![sample image for plugin librespot_client](./librespot_client.layout-L-sample.png)
 ```ini
  
-PLUGIN: librespot_client v:0.2.2
+PLUGIN: librespot_client v:0.3.0
 
  
 FUNCTION: update_function
 update function for librespot_client provides now-playing Spotify information
     
-    This plugin pulls and displays information from a Librespot-Java instance running
-    on the same host. SpoCon is a debian package that installs and configures
-    the Librespot service easily.
-    
-    See: 
-      * https://github.com/librespot-org/librespot-java
-      * https://github.com/spocon/spocon -- Raspbian package of librespot
+    This plugin pulls and displays now-playing information from a Librespot instance running on the same host. 
+    Two librespot services are supported:
 
+    * (go-librespot)[https://github.com/devgianlu/go-librespot]
+    * (SpoCon)[https://github.com/spocon/spocon]: [librespot-java wrapper](https://github.com/librespot-org/librespot-java) -- Deprecated in favor of go-librespot
     
+      
     This plugin dynamically changes the priority depending on the status of the librespot
     player. Remember, lower priority values are considered **more** important
     Condition         Priority
@@ -31,7 +29,7 @@ update function for librespot_client provides now-playing Spotify information
       
     Requirements:
         self.config(`dict`): {
-        'player_name': 'SpoCon-Player',   # name of player to track
+        'player_name': 'LibreSpot-Spotify',   # name of player to track
         'idle_timeout': 10,               # timeout for disabling plugin
     }
     self.cache(`CacheFiles` object)
@@ -40,7 +38,7 @@ update function for librespot_client provides now-playing Spotify information
         self(namespace): namespace from plugin object
         
     Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))        
+        tuple: (is_updated(bool), data(dict), priority(int))    
     
 ___________________________________________________________________________
  
@@ -54,10 +52,12 @@ plugin = librespot_client
 refresh_rate = 10
 max_priority = 0
 min_display_time = 15
-# name of librespot player
-player_name = SpoCon-Spotify
+# name of librespot player - use ("*"" to track any and all spotify players)
+player_name = LibreSpot-Spotify
 # time in seconds before plugin is removed from the display loop
 idle_timeout = 10
+# port to search for librespot (if unset, defaults to 24879)
+port = 24879
 
  
 LAYOUTS AVAILABLE:
@@ -75,25 +75,22 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.librespot_cli
    album
    artwork_url
    duration
-   player
+   player_name
    mode
+   id
+   is_playing
 ```
 
 ## Provided Layouts
-
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> album_art_title**
-
-![sample image for plugin album_art_title](./librespot_client.album_art_title-RGB-sample.png) 
-
 
 layout: **album_art_title**
 
 ![sample image for plugin album_art_title](./librespot_client.album_art_title-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> cover_art_only**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> album_art_title**
 
-![sample image for plugin cover_art_only](./librespot_client.cover_art_only-RGB-sample.png) 
+![sample image for plugin album_art_title](./librespot_client.album_art_title-RGB-sample.png) 
 
 
 layout: **cover_art_only**
@@ -101,9 +98,9 @@ layout: **cover_art_only**
 ![sample image for plugin cover_art_only](./librespot_client.cover_art_only-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> cover_art_only**
 
-![sample image for plugin layout](./librespot_client.layout-RGB-sample.png) 
+![sample image for plugin cover_art_only](./librespot_client.cover_art_only-RGB-sample.png) 
 
 
 layout: **layout**
@@ -111,19 +108,24 @@ layout: **layout**
 ![sample image for plugin layout](./librespot_client.layout-L-sample.png) 
 
 
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+
+![sample image for plugin layout](./librespot_client.layout-RGB-sample.png) 
+
+
 layout: **three_rows_text_only**
 
 ![sample image for plugin three_rows_text_only](./librespot_client.three_rows_text_only-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> two_column_three_row**
-
-![sample image for plugin two_column_three_row](./librespot_client.two_column_three_row-RGB-sample.png) 
-
-
 layout: **two_column_three_row**
 
 ![sample image for plugin two_column_three_row](./librespot_client.two_column_three_row-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> two_column_three_row**
+
+![sample image for plugin two_column_three_row](./librespot_client.two_column_three_row-RGB-sample.png) 
 
 
 layout: **two_rows_text_only**

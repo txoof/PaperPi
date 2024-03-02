@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
-# coding: utf-8
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.1
+#   kernelspec:
+#     display_name: venv_paperpi-9876705927
+#     language: python
+#     name: venv_paperpi-9876705927
+# ---
 
-
-
-
+# !jupytext create_documentation.ipynb --update-metadata '{"jupytext":{"executable":"/usr/bin/env python3"}}'
 
 
 import logging
@@ -17,22 +27,12 @@ from pathlib import Path
 import re
 from copy import deepcopy
 
-
-
-
-
-
 try:
     from paperpi.library import get_help, CacheFiles, Plugin
     import paperpi.my_constants as paperpi_constants
 except Exception as e:
     print('This must be run within the paperpi virtual environment.')
-    print(f'Try:\n$ pipenv run {sys.argv[0]}')
     sys.exit(0)
-
-
-
-
 
 
 class ErrorLog:
@@ -107,10 +107,6 @@ class ErrorLog:
 
     def _caller_name(self, level=2):
         return f'{inspect.stack()[level][3]}'
-
-
-
-
 
 
 class Editor:
@@ -399,20 +395,13 @@ class Editor:
             print(i)
 
 
-
-
-
-
 def get_base_prefix_compat():
     """Get base/real prefix, or sys.prefix if there is none."""
-    return getattr(sys, "base_prefix", None) or getattr(sys, "real_prefix", None) or sys.prefix
+    # return getattr(sys, "base_prefix", None) or getattr(sys, "real_prefix", None) or sys.prefix
+    return hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
 
 def in_virtualenv():
-    return get_base_prefix_compat() != sys.prefix
-
-
-
-
+    return get_base_prefix_compat()
 
 
 def check_errors(errorlog, func_name, max_level=30, exit=True):
@@ -732,7 +721,7 @@ def update_readmes(plugin_dict, overwrite_images=False):
     plugin_dict['errors'][errorlog.name] = errorlog
 
     return plugin_dict
-                   
+
 
 
 
@@ -843,7 +832,7 @@ def update_ini_file(plugin_dict):
                 
     plugin_dict['errors'][errorlog.name] = errorlog
     return plugin_dict
-    
+
 
 
 
@@ -934,7 +923,7 @@ def main():
     
     check_errors(errorlog=plugin_dict.get('errors', {}), func_name='update_ini_file', exit=False)
     return plugin_dict
-    
+
         
 
 
@@ -949,7 +938,4 @@ if __name__ == "__main__":
         idx = sys.argv.index('-f')
         del sys.argv[idx:idx+2]    
     r = main()
-
-
-
 
