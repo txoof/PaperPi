@@ -57,6 +57,9 @@ min_display_time = 45
 max_priority = 2
 # storage units in decimal: [KB] KiloByte 10^3; [MB] MegaByte 10^6; [GB] GigaByte 10^12; [TB] TeraByte 10^12
 storage_unit = GB
+# colors for RGB screens
+text_color = BLUE
+bkground_color = WHITE
 
  
 LAYOUTS AVAILABLE:
@@ -72,31 +75,33 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.system_info.s
    diskuse_pct
    diskfree
    diskfree_pct
-   cpuload
+   cpuload_5
+   cpuload_10
+   cpuload_15
    ipaddress
    cputemp
 ```
 
 ## Provided Layouts
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> basic_layout**
-
-![sample image for plugin basic_layout](./system_info.basic_layout-RGB-sample.png) 
-
-
 layout: **basic_layout**
 
 ![sample image for plugin basic_layout](./system_info.basic_layout-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> basic_layout**
 
-![sample image for plugin layout](./system_info.layout-RGB-sample.png) 
+![sample image for plugin basic_layout](./system_info.basic_layout-RGB-sample.png) 
 
 
 layout: **layout**
 
 ![sample image for plugin layout](./system_info.layout-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+
+![sample image for plugin layout](./system_info.layout-RGB-sample.png) 
 
 
 ## Additional Plugin Information

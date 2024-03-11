@@ -1,27 +1,26 @@
-#!/usr/bin/env python3
-# coding: utf-8
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.1
+#   kernelspec:
+#     display_name: venv_paperpi-9876705927
+#     language: python
+#     name: venv_paperpi-9876705927
+# ---
 
-
-
-
-
+# %load_ext autoreload
+# %autoreload 2
 
 import logging
-
-
-
-
-
 
 import requests
 from epdlib.Screen import Update
 from dictor import dictor
-from copy import copy
-
-
-
-
-
+from copy import copy, deepcopy
 
 try:
     from . import layout
@@ -30,30 +29,153 @@ except ImportError:
     import layout
     import constants
 
-
-
-
-
-
 logger = logging.getLogger(__name__)
 
 
+def _request(method='get', url='', **kwargs):
+    '''wrap request in try/except'''
+    
+    try:
+        result = requests.request(method, url, **kwargs)
+    except requests.exceptions.RequestException as e:
+        logger.info(f'query: {method} {url} failed with error: {e}')
+        result = None
+        
+    return result
 
 
+def _detect_api(port=constants.port):
+    '''detect which API is running on the specified port
+
+    Args:
+        port(int)
+    
+    returns:
+        dict'''
+    logger.info('searching for local librespot instances')
+    api = None
+    api_dict = deepcopy(constants.local_api)
+    
+    for api, value in api_dict.items():
+        key = None
+        url = value.get('url', '').format(port=port)
+        logger.debug(f'Polling API {api}: {url}')
+        method = value.get('method')
+        r = _request(method=method, url=url)
+        try:
+            key = r.json().get(value.get('key', None))
+            if key:
+                logger.info(f'{api} API found at {url}')
+                break
+            
+        except (AttributeError, ValueError) as e:
+            api = ''
+            r = None
+    if not api:
+        logger.info(f'no local librespot APIs found on port {port}')
+        logger.debug(f'is there a go-librespot or librespot-java (spocon) instance configured on {port}?')
+        logger.debug(f'try starting a stream first')
+    retval = api_dict.get(api, {})
+    retval['result'] = r
+    retval['url'] = url
+
+    
+
+    return retval
+
+
+def _clean_data(data):
+    try:
+        return {k: str(v) if not v and not v == False else v for k, v in data.items() }
+    except ValueError:
+        return {}
+
+
+def query_ljava(api_dict):
+    # make a shallow copy so the data object can be updated
+    data = copy(constants.data)
+    try:
+        result = api_dict.get('result', None)
+        token = result.json().get('token')
+    except (AttributeError, ValueError):
+        logger.warning('no token was returned; aborting query')
+        return data
+
+    headers = copy(api_dict.get('func_args', {}).get('headers', {}))
+    if not headers:
+        logger.error('critical error in constants.local_api.librespot_java.function_args.headers')
+        return data
+    headers['Authorization'] = headers['Authorization'] + token
+
+    query_url = api_dict.get('func_args', {}).get('query_url', '')
+
+   # use the token to fetch player information from spotify
+    logger.debug(f'fetch player status from Spotify at {query_url}')
+    player_status = _request('get', query_url, headers=headers)
+
+    try:
+        player_json = player_status.json()
+    except (AttributeError, ValueError):
+        logger.info('no player JSON data returned; aborting query')
+        return data
+    
+    mapping = api_dict.get('func_args', {}).get('mapping', None)
+    if not mapping:
+        logger.error('critical error in constants.librespot_java.function_args.mapping')
+        return data
+
+    for key in mapping:
+        data[key] = dictor(player_json, mapping[key])
+
+    if data['is_playing']:
+        data['mode'] = 'play'
+    else:
+        data['mode'] = 'stop'
+
+    return data
+
+
+def query_lgo(api_dict):
+    data = copy(constants.data)
+    try: 
+        # result = api_dict.get('result', None)
+        result = _request(url=api_dict.get('url', ''), method=api_dict.get('method', 'get'))
+        player_json = result.json()
+    except (AttributeError, ValueError):
+        logger.warning('no valid data was returned')
+        return data
+
+    mapping = api_dict.get('func_args', {}).get('mapping', None)
+    if not mapping:
+        logger.error('critical error in constants file')
+        return data
+
+    
+    for key in mapping:
+        data[key] = dictor(player_json, mapping[key])
+    
+    # the key returned is titled "stopped" - invert this to get "is_playing"
+    # may need to do further logic with 'paused' boolean to get if it's actually stopped
+    data['is_playing'] = not data['is_playing']
+
+    if data.get('is_playing', False) and not data.get('paused', True):
+        data['mode'] = 'play'
+    else:
+        data['mode'] = 'stop'
+    
+    return data
 
 
 def update_function(self):
     '''update function for librespot_client provides now-playing Spotify information
     
-    This plugin pulls and displays information from a Librespot-Java instance running
-    on the same host. SpoCon is a debian package that installs and configures
-    the Librespot service easily.
-    
-    See: 
-      * https://github.com/librespot-org/librespot-java
-      * https://github.com/spocon/spocon -- Raspbian package of librespot
+    This plugin pulls and displays now-playing information from a Librespot instance running on the same host. 
+    Two librespot services are supported:
 
+    * (go-librespot)[https://github.com/devgianlu/go-librespot]
+    * (SpoCon)[https://github.com/spocon/spocon]: [librespot-java wrapper](https://github.com/librespot-org/librespot-java) -- Deprecated in favor of go-librespot
     
+      
     This plugin dynamically changes the priority depending on the status of the librespot
     player. Remember, lower priority values are considered **more** important
     Condition         Priority
@@ -67,7 +189,7 @@ def update_function(self):
       
     Requirements:
         self.config(`dict`): {
-        'player_name': 'SpoCon-Player',   # name of player to track
+        'player_name': 'LibreSpot-Spotify',   # name of player to track
         'idle_timeout': 10,               # timeout for disabling plugin
     }
     self.cache(`CacheFiles` object)
@@ -76,226 +198,127 @@ def update_function(self):
         self(namespace): namespace from plugin object
         
     Returns:
-        tuple: (is_updated(bool), data(dict), priority(int))        
+        tuple: (is_updated(bool), data(dict), priority(int))    
     %U'''
-    logging.debug(f'update_function for plugin {self.name}, version {constants.version}')    
-    is_updated = False
-    # make a shallow copy so the data object can be updated through the procedure
-    data = copy(constants.data)
-    priority = 2**15
-    failure = (is_updated, data, priority)
-
-    # add a play_state attribute
-    if not hasattr(self, 'play_state'):
+    def _init():
+        self.inited = True
+        # add a play_state attribute
         self.play_state = 'None'
-    
-    # add the idle timer on first run
-    if not hasattr(self, 'idle_timer'):
-        logging.debug(f'adding idle_timer of class `Update()`')
-        self.idle_timer = Update()    
         
-    # fetch token    
-    logging.debug(f'fetching API access token from librespot player {self.config["player_name"]}')
-    logging.debug(f'requesting spotify API access scope: {constants.spot_scope}')        
-    try:
-        token = requests.post(constants.libre_token_url)
-    except requests.ConnectionError as e:
-        logging.error(f'cannot proceed: failed to pull Spotify token from librespot at url: {constants.libre_token_url}')
-        logging.error(f'{e}')
-        return failure
-    # check token
-    logging.debug('checking API access token')
-    if token.status_code == 200:
-        logging.debug('token OK')
-        try:
-            headers = {'Authorization': 'Bearer ' + token.json()['token']}
-        except JSONDecodeError as e:
-            logging.error(f'failed to decode token JSON object: {e}')
-            return failure
-    else:
-        logging.info(f'cannot proceed: no token available from librespot status: {token.status_code}')
-        return failure
-    
-    # use the token to fetch player information from spotify
-    logging.debug('fetch player status from Spotify')
-    if 'Authorization' in headers:
-        try:
-            player_status = requests.get(constants.spot_player_url, headers=headers)
-        except requests.exceptions.RequestException as e:
-            logging.warning(f'failed to get player status: {e}')
-            return failure
-            
-#             player_status = None
-    else:
-        logging.error(f'cannot proceed: no valid Authroization token found in response from librespot: {headers}')
-        return failure    
-    
-    logging.debug('checking player_status')
-    if player_status.status_code == 200:
-        try:
-            logging.debug('gathering json data')
-            player_json = player_status.json()
-        except JSONDecodeError as e:
-            logging.error(f'cannot proceed: failed to decode player status JSON object: {e}')
-            return failure
-                
-        # bail out if the player name does not match
-        if not dictor(player_json, 'device.name').lower() == self.config['player_name'].lower():
-            logging.info(f'{self.config["player_name"]} is not active: no data')
-            return failure
-    else:
-        logging.info(f'{self.config["player_name"]} does not appear to be available')
-        return failure
+        # add the idle timer on first run
+        self.idle_timer = Update()
+
+        # add a data dictionary
+        self.data = copy(constants.data)
         
-    # map spotify keys to local values
-    for key in constants.spot_map:
-        data[key] = dictor(player_json, constants.spot_map[key])
+        # add port attribute
+        self.port = self.config.get('port') or constants.port
 
-    if 'artwork_url' in data and 'id' in data:
-        # set the file_id to use the private cache
-        file_id = f'{constants.private_cache}/{data["id"]}'
-#         data['coverart'] = self.cache.cache_file(url=data['artwork_url'], file_id=data['id'])
-        data['coverart'] = self.cache.cache_file(url=data['artwork_url'], file_id=file_id)
+        self.max_priority = self.config.get('max_priority', 0)
 
-    playing = dictor(player_status.json(), 'is_playing')
-    if playing is True:
-        logging.debug(f'{self.config["player_name"]} is playing')
-        data['mode'] = 'play'
-        # if the data has not changed, keep priority; else, bump the priority 
-        if self.data == data:
-            logging.debug('data matches')
-            priority = self.max_priority
+    if not hasattr(self, 'inited'):
+        _init()
+    
+    def _failure(reason=None):
+        if reason:
+            logger.info(f'update aborted due to: {reason}')
         else:
-            logging.debug('data does not match')
+            logger.info('update aborted for uknown reason')
+        return (False, constants.data, 2**15)        
+        
+    self.api = _detect_api(port=self.port)
+    is_updated = False
+    data = copy(constants.data)
+    priority = 2**15    
+
+    if  not self.api.get('result'):
+        reason =  f'No API appears to be available on configured port {self.config.get("port")}'
+        return _failure(reason)
+
+    query_function = self.api.get('function', None)
+    if query_function in globals():
+        logger.debug(f'using query function {query_function}')
+        self.query_function = globals()[query_function]
+    else:
+        reason = ('failed to find a local librespot API query function')
+        logging.warning(reason)
+        return _failure(reason)
+
+
+    query_data = self.query_function(self.api)
+
+    if not query_data:
+        reason = f'{self.query_function} failed to return data'
+        return _failure(reason)
+
+    logging.debug(f'query data:\n{query_data}')
+
+    player_name = query_data.get('player_name', '')
+
+    if player_name.lower() == self.config.get('player_name').lower() or self.config.get('player_name') == '*':
+        logger.debug(f'found player with name: {player_name}')
+    else:
+        reason = f'this plugin is set to track player "{self.config.get("player_name")}", but found player name: "{player_name}"'
+        return _failure(reason)
+
+    # save the query_data into the data object
+    for key in data:
+        logger.debug(f'{key}:{query_data.get(key)}')
+        data[key] = query_data.get(key, "Not Provided")
+        
+    if data.get('mode', False) == 'play':
+        priority = self.max_priority - 1
+        logger.info(f'configured player, {self.config["player_name"]}, is playing')
+        if data.get('artwork_url'):
+            file_id = f'{constants.private_cache}/{data.get("artwork_url").split("/")[-1]}'
+            logger.debug(f'file_id to cache: {file_id}')
+            data['coverart'] = self.cache.cache_file(url=data.get('artwork_url'), file_id=file_id)
+        if data.get('id') != self.data.get('id'):
             priority = self.max_priority - 1
-            
-        self.play_state = 'play'
+            logger.debug(f'increasing priority to {priority}')
         is_updated = True
-        
-    elif playing is False:
-        data['mode'] = 'pause'
-        ## moving from "play" to "pause", decrease priority
-        if self.play_state == 'play':
+    elif data.get('mode', False) == 'stop':
+        logger.info(f'configured player, {self.config["player_name"]} is stopped')
+        # check the previous data['mode'] state
+        if self.data.get('mode') == 'play':
+            priority = self.max_priority + 1
+            logger.info(f'entering "pause" mode & starting idle timer and changing priority to {priority}')
             self.idle_timer.update()
-            priority = self.max_priority + 1
-        
-        # if the idle timer has expired, decrease priority
-        if self.idle_timer.last_updated > self.config['idle_timeout']:
+            is_updated = True
+
+        # set the priority low if the idle_timer expires
+        if self.idle_timer.last_updated >= self.config.get('idle_timeout', 5) and priority < self.max_priority + 3:
             priority = self.max_priority + 3
-        else:
-            priority = self.max_priority + 1
+            logger.info(f'idle_timer expired, enering low priority mode: {priority}')
+            is_updated = True    
 
-        self.play_state = 'pause'        
-        is_updated = True
-        
-    else:
-        self.plays_state = None
-        data['mode'] = None
-        priority = 2**15
-        is_updated = False
     
-    # clean stale data out of cache
-#     self.cache.remove_stale(d=constants.expire_cache)
-    self.cache.remove_stale(d=constants.expire_cache, path=constants.private_cache)
+
     
-    logging.info(f'priority set to: {priority}')
-    return is_updated, data, priority
+    return (is_updated, data, priority)
 
 
 
-
-
-
-# logging.root.setLevel('DEBUG')
-
-# # use this for testing
-# from SelfDummy import SelfDummy
-# from CacheFiles import CacheFiles
-# from epdlib import Layout
-# self = SelfDummy()
-# self.max_priority = 0
-# self.config = {'player_name': 'Spocon-Spotify',
-#                'idle_timeout': 5}
-# self.cache = CacheFiles()
-
-# dir_path = '.'
-# my_l = {
-#     'title': {
-#         'image': False,
-#         'max_lines': 3,
-#         'padding': 0,
-#         'width': 1,
-#         'height': .70,
-#         'abs_coordinates': (0, 0),
-#         'hcenter': True,
-#         'vcenter': True,
-#         'align': 'left',
-#         'relative': False,
-#         'mode': 'L',
-#         'font': dir_path+'/../../fonts/Oswald/static/Oswald-Medium.ttf'
-#     },
-#     'artist': {
-#         'image': False,
-#         'max_lines': 2,
-#         'width': 1,
-#         'height': .20,
-#         'abs_coordinates': (0, None),     
-#         'hcenter': True,
-#         'vcenter': True,
-#         'relative': ['artist', 'title'],
-#         'mode': 'L',
-#         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf'
-#     },
-#     'album': {
-#         'image': False,
-#         'max_lines': 1,
-#         'width': 1,
-#         'height': .1,
-#         'abs_coordinates': (0, None),
-#         'hcenter': True,
-#         'vcenter': True,
-#         'relative': ['album', 'artist'],
-#         'mode': 'L',
-#         'font': dir_path+'/../../fonts/Montserrat/Montserrat-SemiBold.ttf'
-#     },     
+# +
+# this code snip simulates running from within the display loop use this and the following
+# # cell to test the output
+# # !ln -s ../library
+# import logging
+# logger.root.setLevel('DEBUG')
+# from library.CacheFiles import CacheFiles
+# from library.Plugin import Plugin
+# from IPython.display import display
+# test_plugin = Plugin(resolution=(800, 600), screen_mode='RGB')
+# test_plugin.config = {
+#     'player_name': 'SpoCon-Spotify',
+#     'bkground_color': 'White',
+#     'port': 24879
 # }
-
-# l = Layout(resolution=(1200, 800))
-# l.layout = my_l
-
-
-
-
-
-
-# # test layouts with this code snip
-# u, d, p = update_function(self)
-# # if u != self.data:
-# self.data = d
-# print(f'idle timer: {self.idle_timer.last_updated}, idle_timeout {self.config["idle_timeout"]}')
-# print(p)
-# print(d)
-# # print('*'*50)
-# # print(self.data)
-
-
-# logging.root.setLevel('DEBUG')
-
-
-# l.update_contents(d)
-# l.concat()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# test_plugin.refresh_rate = 5
+# # l = layout.layout
+# # test_plugin.layout = l
+# test_plugin.cache = CacheFiles()
+# test_plugin.update_function = update_function
+# # test_plugin.update()
+# # test_plugin.image
+# test_plugin.update_function()

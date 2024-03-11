@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.16.0
+#       jupytext_version: 1.16.1
 #   kernelspec:
 #     display_name: venv_paperpi-9876705927
 #     language: python
@@ -345,13 +345,22 @@ def build_plugins_list(config, resolution, cache):
                 logger.warning(f'could not find layout "{plugin_config["layout"]}" in {plugin_config["name"]}')
                 logger.warning(f'skipping plugin')
                 continue
+            except Exception as e:
+                logger.error(f'plugin failed to load due to error: {e}')
+                logger.error('skipping plugin')
+                continue
+                
             my_plugin = Plugin(**plugin_config)
             try:
                 my_plugin.update()
             except AttributeError as e:
                 logger.warning(f'ignoring plugin {my_plugin.name} due to missing update_function')
                 logger.warning(f'plugin threw error: {e}')
-                continue    
+                continue
+            except Exception as e:
+                logger.warning(f'{my_plugin.name} crashed while initializing: {e}')
+                logger.warning(f'excluding plugin')
+                continue
             logger.info(f'appending plugin {my_plugin.name}')
             
     
@@ -445,9 +454,15 @@ def update_loop(plugins, screen, max_refresh=5):
             logger.info(f'{"#"*10}{plugin.name}{"#"*10}')
             if force_update:
                 logger.info(f'{s}forcing update')
-                plugin.force_update()
+                try:
+                    plugin.force_update()
+                except Exception as e:
+                    logging.error(f'{Plugin} crashed while updating: {e}')
             else:
-                plugin.update()
+                try:
+                    plugin.update()
+                except Exception as e:
+                    logging.error(f'{Plugin} crashed while updating: {e}')                    
 
             logger.info(f'{s}PRIORITY: {plugin.priority} of max {plugin.max_priority}')
             my_priority_list.append(plugin.priority)
@@ -483,14 +498,19 @@ def update_loop(plugins, screen, max_refresh=5):
             break
         else:
             current_plugin = next(plugin_cycle)
-            
+
+    
     interrupt_handler = InterruptHandler()
+    # update loop
     while not interrupt_handler.kill_now:
+        logger.debug('^>^>^>^>^>^> UPDATE LOOP START <^<^<^<^<^<^')
         logger.info(f'{current_plugin.name}--display for: {current_plugin.min_display_time-current_timer.last_updated:.1f} of {current_plugin.min_display_time} seconds')
         
         priority_list = _update_plugins()
+        logging.debug(f'priority_list: {priority_list}')
         last_priority = max_priority
         max_priority = min(priority_list)
+        logging.debug(f'previous max: {last_priority}; current max: {max_priority}')
         
         
 
@@ -500,7 +520,8 @@ def update_loop(plugins, screen, max_refresh=5):
             logger.info(f'display time for {current_plugin} elapsed, cycling to next')
             current_plugin_active = False
         
-        if max_priority > last_priority:
+        # was max_priority > last_priority - changed to "<"
+        if max_priority < last_priority:
             logger.info(f'priority level increased; cycling to higher priority plugin')
             current_plugin_active = False
             
@@ -515,10 +536,11 @@ def update_loop(plugins, screen, max_refresh=5):
                     logger.debug(f'using plugin: {current_plugin}' )
                     current_timer.update()
                     break
-    
+
         # check data-hash for plugin; only update screen if hash has changed to avoid uneccessary updates
+        logging.debug(f'comparing plugin hashes current: {current_hash} - active plugin hash: {current_plugin.hash}')
         if current_hash != current_plugin.hash:
-            logger.debug('data update required')
+            logger.debug('screen update required')
             current_hash = current_plugin.hash
             
             if refresh_count >= max_refresh-1 and screen.HD:
@@ -542,7 +564,7 @@ def update_loop(plugins, screen, max_refresh=5):
             logging.debug('plugin data not refreshed, skipping screen update')
 
             
-        
+        logger.debug('^>^>^>^>^>^> UPDATE LOOP END <^<^<^<^<^<^')
         sleep(constants.UPDATE_SLEEP)
         
     
@@ -644,7 +666,7 @@ def main():
 #     return(config)
     
     screen_return = setup_display(config)
-    
+
     if screen_return['obj']:
         screen = screen_return['obj']
     else:
@@ -653,10 +675,15 @@ def main():
         do_exit(**screen_return)
     
     # force to one-bit mode for non HD and non-color screens
-    if screen.mode == '1' or not config['main'].get('color', True):
+    # screens that have mode 1 are always one bit
+    if screen.mode == '1': 
         one_bit = True
-    else:
+    # if color is true or the display is HD: one_bit == False
+    elif config['main'].get('color', False) or config['main'].get('display_type', 'none').lower() == 'hd':
         one_bit = False
+    else:
+        # fall back to one bit
+        one_bit = True
             
     config['main']['force_onebit'] = one_bit
     config['main']['screen_mode'] = screen.mode
@@ -688,6 +715,7 @@ def main():
     
     plugins = build_plugins_list(config=config, resolution=screen.resolution, 
                                 cache=cache)
+
     
     exit_code = update_loop(plugins=plugins, screen=screen, max_refresh=config['main'].get('max_refresh', 5))
     
@@ -717,5 +745,3 @@ if __name__ == "__main__":
     
     exit_code = main()
     sys.exit(exit_code)
-
-sys.argv

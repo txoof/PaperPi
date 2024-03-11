@@ -71,19 +71,14 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.slideshow.sli
 
 ## Provided Layouts
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_only_centered_blackbkground**
-
-![sample image for plugin image_only_centered_blackbkground](./slideshow.image_only_centered_blackbkground-RGB-sample.png) 
-
-
 layout: **image_only_centered_blackbkground**
 
 ![sample image for plugin image_only_centered_blackbkground](./slideshow.image_only_centered_blackbkground-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_only_centered_whitebkground**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_only_centered_blackbkground**
 
-![sample image for plugin image_only_centered_whitebkground](./slideshow.image_only_centered_whitebkground-RGB-sample.png) 
+![sample image for plugin image_only_centered_blackbkground](./slideshow.image_only_centered_blackbkground-RGB-sample.png) 
 
 
 layout: **image_only_centered_whitebkground**
@@ -91,9 +86,9 @@ layout: **image_only_centered_whitebkground**
 ![sample image for plugin image_only_centered_whitebkground](./slideshow.image_only_centered_whitebkground-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_time_centered_blackbkground**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_only_centered_whitebkground**
 
-![sample image for plugin image_time_centered_blackbkground](./slideshow.image_time_centered_blackbkground-RGB-sample.png) 
+![sample image for plugin image_only_centered_whitebkground](./slideshow.image_only_centered_whitebkground-RGB-sample.png) 
 
 
 layout: **image_time_centered_blackbkground**
@@ -101,9 +96,9 @@ layout: **image_time_centered_blackbkground**
 ![sample image for plugin image_time_centered_blackbkground](./slideshow.image_time_centered_blackbkground-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_time_centered_whitebkground**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_time_centered_blackbkground**
 
-![sample image for plugin image_time_centered_whitebkground](./slideshow.image_time_centered_whitebkground-RGB-sample.png) 
+![sample image for plugin image_time_centered_blackbkground](./slideshow.image_time_centered_blackbkground-RGB-sample.png) 
 
 
 layout: **image_time_centered_whitebkground**
@@ -111,14 +106,19 @@ layout: **image_time_centered_whitebkground**
 ![sample image for plugin image_time_centered_whitebkground](./slideshow.image_time_centered_whitebkground-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> image_time_centered_whitebkground**
 
-![sample image for plugin layout](./slideshow.layout-RGB-sample.png) 
+![sample image for plugin image_time_centered_whitebkground](./slideshow.image_time_centered_whitebkground-RGB-sample.png) 
 
 
 layout: **layout**
 
 ![sample image for plugin layout](./slideshow.layout-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+
+![sample image for plugin layout](./slideshow.layout-RGB-sample.png) 
 
 
 ## Additional Plugin Information

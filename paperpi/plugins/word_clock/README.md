@@ -50,19 +50,14 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.word_clock.wo
 
 ## Provided Layouts
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
-
-![sample image for plugin layout](./word_clock.layout-RGB-sample.png) 
-
-
 layout: **layout**
 
 ![sample image for plugin layout](./word_clock.layout-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> word_clock**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
 
-![sample image for plugin word_clock](./word_clock.word_clock-RGB-sample.png) 
+![sample image for plugin layout](./word_clock.layout-RGB-sample.png) 
 
 
 layout: **word_clock**
@@ -70,13 +65,18 @@ layout: **word_clock**
 ![sample image for plugin word_clock](./word_clock.word_clock-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> word_clock_lg**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> word_clock**
 
-![sample image for plugin word_clock_lg](./word_clock.word_clock_lg-RGB-sample.png) 
+![sample image for plugin word_clock](./word_clock.word_clock-RGB-sample.png) 
 
 
 layout: **word_clock_lg**
 
 ![sample image for plugin word_clock_lg](./word_clock.word_clock_lg-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> word_clock_lg**
+
+![sample image for plugin word_clock_lg](./word_clock.word_clock_lg-RGB-sample.png) 
 
 

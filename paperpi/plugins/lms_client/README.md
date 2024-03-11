@@ -111,19 +111,14 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.lms_client.lm
 
 ## Provided Layouts
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> album_art_title**
-
-![sample image for plugin album_art_title](./lms_client.album_art_title-RGB-sample.png) 
-
-
 layout: **album_art_title**
 
 ![sample image for plugin album_art_title](./lms_client.album_art_title-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> cover_art_only**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> album_art_title**
 
-![sample image for plugin cover_art_only](./lms_client.cover_art_only-RGB-sample.png) 
+![sample image for plugin album_art_title](./lms_client.album_art_title-RGB-sample.png) 
 
 
 layout: **cover_art_only**
@@ -131,9 +126,9 @@ layout: **cover_art_only**
 ![sample image for plugin cover_art_only](./lms_client.cover_art_only-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> cover_art_only**
 
-![sample image for plugin layout](./lms_client.layout-RGB-sample.png) 
+![sample image for plugin cover_art_only](./lms_client.cover_art_only-RGB-sample.png) 
 
 
 layout: **layout**
@@ -141,19 +136,24 @@ layout: **layout**
 ![sample image for plugin layout](./lms_client.layout-L-sample.png) 
 
 
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
+
+![sample image for plugin layout](./lms_client.layout-RGB-sample.png) 
+
+
 layout: **three_rows_text_only**
 
 ![sample image for plugin three_rows_text_only](./lms_client.three_rows_text_only-L-sample.png) 
 
 
-layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> two_column_three_row**
-
-![sample image for plugin two_column_three_row](./lms_client.two_column_three_row-RGB-sample.png) 
-
-
 layout: **two_column_three_row**
 
 ![sample image for plugin two_column_three_row](./lms_client.two_column_three_row-L-sample.png) 
+
+
+layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> two_column_three_row**
+
+![sample image for plugin two_column_three_row](./lms_client.two_column_three_row-RGB-sample.png) 
 
 
 layout: **two_rows_text_only**
