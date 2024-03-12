@@ -526,6 +526,7 @@ create_venv
 install_executable
 install_config
 install_unit_file
+create_user
 enable_spi
 edit_config
 finish_install
