@@ -197,6 +197,8 @@ function create_user {
             useradd -m paperpi
             echo "Created user 'paperpi'"
         fi
+        echo "Adding paperpi to the gpio and spi groups"
+        usermod paperpi -a -G spi,gpio
     fi
 
     if [ $PURGE -gt 0 ]
