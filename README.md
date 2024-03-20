@@ -76,14 +76,12 @@ See the [Change Log](./documentation/Change_Log.md) for a complete list of updat
 
 ## PaperPi Requirements
 
-PaperPi is compatible with 32 bit Raspberry Pi OS Bullseye and Bookworm. 
-
-PaperPi will not automatically install under the 64 bit versions of Raspberry Pi OS. See the [Manual Installation Instructions](#manual-install-for-rpios-64-bit) for 64 bit installs below.
+PaperPi is compatible Raspberry Pi OS Bookworm. 
 
 ### Required Hardware
 
 * Raspberry Pi (Pi 4, Pi 3, and Pi Zero)
-* Raspberry Pi OS Buster or later (64-bit supported)
+* Raspberry Pi OS Bookworm
 * [WaveShare EPD Screen](https://www.waveshare.com/product/displays/e-paper.htm) with PiHat
   * see the full list of currently [supported screens](#supportedScreens)
   * Note: HDMI screens are not supported
@@ -136,60 +134,6 @@ If you would like to remote install from a different remote branch, use:
 
 `curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
 
-### Manual Install for RPiOS 64 bit
-
-These instructions are not entirely correct as PaperPi no longer uses Pipenv. Proceed on your own.
-
-PaperPi depends on pre-built wheels from PiWheels to create it's virtual environment. Installing PaperPi. Several critical modules (e.g. Pillow) will fail to install correctly and cause **shed-loads** of dependency errors. 
-
-It is possible to manually install PaperPi on a 64 bit system, but it requires some extra work and is not officially supported. These instructions are intended for those that are savvy on the command line and can do some of their own problem solving. 
-
-Thanks to @VaporwareII & @harperreed for helping sort this out.
-
-This is all best done as root. Be careful and good luck: you're on your own!
-
-1. Clone PaperPi into a temporary directory: 
-```
-git clone https://github.com/txoof/PaperPi.git
-```
-2. Run the install script and skip the OS Version Check: 
-```
-# ./install/install.sh -s
-```
-3. Change to the install directory and create a virtual environment: 
-```
-# export PIPENV_VENV_IN_PROJECT=1
-# pipenv --python 3
-```
-4. Install `pillow` manually: `# pipenv install pillow`
-  - this *should* avoid dependency issues
-5. Install development modules 
-```
-# pipenv install --dev
-```
-6. Copy the entry script into `/usr/bin/`: 
-```
-# cp ./PaperPi/install/paperpi /usr/bin/
-```
-7. Enable SPI:
-```
-# sudo raspi-config nonint do_spi 0
-```
-8. Copy the configuration file to `/etc/default`
-```
-# cp ./PaperPi/install/paperpi.ini /etc/default/
-```
-9. Install and enable the daemon unit file (optional)
-```
-# cp ./PaperPi/install/paperpi-daemon.service /etc/systemd/system/
-# /bin/systemctl daemon-reload
-# /bin/systemctl enable /etc/systemd/system/paperpi-daemon.service
-```
-10. Edit the config file in `/etc/default`
-11. Start the daemon (optional)
-```
-# systemctl restart paperpi-daemon.service
-```
 
 ### Setup
 
@@ -299,13 +243,12 @@ If you would like to develop for PaperPi or create [plugins](./documentation/Plu
 
 ### Development Requirements
 
-* python 3.7+
-* pipenv
+* python 3.11+
 
 **Create a Build Environment**
 
 1. Clone the repo: `https://github.com/txoof/PaperPi`
-2. Run `$ ./utilities/create_devel_environment.sh` to create a build environment
+2. Run `$ ./utilities/init_devel_environment.sh` to create a build environment
     * This will check for all necessary libraries and python modules and create a local venv for development
 
 ## Contributing
@@ -319,7 +262,7 @@ PRs are always welcome! Plugins can be pure python, but should follow the [guide
 Virtually all WaveShare E-Paper screens are now supported!
 
 * **WaveShare 7-Color displays are now fully supported**
-* HD IT8951 Screens support partial refresh, fast update and 8 bit grayscale
+* HD IT8951 Screens support partial refresh, fast update and 8 bit gray scale
 * 2 and 3 Color screens (b/c variants) are only supported in Black/White mode
 
 Most of the WaveShare screens that support 2/3 color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `waveshare_epd.epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `waveshare_epd.epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
