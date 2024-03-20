@@ -13,6 +13,8 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 
 
 
+
+
 [start: basic_clock]: #
 ### [basic_clock](../paperpi/plugins/basic_clock/README.md)
 ![basic_clock sample image](../paperpi/plugins/basic_clock/basic_clock.layout-L-sample.png)
@@ -91,11 +93,29 @@ All plugins are configured through the `paperpi.ini` files. For a single-user co
 
 [end: system_info]: #
 
+[start: word_clock]: #
+### [word_clock](../paperpi/plugins/word_clock/README.md) <font color="red">R</font><font color="green">G</font><font color="blue">B</font>
+![word_clock sample image](../paperpi/plugins/word_clock/word_clock.layout-L-sample.png)
+
+[end: word_clock]: #
+
 [start: xkcd_comic]: #
 ### [xkcd_comic](../paperpi/plugins/xkcd_comic/README.md)
 ![xkcd_comic sample image](../paperpi/plugins/xkcd_comic/xkcd_comic.layout-L-sample.png)
 
 [end: xkcd_comic]: #
+
+
+
+
+
+
+
+
+
+
+
+
 
 [start: crypto]: #
 

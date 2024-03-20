@@ -1,5 +1,7 @@
 ## Additional librespot_client information
+
 ### HiFiBerry Sound Card
+
 Adding a HiFiBerry DAC+ or DAC+ Pro sound card to your Raspberry Pi can dramatically improve the sound output. Add a [SqueezeLite](#squeezelite) player to PaperPi and you have a full featured media player with a beautiful Screen.
 ![./lms_client_sample.png]
 
@@ -7,10 +9,13 @@ Adding a HiFiBerry DAC+ or DAC+ Pro sound card to your Raspberry Pi can dramatic
 
 Follow [HiFiBerry's excellent guide](https://www.hifiberry.com/docs/software/configuring-linux-3-18-x/) for installing and configuring the sound card.
 
-### librespot-java & SpoCon
-[librespot-java](https://github.com/librespot-org/librespot-java) is required for this plugin. The java implementation offers a local web interface that this plugin depends on for pulling now-playing information.
+### go-librespot librespot-java/SpoCon 
 
-[SpoCon](https://github.com/spocon/spocon) provides an easy-install Raspbian package for installing librespot-java.
+**[go-librespot](https://github.com/devgianlu/go-librespot)** is the latest version of librespot from @devgianlu. This is the preferred version of librespot as development has largely halted on the Java version. This version can be installed from the project [releases](https://github.com/devgianlu/go-librespot/releases) page.
+
+**[librespot-java](https://github.com/librespot-org/librespot-java)** is required for this plugin. The java implementation offers a local web interface that this plugin depends on for pulling now-playing information.
+**[SpoCon](https://github.com/spocon/spocon)** provides an easy-install Raspbian package for installing librespot-java.
+
 
 Once you've installed and configured your SpoCon service, you will need to set up the plugin in your `paperpi.ini` configuration.
 ```
