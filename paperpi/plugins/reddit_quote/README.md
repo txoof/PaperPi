@@ -59,19 +59,14 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.reddit_quote.
 
 ## Provided Layouts
 
-layout: **layout**
-
-![sample image for plugin layout](./reddit_quote.layout-L-sample.png) 
-
-
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
 
 ![sample image for plugin layout](./reddit_quote.layout-RGB-sample.png) 
 
 
-layout: **quote**
+layout: **layout**
 
-![sample image for plugin quote](./reddit_quote.quote-L-sample.png) 
+![sample image for plugin layout](./reddit_quote.layout-L-sample.png) 
 
 
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> quote**
@@ -79,9 +74,9 @@ layout: **<font color="red">R</font><font color="green">G</font><font color="blu
 ![sample image for plugin quote](./reddit_quote.quote-RGB-sample.png) 
 
 
-layout: **quote_inverse**
+layout: **quote**
 
-![sample image for plugin quote_inverse](./reddit_quote.quote_inverse-L-sample.png) 
+![sample image for plugin quote](./reddit_quote.quote-L-sample.png) 
 
 
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> quote_inverse**
@@ -89,14 +84,19 @@ layout: **<font color="red">R</font><font color="green">G</font><font color="blu
 ![sample image for plugin quote_inverse](./reddit_quote.quote_inverse-RGB-sample.png) 
 
 
-layout: **quote_small_screen**
+layout: **quote_inverse**
 
-![sample image for plugin quote_small_screen](./reddit_quote.quote_small_screen-L-sample.png) 
+![sample image for plugin quote_inverse](./reddit_quote.quote_inverse-L-sample.png) 
 
 
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> quote_small_screen**
 
 ![sample image for plugin quote_small_screen](./reddit_quote.quote_small_screen-RGB-sample.png) 
+
+
+layout: **quote_small_screen**
+
+![sample image for plugin quote_small_screen](./reddit_quote.quote_small_screen-L-sample.png) 
 
 
 ## Additional Plugin Information

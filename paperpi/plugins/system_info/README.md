@@ -84,24 +84,24 @@ DATA KEYS AVAILABLE FOR USE IN LAYOUTS PROVIDED BY paperpi.plugins.system_info.s
 
 ## Provided Layouts
 
-layout: **basic_layout**
-
-![sample image for plugin basic_layout](./system_info.basic_layout-L-sample.png) 
-
-
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> basic_layout**
 
 ![sample image for plugin basic_layout](./system_info.basic_layout-RGB-sample.png) 
 
 
-layout: **layout**
+layout: **basic_layout**
 
-![sample image for plugin layout](./system_info.layout-L-sample.png) 
+![sample image for plugin basic_layout](./system_info.basic_layout-L-sample.png) 
 
 
 layout: **<font color="red">R</font><font color="green">G</font><font color="blue">B</font> layout**
 
 ![sample image for plugin layout](./system_info.layout-RGB-sample.png) 
+
+
+layout: **layout**
+
+![sample image for plugin layout](./system_info.layout-L-sample.png) 
 
 
 ## Additional Plugin Information
