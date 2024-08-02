@@ -444,25 +444,30 @@ def setup_display(config):
 
 # +
 def update_loop(plugins, screen, max_refresh=5):
+    
     def _update_plugins(force_update=False):
         '''private function for updating plugins'''
         s = ' '*5
         logger.info(f'>>__________UPDATING PLUGINS__________<<')
         logger.debug(f'{len(plugins)} total plugins available')
         my_priority_list = [2**16]
+        plugin_crashed = False
         for plugin in plugins:
             logger.info(f'{"#"*10}{plugin.name}{"#"*10}')
-            if force_update:
-                logger.info(f'{s}forcing update')
-                try:
+
+            try:
+                if force_update:
+                    logger.info(f'{s}forcing update')
                     plugin.force_update()
-                except Exception as e:
-                    logging.error(f'{Plugin} crashed while updating: {e}')
-            else:
-                try:
+                else:
                     plugin.update()
-                except Exception as e:
-                    logging.error(f'{Plugin} crashed while updating: {e}')                    
+            except Exception as e:
+                logging.error(f'{Plugin} crashed while updating: {e}')
+                plugin_crashed = True
+
+                if plugin_crashed:
+                    logging.warning('due to crash, resetting plugin priority and update status')
+                    plugin.priority = 2**15
 
             logger.info(f'{s}PRIORITY: {plugin.priority} of max {plugin.max_priority}')
             my_priority_list.append(plugin.priority)
@@ -745,3 +750,9 @@ if __name__ == "__main__":
     
     exit_code = main()
     sys.exit(exit_code)
+
+# + active=""
+#
+# -
+
+#
