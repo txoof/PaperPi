@@ -232,7 +232,7 @@ function copy_files {
     echo "Installing files to $INSTALLPATH"
     rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $rsyncPath
     # cp $SCRIPT_DIR/../Pipfile $INSTALLPATH
-    chown -R paperpi:paperpi $INSTALLPATH
+    # chown -R paperpi:paperpi $INSTALLPATH
   fi
 }
 
