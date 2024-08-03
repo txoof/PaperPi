@@ -231,6 +231,8 @@ function copy_files {
 
     echo "Installing files to $INSTALLPATH"
     rsync -a --exclude-from=$EXCLUDE --include-from=$INCLUDE $LOCALPATH $rsyncPath
+    # add install script to aid in uninstalling
+    cp $SCRIPT_DIR/install.sh $INSTALLPATH
     # cp $SCRIPT_DIR/../Pipfile $INSTALLPATH
     # chown -R paperpi:paperpi $INSTALLPATH
   fi

@@ -192,7 +192,7 @@ Most plugins should have a maximum priority of 2. This is the default level for 
 
 ### Uninstall
 
-To uninstall PaperPi, run `./install/install.sh` with either `-u` to uninstall or `-p` to uninstall and remove all configuration files.
+To uninstall PaperPi, run `/usr/bin/local/paperpi/install.sh` with either `-u` to uninstall or `-p` to uninstall and remove all configuration files.
 
 ## Command Reference
 
