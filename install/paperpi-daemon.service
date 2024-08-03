@@ -18,6 +18,9 @@ User=paperpi
 Group=paperpi
 Restart=on-failure
 RestartSec=15
+# create a runtime directory where the daemon can have read/write permissions 
+RuntimeDirectory=paperpi
+WorkingDirectory=/run/paperpi
 
 [Install]
 WantedBy=multi-user.target
