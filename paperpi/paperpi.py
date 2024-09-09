@@ -322,6 +322,9 @@ def build_plugins_list(config, resolution, cache):
             plugin_config['force_onebit'] = config['main']['force_onebit']
             plugin_config['screen_mode'] = config['main']['screen_mode']
             plugin_config['plugin_timeout'] = config['main'].get('plugin_timeout', 35)
+            plugin_config['plugin_debug'] = config['main'].get('plugin_debug', False)
+            plugin_config['plugin_debug_root'] = config['main'].get('plugin_debug_root', '/tmp/PaperPi-debug')
+            plugin_config['max_debug_files'] = config['main'].get('max_debug_files', 10)
             # force layout to one-bit mode for non-HD screens
 #             if not config['main'].get('display_type') == 'HD':
 #                 plugin_config['force_onebit'] = True
@@ -573,9 +576,9 @@ def update_loop(plugins, screen, max_refresh=5):
         sleep(constants.UPDATE_SLEEP)
         
     
+# -
 
 
-# +
 def main():
     cmd_args = get_cmd_line_args()
     
@@ -601,6 +604,7 @@ def main():
         
     logger.setLevel(log_level)
     logging.root.setLevel(log_level)    
+
     
     if cmd_args.options.version:
         print(constants.VERSION_STRING)
@@ -655,7 +659,12 @@ def main():
         run_module.run_module(cmd_args.options.run_plugin_func)
         return    
 
-
+    if config.get('main', {}).get('plugin_debug', False):
+        logging.root.setLevel('DEBUG')
+        logger.debug('enhanced plugin debugging is active')
+        logger.debug(f"plugin debug files can be found in: {config.get('main', {}).get('plugin_debug_root', 'PATH NOT FOUND')}")
+        
+    
     
     logger.info(f'********** {constants.APP_NAME} {constants.VERSION} Starting **********')
     if cmd_args.options.main__daemon:
@@ -667,8 +676,6 @@ def main():
         
     logger.debug(f'configuration:\n{config}\n\n')
 
-    
-#     return(config)
     
     screen_return = setup_display(config)
 
@@ -727,7 +734,6 @@ def main():
     clean_up(cache=cache, screen=screen, no_wipe=config['main'].get('no_wipe', False))
     
     return  exit_code
-# -
 
 # add test arguments here 
 # test_args = ["--run_plugin_func", "lms_client.scan_servers"]
@@ -749,10 +755,7 @@ if __name__ == "__main__":
             sys.argv.append(i)
     
     exit_code = main()
+    print(exit_code)
     sys.exit(exit_code)
-
-# + active=""
-#
-# -
 
 #

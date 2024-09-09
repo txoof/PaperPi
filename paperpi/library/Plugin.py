@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.16.0
+#       jupytext_version: 1.16.1
 #   kernelspec:
 #     display_name: venv_paperpi-9876705927
 #     language: python
@@ -17,7 +17,11 @@
 import logging
 import hashlib
 import time
+import json
 import signal
+import pickle
+from pathlib import Path
+from datetime import datetime
 from epdlib import Layout
 
 logger = logging.getLogger(__name__)
@@ -53,6 +57,19 @@ class Plugin:
     
     def __str__(self):
         return str(self.name)
+
+    def __getstate__(self):
+        logging.debug('object is being pickled')
+        state = self.__dict__.copy()
+        state['_update_function'] = None
+        
+        return state
+
+    def __setstate(self, d):
+        logging.debug('object is being unpickled')
+        self.__dict__.update(d)
+        self._update_function = None
+        
     
     def __init__(self, resolution, 
                  name=None,
@@ -66,6 +83,9 @@ class Plugin:
                  force_onebit=False,
                  screen_mode='1',
                  plugin_timeout=20,
+                 plugin_debug=False,
+                 plugin_debug_root=None,
+                 max_debug_files = 10,
                  **kwargs):
         
         '''Create a plugin object that provides consistent methods for providing an image and querying
@@ -93,10 +113,17 @@ class Plugin:
             cache(`CacheFiles` obj): object that can be used for downloading remote files and caching
             force_onebit(`bool`): force layouts to 1bit mode
             plugin_timeout(`int`): time in seconds to wait for plugin function to return (default: 20)
+            plugin_debug(`bool`): when True, activate additional plugin debugging
+            plugin_debug_root(`Path` or `str`): path to store plugin debugging output (images, meta data, etc.);
+                a directory will be created for each plugin within the provided path
+            max_debug_files(`int`): max number of debugging files to store
             kwargs(): any additional kwargs will be ignored
             '''
         
         self.name = name
+        self.plugin_debug = plugin_debug
+        self.plugin_debug_root = plugin_debug_root
+        self.max_debug_files = max_debug_files
         self.priority = 2**15
         self.resolution = resolution
         self.force_onebit = force_onebit
@@ -177,7 +204,17 @@ class Plugin:
                     self.layout_obj.update_contents(data)
                     self.image = self.layout_obj.concat()
                     self.hash = self._generate_hash()
+                else:
+                    logging.debug('data has not changed since last update; plugin will not update')
                 self.priority = priority
+
+                if self.plugin_debug:
+                    self.write_debug(is_updated=is_updated, 
+                                    data=data, 
+                                    priority=priority,
+                                    img=self.image)
+                    self.rotate_debug()
+                
             finally:
                 signal.alarm(0)        
         else:
@@ -198,6 +235,73 @@ class Plugin:
         
         return self.update(force=True, *args, **kwargs)       
     
+
+    def write_debug(self, is_updated=None, data={}, priority=None, img=None):
+        '''write debugging output
+
+        Args: 
+            is_updated(`bool`): True when plugin is successfully updated
+            data(`dict`): data provided by the update_function
+            priority(`int`): plugin current priority level
+            img(PIL image): pil image object
+        '''
+        timestamp = datetime.now().strftime('%y%m%d-%H.%M.%S')
+        filename = f'{timestamp}'
+
+        meta_file = self.plugin_debug_output/f'{filename}.meta'
+        img_file = self.plugin_debug_output/f'{filename}.png'
+        pkl_file = self.plugin_debug_output/f'{filename}.pkl'
+
+        meta_data = {
+            'timestamp': timestamp,
+            'is_updated': is_updated,
+            'priority': priority,
+            'data': data,
+            'hash': self.hash,
+            'layout': self.layout,
+        }
+
+        try:
+            img.save(img_file)
+        except Exception as e:
+            logging.warning(f'{e}: failed to write image file')
+        
+        try:
+            with meta_file.open(mode='w') as file:
+                json.dump(meta_data, file, indent=4)
+        except (IOError, OSError) as e:
+            logging.error(f'{e}: error while writing ')
+
+        try:
+            with open(pkl_file, 'wb') as file:
+                pickle.dump(self, file)
+        except (IOError, OSError, pickle.PicklingError) as e:
+            logging.error(f'{e}: failed to write plugin pickle')
+
+    def rotate_debug(self):
+        '''remove the oldest plugging debug files keeping at most `max_plugin_files` for each type of file'''
+        try:
+
+            files = sorted(self.plugin_debug_output.iterdir())
+            
+            file_name_set = {file.stem for file in files if file.is_file()}
+            del_list = sorted(file_name_set)
+            
+            del_list.reverse()
+            
+            del_list = del_list[self.max_debug_files:]
+            
+            for file in files:
+                if file.is_file() and file.stem in del_list:
+                    logging.debug(f'deleting debug file: {file}')
+                    file.unlink()
+
+        
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            logging.debug(f'{e}: could not rotate debug files')
+
+        
+        
     
     @property
     def plugin_timeout(self):
@@ -297,8 +401,53 @@ class Plugin:
                                  force_onebit=self.force_onebit,
                                  mode=self.screen_mode)
 
+    @property
+    def plugin_debug_root(self):
+        return self._plugin_debug_root
 
-def main():
+    @plugin_debug_root.setter
+    def plugin_debug_root(self, path):
+        try:
+            self._plugin_debug_root = Path(path)
+            self.plugin_debug_output = self._plugin_debug_root/self.name.replace(' ', '_')
+        except (OSError, TypeError, ValueError) as e:
+            if self.plugin_debug:
+                logging.error(f'{e}: could not set debug output directory; switching off extended debugging')
+            self._plugin_debug_root = None
+            self.plugin_debug_output = None
+            self.plugin_debug = False
+
+        if self.plugin_debug and not self.plugin_debug_output.exists():
+            try:
+                self.plugin_debug_output.mkdir(parents=True, exist_ok=True)
+            except (OSError, FileNotFoundError) as e:
+                if self.debug:
+                    logging.error(f'{e}, could not create output directory; switch off extended debugging')
+                self.plugin_debug = False
+
+
+# +
+# # import pickle
+
+# logging.root.setLevel('WARNING')
+# p = main(True, 1)
+# p.name = 'Bogus Plugin'
+# p.plugin_debug = True
+# p.plugin_debug_root = '/tmp/PaperPi-Debugging/'
+# p.plugin_timeout = 8
+
+# p.update()
+
+# p.image
+
+# # with open("foo.pkl", 'wb') as f:
+# #     pickle.dump(p, f)
+
+# +
+# p.update()
+# -
+
+def main(simple=False, delay=10):
     '''demo of Plugin data type'''
     from random import randint, choice
     from IPython.display import display
@@ -343,7 +492,7 @@ def main():
         priority = self.max_priority
         is_updated = True
         
-        sleep_time = randint(1, 10)
+        sleep_time = randint(0, delay)
         print(f'plugin sleeping for {sleep_time} seconds to simulate delayed response')
         sleep(sleep_time)
 
@@ -358,6 +507,8 @@ def main():
                screen_mode='RGB',
                plugin_timeout=5)
 
+    if simple:
+        return p
     # Plugin.update_function = bogus_plugin
 
     logger.root.setLevel('INFO')
@@ -382,11 +533,6 @@ def main():
 #         print('sleep for 1 second')
         sleep(1)
     return p
-
-
-
-
-
 
 if __name__ == '__main__':
     p = main()
