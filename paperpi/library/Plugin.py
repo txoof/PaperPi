@@ -19,7 +19,8 @@ import hashlib
 import time
 import json
 import signal
-import pickle
+# import pickle
+import dill
 from pathlib import Path
 from datetime import datetime
 from epdlib import Layout
@@ -61,14 +62,14 @@ class Plugin:
     def __getstate__(self):
         logging.debug('object is being pickled')
         state = self.__dict__.copy()
-        state['_update_function'] = None
+        # state['_update_function'] = None
         
         return state
 
     def __setstate(self, d):
         logging.debug('object is being unpickled')
         self.__dict__.update(d)
-        self._update_function = None
+        # self._update_function = None
         
     
     def __init__(self, resolution, 
@@ -274,8 +275,11 @@ class Plugin:
 
         try:
             with open(pkl_file, 'wb') as file:
-                pickle.dump(self, file)
-        except (IOError, OSError, pickle.PicklingError) as e:
+                # pickle.dump(self, file)
+                dill.dump(self, file)
+        # except (IOError, OSError, pickle.PicklingError) as e:
+        except(IOError, OSError, dill.PicklingError) as e:
+            
             logging.error(f'{e}: failed to write plugin pickle')
 
     def rotate_debug(self):
@@ -427,23 +431,6 @@ class Plugin:
 
 
 # +
-# # import pickle
-
-# logging.root.setLevel('WARNING')
-# p = main(True, 1)
-# p.name = 'Bogus Plugin'
-# p.plugin_debug = True
-# p.plugin_debug_root = '/tmp/PaperPi-Debugging/'
-# p.plugin_timeout = 8
-
-# p.update()
-
-# p.image
-
-# # with open("foo.pkl", 'wb') as f:
-# #     pickle.dump(p, f)
-
-# +
 # p.update()
 # -
 
@@ -537,4 +524,17 @@ def main(simple=False, delay=10):
 if __name__ == '__main__':
     p = main()
 
+# +
+# logging.root.setLevel('WARNING')
+# p = main(True, 1)
+# p.name = 'Bogus Plugin'
+# p.plugin_debug = True
+# p.plugin_debug_root = '/tmp/PaperPi-Debugging/'
+# p.plugin_timeout = 8
 
+# p.update()
+
+# p.image
+
+# # with open("foo.pkl", 'wb') as f:
+# #     pickle.dump(p, f)
