@@ -21,6 +21,7 @@ import json
 import signal
 # import pickle
 import dill
+dill.settings['recurse'] = True
 from pathlib import Path
 from datetime import datetime
 from epdlib import Layout
@@ -50,6 +51,14 @@ def strict_enforce(*types):
 
 class TimeOutException(Exception):
     pass
+
+
+
+class PathJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Path):
+            return str(obj)  # Convert PosixPath to string
+        return super().default(obj)
 
 
 class Plugin:
@@ -261,7 +270,7 @@ class Plugin:
             'hash': self.hash,
             'layout': self.layout,
         }
-
+        logging.debug(f'writing debug output to: {self.plugin_debug_root}')
         try:
             img.save(img_file)
         except Exception as e:
@@ -269,7 +278,7 @@ class Plugin:
         
         try:
             with meta_file.open(mode='w') as file:
-                json.dump(meta_data, file, indent=4)
+                json.dump(meta_data, file, indent=4, cls=PathJSONEncoder)
         except (IOError, OSError) as e:
             logging.error(f'{e}: error while writing ')
 
@@ -279,7 +288,6 @@ class Plugin:
                 dill.dump(self, file)
         # except (IOError, OSError, pickle.PicklingError) as e:
         except(IOError, OSError, dill.PicklingError) as e:
-            
             logging.error(f'{e}: failed to write plugin pickle')
 
     def rotate_debug(self):
@@ -430,10 +438,6 @@ class Plugin:
                 self.plugin_debug = False
 
 
-# +
-# p.update()
-# -
-
 def main(simple=False, delay=10):
     '''demo of Plugin data type'''
     from random import randint, choice
@@ -521,6 +525,28 @@ def main(simple=False, delay=10):
         sleep(1)
     return p
 
+# +
+# import lms_client
+# import CacheFiles
+
+# logging.root.setLevel('DEBUG')
+
+# p = main(True, 1)
+
+# p.update_function = lms_client.lms_client.update_function
+# p.name = 'LMS Test'
+
+# p.config['player_name'] = 'devel-bw64'
+
+# p.cache = CacheFiles.CacheFiles()
+
+# p.plugin_debug = True
+
+# p.plugin_debug_root = '/tmp/PaperPi-Debugging'
+
+# p.update()
+# -
+
 if __name__ == '__main__':
     p = main()
 
@@ -538,3 +564,6 @@ if __name__ == '__main__':
 
 # # with open("foo.pkl", 'wb') as f:
 # #     pickle.dump(p, f)
+# -
+
+
