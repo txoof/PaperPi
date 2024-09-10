@@ -445,7 +445,6 @@ def setup_display(config):
     return ret_obj(obj=screen)    
 
 
-# +
 def update_loop(plugins, screen, max_refresh=5):
     
     def _update_plugins(force_update=False):
@@ -574,9 +573,6 @@ def update_loop(plugins, screen, max_refresh=5):
             
         logger.debug('^>^>^>^>^>^> UPDATE LOOP END <^<^<^<^<^<^')
         sleep(constants.UPDATE_SLEEP)
-        
-    
-# -
 
 
 def main():
