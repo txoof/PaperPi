@@ -1,6 +1,6 @@
 [start: introduction]: #
 # Plugins
-All plugins are configured through the `paperpi.ini` files. For a single-user configuration the file is stored in `~/.config/com.txoof.paperpi/` for system-wide daemon configuration the file is stored in `/etc/default/`.
+All plugins are configured through the `paperpi.ini` files. For a single-user configuration the file is stored in `~/.config/com.ysadamt.paperpi/` for system-wide daemon configuration the file is stored in `/etc/default/`.
 
 [end: introduction]: #
 
@@ -173,7 +173,7 @@ Each plugin is configured through a [Plugin: Name] section in the configuration 
 Plugins can be added multiple times (e.g. to show weather in multiple locations or track multiple LMS Players), but each plugin configuration section must have a unique name.
 
 To use a plugin, add a configuration section for each plugin instance to the appropriate configuration file:
- * user: `~/.config/com.txoof.paperpi/paperpi.ini`
+ * user: `~/.config/com.ysadamt.paperpi/paperpi.ini`
   * daemon: `/etc/default/paperpi.ini`
    
    Plugin configuration sections follow this pattern. Some plugins require extra configuration such as API keys or lat/lon data.

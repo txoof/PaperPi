@@ -33,7 +33,7 @@ paste here
 **`[main]` Section of Config**
 Copy and paste the `[main]` section of your config file
 - Daemon mode (start at boot) use: `/etc/default/paperpi.ini`
-- Single user mode (start manually) use: `~/.config/com.txoof.paperpi/paperpi.ini`
+- Single user mode (start manually) use: `~/.config/com.ysadamt.paperpi/paperpi.ini`
 
 ```
 paste here
@@ -42,7 +42,7 @@ paste here
 **Plugin Issues**
 Copy and paste the `[Plugin: Your Plugin]` section of your config file
 - Daemon mode (start at boot) use: `/etc/default/paperpi.ini`
-- Single user mode (start manually) use: `~/.config/com.txoof.paperpi/paperpi.ini`
+- Single user mode (start manually) use: `~/.config/com.ysadamt.paperpi/paperpi.ini`
 
 ```
 paste here

@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-1. Clone the repo: `git clone https://github.com/txoof/PaperPi.git`
+1. Clone the repo: `git clone https://github.com/ysadamt/PaperPi.git`
 2. From the repo root run the development init script: `./utilities/init_devel_environment.sh -h`
 3. Start developing - see the notes below about [required packages](#required-debian-packages)
 

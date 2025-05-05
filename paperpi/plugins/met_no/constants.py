@@ -3,7 +3,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 version = "0.1.6"
 name = "PaperPi Met No Weather plugin"
-app_source = "github.com/txoof/PaperPi"
+app_source = "github.com/ysadamt/PaperPi"
 
 # open street maps location lookup
 osm_endpoint = 'https://nominatim.openstreetmap.org/search?'

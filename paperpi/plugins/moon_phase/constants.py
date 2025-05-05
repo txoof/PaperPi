@@ -4,7 +4,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 version = '0.2.3'
 name = 'moon_phase'
-app_source = "github.com/txoof/PaperPi"
+app_source = "github.com/ysadamt/PaperPi"
 data = {
     'moonrise': 'time moon appears above horizon',
     'moonset': 'time moon sets below horizon',

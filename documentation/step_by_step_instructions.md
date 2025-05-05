@@ -22,7 +22,7 @@ We will be working in the Terminal for most of the setup. There won't be a ton o
 * Copy and paste the following command into the terminal and press ENTER to download the installer script. Make sure you don't leave off any quotation marks or any other bits. This step can take a while
 
 ```shell
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ysadamt/PaperPi/main/install/remote_install.sh)"
 ```
 ![paste command](./images/sbs_paste_command.jpg)
 
@@ -105,4 +105,4 @@ If things don't go smoothly there's a few things you can do to figure out what w
 4. If you're still struggling to figure out what went wrong stop paperpi with `sudo systemctl stop paperpi-daemon.service`
 5. Start paperpi manually with `sudo /usr/local/bin/paperpi -d` this should output all the logs directly to the terminal making it easier to follow. Press CTRL+C to stop PaperPi
 
-If you are still stumped and can't figure out what's wrong, head over to [PaperPi on Github](https://github.com/txoof/PaperPi/issues) and open a ticket. Let us know what you've tried and what problem you're having. We'll do our best to help you out.
+If you are still stumped and can't figure out what's wrong, head over to [PaperPi on Github](https://github.com/ysadamt/PaperPi/issues) and open a ticket. Let us know what you've tried and what problem you're having. We'll do our best to help you out.

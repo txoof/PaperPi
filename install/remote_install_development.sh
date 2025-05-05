@@ -8,7 +8,7 @@ set -eu
 #set -x
 
 
-PP_GITREPO="https://github.com/txoof/PaperPi.git"
+PP_GITREPO="https://github.com/ysadamt/PaperPi.git"
 PP_GITBRANCH="development"
 
 INSTALLER="/install/install.sh"

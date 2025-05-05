@@ -1,0 +1,27 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://www.piwheels.org/simple/"
+verify_ssl = true
+name = "wwwpiwheels"
+
+[[source]]
+url = "https://www.pypi.org/simple"
+verify_ssl = true
+name = "wwwpypi"
+
+[packages]
+argconfigparse = "*"
+epdlib = "*"
+it8951 = {git = "https://github.com/GregDMeyer/IT8951.git"}
+pillow = "*"
+"rpi.gpio" = "*"
+spidev = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"

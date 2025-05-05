@@ -31,6 +31,7 @@ try:
     from paperpi.library import get_help, CacheFiles, Plugin
     import paperpi.my_constants as paperpi_constants
 except Exception as e:
+    print(e)
     print('This must be run within the paperpi virtual environment.')
     sys.exit(0)
 

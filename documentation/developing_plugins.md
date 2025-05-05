@@ -12,7 +12,7 @@ See the included [`demo_plugin`](../paperpi/plugins/demo_plugin) for a simple, w
 
 ## Getting Started
 
-1. Clone this repo `https://github.com/txoof/PaperPi.git`
+1. Clone this repo `https://github.com/ysadamt/PaperPi.git`
 2. Setup the development environment: `PaperPi/utilities/create_devel_environment.sh`
     - this will create a pipenv virtual environment with all the required components
 3. Create a branch for your plugin: `git branch my_plugin; git checkout my_plugin`
@@ -127,7 +127,7 @@ Within the `layout.py` file, the default layout should be named `layout`. It is 
     `layout = my_complex_name`
 Layouts that require fonts should use paths in the following format: `'font': dir_path+'/../../fonts/<FONT NAME>/<FONT FILE>` Add additional publicly available fonts to the `fonts` directory (<https://fonts.google.com/> is a good source)
 
-See the [epdlib Layout module](https://github.com/txoof/epdlib#layout-module) for more information on creating layouts
+See the [epdlib Layout module](https://github.com/ysadamt/epdlib#layout-module) for more information on creating layouts
 
 In addition to the keys supported by the `epdlib.Layout` module, the following block keys are also accepted:
 

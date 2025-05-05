@@ -49,10 +49,10 @@ Carefully clean the glass and assemble the frame using the included magnet tape 
 <a name="Case"></a>
 
 ## Case
-[This laser cut case](https://github.com/txoof/pi4_case#readme) works with a Pi4 and a HiFi Berry DAC+ HAT. The opening in the front allows room for plugging in a 40 pin header cable.
+[This laser cut case](https://github.com/ysadamt/pi4_case#readme) works with a Pi4 and a HiFi Berry DAC+ HAT. The opening in the front allows room for plugging in a 40 pin header cable.
 
 The included SVG file is made for 4mm multi-plex (plywood). If your plywood is thicker or thinner, a new SVG can be generated with OpenSCAD by adjusting the `material` value.
-![Laser Cut Case and Frame](https://github.com/txoof/pi4_case/raw/master/pi_4_back.jpg)
+![Laser Cut Case and Frame](https://github.com/ysadamt/pi4_case/raw/master/pi_4_back.jpg)
 
 <a name="Cable"></a>
 

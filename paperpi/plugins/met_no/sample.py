@@ -6,7 +6,7 @@ config = {
         'lat': 52.080,
         'lon': 4.311,
         'location_name': 'Den Haag',
-        'email': 'https://github.com/txoof/PaperPi/'
+        'email': 'https://github.com/ysadamt/PaperPi/'
 }
 
 config_color = deepcopy(config)

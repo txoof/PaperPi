@@ -1,7 +1,7 @@
 
 # PaperPi V0.5<!-- omit in toc -->
 
-[![Spellcheck](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/txoof/PaperPi/actions/workflows/spellcheck.yml)
+[![Spellcheck](https://github.com/ysadamt/PaperPi/actions/workflows/spellcheck.yml/badge.svg)](https://github.com/ysadamt/PaperPi/actions/workflows/spellcheck.yml)
 
 
 **This version is compatible with Raspberry Pi OS Bullseye and does not work properly with Buster.**
@@ -117,22 +117,22 @@ To get started, copy and paste the following command into a terminal window on y
 
 **Stable**
 
-`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
+`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ysadamt/PaperPi/main/install/remote_install.sh)"`
 
 
 **Development**
 
-`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | /bin/bash -s -- -b development`
+`curl -fsSL https://raw.githubusercontent.com/ysadamt/PaperPi/main/install/remote_install.sh | /bin/bash -s -- -b development`
 
 **Self Install**
 
-If you would rather install PaperPi yourself without running a remote script, [clone this repo](https://github.com/txoof/PaperPi.git) and run `./install/install.sh` from within the repo root.
+If you would rather install PaperPi yourself without running a remote script, [clone this repo](https://github.com/ysadamt/PaperPi.git) and run `./install/install.sh` from within the repo root.
 
 **Other Branches**
 
 If you would like to remote install from a different remote branch, use:
 
-`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
+`curl -fsSL https://raw.githubusercontent.com/ysadamt/PaperPi/main/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
 
 
 ### Setup
@@ -157,7 +157,7 @@ PaperPi can be run on demand in daemon mode using `paperpi -d`
 
 ### Configuration
 
-The configuration file is kept in `/etc/default/paperpi.ini` for the daemon and `~/.config/com.txoof.paperpi/paperpi.ini` when run as a user. 
+The configuration file is kept in `/etc/default/paperpi.ini` for the daemon and `~/.config/com.ysadamt.paperpi/paperpi.ini` when run as a user. 
 
 The configuration file is written as a `ini` style file. Each section is defined by square brackets `[Section Name]`. White space and comments are ignored. Variables are formatted one-per-line: `variable_name = value`. Strings should not be quoted.
 
@@ -247,7 +247,7 @@ If you would like to develop for PaperPi or create [plugins](./documentation/Plu
 
 **Create a Build Environment**
 
-1. Clone the repo: `https://github.com/txoof/PaperPi`
+1. Clone the repo: `https://github.com/ysadamt/PaperPi`
 2. Run `$ ./utilities/init_devel_environment.sh` to create a build environment
     * This will check for all necessary libraries and python modules and create a local venv for development
 
@@ -334,10 +334,10 @@ Most of the WaveShare screens that support 2/3 color output will also work with 
 See the [troubleshooting guide](./documentation/Troubleshooting.md)
 
 **Software Bugs**
-Please [open tickets at GitHub](https://github.com/txoof/PaperPi/issues).
+Please [open tickets at GitHub](https://github.com/ysadamt/PaperPi/issues).
 
 ## Helping Out
-If you're interested in helping out, check out the [issues](https://github.com/txoof/PaperPi/issues) and jump in. Collaborators are always welcome
+If you're interested in helping out, check out the [issues](https://github.com/ysadamt/PaperPi/issues) and jump in. Collaborators are always welcome
 
 ## Thanks
 

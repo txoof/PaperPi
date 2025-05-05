@@ -12,7 +12,7 @@ basic_clock = {
         'height': 1,
         'abs_coordinates': (0, 0),
         'rand': True,
-        'font': dir_path+'/../../fonts/Kanit/Kanit-Medium.ttf',
+        'font': dir_path+'/../../fonts/Switzer/Switzer-Black.otf',
         'mode': 'L',
         'fill': 'BLACK',
         'bkground': 'WHITE'

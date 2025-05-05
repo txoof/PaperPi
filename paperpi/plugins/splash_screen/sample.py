@@ -4,6 +4,6 @@ config = {
             'kwargs': { 
               'app_name': 'PaperPi',
               'version': ' ',
-              'url': 'https://github.com/ txoof/PaperPi'
+              'url': 'https://github.com/ ysadamt/PaperPi'
             },
         } 
