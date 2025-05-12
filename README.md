@@ -267,7 +267,6 @@ Virtually all WaveShare E-Paper screens are now supported!
 
 Most of the WaveShare screens that support 2/3 color output will also work with with the non-colored driver. Using the 1 bit driver can yield significantly better update speeds. For example: the `waveshare_epd.epd2in7b` screen takes around 15 seconds to update even when refreshing a 1 bit image, but can be run using the `waveshare_epd.epd2in7` module in 1-bit mode which takes less than 2 seconds to update.
 
-
 |Screen            |Supported      |Mode          |
 |:-----------------|:--------------|:-------------|
 |00. epd13in3k     |True           |"1" 1 bit     |
@@ -321,11 +320,12 @@ Most of the WaveShare screens that support 2/3 color output will also work with 
 |48. epd7in5       |True           |"1" 1 bit     |
 |49. epd7in5_HD    |True           |"1" 1 bit     |
 |50. epd7in5_V2    |True           |"1" 1 bit     |
-|51. epd7in5_V2_old|True           |"1" 1 bit     |
-|52. epd7in5b_HD   |True           |"1" 1 bit     |
-|53. epd7in5b_V2   |True           |"1" 1 bit     |
-|54. epd7in5bc     |True           |"1" 1 bit     |
-|55. All HD IT8951 |True           |"L" 8 bit     |
+|51. epd7in5_V2_fast|True           |"1" 1 bit     |
+|52. epd7in5_V2_old|True           |"1" 1 bit     |
+|53. epd7in5b_HD   |True           |"1" 1 bit     |
+|54. epd7in5b_V2   |True           |"1" 1 bit     |
+|55. epd7in5bc     |True           |"1" 1 bit     |
+|56. All HD IT8951 |True           |"L" 8 bit     |
 
 <a name="knownIssues"> </a>
 ## Issues
