@@ -80,7 +80,7 @@ PaperPi is compatible Raspberry Pi OS Bookworm.
 
 ### Required Hardware
 
-* Raspberry Pi (Pi 4, Pi 3, and Pi Zero)
+* Raspberry Pi (Pi 4, Pi 3)
 * Raspberry Pi OS Bookworm
 * [WaveShare EPD Screen](https://www.waveshare.com/product/displays/e-paper.htm) with PiHat
   * see the full list of currently [supported screens](#supportedScreens)
