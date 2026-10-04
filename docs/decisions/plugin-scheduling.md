@@ -1,0 +1,78 @@
+# Choosing which plugin is shown, and when
+
+Status: proposed (M1, issue #194). Decided with txoof.
+
+## Problem
+
+PaperPi shows one plugin at a time. Something has to decide which plugin is on screen and for how long.
+
+In v1, each plugin reports a priority number every time it updates (lower number means more important). Only the plugins with the lowest current number take turns. This works, but it is hard to set up: users have to pick numbers that only make sense compared with other plugins' numbers, and the only way to switch a plugin off is to rename its config section to `[xPlugin: …]`.
+
+What txoof's screen does today, and what v2 must still do:
+- Normally, word clock, weather and moon phase take turns.
+- When music plays (Spotify or Logitech Media Server), the music plugin takes over. When the music stops, the screen goes back to taking turns.
+
+Other users must be able to set up their own behaviour.
+
+## Options considered
+
+1. **Keep priority numbers** (v1). Flexible, but hard to understand and easy to get wrong.
+2. **A few named levels.** Each plugin is given one level in the config. Covers every real use found in v1 with no numbers. **Chosen.**
+3. **Time-of-day schedules** (e.g. weather only from 6:00 to 22:00). Not needed now.
+
+## Decision (proposed)
+
+### Three levels
+
+Each plugin in the config has one level, and an on/off setting.
+
+| Level | When it shows | How it ends |
+|---|---|---|
+| **alert** | As soon as the plugin reports an alert. Nothing can interrupt it. Several alerts at once take turns. | The plugin says the alert is over, or someone dismisses it in the web interface. |
+| **interrupt** | As soon as the plugin reports it has something (e.g. a song is playing). Takes over at once, even if the current rotation plugin has just started. Several at once take turns. | The plugin says it is done. The rotation then continues with the **next** plugin in the queue. |
+| **rotation** | When no alert or interrupt is active. Plugins take turns in the order set in the config / web interface, each for its own display time. | Its display time is over. |
+
+Examples: word clock, weather and moon phase are `rotation`. Music players are `interrupt`. A future civil-defence warning or a Home Assistant leak alarm would be `alert`.
+
+### Alerts in detail
+
+- **Dismissed by someone, but the plugin still reports the same alert:** it comes back as a reminder after a set time. Setting: `alert_reminder` (default 1 hour).
+- **Safety limit:** an alert held longer than `alert_max_time` (default 24 hours) is dismissed automatically, in case the plugin is stuck. After that there are no reminders until the plugin reports a *new* alert, and the web interface shows a warning, e.g. "Leak alert was active for 24 hours and was dismissed".
+
+### One decision-maker, so no race conditions
+
+A race condition is when two parts of a program try to change the same thing at the same moment and the result depends on which one is first.
+
+To avoid it, one single part of PaperPi (the scheduler) decides what is shown and is the only part that writes to the screen. Plugins never draw on the screen. They only report their state: "nothing", "I have something", or "alert". The scheduler reads all states and makes each decision in one step, so two plugins cannot both win.
+
+### Failures
+
+- A plugin that fails (crash, time limit reached, data source down) is skipped. The rotation moves to the next plugin, and the failed one is tried again on its next turn.
+- After 3 failures in a row, the plugin is left out for 30 minutes and the web interface shows a warning.
+- If every plugin is failing or switched off, the `default` plugin is shown. The scheduler tells it how many plugins are failing, and it shows e.g. "3 of 4 plugins are not working. See the web interface for more information." with a QR code (a square barcode a phone camera can scan) that opens the web interface.
+- `default` and `splash_screen` are normal plugins with no special handling, except that the scheduler passes the failure status to `default`.
+
+The numbers 3 and 30 minutes are defaults. Time limits and watchdog rules are decided in the error-handling note (#190).
+
+### Testing
+
+The `debugging` plugin is used to test this: it can be set to crash, time out, and switch between "nothing", "I have something" and "alert" at set rates. Tests run the scheduler with a fake clock, so hours of switching can be checked in seconds.
+
+### Later: several plugins on screen at once (M9)
+
+The scheduler picks plugins for a screen region. In v2.0 there is one region, the whole screen. In M9 each region gets its own scheduler with the same rules.
+
+### Example config
+
+The file format is decided in #186. Whatever the format, a plugin entry has these scheduling settings:
+
+```
+plugin:       word_clock
+enabled:      true
+level:        rotation      # alert | interrupt | rotation
+display_time: 255           # seconds, used by rotation plugins
+```
+
+## Open questions
+
+None. All points above were agreed with txoof on 2026-10-04.
