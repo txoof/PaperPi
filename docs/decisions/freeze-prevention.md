@@ -37,4 +37,4 @@ Test for each row: a fake driver, fake plugin or fake server that fails or hangs
 
 ## Decided elsewhere
 
-Design note #190 (errors and time limits) decides what counts as "healthy" for the watchdog, and after how many failed display writes v2 resets the display and after how many it exits.
+`errors-and-time-limits.md` (#190) defines what counts as "healthy" for the watchdog, what happens when display writes keep failing, and the default time limits and size limits.
