@@ -71,7 +71,7 @@ The update function already receives the size of the area it should draw in. In 
 These items wait until after 2.0. Each becomes its own issue then.
 - **Custom layouts:** let users make or change layouts without writing code, e.g. a layout editor in the web interface. In v2.0 users pick from each plugin's built-in layouts.
 - **Plugins outside the application** (old issue #13): a configurable folder for plugins, so they don't have to be copied into PaperPi. Nothing in this design should block it.
-- **Several plugins on screen at once** (M9, M10).
+- **Several plugins on screen at once** (M9, M10), with a graphical dashboard editor in the web interface (see `web-interface.md`).
 
 ## Open questions
 
