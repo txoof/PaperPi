@@ -24,4 +24,4 @@ Measured on the real screen; full results in `docs/it8951-test-report.md`.
 
 ## Open questions
 
-- Endurance run result (ends about 2026-10-07 21:14). If it shows a leak or a hang, this decision is reopened.
+- Endurance run result (ends about 2026-10-07 21:25). If it shows a leak or a hang, this decision is reopened.

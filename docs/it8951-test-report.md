@@ -1,6 +1,6 @@
 # IT8951 driver test round (M2)
 
-Status: endurance run in progress (started 2026-10-04 21:13, ends about 2026-10-07 21:14).
+Status: endurance run in progress (started 2026-10-04 21:25, ends about 2026-10-07 21:25; a first start at 21:13 was stopped after 7 writes for a reboot).
 
 Tested on this Pi 4 (Raspberry Pi OS trixie, Python 3.13) with the Waveshare 9.7" e-paper HAT: IT8951 controller, firmware `WS_v.0.2T1`, LUT `8M14T`, 1200 × 825 pixels, VCOM -1.90 (from the ribbon cable). Test programs and raw results (CSV): `bench/it8951/`.
 
