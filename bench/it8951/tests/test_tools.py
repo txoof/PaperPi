@@ -16,7 +16,7 @@ GPIOINFO = """gpiochip0 - 58 lines:
 \tline  25:\t"GPIO25"        \tinput
 """
 
-OPTS = {"vcom": -1.5, "repeat": 1, "hold": 0, "image": "gray", "mode": "GC16"}
+OPTS = {"vcom": -1.5, "repeat": 1, "image": "gray", "mode": "GC16"}
 
 
 @pytest.fixture(autouse=True)

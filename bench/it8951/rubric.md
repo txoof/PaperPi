@@ -1,13 +1,14 @@
 # Viewing session rubric
 
-One viewing session per candidate, about 5 minutes. Run:
+One viewing session per candidate. Steps are run **one at a time**: Claude runs a step,
+the image stays on screen, txoof answers that step's question in the terminal, then the
+next step. Answers are recorded in `results/<candidate>-rubric.md`.
 
 ```bash
-uv run python -m it8951bench <candidate> view --vcom <value printed on the ribbon cable>
+uv run python -m it8951bench <candidate> view --step <1-7> --vcom <value printed on the ribbon cable>
 ```
 
-Each image has its step label in the top-left corner. Images stay 20 seconds.
-Answer in the terminal; Claude records the answers in `results/<candidate>-rubric.md`.
+Each image has its step label in the top-left corner.
 
 | # | Look at | Question | Answer |
 |---|---|---|---|

@@ -7,7 +7,7 @@ Scenarios:
     basic   timings for full, partial and fast writes, plus the pin check
     fault   hold the reset line low during a write; does the candidate stop with an
             error, and does the next write work?
-    view    a fixed sequence of images for txoof's viewing session (see rubric.md)
+    view    one step of txoof's viewing session (--step 1-7, see rubric.md)
     show    show one image (for quick checks)
 
 Every scenario runs in a separate child process. If the candidate hangs, the child
@@ -194,59 +194,54 @@ def scenario_recover(cand: Candidate, report: Report, opts: dict, _: Any) -> Non
 
 
 def scenario_view(cand: Candidate, report: Report, opts: dict, _: Any) -> None:
-    """The fixed sequence for the viewing session. Each image carries its step label."""
+    """One step of the viewing session (``--step``). The image stays on screen afterwards.
+
+    Steps are run one at a time so txoof can answer that step's rubric question before
+    the next one. Step 1 starts with a clearing INIT refresh; step 7 shows whether
+    steps 1-6 left anything behind.
+    """
     before = pins.snapshot()
     info = _open(cand, report, opts["vcom"])
     if info is None:
         return
     full = (info.width, info.height)
     whole = _area((0, 0), full)
-    hold = opts["hold"]
     name = cand.name
-
-    def show(label: str, img, mode: Mode, xy=(0, 0), area=whole, wait=hold):
-        _timed(report, label, lambda img=img, mode=mode: cand.write(img, mode, xy), mode.name, area)
-        time.sleep(wait)
-
-    show("clear", images.blank(*full), Mode.INIT, wait=1)
-    show(
-        "step 1 gray steps",
-        _labelled(images.gray_steps(*full), f"{name}  step 1: gray steps GC16"),
-        Mode.GC16,
-    )
-    show(
-        "step 2 fine text",
-        _labelled(images.fine_text(*full), f"{name}  step 2: fine text GC16"),
-        Mode.GC16,
-    )
-    show(
-        "step 3 gradient",
-        _labelled(images.gradient(*full), f"{name}  step 3: gradient GC16"),
-        Mode.GC16,
-    )
-
-    base = _labelled(images.blank(*full), f"{name}  step 4: clock, 10 fast updates DU")
-    show("step 4 base", base, Mode.GC16, wait=1)
+    step = opts["step"]
     xy = _clock_xy(info)
     clock_area = _area(xy, images.CLOCK_SIZE)
-    for _i in range(10):
-        show("step 4 clock DU", images.clock(), Mode.DU, xy, clock_area, wait=1)
-    time.sleep(hold)
 
-    base = _labelled(images.blank(*full), f"{name}  step 5: clock, 10 fast updates A2")
-    show("step 5 base", base, Mode.GC16, wait=1)
-    for _i in range(10):
-        show("step 5 clock A2", images.clock(), Mode.A2, xy, clock_area, wait=1)
-    time.sleep(hold)
+    def show(label: str, img, mode: Mode, at=(0, 0), area=whole) -> None:
+        _timed(report, label, lambda: cand.write(img, mode, at), mode.name, area)
 
-    text_bw = images.to_black_white(images.fine_text(*full, title=f"{name}  step 6: text DU"))
-    show("step 6 text DU", text_bw, Mode.DU)
-    show(
-        "step 7 gray steps again",
-        _labelled(images.gray_steps(*full), f"{name}  step 7: gray steps GC16 again"),
-        Mode.GC16,
-    )
-    show("clear", images.blank(*full), Mode.INIT, wait=0)
+    def clock_updates(mode: Mode, title: str) -> None:
+        show(f"step {step} base", _labelled(images.blank(*full), title), Mode.GC16)
+        for _i in range(10):
+            time.sleep(1)
+            show(f"step {step} clock {mode.name}", images.clock(), mode, xy, clock_area)
+
+    if step == 1:
+        show("clear", images.blank(*full), Mode.INIT)
+        img = _labelled(images.gray_steps(*full), f"{name}  step 1: gray steps GC16")
+        show("step 1 gray steps", img, Mode.GC16)
+    elif step == 2:
+        img = _labelled(images.fine_text(*full), f"{name}  step 2: fine text GC16")
+        show("step 2 fine text", img, Mode.GC16)
+    elif step == 3:
+        img = _labelled(images.gradient(*full), f"{name}  step 3: gradient GC16")
+        show("step 3 gradient", img, Mode.GC16)
+    elif step == 4:
+        clock_updates(Mode.DU, f"{name}  step 4: clock, 10 fast updates DU")
+    elif step == 5:
+        clock_updates(Mode.A2, f"{name}  step 5: clock, 10 fast updates A2")
+    elif step == 6:
+        title = f"{name}  step 6: text DU"
+        show("step 6 text DU", images.to_black_white(images.fine_text(*full, title=title)), Mode.DU)
+    elif step == 7:
+        img = _labelled(images.gray_steps(*full), f"{name}  step 7: gray steps GC16 again")
+        show("step 7 gray steps again", img, Mode.GC16)
+    elif step == 0:
+        show("clear", images.blank(*full), Mode.INIT)
     _finish(cand, report, before)
 
 
@@ -433,7 +428,13 @@ def main(argv: list[str] | None = None) -> int:
         "No default: a wrong value can give a poor image.",
     )
     parser.add_argument("--repeat", type=int, default=5, help="repeats per step in basic")
-    parser.add_argument("--hold", type=float, default=20, help="seconds per image in view")
+    parser.add_argument(
+        "--step",
+        type=int,
+        choices=range(8),
+        default=1,
+        help="viewing session step (1-7, 0 = clear the screen)",
+    )
     parser.add_argument("--image", choices=["gray", "text", "gradient", "blank"], default="gray")
     parser.add_argument("--mode", choices=[m.name for m in Mode], default="GC16")
     parser.add_argument(
