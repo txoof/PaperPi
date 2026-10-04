@@ -26,12 +26,34 @@ These rules apply to every person and agent working in this repository.
   gh issue edit <n> --add-label in-progress
   gh issue comment <n> --body "claimed by PaperPi-<n>-<short-name>"
   ```
+  Then move its card on the project board to **In Progress** (see "Project board" below).
 - **Release a claim** when the PR is merged (GitHub closes the issue) or when you stop working on it:
   ```bash
   gh issue edit <n> --remove-label in-progress
   gh issue comment <n> --body "released: <reason>"
   ```
+  If you stop without finishing, move its card back to **Todo**.
 - Shared files (`pyproject.toml`, `uv.lock`, `.python-version`, `.github/`, the config schema) are changed only in their own small issue.
+
+## Project board
+All PaperPi and epdlib work is shown on one board, where each issue or PR is a card (one entry on the board) in a column: https://github.com/users/txoof/projects/4 (columns Todo, In Progress, In Review, Done).
+- PaperPi issues and PRs are added to the board automatically. epdlib issues and PRs are not (GitHub's free plan allows automatic adding from one repo only); see epdlib's CLAUDE.md.
+- GitHub moves cards to **Done** when an issue is closed or a PR is merged. Agents move cards at the other steps:
+
+| When | Set the issue (and its PR) to |
+|---|---|
+| You create an issue | Todo (automatic for PaperPi) |
+| You claim it | In Progress |
+| You open its PR | In Review |
+| You release a claim without finishing | Todo |
+
+Add or move a card (adding a card that is already on the board just returns it, so the same commands do both):
+```bash
+item=$(gh project item-add 4 --owner txoof --url <issue-or-PR-URL> --format json --jq .id)
+gh project item-edit --project-id PVT_kwHOANmg6c4BlqOG --id "$item" \
+  --field-id PVTSSF_lAHOANmg6c4BlqOGzhkWLj8 --single-select-option-id <column-id>
+```
+Column IDs: Todo `f75ad846`, In Progress `47fc9ee4`, In Review `b470c173`, Done `98236657`.
 
 ## Area map
 | Area | Folders |
