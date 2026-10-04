@@ -15,6 +15,7 @@ These rules apply to every person and agent working in this repository.
 
 ## How work is tracked
 - **GitHub Issues are the only to-do list.** Every change starts from an issue in a milestone (M0–M10).
+- Exception: Dependabot (GitHub's bot for dependency updates) opens update PRs without an issue. Agents do not claim or change them; txoof reviews and merges them.
 - Each issue has an **Area**: the folders it is allowed to change (see the area map below).
 - **Do not start** an issue that is already claimed (has the `in-progress` label), or whose Area overlaps a claimed issue. Check with:
   ```bash
