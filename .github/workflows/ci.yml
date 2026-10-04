@@ -1,9 +1,21 @@
 name: CI
 
+# CI is skipped when a change only touches documentation or GitHub templates.
+# The list is written once (&docs-only) and reused for the push trigger (*docs-only).
+# Note: if CI checks are ever made *required* in branch protection, docs-only PRs
+# would wait forever for a check that never runs; handle that before turning it on.
 on:
   pull_request:
+    paths-ignore: &docs-only
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/CODEOWNERS"
+      - ".github/pull_request_template.md"
   push:
     branches: [main]
+    paths-ignore: *docs-only
 
 permissions:
   contents: read

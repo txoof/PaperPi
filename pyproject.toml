@@ -4,6 +4,8 @@ version = "2.0.0.dev0"
 description = "Show information on e-paper displays attached to a Raspberry Pi"
 readme = "README.md"
 requires-python = ">=3.13"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 dependencies = []
 
 [dependency-groups]
