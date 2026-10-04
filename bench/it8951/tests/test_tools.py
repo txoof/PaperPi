@@ -79,3 +79,19 @@ def test_hanging_candidate_is_killed(monkeypatch):
     rec = Recorder(None, "fake", echo=False)
     assert not run_child("fake", "basic", OPTS, rec, limit=5)
     assert rec.rows[-1]["step"] == "hung"
+
+
+def test_pack_4bpp_puts_first_pixel_in_high_half():
+    from PIL import Image
+
+    from it8951bench.new import pack_4bpp
+
+    img = Image.frombytes("L", (4, 1), bytes([0x00, 0xFF, 0x80, 0x10]))
+    assert pack_4bpp(img) == bytes([0x0F, 0x81])
+
+
+def test_new_driver_refuses_bad_vcom():
+    from it8951bench.new import New
+
+    with pytest.raises(ValueError):
+        New().open(1.9)
