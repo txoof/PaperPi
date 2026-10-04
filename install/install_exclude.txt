@@ -1,5 +1,0 @@
-*.ipynb
-*__pycache__*
-*-sample.png
-*\.ipynb*
-*\.ignore*

@@ -1,17 +1,35 @@
-*.pyo
-.python-version
-*/build/*
-*/dist/*
-build/*
-dist/*
-tmp/*
-*.ignore
-*.tgz
-*.spec
-.vscode*
-version.txt
-paperpi/plugins/*/library
-paperpi/IT8951
-venv_*
-*__pycache__*
-venv_activate
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+
+# Tools
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Test output
+reports/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+
+# lgpio writes notification files into the working directory
+.lgd-nfy*
+
+# Files that may hold secrets (passwords, API keys)
+.env
+.env.*
+*.pem
+*.key
+config.local.*
+.claude/settings.local.json

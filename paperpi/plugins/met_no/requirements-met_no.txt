@@ -1,4 +1,0 @@
-dictor
-Pillow
-python_dateutil
-requests
