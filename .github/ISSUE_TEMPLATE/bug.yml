@@ -13,7 +13,8 @@ body:
     id: version
     attributes:
       label: PaperPi version
-      placeholder: "2.0.0"
+      description: For the old version, write "v1" and the version number if you know it.
+      placeholder: "2.0.0 or v1 0.5.7"
   - type: input
     id: hardware
     attributes:

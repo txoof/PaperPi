@@ -3,7 +3,7 @@ name = "paperpi"
 version = "2.0.0.dev0"
 description = "Show information on e-paper displays attached to a Raspberry Pi"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = []
 
 [dependency-groups]
@@ -22,11 +22,11 @@ testpaths = ["tests"]
 markers = [
     "hardware: needs a real display attached; run only on the Pi with `uv run pytest -m hardware`",
 ]
-addopts = "-m 'not hardware'"
+addopts = "--strict-markers -m 'not hardware'"
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

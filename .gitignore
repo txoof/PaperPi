@@ -25,3 +25,11 @@ reports/
 
 # lgpio writes notification files into the working directory
 .lgd-nfy*
+
+# Files that may hold secrets (passwords, API keys)
+.env
+.env.*
+*.pem
+*.key
+config.local.*
+.claude/settings.local.json

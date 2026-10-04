@@ -17,4 +17,5 @@ Closes #
 
 ## Review
 - [ ] Review agents' comments answered
-- [ ] Approved and merged by txoof (agents never merge)
+
+Only txoof approves and merges this PR.
