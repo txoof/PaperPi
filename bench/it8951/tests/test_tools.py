@@ -95,3 +95,26 @@ def test_new_driver_refuses_bad_vcom():
 
     with pytest.raises(ValueError):
         New().open(1.9)
+
+
+def test_endurance_pattern():
+    from it8951bench.endurance import kind_of
+
+    kinds = [kind_of(n) for n in range(1, 21)]
+    assert kinds[:10] == ["fast"] * 4 + ["full"] + ["fast"] * 4 + ["fault"]
+    assert kinds.count("fault") == 2
+
+
+def test_endurance_runs_briefly_on_fake(tmp_path, monkeypatch):
+    from it8951bench import endurance, fault
+
+    monkeypatch.setattr(fault, "hold_reset_low", lambda: None)
+    monkeypatch.setattr(fault, "release_reset", lambda: None)
+    monkeypatch.setattr(endurance, "RESULTS_DIR", tmp_path)
+    assert (
+        endurance.main(["fake", "--vcom", "-1.5", "--hours", "0.0003", "--interval", "0.05"]) == 0
+    )
+    (out,) = tmp_path.glob("endurance-fake-*.csv")
+    rows = list(csv.DictReader(out.open()))
+    assert rows[-1]["kind"] == "end"
+    assert int(rows[0]["open_files"]) > 0
