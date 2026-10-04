@@ -152,7 +152,7 @@ def scenario_basic(cand: Candidate, report: Report, opts: dict, _: Any) -> None:
 
 
 def scenario_fault(cand: Candidate, report: Report, opts: dict, link: Any) -> None:
-    to_parent, to_child = link
+    results, to_child = link
     before = pins.snapshot()
     info = _open(cand, report, opts["vcom"])
     if info is None:
@@ -162,9 +162,9 @@ def scenario_fault(cand: Candidate, report: Report, opts: dict, link: Any) -> No
     img = images.gray_steps(*full)
     _timed(report, "write before fault", lambda: cand.write(img, Mode.GC16), "GC16", whole)
 
-    to_parent.put({"event": "writing"})
+    results.put({"event": "writing"})
     _timed(report, "write during fault", lambda: cand.write(img, Mode.GC16), "GC16", whole)
-    to_parent.put({"event": "write returned"})
+    results.put({"event": "write returned"})
 
     # Wait until the parent has released the reset line, then try to recover without
     # restarting the process: close, open again and write.
@@ -347,30 +347,33 @@ def run_child(
 ) -> bool:
     """Run one scenario in a child process. Return False if it had to be killed."""
     ctx = mp.get_context("spawn")
-    results: mp.Queue = ctx.Queue()
-    to_parent: mp.Queue = ctx.Queue()
+    results: mp.Queue = ctx.Queue()  # result rows and events, in the order they happened
     to_child: mp.Queue = ctx.Queue()
-    proc = ctx.Process(target=_child, args=(name, scenario, opts, results, (to_parent, to_child)))
+    proc = ctx.Process(target=_child, args=(name, scenario, opts, results, (results, to_child)))
     proc.start()
     deadline = time.monotonic() + limit
+
+    def handle(item: dict) -> None:
+        if "event" not in item:
+            rec.add(scenario, item)
+            return
+        if on_event is not None:
+            on_event(item["event"])
+        if item["event"] == "write returned":
+            to_child.put("released")
 
     def drain() -> None:
         while True:
             try:
-                rec.add(scenario, results.get_nowait())
+                handle(results.get_nowait())
             except queue.Empty:
                 return
 
     while proc.is_alive() and time.monotonic() < deadline:
-        drain()
         try:
-            event = to_parent.get(timeout=0.05)["event"]
+            handle(results.get(timeout=0.05))
         except queue.Empty:
             continue
-        if on_event is not None:
-            on_event(event)
-            if event == "write returned":
-                to_child.put("released")
     drain()
     if proc.is_alive():
         proc.kill()

@@ -1,0 +1,20 @@
+time,candidate,scenario,step,mode,area,seconds,ok,detail
+2026-10-04T20:52:21,greg,fault,open,,,2.642,True,
+2026-10-04T20:52:21,greg,fault,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T20:52:22,greg,fault,write before fault,GC16,"0,0 1200x825",1.041,True,
+2026-10-04T20:52:23,greg,fault,reset held low,,,,True,
+2026-10-04T20:52:27,greg,fault,write during fault,GC16,"0,0 1200x825",5.204,False,TimeoutError: Timed out waiting for display to respond
+2026-10-04T20:52:27,greg,fault,reset released,,,4.588,True,
+2026-10-04T20:52:27,greg,fault,close after fault,,,0.024,True,
+2026-10-04T20:52:30,greg,fault,open,,,2.629,True,
+2026-10-04T20:52:30,greg,fault,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T20:52:31,greg,fault,write after reopen,GC16,"0,0 1200x825",1.038,True,
+2026-10-04T20:52:31,greg,fault,sleep,,,0.0,True,
+2026-10-04T20:52:31,greg,fault,close,,,0.015,True,
+2026-10-04T20:52:31,greg,fault,pins released,,,,True,all lines released
+2026-10-04T20:52:35,greg,recover,open,,,2.648,True,
+2026-10-04T20:52:35,greg,recover,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T20:52:36,greg,recover,write in new process,GC16,"0,0 1200x825",1.134,True,
+2026-10-04T20:52:36,greg,recover,sleep,,,0.0,True,
+2026-10-04T20:52:36,greg,recover,close,,,0.015,True,
+2026-10-04T20:52:36,greg,recover,pins released,,,,True,all lines released

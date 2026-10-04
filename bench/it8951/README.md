@@ -14,11 +14,21 @@ Issues: #197 (these tools), #198–#200 (the candidates), #201 (long run, report
 - `--vcom` has no default. Use the value printed on the panel's ribbon cable.
 
 ## Setup
+The venv uses the GPIO packages that come with Raspberry Pi OS (`python3-libgpiod`,
+`python3-spidev`, `python3-rpi-lgpio`), because some of them do not build from PyPI on
+Python 3.13 (for example `lgpio` needs `swig`).
 ```bash
 cd bench/it8951
+uv venv --system-site-packages
 uv sync
 uv run pytest            # unit tests of the tools, no hardware needed
+
+# candidate 1 (GregDMeyer, upstream commit 9f136139, checked out at ~/src/IT8951)
+uv pip install cython setuptools
+uv pip install --no-build-isolation ~/src/IT8951
 ```
+Use `uv run` (not `uv sync`) afterwards: `uv sync` removes packages that are not in
+the lock file, such as the candidate drivers.
 
 ## Running
 ```bash
