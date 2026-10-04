@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --locked
+      - name: Run tests
+        run: uv run pytest --html=reports/test-report.html --self-contained-html
+      - name: Upload test report
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report
+          path: reports/test-report.html
+      - name: Link the report on the run summary page
+        if: always()
+        run: |
+          echo "### Test report" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download the HTML test report](${{ steps.upload.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"

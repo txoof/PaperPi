@@ -1,0 +1,25 @@
+name: Task
+description: A piece of planned work in a milestone
+body:
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: Which folders this task may change (see the area map in CLAUDE.md).
+      placeholder: "core: src/paperpi/config/"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What needs to be done, in plain words.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: How we can tell it is finished (tests, images, behaviour on the display).
+    validations:
+      required: true

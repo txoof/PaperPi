@@ -1,0 +1,27 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PaperPi version
+      placeholder: "2.0.0"
+  - type: input
+    id: hardware
+    attributes:
+      label: Raspberry Pi model and display
+      placeholder: "Pi 4, Waveshare 9.7 inch (IT8951)"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste any error messages or log lines.
+      render: text

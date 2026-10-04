@@ -1,0 +1,32 @@
+[project]
+name = "paperpi"
+version = "2.0.0.dev0"
+description = "Show information on e-paper displays attached to a Raspberry Pi"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-html>=4",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "hardware: needs a real display attached; run only on the Pi with `uv run pytest -m hardware`",
+]
+addopts = "-m 'not hardware'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

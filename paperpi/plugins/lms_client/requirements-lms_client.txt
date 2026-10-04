@@ -1,3 +1,0 @@
-epdlib
-QueryLMS
-requests
