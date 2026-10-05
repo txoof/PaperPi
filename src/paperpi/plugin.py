@@ -105,9 +105,9 @@ class PluginEntry(BaseModel):
     )
     refresh: float | None = Field(
         None,
-        gt=0,
+        ge=limits.SHORTEST_REFRESH,
         le=limits.LONGEST_SETTING,
-        description="Seconds between updates; empty means the plugin's suggestion",
+        description="Seconds between updates (at least 5); empty means the plugin's suggestion",
     )
     time_limit: float = Field(
         limits.PLUGIN_UPDATE,
@@ -215,8 +215,11 @@ class Plugin:
                 problems.append("every setting needs a default")
         if not self.layouts:
             problems.append("needs at least one layout")
-        if not 0 < self.refresh <= limits.LONGEST_SETTING:
-            problems.append(f"refresh must be above zero and at most {limits.LONGEST_SETTING:g}")
+        if not limits.SHORTEST_REFRESH <= self.refresh <= limits.LONGEST_SETTING:
+            problems.append(
+                f"refresh must be between {limits.SHORTEST_REFRESH:g} "
+                f"and {limits.LONGEST_SETTING:g} seconds"
+            )
         if problems:
             raise PluginDefinitionError(f"plugin {self.type!r}: " + "; ".join(problems))
 

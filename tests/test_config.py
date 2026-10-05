@@ -576,3 +576,10 @@ def test_time_settings_have_an_upper_limit(setting):
     cfg = parse(GOOD + setting + "\n")
     assert cfg.plugins == []
     assert "less than or equal to 604800" in problems(cfg)[0]
+
+
+@pytest.mark.parametrize("value", ["0.5", "4.9"])
+def test_refresh_is_at_least_5_seconds(value):
+    cfg = parse(GOOD + f"refresh = {value}\n")
+    assert cfg.plugins == []
+    assert "refresh: Input should be greater than or equal to 5" in problems(cfg)[0]

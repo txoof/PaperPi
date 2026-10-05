@@ -97,7 +97,7 @@ Give every text block a `sample`: the widest text it normally shows (`"88:88"` f
 
 ## Refresh
 
-`refresh` is the suggested number of seconds between updates; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes.
+`refresh` is the suggested number of seconds between updates, at least 5; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes.
 
 ## Rules
 

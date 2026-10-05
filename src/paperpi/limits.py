@@ -39,6 +39,10 @@ ALERT_MAX_TIME = 24 * 60 * 60.0
 #: Plugins that refresh "on the minute" start this many seconds after the minute changes.
 ON_THE_MINUTE_DELAY = 1.0
 
+#: Shortest time between two updates of a plugin. Faster is never wanted: a slow screen
+#: takes tens of seconds to redraw, and a fast one would flicker.
+SHORTEST_REFRESH = 5.0
+
 #: Longest a ``refresh``, ``display_time``, ``alert_reminder`` or ``alert_max_time`` may be.
 LONGEST_SETTING = 7 * 24 * 60 * 60.0
 
