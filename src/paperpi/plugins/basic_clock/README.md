@@ -8,6 +8,7 @@ Shows the time in large digits, and optionally the date below it. It needs no ne
 |---|---|
 | `time` (default) | the time only, as large as fits |
 | `time_date` | the time, with the date below it ("Monday 5 October") |
+| `small` | time and date on one small line at the bottom ("10:42 Monday 5 October"); the rest stays white. PaperPi shows this as its fallback clock when no plugin has anything to show (see `fallback_clock` in the main README) |
 
 ## Settings
 
@@ -15,7 +16,7 @@ Shows the time in large digits, and optionally the date below it. It needs no ne
 |---|---|---|
 | `hours` | `24` | `24` shows 15:45, `12` shows 3:45 PM |
 
-It suggests a refresh every 60 seconds, starting just after the minute changes (this takes effect once the scheduler is built, M4 part 2).
+It suggests a refresh every 60 seconds, starting just after the minute changes.
 
 In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
 
@@ -33,6 +34,6 @@ Try it without a screen: `uv run paperpi render basic_clock --layout time_date -
 
 Sample time: 10:42 on Monday 5 October 2026. All sample images are in [`tests/images/`](../../../../tests/images/), named `basic_clock-<layout>[-12h]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours).
 
-| `time` | `time_date` |
-|---|---|
-| ![time](../../../../tests/images/basic_clock-time-9in7.png) | ![time_date](../../../../tests/images/basic_clock-time_date-9in7.png) |
+| `time` | `time_date` | `small` |
+|---|---|---|
+| ![time](../../../../tests/images/basic_clock-time-9in7.png) | ![time_date](../../../../tests/images/basic_clock-time_date-9in7.png) | ![small](../../../../tests/images/basic_clock-small-9in7.png) |

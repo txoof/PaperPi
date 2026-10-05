@@ -191,3 +191,55 @@ def test_render_name_and_config_mistakes(args, message, capsys):
 def test_render_prints_the_mode_name(tmp_path, capsys):
     render("basic_clock", "--mode", "7color", "-o", str(tmp_path / "c.png"))
     assert "1200x825 7color" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("stop", ["SIGTERM", "SIGINT"])
+def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
+    import signal
+    import time
+
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(
+        'config_version = 1\n[display]\ntype = "virtual"\nwidth = 200\nheight = 100\n'
+        '[[plugin]]\nname = "Test"\ntype = "debugging"\nrefresh = 5\n'
+    )
+    state = tmp_path / "state"
+    out = state / "screen"  # the default for --out
+    out.mkdir(parents=True)
+    (out / "0007.png").write_bytes(b"from an earlier run")
+    args = ["--config", str(cfg), "--state-dir", str(state)]
+    process = subprocess.Popen(
+        [sys.executable, "-m", "paperpi", "run", *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        deadline = time.monotonic() + 30
+        while not (out / "latest.png").exists() and time.monotonic() < deadline:
+            time.sleep(0.2)
+        assert (out / "latest.png").exists()
+        assert Image.open(out / "latest.png").size == (200, 100)
+        # A changed setting is applied on SIGHUP and redraws the screen.
+        cfg.write_text(cfg.read_text() + 'text = "changed"\n')
+        process.send_signal(signal.SIGHUP)
+        deadline = time.monotonic() + 30
+        while not (out / "0002.png").exists() and time.monotonic() < deadline:
+            time.sleep(0.2)
+        assert (out / "0002.png").exists()
+        process.send_signal(getattr(signal, stop))
+        stdout, stderr = process.communicate(timeout=30)
+    finally:
+        process.kill()
+    assert process.returncode == 0, stderr
+    assert "showing 1 plugin;" in stdout
+    assert f"process id {process.pid}" in stdout
+    assert not (out / "0007.png").exists()  # files of an earlier run are removed
+    assert (state / "paperpi.last-good.toml").is_file()
+
+
+def test_run_with_broken_config(tmp_path, capsys):
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text("not toml [")
+    assert main(["run", "--config", str(cfg), "--state-dir", str(tmp_path)]) == 1
+    assert "can't be used" in capsys.readouterr().err

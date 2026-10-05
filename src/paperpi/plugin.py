@@ -98,10 +98,16 @@ class PluginEntry(BaseModel):
         "rotation", description="When it is shown: alert, interrupt or rotation"
     )
     display_time: float = Field(
-        120, gt=0, description="Seconds on screen per turn (rotation plugins only)"
+        120,
+        gt=0,
+        le=limits.LONGEST_SETTING,
+        description="Seconds on screen per turn, when several plugins take turns",
     )
     refresh: float | None = Field(
-        None, gt=0, description="Seconds between updates; empty means the plugin's suggestion"
+        None,
+        ge=limits.SHORTEST_REFRESH,
+        le=limits.LONGEST_SETTING,
+        description="Seconds between updates (at least 5); empty means the plugin's suggestion",
     )
     time_limit: float = Field(
         limits.PLUGIN_UPDATE,
@@ -110,6 +116,20 @@ class PluginEntry(BaseModel):
         description="Seconds one update may take before it is stopped",
     )
     layout: str | None = Field(None, description="Which layout; empty means the plugin's first")
+    alert_reminder: float = Field(
+        limits.ALERT_REMINDER,
+        gt=0,
+        le=limits.LONGEST_SETTING,
+        description="Alert plugins only: seconds before a dismissed alert comes back, "
+        "if the plugin still reports it",
+    )
+    alert_max_time: float = Field(
+        limits.ALERT_MAX_TIME,
+        gt=0,
+        le=limits.LONGEST_SETTING,
+        description="Alert plugins only: seconds after which an alert is dismissed by itself, "
+        "in case the plugin is stuck",
+    )
 
 
 #: Names a plugin may not use for its own settings.
@@ -120,6 +140,16 @@ _TYPE_NAME = re.compile(r"[a-z][a-z0-9_]*")
 #: A layout is an epdlib layout dictionary, or a function that makes one from the settings
 #: (for layouts that depend on a setting, such as a 12- or 24-hour clock).
 LayoutSource = Mapping[str, Any] | Callable[[PluginSettings], Mapping[str, Any]]
+
+
+@dataclass(frozen=True)
+class PluginsStatus:
+    """How many plugins are not working. The scheduler gives this to the ``default`` plugin."""
+
+    failing: int
+    """Plugins that failed their last update, or are left out after failing again and again."""
+    total: int
+    """Plugins that are switched on."""
 
 
 @dataclass(frozen=True)
@@ -138,6 +168,8 @@ class Context:
     """The plugin's own folder for saved files, e.g. downloaded data."""
     layout: str
     """The name of the layout to draw."""
+    status: PluginsStatus | None = None
+    """Only for the ``default`` plugin: how many plugins are not working."""
 
 
 class PluginDefinitionError(ValueError):
@@ -183,8 +215,11 @@ class Plugin:
                 problems.append("every setting needs a default")
         if not self.layouts:
             problems.append("needs at least one layout")
-        if self.refresh <= 0:
-            problems.append("refresh must be above zero")
+        if not limits.SHORTEST_REFRESH <= self.refresh <= limits.LONGEST_SETTING:
+            problems.append(
+                f"refresh must be between {limits.SHORTEST_REFRESH:g} "
+                f"and {limits.LONGEST_SETTING:g} seconds"
+            )
         if problems:
             raise PluginDefinitionError(f"plugin {self.type!r}: " + "; ".join(problems))
 

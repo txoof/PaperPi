@@ -1,14 +1,20 @@
 """The ``paperpi`` command.
 
-``paperpi render <plugin>`` draws one plugin to a PNG file, without a screen. By default it
-uses the plugin's sample data and default settings, so it needs no network and no config
-file. Run ``paperpi render --help`` for all options.
+- ``paperpi render <plugin>`` draws one plugin to a PNG file, without a screen. By default it
+  uses the plugin's sample data and default settings, so it needs no network and no config
+  file.
+- ``paperpi run`` shows the plugins of a config file: it runs the scheduler until it is
+  stopped. Until the real screens are added, it writes to a virtual screen (PNG files).
+
+Run ``paperpi <command> --help`` for all options.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
+import signal
 import sys
 import tempfile
 import tomllib
@@ -16,11 +22,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from epdlib import ScreenMode
+from epdlib.drivers.virtual import VirtualDriver
 from pydantic import ValidationError
 
 from . import __version__, config, limits, plugins
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
+from .scheduler import Scheduler
 
 log = logging.getLogger("paperpi")
 
@@ -85,6 +93,30 @@ def _parser() -> argparse.ArgumentParser:
     render.add_argument("--time-limit", type=float, help="seconds the update may take")
     render.add_argument("-o", "--output", type=Path, help="PNG file to write")
     render.set_defaults(command=_render)
+
+    run = commands.add_parser(
+        "run",
+        help="show the plugins of a config file, until stopped",
+        description=(
+            "Show the plugins of a config file: run the scheduler until Ctrl+C or the "
+            "service is stopped. The virtual screen saves every screen write as a PNG file "
+            "(the newest is latest.png). Send SIGHUP (systemctl reload paperpi) to apply "
+            "changes to the config file."
+        ),
+    )
+    run.add_argument(
+        "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    run.add_argument(
+        "--out", type=Path, help="folder for the PNG files (default: screen/ in --state-dir)"
+    )
+    run.add_argument(
+        "--state-dir",
+        type=Path,
+        default=config.STATE_DIR,
+        help=f"folder for plugin files and the last good config ({config.STATE_DIR})",
+    )
+    run.set_defaults(command=_run)
     return parser
 
 
@@ -149,6 +181,46 @@ def _render(args: argparse.Namespace) -> int:
         f"saved {output}: {job.width}x{job.height} {config.mode_name(job.mode)}, "
         f"{layout}{alert}, {result.seconds:.2f} s"
     )
+    return 0
+
+
+def _run(args: argparse.Namespace) -> int:
+    # A reload signal during start-up would otherwise end the program.
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
+    def load() -> config.Config:
+        return config.load(args.config, state_dir=args.state_dir)
+
+    try:
+        loaded = load()
+    except config.ConfigError as error:
+        print(f"paperpi: the config file can't be used:\n{error}", file=sys.stderr)
+        return 1
+    display = loaded.display
+    if display.type != "virtual":
+        raise UsageError(f"screen type {display.type!r} is not supported yet; use virtual")
+    width, height = display.size
+    mode = config.MODES[display.mode or config.VIRTUAL_MODE]
+    out = args.out or args.state_dir / "screen"
+    # The numbers start again at 0001 at every start, so files of an earlier run go.
+    for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
+        old.unlink(missing_ok=True)
+    screen = VirtualDriver(width, height, mode, out)
+    scheduler = Scheduler(loaded, screen, state_dir=args.state_dir, reload=load)
+    signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
+    signal.signal(signal.SIGINT, lambda *_: scheduler.stop())
+    signal.signal(signal.SIGHUP, lambda *_: scheduler.reload())
+    try:
+        with screen:
+            count = sum(1 for p in loaded.plugins if p.entry.enabled and p.plugin.type != "default")
+            print(
+                f"showing {count} plugin{'' if count == 1 else 's'}; images in {out}; "
+                f"process id {os.getpid()} (kill -HUP {os.getpid()} applies config changes)"
+            )
+            scheduler.run()
+    except OSError as error:
+        print(f"paperpi: {error}", file=sys.stderr)
+        return 1
     return 0
 
 

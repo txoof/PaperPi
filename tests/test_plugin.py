@@ -66,7 +66,8 @@ class NotSettings:
         ({"settings": Clash}, "names of shared settings: name, refresh"),
         ({"settings": NoDefault}, "every setting needs a default"),
         ({"layouts": {}}, "at least one layout"),
-        ({"refresh": 0}, "refresh must be above zero"),
+        ({"refresh": 0}, "refresh must be between 5 and 604800 seconds"),
+        ({"refresh": 4.9}, "refresh must be between 5 and 604800 seconds"),
     ],
 )
 def test_plugin_rules(changes, message):

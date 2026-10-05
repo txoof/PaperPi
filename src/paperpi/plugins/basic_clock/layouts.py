@@ -54,4 +54,25 @@ def time_date(settings) -> dict:
     }
 
 
-LAYOUTS = {"time": time, "time_date": time_date}
+def small(settings) -> dict:
+    """Time and date on one small line at the bottom; the rest stays white.
+
+    The scheduler's fallback clock: shown when nothing else has anything to show, so the
+    screen still changes every minute and can be told apart from a broken one.
+    """
+    return {
+        "column": [
+            {"name": "space", "type": "text", "size": 12},  # never gets a value: white
+            {
+                "name": "line",
+                "type": "text",
+                "size": 1,
+                "sample": f"{time_sample(settings)} {DATE_SAMPLE}",
+                "align": "center",
+                "padding": 0.01,
+            },
+        ]
+    }
+
+
+LAYOUTS = {"time": time, "time_date": time_date, "small": small}

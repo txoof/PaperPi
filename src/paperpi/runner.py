@@ -16,10 +16,12 @@ import logging
 import multiprocessing
 import os
 import signal
+import threading
 import time
 import traceback
 from dataclasses import dataclass
 from multiprocessing.connection import Connection
+from urllib.parse import quote, quote_plus
 
 from PIL import Image
 from pydantic import SecretBytes, SecretStr
@@ -34,6 +36,10 @@ PRELOAD = ["epdlib", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont", "pydantic", 
 
 _context = multiprocessing.get_context("forkserver")
 _context.set_forkserver_preload(PRELOAD)
+
+# Plugin processes running now, so stop_all can end them when PaperPi stops.
+_running: set[multiprocessing.process.BaseProcess] = set()
+_running_lock = threading.Lock()
 
 
 class PluginFailed(RuntimeError):
@@ -94,6 +100,8 @@ def run_update(
     finished = False
     try:
         process.start()
+        with _running_lock:
+            _running.add(process)
         sender.close()  # the child has its own copy; closing ours lets us notice a crash
         try:
             if not receiver.poll(time_limit):
@@ -106,6 +114,8 @@ def run_update(
                 plugin_type, f"process ended without a result (exit code {process.exitcode})"
             ) from None
     finally:
+        with _running_lock:
+            _running.discard(process)
         sender.close()
         receiver.close()
         _stop(process, wait=finished)
@@ -115,6 +125,25 @@ def run_update(
         raise PluginFailed(plugin_type, reason, details)
     _, state, image = message
     return UpdateResult(State(state), _unpack(image), seconds)
+
+
+def stop_all() -> None:
+    """Stop every plugin update that is running now, e.g. because PaperPi stops.
+
+    Each stopped update raises :class:`PluginFailed` in the thread that waits for it, so
+    nothing waits for a hanging plugin's time limit.
+    """
+    with _running_lock:
+        processes = list(_running)
+    for process in processes:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            # It has ended, or has not made its own process group yet.
+            try:
+                process.kill()
+            except (OSError, ValueError):
+                pass
 
 
 def _stop(process: multiprocessing.process.BaseProcess, *, wait: bool) -> None:
@@ -185,8 +214,11 @@ def _hide(text: str, secrets: list) -> str:
     for secret in secrets:
         if isinstance(secret, bytes):
             secret = secret.decode("utf-8", "replace")
-        if secret:
-            text = text.replace(secret, "****")
+        if not secret:
+            continue
+        # Also the forms a web address uses, e.g. in the message of a failed request.
+        for form in sorted({secret, quote(secret, safe=""), quote_plus(secret)}, key=len)[::-1]:
+            text = text.replace(form, "****")
     return text
 
 

@@ -178,3 +178,11 @@ def _kill(pid_file) -> None:
         os.kill(int(pid_file.read_text()), signal.SIGKILL)
     except (FileNotFoundError, ValueError, ProcessLookupError):
         pass
+
+
+def test_secret_settings_are_hidden_also_when_written_for_a_web_address():
+    from paperpi.runner import _hide
+
+    text = "GET https://api.example/?key=a%2Fb%20c%2Bd failed; key a/b c+d; q=a%2Fb+c%2Bd"
+    hidden = _hide(text, ["a/b c+d"])
+    assert hidden == "GET https://api.example/?key=**** failed; key ****; q=****"

@@ -36,9 +36,9 @@ These rules apply to every person and agent working in this repository.
   ```
   If you stop without finishing, move its card back to **Todo**.
 - Shared files (`pyproject.toml`, `uv.lock`, `.python-version`, `.github/`, the config schema) are used by everyone, so take care when changing them:
-  - A PR may change `pyproject.toml` and `uv.lock` when its own work needs it (for example a new dependency), so related changes stay together. First check that no other open PR changes them:
+  - A PR may change `pyproject.toml`, `uv.lock` and the config schema (the settings the config file may contain: `src/paperpi/config.py`, and `PluginEntry` in `src/paperpi/plugin.py`) when its own work needs it (for example a new dependency or setting), so related changes stay together. First check that no other open PR changes them (the command lists every PR that changes one of these files; for `plugin.py`, look whether it changes `PluginEntry`):
     ```bash
-    for n in $(gh pr list --json number --jq '.[].number'); do gh pr diff $n --name-only | grep -qxE 'pyproject.toml|uv.lock' && echo "PR $n"; done
+    for n in $(gh pr list --json number --jq '.[].number'); do gh pr diff $n --name-only | grep -qxE 'pyproject.toml|uv.lock|src/paperpi/config.py|src/paperpi/plugin.py' && echo "PR $n"; done
     ```
     Once your own PR is open, it shows up in this list too.
   - The other shared files are changed only in their own small issue.

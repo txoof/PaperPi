@@ -29,6 +29,8 @@ def format_date(now: datetime) -> str:
 
 
 def draw(now: datetime, context: Context) -> dict:
+    if context.layout == "small":
+        return {"line": f"{format_time(now, context.settings.hours)} {format_date(now)}"}
     values = {"time": format_time(now, context.settings.hours)}
     if context.layout == "time_date":
         values["date"] = format_date(now)

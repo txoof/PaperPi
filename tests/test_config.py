@@ -193,7 +193,7 @@ def test_unknown_plugin_type_suggests_a_name():
     assert cfg.plugins == []
     assert problems(cfg) == [
         "paperpi.toml line 8 [[plugin]] 'Clock': unknown plugin type 'basic_clok' "
-        "(did you mean 'basic_clock'?); known: basic_clock"
+        "(did you mean 'basic_clock'?); known: basic_clock, debugging, default"
     ]
 
 
@@ -209,7 +209,8 @@ def test_missing_name_and_type():
 def test_unknown_layout():
     cfg = parse(GOOD + 'layout = "big"\n')
     assert problems(cfg) == [
-        "config line 9 [[plugin]] 'Clock': unknown layout 'big'; choose from: time, time_date"
+        "config line 9 [[plugin]] 'Clock': unknown layout 'big'; "
+        "choose from: time, time_date, small"
     ]
 
 
@@ -567,3 +568,27 @@ def test_state_folder_is_private_and_old_temporary_files_are_removed(files):
     path.write_text(GOOD + "# changed\n")
     load(path, state_dir=state)
     assert not leftover.exists()
+
+
+@pytest.mark.parametrize(
+    "setting", ["refresh = inf", "display_time = 1e300", "alert_max_time = 700000"]
+)
+def test_time_settings_have_an_upper_limit(setting):
+    cfg = parse(GOOD + setting + "\n")
+    assert cfg.plugins == []
+    assert "less than or equal to 604800" in problems(cfg)[0]
+
+
+@pytest.mark.parametrize("value", ["0.5", "4.9"])
+def test_refresh_is_at_least_5_seconds(value):
+    cfg = parse(GOOD + f"refresh = {value}\n")
+    assert cfg.plugins == []
+    assert "refresh: Input should be greater than or equal to 5" in problems(cfg)[0]
+
+
+def test_hint_when_the_fallback_clock_is_switched_off():
+    cfg = parse(GOOD.replace('type = "virtual"', 'type = "virtual"\nfallback_clock = false'))
+    assert cfg.display.fallback_clock is False
+    assert len(cfg.plugins) == 1
+    [hint] = problems(cfg, "hint")
+    assert "fallback_clock = false is not recommended" in hint
