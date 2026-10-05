@@ -209,7 +209,8 @@ def test_missing_name_and_type():
 def test_unknown_layout():
     cfg = parse(GOOD + 'layout = "big"\n')
     assert problems(cfg) == [
-        "config line 9 [[plugin]] 'Clock': unknown layout 'big'; choose from: time, time_date"
+        "config line 9 [[plugin]] 'Clock': unknown layout 'big'; "
+        "choose from: time, time_date, small"
     ]
 
 
@@ -583,3 +584,11 @@ def test_refresh_is_at_least_5_seconds(value):
     cfg = parse(GOOD + f"refresh = {value}\n")
     assert cfg.plugins == []
     assert "refresh: Input should be greater than or equal to 5" in problems(cfg)[0]
+
+
+def test_hint_when_the_fallback_clock_is_switched_off():
+    cfg = parse(GOOD.replace('type = "virtual"', 'type = "virtual"\nfallback_clock = false'))
+    assert cfg.display.fallback_clock is False
+    assert len(cfg.plugins) == 1
+    [hint] = problems(cfg, "hint")
+    assert "fallback_clock = false is not recommended" in hint

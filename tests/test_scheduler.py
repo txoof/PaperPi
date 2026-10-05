@@ -451,11 +451,50 @@ def test_default_says_when_no_plugin_is_switched_on(tmp_path):
     assert sim.shown == ["default 0/0"]
 
 
-def test_screen_stays_as_it_is_when_nothing_has_anything_to_show(tmp_path):
+def clock_labels(t):
+    """A plan for the fallback clock: a new picture every minute."""
+    return f"clock {int(t // 60)}"
+
+
+def test_fallback_clock_when_nothing_has_anything_to_show(tmp_path):
     sim = Sim(tmp_path, interrupt("m"))
+    sim.plan(m="nothing", **{"built-in-clock": clock_labels})
+    sim.run(until=200)
+    # Started once m has reported (t=1); then 1 s after each minute (10:01:01, 10:02:01).
+    assert sim.writes == [(2, "clock 0"), (62, "clock 1"), (122, "clock 2"), (182, "clock 3")]
+
+
+def test_fallback_clock_after_an_alert_ends(tmp_path):
+    sim = Sim(tmp_path, interrupt("m"), alert("x"))
+    sim.plan(m="nothing", x=between(50, 100, "X"), **{"built-in-clock": clock_labels})
+    sim.run(until=150)
+    # The clock's picture from t=2 is out of date by then: it waits for a new one.
+    assert sim.writes == [(2, "clock 0"), (56, "X"), (101, "clock 1"), (122, "clock 2")]
+
+
+def test_fallback_clock_waits_until_every_plugin_has_reported(tmp_path):
+    sim = Sim(tmp_path, interrupt("m"), rotation("slow"))
+    sim.clock.duration = lambda context: 10.0 if context.storage.name == "slow" else 1.0
     sim.plan(m="nothing")
+    sim.run(until=50)
+    assert sim.writes == [(10, "SLOW")]
+
+
+def test_screen_keeps_its_picture_when_the_fallback_clock_is_off(tmp_path):
+    sim = Sim(tmp_path, interrupt("m"), alert("x"), display="fallback_clock = false")
+    sim.plan(m="nothing", x=between(50, 100, "X"))
     sim.run(until=1000)
-    assert sim.writes == []
+    assert sim.writes == [(56, "X")]
+
+
+def test_rotation_goes_on_with_the_next_plugin_after_the_fallback_clock(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), rotation("b"), rotation("c"))
+    gap = between(50, 200, "nothing", outside="")  # nothing to show from 50 to 200
+    sim.plan(a=lambda t: gap(t) or "A", b=lambda t: gap(t) or "B", c=lambda t: gap(t) or "C")
+    sim.plan(**{"built-in-clock": clock_labels})
+    sim.run(until=300)
+    # a was shown last, so b is next, not the first plugin again.
+    assert sim.shown == ["A", "clock 1", "clock 2", "clock 3", "B"]
 
 
 def test_failed_screen_write_is_tried_again_at_the_next_update_and_logged_once(tmp_path, caplog):

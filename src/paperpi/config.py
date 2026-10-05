@@ -84,6 +84,11 @@ class DisplaySettings(BaseModel):
     type: str = Field(description='The screen model, or "virtual" (writes PNG files)')
     rotation: Literal[0, 90, 180, 270] = Field(0, description="Turn the picture, in degrees")
     color: bool = Field(True, description="false: draw in gray, even on a colour screen")
+    fallback_clock: bool = Field(
+        True,
+        description="Show a small clock when no plugin has anything to show (strongly "
+        "recommended: without it, an empty screen looks like a broken one)",
+    )
     width: int | None = Field(None, gt=0, le=10_000, description="Virtual screen only: pixels")
     height: int | None = Field(None, gt=0, le=10_000, description="Virtual screen only: pixels")
     mode: Literal["bw", "gray4", "gray16", "7color", "rgb"] | None = Field(
@@ -392,6 +397,16 @@ class _Checker:
                         key,
                         "[display]",
                     )
+        if not settings.fallback_clock:
+            self.add(
+                "hint",
+                "fallback_clock = false is not recommended: when no plugin has anything to "
+                "show, the screen keeps its last picture, which can't be told apart from a "
+                "screen that stopped working",
+                section,
+                "fallback_clock",
+                "[display]",
+            )
         if "web" in data and not isinstance(data["web"], dict):
             self.add("error", "web must be a [web] part", key="web")
         return settings

@@ -24,7 +24,9 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
 - A failed update is skipped and tried again at the next refresh. After
   :data:`~paperpi.limits.FAILURES_BEFORE_LEFT_OUT` failures in a row the plugin is left out
   for :data:`~paperpi.limits.LEFT_OUT` seconds. When nothing can be shown because plugins
-  fail, or no plugin is switched on, the ``default`` plugin says so.
+  fail, or no plugin is switched on, the ``default`` plugin says so. When no plugin has
+  anything to show and none fail, a small fallback clock is shown (``[display]
+  fallback_clock``), so an empty screen is never mistaken for a broken one.
 
 One loop (:meth:`Scheduler.run`) makes every decision, in one thread, so two decisions can
 never happen at the same moment. Finished updates, "stop", "reload" and "dismiss" reach it as
@@ -118,6 +120,8 @@ class _Slot:
     """Alert plugins: held for ``alert_max_time`` and dismissed; no reminders until a new alert."""
     status: PluginsStatus | None = None
     """``default`` only: the status its latest update was asked to show."""
+    reported: bool = False
+    """It has finished at least one update (so its state is known)."""
     waits_for: _Slot | None = None
     """After a reload: the old version of this plugin, still updating. This one starts
     when that update has finished, so two updates never use the same storage folder."""
@@ -173,6 +177,8 @@ class Scheduler:
         self._events: queue.SimpleQueue = queue.SimpleQueue()
         self._slots: list[_Slot] = []
         self._default = _Slot(_default_config(config))
+        self._fallback = _Slot(_fallback_config()) if config.display.fallback_clock else None
+        """The fallback clock, shown when no plugin has anything to show."""
         self._current: _Slot | None = None
         """The plugin on screen."""
         self._turn_start = 0.0
@@ -268,7 +274,7 @@ class Scheduler:
                     # what is known about its alert (e.g. that it was dismissed).
                     changed.state, changed.image = slot.state, slot.image
                     changed.alert_since, changed.dismissed_at = slot.alert_since, slot.dismissed_at
-                    changed.expired = slot.expired
+                    changed.expired, changed.reported = slot.expired, slot.reported
                     if slot.running:
                         changed.due, changed.waits_for = math.inf, slot
                     if slot is self._current:
@@ -324,12 +330,21 @@ class Scheduler:
             else:
                 slot.state, slot.image = event.result.state, event.result.image
             return
+        if slot is self._fallback:
+            if event.error is not None:
+                log.error("the fallback clock failed: %s", event.error)
+                slot.due = now + slot.config.refresh
+            else:
+                slot.state, slot.image = event.result.state, event.result.image
+                slot.due = self._next_update(slot, now)
+            return
         if slot not in self._slots:
             # Removed or changed while it was updating. A changed one can start now.
             for waiting in self._slots:
                 if waiting.waits_for is slot:
                     waiting.waits_for, waiting.due = None, now
             return
+        slot.reported = True
         if event.error is not None:
             slot.failures += 1
             slot.state, slot.image = State.NOTHING, None
@@ -393,7 +408,7 @@ class Scheduler:
         if not new_turn and self._near_end_of_turn(now):
             # The next plugin takes over before this image would be finished drawing.
             return
-        if chosen.level == "rotation":
+        if chosen.level == "rotation" and chosen in self._slots:
             self._last_rotation = chosen.name
         self._current = chosen
         if self._attempted is None or not _same_image(chosen.image, self._attempted):
@@ -416,7 +431,7 @@ class Scheduler:
                 # with the next plugin after the one shown last.
                 return self._next(rotation, self._last_rotation), True
             return self._take_turns(rotation, now)
-        return self._choose_default(), True
+        return self._choose_idle(now), True
 
     def _take_turns(self, group: list[_Slot], now: float) -> tuple[_Slot, bool]:
         """Keep the plugin on screen until its turn is over, then the next one in ``group``."""
@@ -434,20 +449,34 @@ class Scheduler:
         order = self._slots[start:] + self._slots[:start]
         return next(s for s in order if s in group)
 
-    def _choose_default(self) -> _Slot | None:
-        """Nothing can be shown: the ``default`` plugin, when plugins fail or none are on."""
+    def _choose_idle(self, now: float) -> _Slot | None:
+        """No plugin has anything to show.
+
+        When plugins fail, or none are switched on: the ``default`` plugin, which says so.
+        Otherwise (e.g. only a music plugin, and no music) the fallback clock, so the screen
+        still changes every minute and can be told apart from a broken one.
+        """
         failing = sum(1 for s in self._slots if s.failures)
-        if self._slots and not failing:
-            return None  # e.g. only a music plugin, and no music: keep the screen as it is
-        status = PluginsStatus(failing, len(self._slots))
-        default = self._default
-        if not default.running and default.status != status:
-            self._start(default, status)
-        return default if default.has_image else None
+        if failing or not self._slots:
+            status = PluginsStatus(failing, len(self._slots))
+            default = self._default
+            if not default.running and default.status != status:
+                self._start(default, status)
+            return default if default.has_image else None
+        clock = self._fallback
+        if clock is None or not all(s.reported for s in self._slots):
+            return None  # switched off, or still starting: keep the screen as it is
+        if clock.due <= now:
+            # Its picture is out of date (it is only updated while it is needed): never
+            # show a wrong time, wait for the new one.
+            if not clock.running:
+                self._start(clock, None)
+            return None
+        return clock if clock.has_image else None
 
     def _near_end_of_turn(self, now: float) -> bool:
         current = self._current
-        if current is None or current.level != "rotation":
+        if current is None or current.level != "rotation" or current not in self._slots:
             return False
         others = [s for s in self._slots if s.level == "rotation" and s.has_image]
         if others == [current]:
@@ -480,6 +509,8 @@ class Scheduler:
             return 0  # an update came due while the screen was being written
         if self._current is not None:
             times.append(self._turn_start + self._current.config.entry.display_time)
+            if self._current is self._fallback and not self._fallback.running:
+                times.append(self._fallback.due)
         for slot in self._slots:
             if slot.alert_since is not None and not slot.expired:
                 times.append(slot.alert_since + slot.config.entry.alert_max_time)
@@ -503,6 +534,13 @@ def _default_config(config: Config) -> PluginConfig:
     plugin = plugins.load("default")
     # Its own storage folder, also when a user names another plugin "default".
     entry = PluginEntry(name="built-in default", type="default")
+    return PluginConfig(entry, plugin.settings(), plugin)
+
+
+def _fallback_config() -> PluginConfig:
+    """The fallback clock: basic_clock with one small line of time and date."""
+    plugin = plugins.load("basic_clock")
+    entry = PluginEntry(name="built-in clock", type="basic_clock", layout="small")
     return PluginConfig(entry, plugin.settings(), plugin)
 
 
