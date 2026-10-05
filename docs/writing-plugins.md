@@ -95,6 +95,21 @@ hours = 12
 
 Give every text block a `sample`: the widest text it normally shows (`"88:88"` for a clock). The font size is then chosen once, so it doesn't change between updates.
 
+## Web requests
+
+Use PaperPi's helper `paperpi.webrequest` for every download. It applies the time and size limits (10 s to connect, 30 s in total, at most 20 MB), retries once after 5 s when the server can't be reached or is busy, and unpacks gzip.
+
+```python
+from paperpi import webrequest
+
+answer = webrequest.get(url, contact=context.settings.email)
+data = answer.json()
+```
+
+- `contact`: an email or web address, sent to the server so it knows whom to ask about problems. Some services, like met.no, require it.
+- `if_modified_since=`: the `last_modified` of an earlier answer. If nothing changed since, the answer is `not_modified` and has no content. Save `last_modified` and the data in `context.storage`, so the next update can ask.
+- When the request fails, `webrequest.WebError` is raised with a plain message, for example "api.met.no/weatherapi/locationforecast/2.0/complete answered 404 Not Found". The message leaves out the part after `?`, because it may hold an API key. Let it pass up unless the plugin can show something without the data.
+
 ## Refresh
 
 `refresh` is the suggested number of seconds between updates, at least 5; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes.

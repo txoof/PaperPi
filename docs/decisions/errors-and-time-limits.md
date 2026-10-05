@@ -42,7 +42,7 @@ As in `plugin-scheduling.md`: a failed update is skipped and retried at the plug
 | What | Default time limit |
 |---|---|
 | One plugin update (fetch data and draw) | 60 s; can be changed per plugin in the web interface |
-| One web request by a plugin | 10 s to connect, 30 s in total; one retry after 5 s. All plugins use one shared helper for web requests. |
+| One web request by a plugin | 10 s to connect, 30 s in total, including one retry after 5 s (so a plugin still has time to draw). At most 20 MB in the answer. All plugins use one shared helper for web requests: `paperpi.webrequest`. |
 | One screen write | 3 × the measured redraw time, at least 30 s, at most 5 min. Before the first measurement: 2 min (5 min for colour screens). |
 | Reading or writing a file | 10 s |
 

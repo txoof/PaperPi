@@ -46,12 +46,12 @@ type = "it8951"
 rotation = 0
 
 [[plugin]]
-name = "Weather Den Haag"
+name = "Weather Berlin"
 type = "met_no"
 level = "rotation"
 display_time = 50
-lat = 52.07
-lon = 4.30
+lat = 52.52
+lon = 13.40
 
 [[plugin]]
 name = "Word Clock"

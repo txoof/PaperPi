@@ -48,3 +48,17 @@ LONGEST_SETTING = 7 * 24 * 60 * 60.0
 
 #: Longest the scheduler sleeps in one go. It wakes up earlier when something happens.
 LONGEST_WAIT = 60 * 60.0
+
+#: Longest wait to connect to a web server (one attempt).
+WEB_CONNECT = 10.0
+
+#: Longest one web request may take in total, including the retry and the wait before it.
+#: Well under the plugin time limit, so a plugin still has time to draw.
+WEB_TOTAL = 30.0
+
+#: Wait before the one retry of a failed web request.
+WEB_RETRY_WAIT = 5.0
+
+#: Largest answer PaperPi accepts from a web server, after unpacking. A weather forecast is
+#: well under 1 MB; an image a few MB.
+WEB_ANSWER_BYTES = 20_000_000
