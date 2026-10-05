@@ -146,28 +146,44 @@ def spells_text(spells, zone) -> str:
     return ", ".join(f"{start.astimezone(zone):%H}–{end_hour(end)}" for start, end in spells)
 
 
+def temperatures_text(s: forecast.Summary, settings: Settings) -> str:
+    t = settings.temperature
+    return f"Max {degrees(s.high, t)}{t} · Min {degrees(s.low, t)}{t}"
+
+
+def rain_summary_text(s: forecast.Summary, settings: Settings, zone) -> str:
+    """ "Rain 6.6 mm, 13–17, 19–20", or "No rain"."""
+    if not s.spells:
+        return "No rain"
+    unit = "in" if settings.rain == "inch" else "mm"
+    total = rain_text(s.rain, settings.rain) or "0.1"
+    return f"Rain {total} {unit}, {spells_text(s.spells, zone)}"
+
+
 def summary_text(hours: tuple[Hour, ...], settings: Settings, zone) -> str:
     s = forecast.summarize(hours)
-    unit = "in" if settings.rain == "inch" else "mm"
-    t = settings.temperature
-    text = f"Max {degrees(s.high, t)}{t} · Min {degrees(s.low, t)}{t} · "
-    if not s.spells:
-        return text + "No rain"
-    total = rain_text(s.rain, settings.rain) or "0.1"
-    return text + f"Rain {total} {unit}, {spells_text(s.spells, zone)}"
+    return f"{temperatures_text(s, settings)} · {rain_summary_text(s, settings, zone)}"
 
 
-def rain_bar(mm: float, top: float):
-    """A bar for one hour's rain; full height is ``top`` mm."""
+def rain_bar(mm: float, top: float, *, upright: bool = True):
+    """A bar for one hour's rain; full length is ``top`` mm. Upright bars grow from the
+    bottom, the others (for the tall layouts) from the left."""
     # Drawn larger than it will be shown, so the layout only ever shrinks it: enlarging
     # would blur the edges, and blurred edges show as dots on black-and-white screens.
-    width, height = 400, 1200
-    image = Image.new("L", (width, height), 255)
-    draw = ImageDraw.Draw(image)
-    filled = round(height * min(mm / top, 1.0)) if mm >= forecast.WET else 0
-    if filled:
-        draw.rectangle((40, height - filled, width - 41, height - 1), fill=0)
-    draw.rectangle((0, height - 16, width - 1, height - 1), fill=0)  # the ground
+    long, short, edge, ground = 1200, 400, 40, 16
+    filled = round(long * min(mm / top, 1.0)) if mm >= forecast.WET else 0
+    if upright:
+        image = Image.new("L", (short, long), 255)
+        draw = ImageDraw.Draw(image)
+        if filled:
+            draw.rectangle((edge, long - filled, short - edge - 1, long - 1), fill=0)
+        draw.rectangle((0, long - ground, short - 1, long - 1), fill=0)
+    else:
+        image = Image.new("L", (long, short), 255)
+        draw = ImageDraw.Draw(image)
+        if filled:
+            draw.rectangle((0, edge, filled - 1, short - edge - 1), fill=0)
+        draw.rectangle((0, 0, ground - 1, short - 1), fill=0)
     return image
 
 
@@ -180,6 +196,16 @@ def icon(symbol: str | None):
     return path if path.is_file() else None
 
 
+def _blocks(node) -> set[str]:
+    """The names of all blocks in a layout description."""
+    if isinstance(node, dict):
+        found = {node["name"]} if "name" in node else set()
+        for child in node.get("row", node.get("column", ())):
+            found |= _blocks(child)
+        return found
+    return set()
+
+
 def draw(weather: Weather, context: Context) -> dict:
     settings = context.settings
     zone = ZoneInfo(weather.zone) if weather.zone else None
@@ -187,22 +213,53 @@ def draw(weather: Weather, context: Context) -> dict:
     if not hours:
         raise forecast.ForecastError("the saved forecast has no hours from now on")
     local = (lambda t: t.astimezone(zone)) if zone else (lambda t: t.astimezone())
-    values = {
-        "place": settings.place,
-        "updated": f"Updated {local(weather.forecast.fetched):%H:%M}",
-        "summary": summary_text(hours, settings, zone),
-    }
+    t, unit = settings.temperature, settings.rain
+    summary = forecast.summarize(hours)
     # Bars share one scale: at least 2 mm per hour, so a drizzle doesn't look like a storm.
     top = max([2.0, *(h.rain for h in hours)])
+
+    def wind(hour: Hour):
+        return barbs.barb(hour.wind_speed * forecast.KNOTS, hour.wind_from)
+
+    # What each block can show. Only the blocks of the chosen layout are made, because
+    # pictures (barbs, bars) take time to draw.
+    makers = {
+        "place": lambda: settings.place,
+        "updated": lambda: f"Updated {local(weather.forecast.fetched):%H:%M}",
+        "summary": lambda: summary_text(hours, settings, zone),
+        "temperatures": lambda: temperatures_text(summary, settings),
+        "rain": lambda: rain_summary_text(summary, settings, zone),
+        "now_temp": lambda: f"{degrees(hours[0].temperature, t)}{t}",
+        "now_icon": lambda: icon(hours[0].symbol),
+        "now_barb": lambda: wind(hours[0]),
+    }
     for i, hour in enumerate(hours):
-        values[f"bar_{i}"] = rain_bar(hour.rain, top)
-        values[f"mm_{i}"] = rain_text(hour.rain, settings.rain)
-        values[f"hour_{i}"] = f"{local(hour.time):%H}"
-        values[f"temp_{i}"] = degrees(hour.temperature, settings.temperature)
-        values[f"barb_{i}"] = barbs.barb(hour.wind_speed * forecast.KNOTS, hour.wind_from)
+        makers |= {
+            f"bar_{i}": lambda h=hour: rain_bar(h.rain, top),
+            f"hbar_{i}": lambda h=hour: rain_bar(h.rain, top, upright=False),
+            f"mm_{i}": lambda h=hour: rain_text(h.rain, unit),
+            f"hour_{i}": lambda h=hour: f"{local(h.time):%H}",
+            f"temp_{i}": lambda h=hour: degrees(h.temperature, t),
+            f"barb_{i}": lambda h=hour: wind(h),
+            f"hicon_{i}": lambda h=hour: icon(h.symbol),
+        }
         if i % 2 == 0:
-            values[f"icon_{i // 2}"] = icon(hour.symbol)
-    return values
+            makers[f"icon_{i // 2}"] = lambda h=hour: icon(h.symbol)
+    for k in range(len(hours) // 3):
+        part = hours[3 * k : 3 * k + 3]
+        low, high = (degrees(f(h.temperature for h in part), t) for f in (min, max))
+        mm = rain_text(sum(h.rain for h in part), unit)
+        makers |= {
+            f"step_{k}": lambda p=part: f"{local(p[0].time):%H}–{local(p[-1].time).hour + 1:02d}",
+            f"step_icon_{k}": lambda p=part: icon(p[0].symbol),
+            f"step_temp_{k}": lambda lo=low, hi=high: lo if lo == hi else f"{lo[:-1]}–{hi}",
+            f"step_rain_{k}": lambda mm=mm: (
+                f"{mm} {'in' if unit == 'inch' else 'mm'}" if mm else ""
+            ),
+            f"step_barb_{k}": lambda p=part: wind(p[1]),  # the wind at the middle hour
+        }
+    wanted = _blocks(LAYOUTS[context.layout](settings))
+    return {name: make() for name, make in makers.items() if name in wanted}
 
 
 def _sample() -> Weather:

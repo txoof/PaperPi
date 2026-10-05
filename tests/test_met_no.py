@@ -411,3 +411,41 @@ def test_calm_and_storm_look_different():
 
 def test_barb_size():
     assert barbs.barb(10, 45, size=100).size == (100, 100)
+
+
+# --- The other layouts -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("layout", list(met_no.LAYOUTS))
+def test_every_block_gets_a_value(tmp_path, layout):
+    """draw fills exactly the blocks of the chosen layout, no more, no fewer."""
+    blocks = met_no._blocks(met_no.LAYOUTS[layout](Settings()))
+    assert set(draw(PLUGIN.sample, context(tmp_path, layout))) == blocks
+
+
+def test_small_and_now(tmp_path):
+    small = draw(PLUGIN.sample, context(tmp_path, "small"))
+    assert small["now_temp"] == "8°C"
+    assert small["temperatures"] == "Max 14°C · Min 8°C"
+    assert small["rain"] == "Rain 6.6 mm, 13–17, 19–20"
+    assert small["now_icon"].name == "clearsky_day.png"
+    assert "now_barb" not in small  # txoof: no wind barb on tiny screens
+    assert draw(weather(0, 0), context(tmp_path, "small"))["rain"] == "No rain"
+
+
+def test_steps_of_3_hours(tmp_path):
+    values = draw(PLUGIN.sample, context(tmp_path, "steps_3h"))
+    assert [values[f"step_{k}"] for k in range(4)] == ["09–12", "12–15", "15–18", "18–21"]
+    assert values["step_temp_0"] == "8–11°"
+    assert values["step_rain_0"] == ""
+    assert values["step_rain_2"] == "4.5 mm"  # 3.4 + 1.1 + 0
+    same = draw(weather(0, 0, 0), context(tmp_path, "steps_3h"))
+    assert same["step_temp_0"] == "10–12°"
+
+
+def test_sideways_rain_bars():
+    upright = met_no.rain_bar(1.0, 2.0)
+    sideways = met_no.rain_bar(1.0, 2.0, upright=False)
+    assert upright.width < upright.height and sideways.width > sideways.height
+    assert sideways.getpixel((500, 200)) == 0  # half full from the left
+    assert sideways.getpixel((700, 200)) == 255

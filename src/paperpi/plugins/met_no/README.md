@@ -34,6 +34,13 @@ The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfSer
 | Layout | Shows |
 |---|---|
 | `hours_12` (default) | place and "Updated" time, the summary line, an icon every 2 hours, then per hour the rain bar and mm, the hour, the temperature and the wind barb |
+| `steps_3h` | the summary, then 4 steps of 3 hours: the hours, an icon, lowest and highest temperature, the rain, and the wind at the middle hour |
+| `now` | the next hour, large: icon, temperature and wind barb, with the summary below |
+| `small` | for tiny screens (2" to 3"): a big icon for the next hour, the temperature now, then max and min, and the rain and its hours for the next 12 hours. No wind barb |
+| `portrait_hours` | for screens standing upright: the summary on top, then one row per hour: hour, icon, temperature, rain as a sideways bar with the mm, wind barb |
+| `portrait_now` | for screens standing upright: a large icon for the next hour, its temperature and wind barb, then the summary |
+
+Every layout except `small` shows the place and the "Updated" time at the top.
 
 ## Settings
 
@@ -70,6 +77,12 @@ The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Mete
 
 The sample data is made up: a day in Berlin from 09:00, with a shower in the afternoon. All sample images are in [`tests/images/`](../../../../tests/images/), named `met_no-<layout>[-berlin-f]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours). `berlin-f` shows the place name, °F and inches.
 
-| `hours_12` | `hours_12`, °F and inches, 7.5" black and white |
-|---|---|
-| ![hours_12](../../../../tests/images/met_no-hours_12-9in7.png) | ![berlin-f](../../../../tests/images/met_no-hours_12-berlin-f-7in5.png) |
+| `hours_12` | `steps_3h` | `now` |
+|---|---|---|
+| ![hours_12](../../../../tests/images/met_no-hours_12-9in7.png) | ![steps_3h](../../../../tests/images/met_no-steps_3h-9in7.png) | ![now](../../../../tests/images/met_no-now-9in7.png) |
+
+| `small` (on a 5.65" screen) | `portrait_hours` (on a wide screen) | `hours_12`, °F and inches, 7.5" black and white |
+|---|---|---|
+| ![small](../../../../tests/images/met_no-small-5in65.png) | ![portrait_hours](../../../../tests/images/met_no-portrait_hours-9in7.png) | ![berlin-f](../../../../tests/images/met_no-hours_12-berlin-f-7in5.png) |
+
+The `portrait_*` layouts are made for screens standing upright; the test pictures are drawn on the usual wide screens, so they look squeezed there.
