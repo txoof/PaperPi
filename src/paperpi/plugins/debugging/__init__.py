@@ -73,7 +73,6 @@ def draw(state: str, context: Context) -> dict:
     return {"text": context.settings.text, "state": state}
 
 
-TEXT = {"type": "text", "align": "center", "padding": 0.05}
 BLOCK = {"type": "text", "align": "center", "padding": 0.05}
 
 LAYOUTS = {

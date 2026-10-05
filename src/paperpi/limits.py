@@ -38,3 +38,9 @@ ALERT_MAX_TIME = 24 * 60 * 60.0
 
 #: Plugins that refresh "on the minute" start this many seconds after the minute changes.
 ON_THE_MINUTE_DELAY = 1.0
+
+#: Longest a ``refresh``, ``display_time``, ``alert_reminder`` or ``alert_max_time`` may be.
+LONGEST_SETTING = 7 * 24 * 60 * 60.0
+
+#: Longest the scheduler sleeps in one go. It wakes up earlier when something happens.
+LONGEST_WAIT = 60 * 60.0

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import signal
 import sys
 import tempfile
@@ -32,7 +33,6 @@ from .scheduler import Scheduler
 log = logging.getLogger("paperpi")
 
 SIZE = f"{config.VIRTUAL_WIDTH}x{config.VIRTUAL_HEIGHT}"
-SCREEN_DIR = config.STATE_DIR / "screen"
 
 
 class UsageError(Exception):
@@ -108,7 +108,7 @@ def _parser() -> argparse.ArgumentParser:
         "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
     )
     run.add_argument(
-        "--out", type=Path, default=SCREEN_DIR, help=f"folder for the PNG files ({SCREEN_DIR})"
+        "--out", type=Path, help="folder for the PNG files (default: screen/ in --state-dir)"
     )
     run.add_argument(
         "--state-dir",
@@ -185,6 +185,9 @@ def _render(args: argparse.Namespace) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
+    # A reload signal during start-up would otherwise end the program.
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
     def load() -> config.Config:
         return config.load(args.config, state_dir=args.state_dir)
 
@@ -198,15 +201,22 @@ def _run(args: argparse.Namespace) -> int:
         raise UsageError(f"screen type {display.type!r} is not supported yet; use virtual")
     width, height = display.size
     mode = config.MODES[display.mode or config.VIRTUAL_MODE]
-    screen = VirtualDriver(width, height, mode, args.out)
+    out = args.out or args.state_dir / "screen"
+    # The numbers start again at 0001 at every start, so files of an earlier run go.
+    for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
+        old.unlink(missing_ok=True)
+    screen = VirtualDriver(width, height, mode, out)
     scheduler = Scheduler(loaded, screen, state_dir=args.state_dir, reload=load)
     signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
     signal.signal(signal.SIGINT, lambda *_: scheduler.stop())
     signal.signal(signal.SIGHUP, lambda *_: scheduler.reload())
     try:
         with screen:
-            count = len(loaded.plugins)
-            print(f"showing {count} plugin{'' if count == 1 else 's'}; images in {args.out}")
+            count = sum(1 for p in loaded.plugins if p.entry.enabled and p.plugin.type != "default")
+            print(
+                f"showing {count} plugin{'' if count == 1 else 's'}; images in {out}; "
+                f"process id {os.getpid()} (kill -HUP {os.getpid()} applies config changes)"
+            )
             scheduler.run()
     except OSError as error:
         print(f"paperpi: {error}", file=sys.stderr)

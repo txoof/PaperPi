@@ -92,11 +92,14 @@ class FakeUpdates:
         self.labels = labels
         self.plans = {}
         self.calls = []
+        self.default_fails = False
 
     def __call__(self, plugin_type, context, time_limit):
         name = context.storage.name
         self.calls.append((self.clock.t, name))
         if context.status is not None:
+            if self.default_fails:
+                raise PluginFailed(plugin_type, "fake failure of default")
             outcome = f"default {context.status.failing}/{context.status.total}"
         else:
             plan = self.plans.get(name, name.upper())
@@ -105,6 +108,8 @@ class FakeUpdates:
             raise PluginFailed(plugin_type, "fake failure")
         if outcome == "nothing":
             return UpdateResult(State.NOTHING, None, 1.0)
+        if outcome.startswith("alert:"):  # the plugin reports the state "alert"
+            return UpdateResult(State.ALERT, self.labels.image(outcome), 1.0)
         return UpdateResult(State.READY, self.labels.image(outcome), 1.0)
 
     def times(self, name):
@@ -150,6 +155,7 @@ def interrupt(name, refresh=5):
 
 
 def alert(name, refresh=10, **extra):
+    """An alert plugin block; ``extra`` are more settings, e.g. ``alert_reminder=300``."""
     lines = "".join(f"\n{key} = {value}" for key, value in extra.items())
     return f'name = "{name}"\nlevel = "alert"\nrefresh = {refresh}{lines}'
 
@@ -327,6 +333,42 @@ def test_alert_held_too_long_is_dismissed_until_a_new_alert(tmp_path):
     assert 2500 <= sim.writes[3][0] <= 2511
 
 
+def test_several_alerts_take_turns(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), alert("x", display_time=50), alert("y", display_time=50))
+    sim.plan(x="X", y="Y")
+    sim.run(until=250)
+    assert sim.writes == [(1, "X"), (51, "Y"), (101, "X"), (151, "Y"), (201, "X")]
+
+
+def test_new_alert_after_a_dismissed_one_ended_is_shown_at_once(tmp_path):
+    sim = Sim(tmp_path, rotation("a", display_time=10_000), alert("x", alert_reminder=3000))
+    sim.plan(x=lambda t: "X" if 50 <= t < 150 or t >= 200 else "nothing")
+    sim.at(100, sim.scheduler.dismiss, "x")
+    sim.run(until=300)
+    assert sim.writes == [(1, "A"), (56, "X"), (100, "A"), (210, "X")]
+
+
+def test_alert_safety_limit_wakes_the_scheduler_at_the_exact_time(tmp_path):
+    sim = Sim(tmp_path, rotation("a", display_time=10_000), alert("x", alert_max_time=1003))
+    sim.plan(x=between(50, 10_000, "X"))
+    sim.run(until=1100)
+    assert sim.writes == [(1, "A"), (56, "X"), (56 + 1003, "A")]
+
+
+def test_alert_that_fails_while_on_screen_gives_the_screen_back(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), alert("x"))
+    sim.plan(x=lambda t: "X" if 50 <= t < 100 else ("fail" if t >= 100 else "nothing"))
+    sim.run(until=150)
+    assert sim.writes == [(1, "A"), (56, "X"), (100, "A")]
+
+
+def test_rotation_plugin_that_reports_alert_is_shown_in_its_turn(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), rotation("b"))
+    sim.plan(b="alert:B")
+    sim.run(until=250)
+    assert sim.writes == [(1, "A"), (101, "alert:B"), (201, "A")]
+
+
 def test_alert_ends_when_the_plugin_has_nothing(tmp_path):
     sim = Sim(tmp_path, rotation("a"), rotation("b"), alert("x"))
     sim.plan(x=between(150, 180, "X"))
@@ -376,6 +418,33 @@ def test_default_is_updated_when_the_count_changes_and_left_when_one_works(tmp_p
     assert sim.shown == ["default 2/2", "B"]
 
 
+def test_default_is_only_updated_when_the_count_changes(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=60), rotation("b", refresh=60))
+    sim.plan(a="fail", b=lambda t: "fail" if t < 100 else "nothing")
+    sim.run(until=1000)
+    # 2 of 2 failing, then 1 of 2 once b works (but has nothing to show).
+    assert sim.shown == ["default 2/2", "default 1/2"]
+    assert len(sim.updates.times("built-in-default")) == 2
+
+
+def test_default_block_in_the_config_is_used_and_not_rotated(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), 'name = "fallback"\ntype = "default"')
+    sim.plan(a=lambda t: "A" if t < 50 else "fail")
+    sim.run(until=200)
+    assert sim.shown == ["A", "default 1/1"]
+    assert sim.updates.times("fallback") == [64]
+    assert sim.updates.times("built-in-default") == []
+
+
+def test_screen_keeps_its_picture_when_default_fails(tmp_path, caplog):
+    sim = Sim(tmp_path, rotation("a"))
+    sim.plan(a=lambda t: "A" if t < 50 else "fail")
+    sim.updates.default_fails = True
+    sim.run(until=200)
+    assert sim.shown == ["A"]
+    assert "the default plugin failed" in caplog.text
+
+
 def test_default_says_when_no_plugin_is_switched_on(tmp_path):
     sim = Sim(tmp_path, rotation("a") + "\nenabled = false")
     sim.run(until=100)
@@ -389,13 +458,27 @@ def test_screen_stays_as_it_is_when_nothing_has_anything_to_show(tmp_path):
     assert sim.writes == []
 
 
-def test_failed_screen_write_is_tried_again_with_the_next_new_image(tmp_path):
+def test_failed_screen_write_is_tried_again_at_the_next_update_and_logged_once(tmp_path, caplog):
     sim = Sim(tmp_path, rotation("a", refresh=30))
     sim.plan(a=lambda t: "A1" if t < 50 else "A2")
     sim.screen.fail = True
-    sim.run(until=200)
-    # Not tried again and again with the same image.
-    assert sim.writes == [(1, "A1"), (63, "A2")]
+    sim.run(until=100)
+    # Tried at every update of the plugin on screen, not again and again in between.
+    assert sim.writes == [(1, "A1"), (32, "A1"), (63, "A2"), (94, "A2")]
+    assert caplog.text.count("screen write failed") == 1
+    sim.screen.fail = False
+    sim.run(until=130)
+    assert sim.writes[-1] == (125, "A2")
+    assert "screen writes work again, after 4 failed" in caplog.text
+
+
+def test_update_that_comes_due_during_a_slow_screen_write_starts_right_after_it(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=30))
+    # Each write takes 40 s: from 1 to 41 (a is due at 31), and from 42 to 82 (due at 72).
+    sim.screen.write_seconds = 40
+    sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=100)
+    assert sim.updates.times("a")[:3] == [1, 42, 83]
 
 
 # On the minute
@@ -415,24 +498,44 @@ def test_on_the_minute_plugin_updates_just_after_the_minute_changes(tmp_path):
 def test_reload_keeps_unchanged_plugins_and_redraws_a_changed_one(tmp_path):
     sim = Sim(tmp_path, rotation("a", display_time=1000), rotation("b"))
     sim.run(until=50)
-    calls_b = sim.updates.times("b")
     changed = rotation("a", display_time=1000) + '\ntext = "new"'
     sim.next_config = make_config(changed, rotation("b"))
     sim.plan(a="A new")
     sim.scheduler.reload()
     sim.run(until=100)
     assert sim.writes == [(1, "A"), (51, "A new")]
-    assert sim.updates.times("b")[: len(calls_b)] == calls_b
-    assert sim.updates.times("b")[len(calls_b)] > 50  # b was not updated again at once
+    # b goes on with its own timer, as if nothing happened (a new b would update at 51).
+    assert sim.updates.times("b") == [1, 32, 63, 94]
 
 
-def test_reload_removing_the_plugin_on_screen_moves_on(tmp_path):
-    sim = Sim(tmp_path, rotation("a", display_time=1000), rotation("b"))
-    sim.run(until=50)
-    sim.next_config = make_config(rotation("b"))
+def test_reload_during_an_update_waits_for_it(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=100))
+    sim.clock.duration = lambda context: 10.0
+    sim.at(5, sim.scheduler.reload)
+    sim.next_config = make_config(rotation("a", refresh=100) + '\ntext = "new"')
+    sim.run(until=30)
+    # The new version starts when the old update has finished, never both at once.
+    assert sim.updates.times("a") == [10, 20]
+
+
+def test_reload_keeps_a_dismissed_alert_dismissed(tmp_path):
+    sim = Sim(tmp_path, rotation("a", display_time=10_000), alert("x"))
+    sim.plan(x=between(50, 10_000, "X"))
+    sim.at(100, sim.scheduler.dismiss, "x")
+    sim.run(until=150)
+    sim.next_config = make_config(rotation("a", display_time=10_000), alert("x", refresh=20))
     sim.scheduler.reload()
-    sim.run(until=100)
-    assert sim.writes == [(1, "A"), (50, "B")]
+    sim.run(until=1000)
+    assert sim.shown == ["A", "X", "A"]
+
+
+def test_reload_removing_the_plugin_on_screen_moves_on_to_the_next(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), rotation("b"), rotation("c"))
+    sim.run(until=150)  # b is on screen since 101
+    sim.next_config = make_config(rotation("a"), rotation("c"))
+    sim.scheduler.reload()
+    sim.run(until=200)
+    assert sim.writes == [(1, "A"), (101, "B"), (150, "C")]
 
 
 def test_reload_adds_a_new_plugin(tmp_path):
@@ -444,13 +547,29 @@ def test_reload_adds_a_new_plugin(tmp_path):
     assert sim.shown == ["A", "B"]
 
 
-def test_broken_config_on_reload_keeps_the_old_settings(tmp_path):
+@pytest.mark.parametrize("broken", ["error", "last good copy"])
+def test_broken_config_on_reload_keeps_the_old_settings(tmp_path, broken):
     sim = Sim(tmp_path, rotation("a"), rotation("b"))
     sim.run(until=50)
-    sim.next_config = config.ConfigError([config.Problem("error", "not valid TOML")])
+    if broken == "error":
+        sim.next_config = config.ConfigError([config.Problem("error", "not valid TOML")])
+    else:
+        # What config.load gives for a broken file when a last good copy exists.
+        sim.next_config = make_config(rotation("z"))
+        sim.next_config.from_last_good = True
     sim.scheduler.reload()
     sim.run(until=250)
     assert sim.shown == ["A", "B", "A"]
+
+
+def test_screen_settings_take_effect_at_the_next_start(tmp_path, caplog):
+    sim = Sim(tmp_path, rotation("a"))
+    sim.run(until=10)
+    sim.next_config = make_config(rotation("a"), display="rotation = 180")
+    sim.scheduler.reload()
+    sim.run(until=200)
+    assert "screen settings take effect at the next start" in caplog.text
+    assert sim.screen.sizes == [SIZE]
 
 
 # The screen
@@ -460,6 +579,17 @@ def test_rotated_screen_gets_a_turned_picture(tmp_path):
     sim = Sim(tmp_path, rotation("a"), display="rotation = 90")
     sim.run(until=10)
     assert sim.screen.sizes == [(SIZE[1], SIZE[0])]
+
+
+def test_very_long_waits_are_cut_short():
+    import queue
+
+    from paperpi.scheduler import Clock
+
+    events = queue.SimpleQueue()
+    events.put("event")
+    assert Clock().wait(events, 1e300) == "event"  # no OverflowError
+    assert Clock().wait(events, 0.01) is None
 
 
 def test_at_most_three_updates_run_at_once(tmp_path):
@@ -473,8 +603,16 @@ def test_at_most_three_updates_run_at_once(tmp_path):
 # With the real parts: plugin processes, the worker pool, the virtual screen
 
 
-def test_real_run_with_debugging_plugins(tmp_path):
+def run_in_thread(scheduler):
     import threading
+
+    thread = threading.Thread(target=scheduler.run)
+    thread.start()
+    return thread
+
+
+def test_real_run_with_debugging_plugins(tmp_path):
+    import time
 
     from epdlib import ScreenMode
     from epdlib.drivers.virtual import VirtualDriver
@@ -486,9 +624,36 @@ def test_real_run_with_debugging_plugins(tmp_path):
     screen = VirtualDriver(*SIZE, ScreenMode.gray(16), tmp_path / "screen")
     scheduler = Scheduler(loaded, screen, state_dir=tmp_path)
     with screen:
-        threading.Timer(6, scheduler.stop).start()
-        scheduler.run()
-    assert int((tmp_path / "plugins" / "one" / "count").read_text()) >= 4
-    assert int((tmp_path / "plugins" / "two" / "count").read_text()) >= 4
-    assert (tmp_path / "screen" / "latest.png").is_file()
+        thread = run_in_thread(scheduler)
+        deadline = time.monotonic() + 30
+        while screen.count < 3 and time.monotonic() < deadline:
+            time.sleep(0.1)
+        scheduler.stop()
+        thread.join(30)
+    assert not thread.is_alive()
     assert screen.count >= 3  # took turns
+    assert int((tmp_path / "plugins" / "one" / "count").read_text()) >= 2
+    assert int((tmp_path / "plugins" / "two" / "count").read_text()) >= 2
+    assert (tmp_path / "screen" / "latest.png").is_file()
+
+
+def test_stop_ends_a_hanging_update_at_once(tmp_path):
+    import time
+
+    from epdlib import ScreenMode
+    from epdlib.drivers.virtual import VirtualDriver
+
+    block = rotation("hang", refresh=100) + "\nhang_every = 1\ntime_limit = 300"
+    screen = VirtualDriver(*SIZE, ScreenMode.gray(16), tmp_path / "screen")
+    scheduler = Scheduler(make_config(block), screen, state_dir=tmp_path)
+    with screen:
+        thread = run_in_thread(scheduler)
+        count = tmp_path / "plugins" / "hang" / "count"
+        deadline = time.monotonic() + 30
+        while not count.exists() and time.monotonic() < deadline:
+            time.sleep(0.1)  # the update has started, and hangs
+        start = time.monotonic()
+        scheduler.stop()
+        thread.join(30)
+    assert not thread.is_alive()
+    assert time.monotonic() - start < 10

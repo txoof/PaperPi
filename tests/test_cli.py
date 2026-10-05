@@ -193,7 +193,8 @@ def test_render_prints_the_mode_name(tmp_path, capsys):
     assert "1200x825 7color" in capsys.readouterr().out
 
 
-def test_run_shows_plugins_reloads_and_stops(tmp_path):
+@pytest.mark.parametrize("stop", ["SIGTERM", "SIGINT"])
+def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
     import signal
     import time
 
@@ -202,8 +203,11 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path):
         'config_version = 1\n[display]\ntype = "virtual"\nwidth = 200\nheight = 100\n'
         '[[plugin]]\nname = "Test"\ntype = "debugging"\nrefresh = 1\n'
     )
-    out, state = tmp_path / "screen", tmp_path / "state"
-    args = ["--config", str(cfg), "--out", str(out), "--state-dir", str(state)]
+    state = tmp_path / "state"
+    out = state / "screen"  # the default for --out
+    out.mkdir(parents=True)
+    (out / "0007.png").write_bytes(b"from an earlier run")
+    args = ["--config", str(cfg), "--state-dir", str(state)]
     process = subprocess.Popen(
         [sys.executable, "-m", "paperpi", "run", *args],
         stdout=subprocess.PIPE,
@@ -223,12 +227,14 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path):
         while not (out / "0002.png").exists() and time.monotonic() < deadline:
             time.sleep(0.2)
         assert (out / "0002.png").exists()
-        process.send_signal(signal.SIGTERM)
+        process.send_signal(getattr(signal, stop))
         stdout, stderr = process.communicate(timeout=30)
     finally:
         process.kill()
     assert process.returncode == 0, stderr
     assert "showing 1 plugin;" in stdout
+    assert f"process id {process.pid}" in stdout
+    assert not (out / "0007.png").exists()  # files of an earlier run are removed
     assert (state / "paperpi.last-good.toml").is_file()
 
 

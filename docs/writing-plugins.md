@@ -70,6 +70,7 @@ For tests and sample images, step 2 is skipped and `sample` is drawn instead. So
 | `mode` | what the screen can show (an epdlib `ScreenMode`: black and white, gray levels or colours) |
 | `storage` | the plugin's own folder for saved files, e.g. downloaded data |
 | `layout` | the name of the layout to draw |
+| `status` | only for the `default` plugin: how many plugins are not working (`failing`, `total`) |
 
 ## Settings
 

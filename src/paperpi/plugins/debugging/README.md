@@ -2,7 +2,7 @@
 
 A plugin for testing PaperPi itself. It can crash, hang, and switch between the states "nothing", "ready" and "alert" in a fixed pattern. It needs no network.
 
-Every update adds 1 to a count kept in the file `count` in its storage folder (`/var/lib/paperpi/plugins/<name>/`). The count decides what the update does, so the same settings always give the same pattern.
+Every update adds 1 to a count kept in the file `count` in its storage folder: `plugins/<folder>/` in PaperPi's state folder (`/var/lib/paperpi` unless `paperpi run --state-dir` says otherwise). The folder name is made from the plugin's name, e.g. `test-alert` for "Test alert". The count decides what the update does, so the same settings always give the same pattern.
 
 ## Layouts
 
@@ -37,7 +37,7 @@ crash_every = 5
 refresh = 20
 ```
 
-Try it without a screen: `uv run paperpi render debugging`.
+Draw its sample image: `uv run paperpi render debugging`. To see the pattern, use `paperpi run` (see the main [README](../../../../README.md)): `render` starts with a new, empty storage folder each time, so its count is always 1.
 
 ## Sample images
 

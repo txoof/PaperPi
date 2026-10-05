@@ -567,3 +567,12 @@ def test_state_folder_is_private_and_old_temporary_files_are_removed(files):
     path.write_text(GOOD + "# changed\n")
     load(path, state_dir=state)
     assert not leftover.exists()
+
+
+@pytest.mark.parametrize(
+    "setting", ["refresh = inf", "display_time = 1e300", "alert_max_time = 700000"]
+)
+def test_time_settings_have_an_upper_limit(setting):
+    cfg = parse(GOOD + setting + "\n")
+    assert cfg.plugins == []
+    assert "less than or equal to 604800" in problems(cfg)[0]

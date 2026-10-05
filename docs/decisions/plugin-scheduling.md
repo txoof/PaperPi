@@ -43,7 +43,7 @@ Examples: word clock, weather and moon phase are `rotation`. Music players are `
 
 A rotation plugin keeps updating at its refresh rate while it is on screen (see `plugin-interface.md`). A refresh that starts just before the plugin's turn ends wastes a screen redraw, and on a slow screen the redraw may still be running when the next plugin wants the screen.
 
-- **Rule:** if a refresh would start within the last part of a plugin's turn, it is skipped, because the next plugin is about to take over. The margin is the screen's measured redraw time (see `errors-and-time-limits.md`), so it also fits slow colour screens. This covers every timing, also ones that only line up now and then (display time 300 s with a refresh every 60 s: the 5th refresh would land exactly at the end of the turn).
+- **Rule:** if a refresh would start within the last part of a plugin's turn, it is not written to the screen, because the next plugin is about to take over. The margin is the screen's measured redraw time (see `errors-and-time-limits.md`), so it also fits slow colour screens. This covers every timing, also ones that only line up now and then (display time 300 s with a refresh every 60 s: the 5th refresh would land exactly at the end of the turn).
 - **Hint:** when a plugin's `refresh` equals its `display_time`, the config check and the web interface show a hint, not an error: "refresh equals display time: the plugin may redraw just as it is swapped out; make refresh slightly longer, or a fraction of the display time". The config still loads.
 - Good choices: a refresh slightly longer than the display time (the plugin updates just before its turn and not during it), or a fraction of it. Defaults and examples follow this.
 
@@ -54,8 +54,8 @@ Added 2026-10-05 (M4, issue #203), agreed with txoof.
 A clock must update right after the minute changes. If it updates every 60 seconds counted from some random moment, it can show the wrong minute for most of a minute.
 
 - A plugin can declare that its refreshes line up with the clock, e.g. "on the minute". This is part of the plugin's description, not a user setting.
-- The scheduler then starts the update just after the minute changes (second 0), instead of counting from the last update.
-- The other rules still apply: the refresh near the end of a turn is still skipped, and the update still has its time limit.
+- The scheduler then starts the update just after the minute changes (1 second after second 0), instead of counting from the last update.
+- The other rules still apply: a refresh near the end of a turn is still not written to the screen, and the update still has its time limit.
 
 Added 2026-10-05 (M4, issue #203), agreed with txoof.
 
@@ -67,10 +67,10 @@ To avoid it, one single part of PaperPi (the scheduler) decides what is shown an
 
 ### Failures
 
-- A plugin that fails (crash, time limit reached, data source down) is skipped. The rotation moves to the next plugin, and the failed one is tried again on its next turn.
-- After 3 failures in a row, the plugin is left out for 30 minutes and the web interface shows a warning.
-- If every plugin is failing or switched off, the `default` plugin is shown. The scheduler tells it how many plugins are failing, and it shows e.g. "3 of 4 plugins are not working. See the web interface for more information." with a QR code (a square barcode a phone camera can scan) that opens the web interface.
-- `default` and `splash_screen` are normal plugins with no special handling, except that the scheduler passes the failure status to `default`.
+- A plugin that fails (crash, time limit reached, data source down) is skipped. The rotation moves to the next plugin, and the failed one is tried again at its next refresh.
+- After 3 failures in a row, the plugin is left out for 30 minutes and the web interface shows a warning. If its first update after that fails too, it is left out for another 30 minutes at once; one good update ends this.
+- If nothing else can be shown because plugins are failing, or no plugin is switched on, the `default` plugin is shown. The scheduler tells it how many plugins are failing, and it shows e.g. "3 of 4 plugins are not working. See the web interface for more information." with a QR code (a square barcode a phone camera can scan) that opens the web interface.
+- `default` and `splash_screen` are normal plugins. The scheduler passes the failure status to `default`, starts it only when it is needed, and never puts it in the rotation.
 
 The numbers 3 and 30 minutes are defaults. Time limits and watchdog rules are decided in the error-handling note (#190).
 
@@ -84,16 +84,18 @@ Added 2026-10-05 (M4, issue #205), agreed with txoof. Code: `src/paperpi/schedul
 
 - **Every plugin updates at its own refresh rate all the time**, on screen or not (see `plugin-interface.md`). A turn change shows the next plugin's newest image at once.
 - **At most 3 updates at the same time**, each in its own process. A music plugin's check then never waits behind a slow weather download. Plugins update rarely, so 3 is enough, and memory use stays low on a Pi 3.
-- Built from standard Python parts: a pool of 3 worker threads (`ThreadPoolExecutor`) that start the plugin processes, and one queue that carries finished updates, "reload", "stop" and "dismiss" to the scheduler's loop. The loop sleeps until the next event or the next moment something is due; it does not wake up every few seconds to check. The clock is passed in, so tests use a fake clock.
+- Built from standard Python parts: a pool of 3 worker threads (`ThreadPoolExecutor`; a thread is a part of a program that runs at the same time as the rest) that start the plugin processes, and one queue (a list where messages wait until they are read, oldest first) that carries finished updates, "reload", "stop" and "dismiss" to the scheduler's loop. The loop sleeps until the next event or the next moment something is due; it does not wake up every few seconds to check. The clock is passed in, so tests use a fake clock.
 - **The level decides.** A plugin's state only says whether it has something: for alert and interrupt plugins, "ready" and "alert" mean the same, and a rotation plugin that reports "alert" is shown in its normal turn. A warning that should take over the screen is a separate `[[plugin]]` block with level `alert`.
-- **The screen is written only when the picture changed.** The new image is compared with the one on screen, pixel by pixel (a few milliseconds for the 9.7" screen). A refresh that brings the same picture is not written.
+- **The screen is written only when the picture changed.** The new image is compared with the last one sent to the screen, pixel by pixel (a few milliseconds for the 9.7" screen). A refresh that brings the same picture is not written.
 - **Taking turns:** several alerts, or several interrupts, take turns for their `display_time` each.
 - **Alert settings per plugin:** `alert_reminder` and `alert_max_time` are in each `[[plugin]]` block, like `display_time`. They only matter for level `alert`.
 - **Failures:** a failed update is tried again at the plugin's next refresh. One good update sets the count of failures back to 0. A plugin that has nothing to show ("nothing") is skipped, which is not a failure.
 - **`default`:** shown when nothing else can be shown and at least one plugin is failing, or when no plugin is switched on. When nothing has anything to show and nothing is failing (e.g. only a music plugin, and no music), the screen keeps its picture. If `default` itself fails, the screen also keeps its picture, and the error goes to the log. The QR code comes with the web interface (M5). PaperPi always has a `default` plugin, also when the config has no block for it.
-- **On the minute:** the update starts 1 second after the minute changes. This is the only place where the wall-clock time is used; every duration uses the monotonic clock.
+- **On the minute:** the update starts 1 second after the minute changes. This is the only place where the wall-clock time (the time of day, which can jump when it is corrected) is used; every duration uses the monotonic clock (a clock that only counts forward).
 - **Start:** the screen is not touched until the first image is ready.
-- **Config reload** (see `live-config-reload.md`): on the reload signal the config file is read again. Plugins whose settings did not change keep their place and image. A changed plugin keeps its old image on screen until its new one is ready. A broken file is not applied. Screen settings take effect at the next start (for now, until the screen helper process exists).
+- **Config reload** (see `live-config-reload.md`): on the reload signal the config file is read again. Plugins whose settings did not change keep their place and image. A changed plugin keeps its old image on screen until its new one is ready. A broken file is not applied. Screen settings take effect at the next start (for now, until the screen helper process exists). Plugins take turns in the order of the new file. When the plugin on screen is removed, the rotation goes on with the one after it.
+- **Stopping:** updates that have not started are dropped, and running ones are stopped at once, so stopping never waits for a hanging plugin's time limit.
+- **Screen write fails:** it is tried again at the next update of the plugin on screen. The error is logged once, and a line is logged when writes work again.
 
 ### Later: several plugins on screen at once (M9)
 
@@ -107,7 +109,7 @@ The file format is decided in #186. Whatever the format, a plugin entry has thes
 plugin:       word_clock
 enabled:      true
 level:        rotation      # alert | interrupt | rotation
-display_time: 255           # seconds, used by rotation plugins
+display_time: 255           # seconds per turn, when plugins take turns
 ```
 
 ## Open questions

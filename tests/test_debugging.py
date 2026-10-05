@@ -1,10 +1,12 @@
 """The debugging and default plugins, run in plugin processes as the scheduler runs them."""
 
+from dataclasses import replace
+
 import pytest
 from epdlib import ScreenMode
 
 from paperpi import plugins
-from paperpi.plugin import Context, PluginsStatus, State
+from paperpi.plugin import Context, PluginsStatus, State, draw_update
 from paperpi.plugins.default import message
 from paperpi.runner import PluginFailed, PluginTimeout, run_update
 
@@ -71,3 +73,7 @@ def test_default_gets_the_status_in_its_process(tmp_path):
     )
     result = run_update("default", context)
     assert result.state is State.READY
+    # The same picture as drawn here for "2 of 5", and not the one for another count.
+    _, expected = draw_update(plugin, context, sample=False)
+    _, other = draw_update(plugin, replace(context, status=PluginsStatus(0, 0)), sample=False)
+    assert result.image.tobytes() == expected.tobytes() != other.tobytes()

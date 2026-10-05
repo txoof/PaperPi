@@ -66,15 +66,15 @@ Run `uv run paperpi render --help` for all options. How to write a plugin: [docs
 
 ### Run PaperPi without a screen
 
-`paperpi run` shows the plugins of a config file, the way they will appear on the screen: they take turns, alerts and interrupts take over, failing plugins are skipped. Until the real screens are added, it writes to the virtual screen: every screen write is saved as a numbered PNG file (the newest 50 are kept), and the newest is also `latest.png`.
+`paperpi run` shows the plugins of a config file, the way they will appear on the screen: they take turns, alerts and interrupts take over, failing plugins are skipped. Until the real screens are added, it only works with `type = "virtual"` in `[display]`: every screen write is saved as a numbered PNG file (the newest 50 are kept), and the newest is also `latest.png`. The numbers start again at `0001.png` at every start, so the files of an earlier run are removed first.
 
 ```bash
 uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/
 ```
 
-- It runs until Ctrl+C (or `systemctl stop`).
-- After changing the config file, send it the reload signal (`kill -HUP <process id>`, or `systemctl reload paperpi` once it is a service). Changes are applied without a restart; a broken file is not applied, and the old settings keep running.
-- `--state-dir` holds the plugins' own folders and the last good copy of the config (default `/var/lib/paperpi`).
+- It runs until Ctrl+C, or until it gets the stop signal (`kill <process id>`).
+- After changing the config file, send it the reload signal SIGHUP (a standard message to a running program, here meaning "read your settings again"): `kill -HUP <process id>`. The process id is printed at the start. Use exactly that number: `pkill -f` would also reach PaperPi's helper processes and stop them. Once PaperPi is installed as a service (M6), `systemctl reload paperpi` does the same. Changes are applied without a restart; a broken file is not applied, and the old settings keep running.
+- `--state-dir` holds the plugins' own folders and the last good copy of the config (default `/var/lib/paperpi`). The PNG files go to `screen/` in it, unless `--out` names another folder.
 
 Which plugin is shown and when: [docs/decisions/plugin-scheduling.md](docs/decisions/plugin-scheduling.md). The `debugging` plugin can crash, hang and switch states on purpose, to try this out.
 

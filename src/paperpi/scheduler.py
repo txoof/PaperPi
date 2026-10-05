@@ -36,6 +36,7 @@ fake clock and check hours of switching in a fraction of a second.
 from __future__ import annotations
 
 import logging
+import math
 import queue
 import time
 from collections.abc import Callable
@@ -50,7 +51,7 @@ from PIL import Image, ImageChops
 from . import limits, plugins
 from .config import Config, PluginConfig
 from .plugin import Context, PluginEntry, PluginsStatus, State
-from .runner import UpdateResult, run_update
+from .runner import UpdateResult, run_update, stop_all
 
 log = logging.getLogger(__name__)
 
@@ -71,8 +72,12 @@ class Clock:
 
     def wait(self, events: queue.SimpleQueue, timeout: float | None):
         """The next event, or ``None`` when ``timeout`` seconds pass first (``None``: no limit)."""
+        if timeout is not None:
+            # Very long waits are cut short: the queue can't wait longer than about 290 years,
+            # and waking up once an hour costs nothing.
+            timeout = min(max(timeout, 0), limits.LONGEST_WAIT)
         try:
-            return events.get(timeout=None if timeout is None else max(timeout, 0))
+            return events.get(timeout=timeout)
         except queue.Empty:
             return None
 
@@ -113,6 +118,9 @@ class _Slot:
     """Alert plugins: held for ``alert_max_time`` and dismissed; no reminders until a new alert."""
     status: PluginsStatus | None = None
     """``default`` only: the status its latest update was asked to show."""
+    waits_for: _Slot | None = None
+    """After a reload: the old version of this plugin, still updating. This one starts
+    when that update has finished, so two updates never use the same storage folder."""
 
     @property
     def name(self) -> str:
@@ -132,9 +140,10 @@ class Scheduler:
 
     ``state_dir`` holds each plugin's storage folder (``<state_dir>/plugins/<name>/``).
     ``reload`` returns a freshly loaded config when :meth:`reload` is called. ``clock``,
-    ``executor`` and ``update`` are for tests; by default updates run in plugin processes
-    with :func:`paperpi.runner.run_update`, at most :data:`~paperpi.limits.PARALLEL_UPDATES`
-    at once.
+    ``executor``, ``update`` and ``stop_updates`` are for tests; by default updates run in
+    plugin processes with :func:`paperpi.runner.run_update`, at most
+    :data:`~paperpi.limits.PARALLEL_UPDATES` at once, and stopping ends the running ones
+    with :func:`paperpi.runner.stop_all`.
     """
 
     def __init__(
@@ -147,6 +156,7 @@ class Scheduler:
         clock: Clock | None = None,
         executor: Executor | None = None,
         update: Update | None = None,
+        stop_updates: Callable[[], None] | None = None,
     ):
         self.screen = screen
         self.state_dir = Path(state_dir)
@@ -157,6 +167,9 @@ class Scheduler:
             max_workers=limits.PARALLEL_UPDATES, thread_name_prefix="paperpi-update"
         )
         self._update = update or _run_update
+        if stop_updates is None:
+            stop_updates = stop_all if update is None else lambda: None
+        self._stop_updates = stop_updates
         self._events: queue.SimpleQueue = queue.SimpleQueue()
         self._slots: list[_Slot] = []
         self._default = _Slot(_default_config(config))
@@ -169,6 +182,8 @@ class Scheduler:
         """The image last sent to the screen (also when the write failed)."""
         self.write_seconds = 0.0
         """How long the last screen write took."""
+        self._write_failures = 0
+        """Failed screen writes in a row."""
         self._apply(config)
 
     # Called from other threads or signal handlers: they only put an event in the queue.
@@ -207,8 +222,11 @@ class Scheduler:
                     self._handle(event)
                     event = None if self._events.empty() else self._events.get_nowait()
         finally:
-            # Updates that are still running end by their own time limit.
+            # Drop the updates that have not started, and stop the running ones, so stopping
+            # never waits for a hanging plugin's time limit.
             self.executor.shutdown(wait=False, cancel_futures=True)
+            self._stop_updates()
+            self.executor.shutdown(wait=True)
 
     # Everything below runs in the loop's thread only.
 
@@ -246,12 +264,24 @@ class Scheduler:
             if slot is None or not _same_plugin(slot.config, found):
                 changed = _Slot(found, due=now)
                 if slot is not None:
-                    # Keep the old image on screen until the new one is ready.
+                    # Keep the old image on screen until the new one is ready, and keep
+                    # what is known about its alert (e.g. that it was dismissed).
                     changed.state, changed.image = slot.state, slot.image
+                    changed.alert_since, changed.dismissed_at = slot.alert_since, slot.dismissed_at
+                    changed.expired = slot.expired
+                    if slot.running:
+                        changed.due, changed.waits_for = math.inf, slot
                     if slot is self._current:
                         self._current = changed
                 slot = changed
             slots.append(slot)
+        names = [slot.name for slot in slots]
+        if self._last_rotation is not None and self._last_rotation not in names:
+            # The plugin shown last was removed: go on after the one before it.
+            old_names = [slot.name for slot in self._slots]
+            index = old_names.index(self._last_rotation)
+            before = old_names[:index][::-1] + old_names[index + 1 :][::-1]
+            self._last_rotation = next((n for n in before if n in names), None)
         self._slots = slots
         default = _default_config(config)
         if not _same_plugin(self._default.config, default):
@@ -276,7 +306,9 @@ class Scheduler:
     def _job(self, slot: _Slot, context: Context) -> None:
         """Runs in a worker thread: one update, then hand the result to the loop."""
         try:
-            context.storage.mkdir(parents=True, exist_ok=True)
+            # Only PaperPi may read the plugins' files: they may hold e.g. downloaded tokens.
+            context.storage.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            context.storage.mkdir(mode=0o700, exist_ok=True)
             result = self._update(slot.config.plugin.type, context, slot.config.entry.time_limit)
             event = _Finished(slot, result, None)
         except Exception as error:  # noqa: BLE001 - every failure is handled the same way
@@ -293,7 +325,11 @@ class Scheduler:
                 slot.state, slot.image = event.result.state, event.result.image
             return
         if slot not in self._slots:
-            return  # removed or changed while it was updating
+            # Removed or changed while it was updating. A changed one can start now.
+            for waiting in self._slots:
+                if waiting.waits_for is slot:
+                    waiting.waits_for, waiting.due = None, now
+            return
         if event.error is not None:
             slot.failures += 1
             slot.state, slot.image = State.NOTHING, None
@@ -311,6 +347,8 @@ class Scheduler:
                 log.warning("plugin %r failed: %s", slot.name, event.error)
             return
         slot.failures = 0
+        if slot is self._current and self._write_failures:
+            self._attempted = None  # the last screen write failed: try again with this update
         slot.state = event.result.state
         slot.image = None if slot.state is State.NOTHING else event.result.image
         slot.due = self._next_update(slot, now)
@@ -424,14 +462,22 @@ class Scheduler:
         try:
             # Rotation turns the picture clockwise.
             self.screen.write(image.rotate(-rotation, expand=True) if rotation else image)
-        except Exception as error:  # noqa: BLE001 - tried again with the next new image
-            log.error("screen write failed: %s", error)
+        except Exception as error:  # noqa: BLE001 - tried again at the next update
+            self._write_failures += 1
+            # Logged once; the same failure again and again would fill the log.
+            level = logging.ERROR if self._write_failures == 1 else logging.DEBUG
+            log.log(level, "screen write failed: %s", error)
             return
+        if self._write_failures:
+            log.warning("screen writes work again, after %d failed", self._write_failures)
+            self._write_failures = 0
         self.write_seconds = self.clock.monotonic() - start
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""
         times = [s.due for s in self._slots if not s.running]
+        if any(t <= now for t in times):
+            return 0  # an update came due while the screen was being written
         if self._current is not None:
             times.append(self._turn_start + self._current.config.entry.display_time)
         for slot in self._slots:
@@ -439,7 +485,7 @@ class Scheduler:
                 times.append(slot.alert_since + slot.config.entry.alert_max_time)
                 if slot.dismissed_at is not None:
                     times.append(slot.dismissed_at + slot.config.entry.alert_reminder)
-        later = [t for t in times if t > now]
+        later = [t for t in times if now < t < math.inf]
         if not later:
             return None
         return min(later) - now
@@ -455,7 +501,8 @@ def _default_config(config: Config) -> PluginConfig:
         if found.plugin.type == "default":
             return found
     plugin = plugins.load("default")
-    entry = PluginEntry(name="default", type="default")
+    # Its own storage folder, also when a user names another plugin "default".
+    entry = PluginEntry(name="built-in default", type="default")
     return PluginConfig(entry, plugin.settings(), plugin)
 
 
