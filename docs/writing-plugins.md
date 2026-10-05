@@ -95,6 +95,19 @@ hours = 12
 
 Give every text block a `sample`: the widest text it normally shows (`"88:88"` for a clock). The font size is then chosen once, so it doesn't change between updates.
 
+### Moving blocks and colours
+
+`draw` may return a `Drawn` instead of a dictionary, to set two more things:
+
+```python
+from ...plugin import Drawn
+
+return Drawn(values, seed=int(f"{now:%Y%m%d%H%M}"), colors=("yellow", "blue"))
+```
+
+- `seed`: blocks with `align` or `valign` set to `"random"` are placed somewhere else at each update. The same seed always gives the same place, so sample images and tests stay the same. `word_clock` uses the time to the minute.
+- `colors`: text and background colour for every block with `rgb_support: True`, in place of the colours written in the layout. For settings that let the user pick colours, use `paperpi.colors`: `ColorName` as the setting's type (the colour names plus `random`) and `screen_colors(...)` to turn the choice into colours this screen can show. See `word_clock`.
+
 ## Refresh
 
 `refresh` is the suggested number of seconds between updates, at least 5; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes.

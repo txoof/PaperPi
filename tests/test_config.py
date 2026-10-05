@@ -191,10 +191,12 @@ def test_wrong_plugin_value_leaves_only_that_plugin_out():
 def test_unknown_plugin_type_suggests_a_name():
     cfg = parse(GOOD.replace('"basic_clock"', '"basic_clok"'), "paperpi.toml")
     assert cfg.plugins == []
-    assert problems(cfg) == [
+    # Only the start: the list of known types grows with every new plugin.
+    [problem] = problems(cfg)
+    assert problem.startswith(
         "paperpi.toml line 8 [[plugin]] 'Clock': unknown plugin type 'basic_clok' "
         "(did you mean 'basic_clock'?); known: basic_clock, debugging, default"
-    ]
+    )
 
 
 def test_missing_name_and_type():

@@ -66,6 +66,20 @@ def alert(data: Any) -> Fetched:
     return Fetched(State.ALERT, data)
 
 
+@dataclass(frozen=True)
+class Drawn:
+    """What ``draw`` returns when a plain dictionary of values is not enough."""
+
+    values: Mapping[str, Any]
+    """A value for each block of the layout, as ``draw`` normally returns."""
+    seed: int | None = None
+    """Makes epdlib's ``random`` alignment repeatable: the same seed puts the blocks in the
+    same places. Without it, blocks with ``random`` alignment move at every update."""
+    colors: tuple[str, str] | None = None
+    """Text and background colour (names or ``#rrggbb``) for every block that has
+    ``rgb_support``, in place of the colours in the layout. See :mod:`paperpi.colors`."""
+
+
 class PluginSettings(BaseModel):
     """Base class for a plugin's own settings.
 
@@ -190,8 +204,8 @@ class Plugin:
     """Named layouts. The first is the default."""
     fetch: Callable[[Context], Fetched]
     """Gets the data and says whether there is something to show."""
-    draw: Callable[[Any, Context], Mapping[str, Any]]
-    """Turns the data into values for the layout's blocks."""
+    draw: Callable[[Any, Context], Mapping[str, Any] | Drawn]
+    """Turns the data into values for the layout's blocks (or a :class:`Drawn`)."""
     sample: Any
     """Fixed example data for ``draw``, used for tests and sample images."""
     refresh: float
@@ -227,10 +241,28 @@ class Plugin:
     def default_layout(self) -> str:
         return next(iter(self.layouts))
 
-    def layout(self, name: str, settings: PluginSettings) -> Layout:
-        """The epdlib layout called ``name``, for these settings."""
+    def layout(
+        self, name: str, settings: PluginSettings, colors: tuple[str, str] | None = None
+    ) -> Layout:
+        """The epdlib layout called ``name``, for these settings. ``colors`` (text,
+        background) replaces the colours of every block that has ``rgb_support``."""
         source = self.layouts[name]
-        return Layout(source(settings) if callable(source) else source)
+        description = source(settings) if callable(source) else source
+        if colors:
+            description = _recolor(description, *colors)
+        return Layout(description)
+
+
+def _recolor(node: Any, fill: str, background: str) -> Any:
+    """A copy of a layout description with new colours for the ``rgb_support`` blocks."""
+    if isinstance(node, Mapping):
+        copy = {key: _recolor(value, fill, background) for key, value in node.items()}
+        if copy.get("rgb_support"):
+            copy |= {"fill": fill, "background": background}
+        return copy
+    if isinstance(node, list | tuple):
+        return [_recolor(item, fill, background) for item in node]
+    return node
 
 
 def draw_update(
@@ -248,7 +280,10 @@ def draw_update(
         )
     if fetched.state is State.NOTHING:
         return fetched.state, None
-    values = plugin.draw(fetched.data, context)
-    layout = plugin.layout(context.layout, context.settings)
-    image = layout.prepare(context.width, context.height, context.mode).render(values)
+    drawn = plugin.draw(fetched.data, context)
+    if not isinstance(drawn, Drawn):
+        drawn = Drawn(drawn)
+    layout = plugin.layout(context.layout, context.settings, drawn.colors)
+    prepared = layout.prepare(context.width, context.height, context.mode)
+    image = prepared.render(dict(drawn.values), seed=drawn.seed)
     return fetched.state, image
