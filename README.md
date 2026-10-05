@@ -64,4 +64,18 @@ uv run paperpi render --config paperpi.toml --name "Clock"   # writes clock.png,
 
 Run `uv run paperpi render --help` for all options. How to write a plugin: [docs/writing-plugins.md](docs/writing-plugins.md).
 
+### Run PaperPi without a screen
+
+`paperpi run` shows the plugins of a config file, the way they will appear on the screen: they take turns, alerts and interrupts take over, failing plugins are skipped. Until the real screens are added, it writes to the virtual screen: every screen write is saved as a numbered PNG file (the newest 50 are kept), and the newest is also `latest.png`.
+
+```bash
+uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/
+```
+
+- It runs until Ctrl+C (or `systemctl stop`).
+- After changing the config file, send it the reload signal (`kill -HUP <process id>`, or `systemctl reload paperpi` once it is a service). Changes are applied without a restart; a broken file is not applied, and the old settings keep running.
+- `--state-dir` holds the plugins' own folders and the last good copy of the config (default `/var/lib/paperpi`).
+
+Which plugin is shown and when: [docs/decisions/plugin-scheduling.md](docs/decisions/plugin-scheduling.md). The `debugging` plugin can crash, hang and switch states on purpose, to try this out.
+
 See [CLAUDE.md](CLAUDE.md) for how work is organized.

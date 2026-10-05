@@ -78,6 +78,23 @@ The numbers 3 and 30 minutes are defaults. Time limits and watchdog rules are de
 
 The `debugging` plugin is used to test this: it can be set to crash, time out, and switch between "nothing", "I have something" and "alert" at set rates. Tests run the scheduler with a fake clock, so hours of switching can be checked in seconds.
 
+### How it is built
+
+Added 2026-10-05 (M4, issue #205), agreed with txoof. Code: `src/paperpi/scheduler.py`.
+
+- **Every plugin updates at its own refresh rate all the time**, on screen or not (see `plugin-interface.md`). A turn change shows the next plugin's newest image at once.
+- **At most 3 updates at the same time**, each in its own process. A music plugin's check then never waits behind a slow weather download. Plugins update rarely, so 3 is enough, and memory use stays low on a Pi 3.
+- Built from standard Python parts: a pool of 3 worker threads (`ThreadPoolExecutor`) that start the plugin processes, and one queue that carries finished updates, "reload", "stop" and "dismiss" to the scheduler's loop. The loop sleeps until the next event or the next moment something is due; it does not wake up every few seconds to check. The clock is passed in, so tests use a fake clock.
+- **The level decides.** A plugin's state only says whether it has something: for alert and interrupt plugins, "ready" and "alert" mean the same, and a rotation plugin that reports "alert" is shown in its normal turn. A warning that should take over the screen is a separate `[[plugin]]` block with level `alert`.
+- **The screen is written only when the picture changed.** The new image is compared with the one on screen, pixel by pixel (a few milliseconds for the 9.7" screen). A refresh that brings the same picture is not written.
+- **Taking turns:** several alerts, or several interrupts, take turns for their `display_time` each.
+- **Alert settings per plugin:** `alert_reminder` and `alert_max_time` are in each `[[plugin]]` block, like `display_time`. They only matter for level `alert`.
+- **Failures:** a failed update is tried again at the plugin's next refresh. One good update sets the count of failures back to 0. A plugin that has nothing to show ("nothing") is skipped, which is not a failure.
+- **`default`:** shown when nothing else can be shown and at least one plugin is failing, or when no plugin is switched on. When nothing has anything to show and nothing is failing (e.g. only a music plugin, and no music), the screen keeps its picture. If `default` itself fails, the screen also keeps its picture, and the error goes to the log. The QR code comes with the web interface (M5). PaperPi always has a `default` plugin, also when the config has no block for it.
+- **On the minute:** the update starts 1 second after the minute changes. This is the only place where the wall-clock time is used; every duration uses the monotonic clock.
+- **Start:** the screen is not touched until the first image is ready.
+- **Config reload** (see `live-config-reload.md`): on the reload signal the config file is read again. Plugins whose settings did not change keep their place and image. A changed plugin keeps its old image on screen until its new one is ready. A broken file is not applied. Screen settings take effect at the next start (for now, until the screen helper process exists).
+
 ### Later: several plugins on screen at once (M9)
 
 The scheduler picks plugins for a screen region. In v2.0 there is one region, the whole screen. In M9 each region gets its own scheduler with the same rules.

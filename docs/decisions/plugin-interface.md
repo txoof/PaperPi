@@ -62,6 +62,8 @@ For sample images and tests, `fetch` is skipped and the sample data goes straigh
 - **Interrupt and alert plugins** (music, future alarms) check in the background all the time at their refresh rate, so they can report "I have something" right away.
 - Plugins that are not on screen and not about to be use no network and no processor time.
 
+**Update 2026-10-05 (M4, issue #205), agreed with txoof:** simpler and more reliable: **every plugin updates at its own refresh rate all the time**, whether it is on screen or not. When a turn changes, the next plugin's image is already there and is shown at once, without waiting for the network, and a plugin whose data source is down is known to be failing before its turn. This replaces the three points above. It costs little: most plugins refresh a few times an hour, and a hidden clock's update takes a fraction of a second. At most 3 updates run at the same time.
+
 ### Refresh rate and screen speed
 
 - Each plugin suggests a refresh rate. The user can set any value in the web interface, which shows the suggestion next to the field.

@@ -76,7 +76,7 @@ For tests and sample images, step 2 is skipped and `sample` is drawn instead. So
 Each setting is a field of the plugin's `Settings` class, with a type, a default and a short help text (`description`). From this one description PaperPi checks the config file, and later builds the web interface's form and the docs.
 
 - Every setting needs a default.
-- Don't use the names of the shared settings, which every `[[plugin]]` block already has: `name`, `type`, `enabled`, `level`, `display_time`, `refresh`, `time_limit`, `layout`.
+- Don't use the names of the shared settings, which every `[[plugin]]` block already has: `name`, `type`, `enabled`, `level`, `display_time`, `refresh`, `time_limit`, `layout`, `alert_reminder`, `alert_max_time`.
 - Use `pydantic.SecretStr` as the type for API keys and passwords. PaperPi then never shows their values in error messages or logs.
 
 In the config file, the plugin's settings go in its `[[plugin]]` block:
@@ -96,7 +96,7 @@ Give every text block a `sample`: the widest text it normally shows (`"88:88"` f
 
 ## Refresh
 
-`refresh` is the suggested number of seconds between updates; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes. Both take effect once the scheduler is built (M4 part 2).
+`refresh` is the suggested number of seconds between updates; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes.
 
 ## Rules
 

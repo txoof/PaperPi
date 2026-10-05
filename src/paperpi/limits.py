@@ -19,3 +19,22 @@ CONFIG_FILE_BYTES = 256_000
 
 #: Most ``[[plugin]]`` blocks PaperPi uses from one config file.
 PLUGIN_BLOCKS = 100
+
+#: Plugin updates that may run at the same time. Plugins update rarely, so 3 is enough, and
+#: it keeps memory use low on a Pi 3.
+PARALLEL_UPDATES = 3
+
+#: Failed updates in a row after which a plugin is left out for a while.
+FAILURES_BEFORE_LEFT_OUT = 3
+
+#: How long a plugin that keeps failing is left out.
+LEFT_OUT = 30 * 60.0
+
+#: Default time before a dismissed alert that is still active comes back as a reminder.
+ALERT_REMINDER = 60 * 60.0
+
+#: Default longest time an alert is held; then it is dismissed in case the plugin is stuck.
+ALERT_MAX_TIME = 24 * 60 * 60.0
+
+#: Plugins that refresh "on the minute" start this many seconds after the minute changes.
+ON_THE_MINUTE_DELAY = 1.0

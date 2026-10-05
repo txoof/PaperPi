@@ -15,7 +15,7 @@ Shows the time in large digits, and optionally the date below it. It needs no ne
 |---|---|---|
 | `hours` | `24` | `24` shows 15:45, `12` shows 3:45 PM |
 
-It suggests a refresh every 60 seconds, starting just after the minute changes (this takes effect once the scheduler is built, M4 part 2).
+It suggests a refresh every 60 seconds, starting just after the minute changes.
 
 In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
 
