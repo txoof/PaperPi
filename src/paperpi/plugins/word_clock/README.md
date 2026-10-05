@@ -2,9 +2,10 @@
 
 Shows the time in words, rounded to the nearest 10 minutes: "It's roughly Twenty After Eight", "It's nearly Ten 'Til Bedtime", "Give or take, it's Breakfast Sharp". It needs no network.
 
-- **The words vary.** The opening, the minute words and the hour (a number or a nickname such as "lunch", "crack of dawn" or "go to bed") are picked anew for each 10-minute step, and stay the same within a step. Openings like "nearly" are only used when the time really is a little before the step, and "a bit after" only when it is a little after.
+- **Rounding:** from :05 on the time rounds up (20:25 is "half past"), and from :35 on the sentence counts to the next hour (20:35 is "twenty 'til nine").
+- **The words vary.** The opening, the minute words and the hour (a number or a nickname such as "lunch", "crack of dawn" or "go to bed") are picked anew for each 10-minute step. Within a step the time words stay the same. Only the opening may change, where the truth does: openings like "nearly" are used only while the time is a little before the step, "a bit after" only a little after it, and on the minute of the step itself a plain one ("It is about").
 - **The text moves.** At every update the text is placed somewhere else on the screen, as in v1.
-- The text size is chosen for the longest sentence the clock can make (46 letters), so every sentence fits and the size never changes.
+- The text size is chosen for the widest sentence the clock can make ("The time is nearly Twenty Before Crack Of Dawn"), so every sentence fits and the size never changes.
 
 The word lists are in [`words.py`](words.py).
 

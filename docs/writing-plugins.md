@@ -56,7 +56,7 @@ PLUGIN = Plugin(
    - `return NOTHING`: nothing to show right now (for example the music is stopped)
    - `return ready(data)`: here is data to show
    - `return alert(data)`: here is data, and it is an alert
-3. `draw(data, context)` returns a dictionary with a value for each block of the layout, for example `{"time": "10:42"}`. PaperPi draws the layout with epdlib.
+3. `draw(data, context)` returns a dictionary with a value for each block of the layout, for example `{"time": "10:42"}` (or a `Drawn`, see "Moving blocks and colours"). PaperPi draws the layout with epdlib.
 4. The image goes back to PaperPi and the process exits.
 
 For tests and sample images, step 2 is skipped and `sample` is drawn instead. So every plugin can draw an image without network access, and `draw` must work with the sample data.
@@ -105,8 +105,8 @@ from ...plugin import Drawn
 return Drawn(values, seed=int(f"{now:%Y%m%d%H%M}"), colors=("yellow", "blue"))
 ```
 
-- `seed`: blocks with `align` or `valign` set to `"random"` are placed somewhere else at each update. The same seed always gives the same place, so sample images and tests stay the same. `word_clock` uses the time to the minute.
-- `colors`: text and background colour for every block with `rgb_support: True`, in place of the colours written in the layout. For settings that let the user pick colours, use `paperpi.colors`: `ColorName` as the setting's type (the colour names plus `random`) and `screen_colors(...)` to turn the choice into colours this screen can show. See `word_clock`.
+- `seed`: blocks with `align` or `valign` set to `"random"` are placed somewhere else at each update. The same seed always gives the same place, so sample images and tests stay the same. Make it from the data: `word_clock` uses the time to the minute; a plugin that shows no time can use a number made from its data, so new data moves the blocks and the same data doesn't.
+- `colors`: text and background colour for every block with `rgb_support: True`, in place of the colours written in the layout (swapped for blocks with `inverse: True`, so the text still gets the text colour). For settings that let the user pick colours, use `paperpi.colors`: `ColorName` as the setting's type (the colour names plus `random`) and `screen_colors(...)` to turn the choice into colours this screen can show. See `word_clock`.
 
 ## Refresh
 

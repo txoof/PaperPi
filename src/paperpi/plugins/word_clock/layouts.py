@@ -1,22 +1,18 @@
 """Layouts for word_clock. The first one is the default.
 
 The text blocks use ``random`` alignment, so the text moves around the screen at every
-update. Their sample is the longest sentence the clock can make, so every sentence fits
+update. Their sample is the widest sentence the clock can make, so every sentence fits
 and the font size never changes.
 """
 
-from functools import cache
 from pathlib import Path
 
 FONT = str(Path(__file__).parent / "fonts" / "Anton-Regular.ttf")
 PADDING = 0.03
 
-
-@cache
-def _longest() -> str:
-    from . import all_sentences  # here, because the plugin module imports this one
-
-    return max(sorted(all_sentences()), key=len)  # sorted: the same one every run
+#: The widest sentence in this font. Written out, because working it out from all 7140
+#: sentences would take a noticeable time at every update; a test checks it stays right.
+WIDEST = "The time is nearly Twenty Before Crack Of Dawn"
 
 
 def _words(size: float) -> dict:
@@ -25,7 +21,7 @@ def _words(size: float) -> dict:
         "type": "text",
         "size": size,
         "font": FONT,
-        "sample": _longest(),
+        "sample": WIDEST,
         "max_lines": 3,
         "align": "random",
         "valign": "random",

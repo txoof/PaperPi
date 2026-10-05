@@ -13,10 +13,10 @@ from .layouts import LAYOUTS
 
 class Settings(PluginSettings):
     text_color: ColorName = Field(
-        "white", description="Colour of the text on colour screens, or random"
+        "white", description="Colour of the text, or random (gray screens: black or white)"
     )
     background_color: ColorName = Field(
-        "black", description="Colour of the background on colour screens, or random"
+        "black", description="Colour of the background, or random (gray screens: black or white)"
     )
 
 
@@ -30,16 +30,23 @@ def step_of(now: datetime) -> datetime:
     return start + timedelta(minutes=(now.minute + 5) // 10 * 10)
 
 
+def side_of_step(now: datetime) -> int:
+    """-1 when the time is a little before its step, 1 a little after, 0 exactly on it."""
+    minute = now.replace(second=0, microsecond=0)
+    step = step_of(now)
+    return (minute > step) - (minute < step)
+
+
 def openings(now: datetime) -> tuple[str, ...]:
     """The openings that are true for this time: "nearly" only before the step, "a bit
     after" only after it, exactly on the step only the ones that are always true."""
-    minute = now.replace(second=0, microsecond=0)
-    step = step_of(now)
-    if minute < step:
-        return words.ALWAYS + words.BEFORE
-    if minute > step:
-        return words.ALWAYS + words.AFTER
-    return words.ALWAYS
+    side = side_of_step(now)
+    return words.ALWAYS + (words.BEFORE if side < 0 else words.AFTER if side > 0 else ())
+
+
+def hour_of(step: datetime) -> int:
+    """The hour the sentence names: from :40 on (so from :35) it counts to the next hour."""
+    return (step.hour + 1 if step.minute >= 40 else step.hour) % 24
 
 
 def time_words(step: datetime, minute_words: str, hour_words: str) -> str:
@@ -48,12 +55,28 @@ def time_words(step: datetime, minute_words: str, hour_words: str) -> str:
     return f"{minute_words} {hour_words}".title()
 
 
-def sentence(now: datetime, rng: random.Random) -> str:
+def step_rng(now: datetime, purpose: str) -> random.Random:
+    """A random number generator that gives the same picks for the whole 10-minute step.
+    A separate one per ``purpose``, so the words and the colours don't affect each other."""
+    return random.Random(f"{step_of(now):%Y%m%d%H%M}-{purpose}")
+
+
+def sentence(now: datetime) -> str:
+    """The sentence for ``now``. The same draws are made at every minute of a step, so the
+    words only change where the truth does: an opening like "nearly" is used before the
+    step, and the step's plain opening from the minute the step is reached."""
     step = step_of(now)
-    hour = step.hour + 1 if step.minute >= 40 else step.hour
+    rng = step_rng(now, "words")
+    plain = rng.choice(words.ALWAYS)
+    before, after = rng.choice(words.BEFORE), rng.choice(words.AFTER)
+    use_special = rng.random() < 0.5
     minute_words = rng.choice(words.MINUTES[step.minute])
-    hour_words = rng.choice(words.HOURS[hour % 24])
-    return f"{rng.choice(openings(now))} {time_words(step, minute_words, hour_words)}"
+    hour_words = rng.choice(words.HOURS[hour_of(step)])
+    side = side_of_step(now)
+    opening = plain
+    if use_special and side:
+        opening = before if side < 0 else after
+    return f"{opening} {time_words(step, minute_words, hour_words)}"
 
 
 def all_sentences() -> set[str]:
@@ -63,7 +86,7 @@ def all_sentences() -> set[str]:
     for minutes in range(24 * 60):
         now = day + timedelta(minutes=minutes)
         step = step_of(now)
-        hour = (step.hour + 1 if step.minute >= 40 else step.hour) % 24
+        hour = hour_of(step)
         for opening in openings(now):
             for minute_words in words.MINUTES[step.minute]:
                 for hour_words in words.HOURS[hour]:
@@ -72,12 +95,13 @@ def all_sentences() -> set[str]:
 
 
 def draw(now: datetime, context: Context) -> Drawn:
-    # The words and colours change with the step, so they stay the same for 10 minutes.
+    # The words and colours are picked per step, so they stay the same for 10 minutes.
     # The place of the text changes at every update (every minute it can), as in v1.
-    rng = random.Random(int(f"{step_of(now):%Y%m%d%H%M}"))
-    text = sentence(now, rng)
+    text = sentence(now)
     settings = context.settings
-    colors = screen_colors(settings.text_color, settings.background_color, context.mode, rng)
+    colors = screen_colors(
+        settings.text_color, settings.background_color, context.mode, step_rng(now, "colors")
+    )
     values = {"words": text}
     if context.layout == "words_time":
         values["time"] = f"{now:%H:%M}"

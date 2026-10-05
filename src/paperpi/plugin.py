@@ -258,10 +258,13 @@ def _recolor(node: Any, fill: str, background: str) -> Any:
     if isinstance(node, Mapping):
         copy = {key: _recolor(value, fill, background) for key, value in node.items()}
         if copy.get("rgb_support"):
-            copy |= {"fill": fill, "background": background}
+            # ``inverse`` swaps the two when drawing; swap them here too, so the block still
+            # gets the text colour for its text.
+            pair = (background, fill) if copy.get("inverse") else (fill, background)
+            copy |= {"fill": pair[0], "background": pair[1]}
         return copy
     if isinstance(node, list | tuple):
-        return [_recolor(item, fill, background) for item in node]
+        return type(node)(_recolor(item, fill, background) for item in node)
     return node
 
 
