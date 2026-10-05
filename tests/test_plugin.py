@@ -137,6 +137,29 @@ def test_drawn_colors_change_only_rgb_support_blocks(tmp_path):
     assert image.getpixel((99, 0)) == 255  # block b: still white
 
 
+def test_recolor_reaches_nested_blocks_and_keeps_the_original():
+    from paperpi.plugin import _recolor
+
+    layout = {
+        "column": (
+            {
+                "row": [
+                    {"name": "a", "rgb_support": True},
+                    {"name": "b", "rgb_support": True, "inverse": True},
+                ]
+            },
+            {"name": "c"},
+        )
+    }
+    new = _recolor(layout, "yellow", "blue")
+    a, b = new["column"][0]["row"]
+    assert (a["fill"], a["background"]) == ("yellow", "blue")
+    assert (b["fill"], b["background"]) == ("blue", "yellow")  # inverse swaps them back
+    assert "fill" not in new["column"][1]
+    assert isinstance(new["column"], tuple)
+    assert "fill" not in layout["column"][0]["row"][0]  # the original is unchanged
+
+
 def test_loader_lists_and_loads_the_plugins():
     assert "basic_clock" in plugins.available()
     assert plugins.load("basic_clock").type == "basic_clock"

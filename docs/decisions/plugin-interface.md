@@ -45,7 +45,7 @@ The plugin never talks to the screen. Only the scheduler does.
 
 **Update 2026-10-05 (M4, issue #203):** in the code, the update function is split in two steps, so every plugin can draw its sample data without network access:
 - `fetch` gets the data and returns the state: nothing, ready (with data) or alert (with data).
-- `draw` turns the data into values for the blocks of the chosen layout. PaperPi then draws the layout with epdlib, in the plugin's process, and hands the finished image back.
+- `draw` turns the data into values for the blocks of the chosen layout. PaperPi then draws the layout with epdlib, in the plugin's process, and hands the finished image back. `draw` may also return a `Drawn` with a seed (where `random` placement puts blocks) and colours (for user-chosen text and background colours); added with `word_clock` (#213).
 
 For sample images and tests, `fetch` is skipped and the sample data goes straight to `draw`. How to write a plugin: `docs/writing-plugins.md`.
 
@@ -58,7 +58,7 @@ For sample images and tests, `fetch` is skipped and the sample data goes straigh
 
 ### When a plugin is updated
 
-- **Rotation plugins** (clock, weather, moon) update just before their turn, unless their last image is still fresh. While on screen, they keep updating at their refresh rate, e.g. the word clock changes every minute.
+- **Rotation plugins** (clock, weather, moon) update just before their turn, unless their last image is still fresh. While on screen, they keep updating at their refresh rate, e.g. the word clock moves its text at every update (every 2 minutes).
 - **Interrupt and alert plugins** (music, future alarms) check in the background all the time at their refresh rate, so they can report "I have something" right away.
 - Plugins that are not on screen and not about to be use no network and no processor time.
 
