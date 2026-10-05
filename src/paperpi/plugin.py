@@ -1,0 +1,219 @@
+"""The plugin interface (v2).
+
+A plugin puts something on the screen: a clock, the weather, the song that is playing. The
+reasons behind this interface are in ``docs/decisions/plugin-interface.md``; how to write a
+plugin is in ``docs/writing-plugins.md``.
+
+A plugin is a folder in ``src/paperpi/plugins/<type>/`` whose ``__init__.py`` has a
+:class:`Plugin` called ``PLUGIN``. One update is two steps:
+
+1. ``fetch(context)`` gets the data (from the clock, the network, ...) and returns
+   :data:`NOTHING`, :func:`ready` or :func:`alert`.
+2. ``draw(data, context)`` turns the data into values for the blocks of the chosen layout.
+   PaperPi draws the layout with epdlib.
+
+For sample images and tests, step 1 is skipped and ``sample`` is drawn instead, so every
+plugin can draw an image without network access. Each update runs in its own short-lived
+process (see :mod:`paperpi.runner`); a plugin can't keep anything in memory between updates.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from enum import StrEnum
+from pathlib import Path
+from typing import Any, Literal
+
+from epdlib import Layout, ScreenMode
+from PIL import Image
+from pydantic import BaseModel, ConfigDict, Field
+
+from . import limits
+
+
+class State(StrEnum):
+    """What a plugin has to show (see ``docs/decisions/plugin-scheduling.md``)."""
+
+    NOTHING = "nothing"
+    """Nothing to show right now, e.g. the music is stopped."""
+    READY = "ready"
+    """Here is an image."""
+    ALERT = "alert"
+    """Here is an image, and it is an alert."""
+
+
+@dataclass(frozen=True)
+class Fetched:
+    """What ``fetch`` returns: a state, and the data to draw (none for ``NOTHING``)."""
+
+    state: State
+    data: Any = None
+
+
+#: ``fetch`` returns this when there is nothing to show.
+NOTHING = Fetched(State.NOTHING)
+
+
+def ready(data: Any) -> Fetched:
+    """``fetch`` returns this when it has data to show."""
+    return Fetched(State.READY, data)
+
+
+def alert(data: Any) -> Fetched:
+    """``fetch`` returns this when its data is an alert."""
+    return Fetched(State.ALERT, data)
+
+
+class PluginSettings(BaseModel):
+    """Base class for a plugin's own settings.
+
+    Each setting is a field with a type, a default and a short help text::
+
+        class Settings(PluginSettings):
+            hours: Literal[12, 24] = Field(24, description="12- or 24-hour clock")
+
+    The same description checks the config file, builds the web interface's forms (M5)
+    and the docs. A plugin may not use the names of the shared settings
+    (:data:`SHARED_SETTINGS`) for its own.
+    """
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+
+class PluginEntry(BaseModel):
+    """The settings every ``[[plugin]]`` block in the config file has.
+
+    The plugin's own settings sit in the same block; they are checked by its
+    :class:`PluginSettings`.
+    """
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    name: str = Field(min_length=1, max_length=100, description="Unique name of this plugin")
+    type: str = Field(description="Which plugin, e.g. basic_clock")
+    enabled: bool = Field(True, description="Show this plugin")
+    level: Literal["alert", "interrupt", "rotation"] = Field(
+        "rotation", description="When it is shown: alert, interrupt or rotation"
+    )
+    display_time: float = Field(
+        120, gt=0, description="Seconds on screen per turn (rotation plugins only)"
+    )
+    refresh: float | None = Field(
+        None, gt=0, description="Seconds between updates; empty means the plugin's suggestion"
+    )
+    time_limit: float = Field(
+        limits.PLUGIN_UPDATE,
+        gt=0,
+        le=limits.PLUGIN_UPDATE_MAX,
+        description="Seconds one update may take before it is stopped",
+    )
+    layout: str | None = Field(None, description="Which layout; empty means the plugin's first")
+
+
+#: Names a plugin may not use for its own settings.
+SHARED_SETTINGS = frozenset(PluginEntry.model_fields)
+
+_TYPE_NAME = re.compile(r"[a-z][a-z0-9_]*")
+
+#: A layout is an epdlib layout dictionary, or a function that makes one from the settings
+#: (for layouts that depend on a setting, such as a 12- or 24-hour clock).
+LayoutSource = Mapping[str, Any] | Callable[[PluginSettings], Mapping[str, Any]]
+
+
+@dataclass(frozen=True)
+class Context:
+    """What one update gets from PaperPi."""
+
+    settings: PluginSettings
+    """The plugin's own settings, already checked."""
+    width: int
+    """Width of the area to draw, in pixels. In v2.0 always the whole screen."""
+    height: int
+    """Height of the area to draw, in pixels."""
+    mode: ScreenMode
+    """What the screen can show: black and white, gray levels or colours."""
+    storage: Path
+    """The plugin's own folder for saved files, e.g. downloaded data."""
+    layout: str
+    """The name of the layout to draw."""
+
+
+class PluginDefinitionError(ValueError):
+    """A plugin's ``PLUGIN`` breaks the rules of this interface. A bug in the plugin."""
+
+
+@dataclass(frozen=True)
+class Plugin:
+    """Everything PaperPi needs to know about one plugin type."""
+
+    type: str
+    """The plugin type, the same as its folder name, e.g. ``basic_clock``."""
+    description: str
+    """One sentence: what it shows."""
+    settings: type[PluginSettings]
+    """Its own settings."""
+    layouts: Mapping[str, LayoutSource]
+    """Named layouts. The first is the default."""
+    fetch: Callable[[Context], Fetched]
+    """Gets the data and says whether there is something to show."""
+    draw: Callable[[Any, Context], Mapping[str, Any]]
+    """Turns the data into values for the layout's blocks."""
+    sample: Any
+    """Fixed example data for ``draw``, used for tests and sample images."""
+    refresh: float
+    """Suggested seconds between updates."""
+    refresh_on_minute: bool = False
+    """Updates should start just after the minute changes (for clocks)."""
+
+    def __post_init__(self) -> None:
+        problems = []
+        if not _TYPE_NAME.fullmatch(self.type):
+            problems.append("type must be lowercase letters, digits and _")
+        if not (isinstance(self.settings, type) and issubclass(self.settings, PluginSettings)):
+            problems.append("settings must be a subclass of PluginSettings")
+        else:
+            clash = sorted(SHARED_SETTINGS & set(self.settings.model_fields))
+            if clash:
+                problems.append(f"settings use the names of shared settings: {', '.join(clash)}")
+            try:
+                self.settings()
+            except ValueError:
+                problems.append("every setting needs a default")
+        if not self.layouts:
+            problems.append("needs at least one layout")
+        if self.refresh <= 0:
+            problems.append("refresh must be above zero")
+        if problems:
+            raise PluginDefinitionError(f"plugin {self.type!r}: " + "; ".join(problems))
+
+    @property
+    def default_layout(self) -> str:
+        return next(iter(self.layouts))
+
+    def layout(self, name: str, settings: PluginSettings) -> Layout:
+        """The epdlib layout called ``name``, for these settings."""
+        source = self.layouts[name]
+        return Layout(source(settings) if callable(source) else source)
+
+
+def draw_update(
+    plugin: Plugin, context: Context, *, sample: bool
+) -> tuple[State, Image.Image | None]:
+    """Run one update in this process: fetch (or take the sample data) and draw.
+
+    Returns the state and the image (``None`` when there is nothing to show). Normally this
+    runs inside a plugin process started by :mod:`paperpi.runner`.
+    """
+    fetched = Fetched(State.READY, plugin.sample) if sample else plugin.fetch(context)
+    if not isinstance(fetched, Fetched):
+        raise TypeError(
+            f"fetch returned {type(fetched).__name__}; use NOTHING, ready(data) or alert(data)"
+        )
+    if fetched.state is State.NOTHING:
+        return fetched.state, None
+    values = plugin.draw(fetched.data, context)
+    layout = plugin.layout(context.layout, context.settings)
+    image = layout.prepare(context.width, context.height, context.mode).render(values)
+    return fetched.state, image

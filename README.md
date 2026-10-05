@@ -31,4 +31,17 @@ uv run ruff check .        # check code style
 uv run ruff format .       # fix code formatting
 ```
 
+### Draw a plugin without a screen
+
+`paperpi render` draws one plugin to a PNG file. It needs no screen, no network and no config file:
+
+```bash
+uv run paperpi render basic_clock                    # writes basic_clock.png (1200x825, 16 grays)
+uv run paperpi render basic_clock --layout time_date --set hours=12 --size 800x480 --mode bw
+uv run paperpi render basic_clock --live             # real data (here: the current time)
+uv run paperpi render --config paperpi.toml --name "Clock"   # one [[plugin]] block from a config file
+```
+
+By default it uses the plugin's sample data. Run `uv run paperpi render --help` for all options. How to write a plugin: [docs/writing-plugins.md](docs/writing-plugins.md).
+
 See [CLAUDE.md](CLAUDE.md) for how work is organized.
