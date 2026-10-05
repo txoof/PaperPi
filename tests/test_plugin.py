@@ -103,3 +103,12 @@ def test_loader_lists_and_loads_the_plugins():
 def test_loader_unknown_type():
     with pytest.raises(KeyError):
         plugins.load("../etc")
+
+
+@pytest.mark.parametrize(
+    ("plugin_type", "message"),
+    [("no_plugin", "has no PLUGIN"), ("wrong_type", "PLUGIN.type is 'other_name'")],
+)
+def test_loader_broken_plugins(plugin_type, message):
+    with pytest.raises(PluginDefinitionError, match=message):
+        plugins.load(plugin_type, "tests.fake_plugins")

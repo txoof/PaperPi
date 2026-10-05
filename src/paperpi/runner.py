@@ -11,6 +11,7 @@ these packages are not loaded again every time.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import multiprocessing
 import os
@@ -21,6 +22,7 @@ from dataclasses import dataclass
 from multiprocessing.connection import Connection
 
 from PIL import Image
+from pydantic import SecretBytes, SecretStr
 
 from . import limits
 from .plugin import Context, State
@@ -69,15 +71,23 @@ def run_update(
 
     ``sample`` draws the plugin's sample data instead of fetching. ``time_limit`` defaults
     to :data:`paperpi.limits.PLUGIN_UPDATE`. ``package`` is where the plugin is (tests use it
-    for fake plugins). Raises :class:`PluginTimeout` when the limit
-    runs out and :class:`PluginFailed` when the plugin raises an error or crashes.
+    for fake plugins). Raises :class:`PluginTimeout` when the limit runs out and
+    :class:`PluginFailed` when the plugin raises an error or crashes. Secret settings
+    (``SecretStr``) are replaced with ``****`` in error messages.
+
+    The time limit covers everything, also starting the process. The very first update
+    also starts the ready copy (about a second on a Pi 4).
     """
     time_limit = limits.PLUGIN_UPDATE if time_limit is None else time_limit
     start = time.monotonic()
     receiver, sender = _context.Pipe(duplex=False)
+    # The settings travel as plain data: unpacking a settings object would import the plugin
+    # before the child is in its own process group, where a hang can't be stopped cleanly.
+    settings = context.settings.model_dump()
+    bare = dataclasses.replace(context, settings=None)
     process = _context.Process(
         target=_child,
-        args=(sender, plugin_type, package, context, sample),
+        args=(sender, plugin_type, package, bare, settings, sample),
         name=f"paperpi-plugin-{plugin_type}",
         daemon=True,
     )
@@ -90,7 +100,7 @@ def run_update(
                 raise PluginTimeout(plugin_type, f"no result within {time_limit:g} s; stopped")
             message = receiver.recv()
             finished = True
-        except EOFError:
+        except (EOFError, OSError):
             process.join(limits.PLUGIN_EXIT)
             raise PluginFailed(
                 plugin_type, f"process ended without a result (exit code {process.exitcode})"
@@ -121,7 +131,8 @@ def _stop(process: multiprocessing.process.BaseProcess, *, wait: bool) -> None:
         try:
             os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError:
-            pass
+            # The time limit ran out before the child had made its own process group.
+            process.kill()
         process.join(limits.PLUGIN_EXIT)
     if process.exitcode is None:
         log.error("plugin process %s did not stop", process.pid)
@@ -138,22 +149,45 @@ def _group_alive(pgid: int) -> bool:
 
 
 def _child(
-    sender: Connection, plugin_type: str, package: str, context: Context, sample: bool
+    sender: Connection,
+    plugin_type: str,
+    package: str,
+    context: Context,
+    settings: dict,
+    sample: bool,
 ) -> None:
     """Runs in the plugin process: one update, then send the result and exit."""
     os.setpgrp()  # own process group, so the parent can stop everything this plugin starts
+    secrets: list[str] = []
     try:
         from . import plugins
         from .plugin import draw_update
 
         plugin = plugins.load(plugin_type, package)
+        checked = plugin.settings.model_validate(settings)
+        secrets = [v.get_secret_value() for v in dict(checked).values() if _is_secret(v)]
+        context = dataclasses.replace(context, settings=checked)
         state, image = draw_update(plugin, context, sample=sample)
         sender.send(("ok", state.value, _pack(image)))
     except BaseException as error:  # noqa: BLE001 - report everything, then exit
-        reason = f"{type(error).__name__}: {error}"
-        sender.send(("error", reason, traceback.format_exc()))
+        reason = _hide(f"{type(error).__name__}: {error}", secrets)
+        sender.send(("error", reason, _hide(traceback.format_exc(), secrets)))
     finally:
         sender.close()
+
+
+def _is_secret(value) -> bool:
+    return isinstance(value, SecretStr | SecretBytes)
+
+
+def _hide(text: str, secrets: list) -> str:
+    """Replace secret settings (API keys, passwords) in an error message with ****."""
+    for secret in secrets:
+        if isinstance(secret, bytes):
+            secret = secret.decode("utf-8", "replace")
+        if secret:
+            text = text.replace(secret, "****")
+    return text
 
 
 def _pack(image: Image.Image | None):

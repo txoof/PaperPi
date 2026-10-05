@@ -10,17 +10,25 @@ import sys
 import time
 from typing import Literal
 
+from pydantic import SecretStr
+
 from paperpi.plugin import NOTHING, Plugin, PluginSettings, alert, ready
 
-Act = Literal["ok", "nothing", "alert", "raise", "hang", "exit", "crash", "kill", "child", "wrong"]
+Act = Literal[
+    "ok", "nothing", "alert", "raise", "hang", "exit", "crash", "kill", "child", "leave_child",
+    "secret", "wrong",
+]  # fmt: skip
 
 
 class Settings(PluginSettings):
     act: Act = "ok"
+    key: SecretStr = SecretStr("")
 
 
 def fetch(context):
     act = context.settings.act
+    # Lets tests check that this process is gone afterwards.
+    (context.storage / "plugin.pid").write_text(str(os.getpid()))
     if act == "nothing":
         return NOTHING
     if act == "alert":
@@ -35,11 +43,14 @@ def fetch(context):
         os._exit(3)
     if act == "kill":
         os.kill(os.getpid(), signal.SIGKILL)
-    if act == "child":
+    if act in ("child", "leave_child"):
         # A program started by the plugin that would outlive it if nobody stopped it.
         child = subprocess.Popen(["sleep", "3600"])
         (context.storage / "child.pid").write_text(str(child.pid))
-        time.sleep(3600)
+        if act == "child":
+            time.sleep(3600)
+    if act == "secret":
+        raise ValueError(f"server refused key {context.settings.key.get_secret_value()}")
     if act == "wrong":
         return "not a Fetched"
     return ready("OK")

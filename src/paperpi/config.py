@@ -10,9 +10,9 @@ The reasons behind this design are in ``docs/decisions/config-format.md``. In sh
   ========================================  ==================================================
   Problem                                   What PaperPi does
   ========================================  ==================================================
-  file can't be read, or ``[display]`` or   :func:`load` uses the last good copy and reports
-  ``config_version`` is wrong               the problems; with no last good copy it raises
-                                            :class:`ConfigError`
+  file can't be read, is not valid TOML,    :func:`load` uses the last good copy and reports
+  or ``config_version``, ``[display]`` or   the problems; with no last good copy it raises
+  ``web`` is wrong                          :class:`ConfigError`
   one ``[[plugin]]`` block is wrong         only that plugin is left out
   unknown setting                           a warning, with "did you mean ...?"
   ``refresh`` equals ``display_time``       a hint (see ``plugin-scheduling.md``)
@@ -59,6 +59,15 @@ MODES = {
     "7color": ScreenMode.palette(),
     "rgb": ScreenMode.rgb(),
 }
+
+
+def mode_name(mode: ScreenMode) -> str:
+    """The short name of a screen mode, as in the config file: ``gray16``, ``7color``, ..."""
+    for name, known in MODES.items():
+        if known == mode:
+            return name
+    return f"{mode.kind}{mode.levels}"
+
 
 #: A virtual screen without a size or mode is like the 9.7" IT8951 screen.
 VIRTUAL_WIDTH, VIRTUAL_HEIGHT, VIRTUAL_MODE = 1200, 825, "gray16"
@@ -245,6 +254,10 @@ def parse(text: str, source: str = "config") -> Config:
         line = int(found.group(1)) if found else None
         problem = f"not valid TOML: {error}"
         raise ConfigError([Problem("error", problem, source, line)]) from None
+    except (RecursionError, ValueError) as error:
+        # E.g. lists nested thousands deep, or a number with thousands of digits.
+        problem = f"not valid TOML: {type(error).__name__}: {str(error)[:200]}"
+        raise ConfigError([Problem("error", problem, source)]) from None
     return _Checker(text, source).check(data)
 
 
@@ -260,12 +273,27 @@ def _log_problems(problems: list[Problem]) -> None:
 
 def _save_last_good(text: str, last_good: Path) -> None:
     try:
-        if last_good.is_file() and last_good.read_text(encoding="utf-8") == text:
+        last_good.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        # Temporary files left by a power cut during an earlier save.
+        for old in last_good.parent.glob(f".{last_good.name}.*.tmp"):
+            old.unlink(missing_ok=True)
+        if last_good.is_file() and last_good.read_bytes() == text.encode("utf-8"):
             return
-        last_good.parent.mkdir(parents=True, exist_ok=True)
         write_atomic(last_good, text.encode("utf-8"))
     except OSError as error:
         log.warning("can't save the last good copy of the config to %s: %s", last_good, error)
+
+
+def _is_secret(model: type[BaseModel], key: str) -> bool:
+    """True for settings such as API keys and passwords, whose values are never shown."""
+    field = model.model_fields.get(key)
+    annotation = repr(field.annotation) if field else ""
+    return "SecretStr" in annotation or "SecretBytes" in annotation
+
+
+def _short(value: Any) -> str:
+    text = repr(value)
+    return text if len(text) <= 40 else text[:37] + "..."
 
 
 def _did_you_mean(word: str, choices: Iterable[str]) -> str:
@@ -280,20 +308,23 @@ class _Checker:
         self.source = source
         self.lines = _key_lines(text)
         self.problems: list[Problem] = []
+        self.available = plugins.available()
 
     def add(self, level, message, section=(), key=None, where="") -> None:
         line = self.lines.get((*section, key)) or self.lines.get(section)
         self.problems.append(Problem(level, message, self.source, line, where))
 
-    def add_validation(self, error: ValidationError, section=(), where="", input_keys=()) -> None:
+    def add_validation(
+        self, error: ValidationError, model: type[BaseModel], section=(), where="", input_keys=()
+    ) -> None:
         for item in error.errors():
             key = str(item["loc"][0]) if item["loc"] else None
             if item["type"] == "missing":
                 message = f"{key}: required setting is missing"
             else:
                 message = f"{key}: {item['msg']}" if key else item["msg"]
-                if key in input_keys:
-                    message += f" (got {item['input']!r})"
+                if key in input_keys and not _is_secret(model, key):
+                    message += f" (got {_short(item['input'])})"
             self.add("error", message, section, key, where)
 
     def check(self, data: dict[str, Any]) -> Config:
@@ -338,7 +369,7 @@ class _Checker:
         try:
             settings = DisplaySettings.model_validate(display)
         except ValidationError as error:
-            self.add_validation(error, section, "[display]", display.keys())
+            self.add_validation(error, DisplaySettings, section, "[display]", display.keys())
             return None
         if settings.type not in DISPLAY_TYPES:
             known = ", ".join(DISPLAY_TYPES)
@@ -369,6 +400,14 @@ class _Checker:
         if not isinstance(blocks, list):
             self.add("error", "write [[plugin]] (two brackets) above each plugin", key="plugin")
             return []
+        if len(blocks) > limits.PLUGIN_BLOCKS:
+            self.add(
+                "error",
+                f"{len(blocks)} plugin blocks; at most {limits.PLUGIN_BLOCKS} are used, "
+                "the rest are left out",
+                key="plugin",
+            )
+            blocks = blocks[: limits.PLUGIN_BLOCKS]
         found: list[PluginConfig] = []
         names: dict[str, int | None] = {}
         for index, block in enumerate(blocks):
@@ -376,25 +415,27 @@ class _Checker:
             if not isinstance(block, dict):
                 self.add("error", "each plugin must be a [[plugin]] block", key="plugin")
                 continue
+            name = block.get("name")
+            if isinstance(name, str):
+                # Checked for every block, also broken ones, so fixing one block can't
+                # silently switch off another.
+                folder = folder_name(name)
+                if folder in names:
+                    used = names[folder]
+                    at = f" at line {used}" if used else ""
+                    self.add(
+                        "error",
+                        f"name {name!r} is already used by the plugin block{at}; "
+                        "names must be different (also ignoring capitals and punctuation)",
+                        section,
+                        "name",
+                        f"[[plugin]] {name!r}",
+                    )
+                    continue
+                names[folder] = self.lines.get(section)
             checked = self.check_plugin(block, section)
-            if checked is None:
-                continue
-            name = checked.entry.name
-            folder = checked.folder_name
-            if folder in names:
-                used = names[folder]
-                at = f" at line {used}" if used else ""
-                self.add(
-                    "error",
-                    f"name {name!r} is already used by the plugin block{at}; "
-                    "names must be different (also ignoring capitals and punctuation)",
-                    section,
-                    "name",
-                    f"[[plugin]] {name!r}",
-                )
-                continue
-            names[folder] = checked.line
-            found.append(checked)
+            if checked is not None:
+                found.append(checked)
         return found
 
     def check_plugin(self, block: dict[str, Any], section: tuple) -> PluginConfig | None:
@@ -408,25 +449,30 @@ class _Checker:
         try:
             entry = PluginEntry.model_validate(block)
         except ValidationError as error:
-            self.add_validation(error, section, where, block.keys())
+            self.add_validation(error, PluginEntry, section, where, block.keys())
             entry = None
         plugin_type = block.get("type")
         plugin = None
         if isinstance(plugin_type, str):
             try:
+                if plugin_type not in self.available:
+                    raise KeyError(plugin_type)
                 plugin = plugins.load(plugin_type)
             except KeyError:
-                hint = _did_you_mean(plugin_type, plugins.available())
+                hint = _did_you_mean(plugin_type, self.available)
                 self.add(
                     "error",
                     f"unknown plugin type {plugin_type!r}{hint}; known: "
-                    f"{', '.join(plugins.available())}",
+                    f"{', '.join(self.available)}",
                     section,
                     "type",
                     where,
                 )
             except PluginDefinitionError as error:
                 self.add("error", f"the plugin itself is broken: {error}", section, "type", where)
+            except Exception as error:  # noqa: BLE001 - a bug in one plugin only stops that one
+                message = f"the plugin itself is broken: {type(error).__name__}: {error}"
+                self.add("error", message, section, "type", where)
         if plugin is None:
             return None
 
@@ -439,7 +485,7 @@ class _Checker:
         try:
             settings = plugin.settings.model_validate(own)
         except ValidationError as error:
-            self.add_validation(error, section, where, own.keys())
+            self.add_validation(error, plugin.settings, section, where, own.keys())
             settings = None
         if entry is not None and entry.layout is not None and entry.layout not in plugin.layouts:
             self.add(
@@ -483,7 +529,16 @@ def _key_lines(text: str) -> dict[tuple, int]:
     lines: dict[tuple, int] = {}
     counts: dict[str, int] = {}
     section: tuple = ()
+    quote = None  # inside a multi-line string: the quotes it started with (""" or ''')
     for number, line in enumerate(text.splitlines(), start=1):
+        starts_inside = quote is not None
+        for found in re.finditer(r'"""|\'\'\'', line):
+            if quote is None:
+                quote = found.group()
+            elif found.group() == quote:
+                quote = None
+        if starts_inside:
+            continue
         header = _HEADER.fullmatch(line)
         if header:
             brackets, name = header.group(1), header.group(2)

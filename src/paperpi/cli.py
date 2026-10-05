@@ -12,12 +12,14 @@ import logging
 import sys
 import tempfile
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 
+from epdlib import ScreenMode
 from pydantic import ValidationError
 
 from . import __version__, config, limits, plugins
-from .plugin import Context, PluginDefinitionError, State
+from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 
 log = logging.getLogger("paperpi")
@@ -64,7 +66,7 @@ def _parser() -> argparse.ArgumentParser:
     render.add_argument("--name", help='with --config: the plugin\'s name, e.g. "Clock"')
     render.add_argument(
         "--size",
-        help=f'width x height in pixels (default: {SIZE}, the 9.7" screen)',
+        help=f'WIDTHxHEIGHT in pixels, e.g. 800x480 (default: {SIZE}, the 9.7" screen)',
     )
     render.add_argument(
         "--mode",
@@ -86,30 +88,47 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+@dataclass(frozen=True)
+class _Job:
+    """What to render, from the command line or from a config file."""
+
+    plugin: Plugin
+    settings: PluginSettings
+    layout: str
+    width: int
+    height: int
+    mode: ScreenMode
+    time_limit: float
+    output: Path
+
+
 def _render(args: argparse.Namespace) -> int:
     if args.config is not None:
-        if args.plugin or args.name is None:
+        if args.plugin:
+            raise UsageError(f"give either a plugin type ({args.plugin!r}) or --config, not both")
+        if args.name is None:
             raise UsageError('with --config, give the plugin\'s name: --name "Clock"')
         if args.set or args.size or args.mode:
             raise UsageError("with --config, settings, size and mode come from the config file")
         job = _job_from_config(args)
     else:
+        if args.name is not None:
+            raise UsageError("--name only works together with --config")
         if not args.plugin:
             raise UsageError("which plugin? e.g. paperpi render basic_clock")
         job = _job_from_options(args)
-    plugin_type, settings, layout, width, height, mode, time_limit, output = job
-    if args.layout is not None:
-        layout = args.layout
-    plugin = plugins.load(plugin_type)
-    if layout not in plugin.layouts:
-        raise UsageError(f"unknown layout {layout!r}; choose from: {', '.join(plugin.layouts)}")
-    if args.time_limit is not None:
-        time_limit = args.time_limit
+    layout = job.layout if args.layout is None else args.layout
+    if layout not in job.plugin.layouts:
+        known = ", ".join(job.plugin.layouts)
+        raise UsageError(f"unknown layout {layout!r}; choose from: {known}")
+    time_limit = job.time_limit if args.time_limit is None else args.time_limit
     if not 0 < time_limit <= limits.PLUGIN_UPDATE_MAX:
         raise UsageError(f"--time-limit must be above 0 and at most {limits.PLUGIN_UPDATE_MAX:g}")
 
+    plugin_type = job.plugin.type
+    # Each render gets a new, empty storage folder, deleted afterwards.
     with tempfile.TemporaryDirectory(prefix="paperpi-render-") as storage:
-        context = Context(settings, width, height, mode, Path(storage), layout)
+        context = Context(job.settings, job.width, job.height, job.mode, Path(storage), layout)
         try:
             result = run_update(plugin_type, context, sample=not args.live, time_limit=time_limit)
         except PluginFailed as error:
@@ -120,25 +139,27 @@ def _render(args: argparse.Namespace) -> int:
     if result.state is State.NOTHING:
         print(f"{plugin_type} has nothing to show right now; no image written")
         return 0
-    output = args.output or output
-    result.image.save(output)
+    output = args.output or job.output
+    try:
+        result.image.save(output, format="PNG")
+    except OSError as error:
+        raise UsageError(f"can't write {output}: {error}") from None
     alert = " (alert)" if result.state is State.ALERT else ""
-    shades = "" if mode.kind in ("bw", "rgb") else f" {mode.levels}"
     print(
-        f"saved {output}: {width}x{height} {mode.kind}{shades}, {layout}{alert}, "
-        f"{result.seconds:.2f} s"
+        f"saved {output}: {job.width}x{job.height} {config.mode_name(job.mode)}, "
+        f"{layout}{alert}, {result.seconds:.2f} s"
     )
     return 0
 
 
-def _job_from_options(args: argparse.Namespace):
+def _job_from_options(args: argparse.Namespace) -> _Job:
     try:
         plugin = plugins.load(args.plugin)
     except KeyError:
         raise UsageError(
             f"unknown plugin {args.plugin!r}; known: {', '.join(plugins.available())}"
         ) from None
-    except PluginDefinitionError as error:
+    except Exception as error:  # noqa: BLE001 - a bug in the plugin, not in the command
         raise UsageError(f"the plugin itself is broken: {error}") from None
     values = dict(_parse_set(item) for item in args.set)
     unknown = sorted(set(values) - set(plugin.settings.model_fields))
@@ -151,21 +172,19 @@ def _job_from_options(args: argparse.Namespace):
         problems = "; ".join(f"{e['loc'][0]}: {e['msg']}" for e in error.errors())
         raise UsageError(problems) from None
     width, height = _parse_size(args.size or SIZE)
-    output = Path(f"{plugin.type}.png")
-    mode = config.MODES[args.mode or config.VIRTUAL_MODE]
-    return (
-        plugin.type,
-        settings,
-        plugin.default_layout,
-        width,
-        height,
-        mode,
-        limits.PLUGIN_UPDATE,
-        output,
+    return _Job(
+        plugin=plugin,
+        settings=settings,
+        layout=plugin.default_layout,
+        width=width,
+        height=height,
+        mode=config.MODES[args.mode or config.VIRTUAL_MODE],
+        time_limit=limits.PLUGIN_UPDATE,
+        output=Path(f"{plugin.type}.png"),
     )
 
 
-def _job_from_config(args: argparse.Namespace):
+def _job_from_config(args: argparse.Namespace) -> _Job:
     try:
         loaded = config.load(args.config, state_dir=None)
     except config.ConfigError as error:
@@ -179,17 +198,15 @@ def _job_from_config(args: argparse.Namespace):
             f"above); plugins without errors: {names}"
         ) from None
     width, height = loaded.display.layout_size
-    mode = loaded.display.screen_mode
-    output = Path(f"{found.folder_name}.png")
-    return (
-        found.plugin.type,
-        found.settings,
-        found.layout,
-        width,
-        height,
-        mode,
-        found.entry.time_limit,
-        output,
+    return _Job(
+        plugin=found.plugin,
+        settings=found.settings,
+        layout=found.layout,
+        width=width,
+        height=height,
+        mode=loaded.display.screen_mode,
+        time_limit=found.entry.time_limit,
+        output=Path(f"{found.folder_name}.png"),
     )
 
 

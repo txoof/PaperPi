@@ -47,6 +47,8 @@ A rotation plugin keeps updating at its refresh rate while it is on screen (see 
 - **Hint:** when a plugin's `refresh` equals its `display_time`, the config check and the web interface show a hint, not an error: "refresh equals display time: the plugin may redraw just as it is swapped out; make refresh slightly longer, or a fraction of the display time". The config still loads.
 - Good choices: a refresh slightly longer than the display time (the plugin updates just before its turn and not during it), or a fraction of it. Defaults and examples follow this.
 
+Added 2026-10-05 (M4, issue #203), agreed with txoof.
+
 ### Updates on the minute
 
 A clock must update right after the minute changes. If it updates every 60 seconds counted from some random moment, it can show the wrong minute for most of a minute.

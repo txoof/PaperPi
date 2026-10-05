@@ -13,7 +13,7 @@ These rules apply to every person and agent working in this repository.
 ## Related repositories
 - `txoof/epdlib`: the display and layout library PaperPi uses. Developed alongside PaperPi. Changes to rendering or display drivers go there, not here.
 - Until epdlib is on PyPI, `pyproject.toml` gets epdlib from GitHub at one fixed commit, so CI and every install use the same code. When PaperPi needs a newer epdlib, move that commit forward in the PR that needs it.
-- To try out epdlib changes that are not on GitHub yet, install the local copy into your worktree for a while (`uv pip install -e ~/src/epdlib`). Never commit that; `uv sync` puts the fixed commit back.
+- To try out epdlib changes that are not on GitHub yet, install the local copy into your worktree (`uv pip install -e ~/src/epdlib`) and run commands with `uv run --no-sync ...` (for example `uv run --no-sync pytest`). A plain `uv run` puts the fixed commit back first. Never commit the local copy; `uv sync` undoes it.
 
 ## How work is tracked
 - **GitHub Issues are the only to-do list.** Every change starts from an issue in a milestone (M0–M10).
@@ -40,6 +40,7 @@ These rules apply to every person and agent working in this repository.
     ```bash
     for n in $(gh pr list --json number --jq '.[].number'); do gh pr diff $n --name-only | grep -qxE 'pyproject.toml|uv.lock' && echo "PR $n"; done
     ```
+    Once your own PR is open, it shows up in this list too.
   - The other shared files are changed only in their own small issue.
 
 ## Project board

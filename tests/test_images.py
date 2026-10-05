@@ -5,7 +5,7 @@ the references and check them by eye:
 
     PAPERPI_UPDATE_IMAGES=1 uv run pytest tests/test_images.py
 
-The reference images are also the sample images in the plugins' READMEs.
+The plugins' READMEs link to these reference images as their sample images.
 """
 
 import base64

@@ -402,3 +402,168 @@ def test_state_folder_that_cant_be_written_is_only_a_warning(files, caplog):
 )
 def test_folder_name_is_safe(name, folder):
     assert folder_name(name) == folder
+
+
+# --- Added after review ------------------------------------------------------------------------
+
+
+def test_config_version_wrong_type():
+    (message,) = errors_of('config_version = "1"\n[display]\ntype = "virtual"\n')
+    assert message == "paperpi.toml line 1: config_version must be a whole number, got '1'"
+
+
+def test_web_must_be_a_part():
+    (message,) = errors_of('config_version = 1\nweb = 3\n[display]\ntype = "virtual"\n')
+    assert message == "paperpi.toml line 2: web must be a [web] part"
+
+
+def test_plugin_list_of_numbers():
+    cfg = parse('config_version = 1\nplugin = [1]\n[display]\ntype = "virtual"\n')
+    assert cfg.plugins == []
+    assert problems(cfg) == ["config line 2: each plugin must be a [[plugin]] block"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "config_version = 1\nx = " + "[" * 5000 + "]" * 5000 + "\n",  # nested very deep
+        "config_version = 1\nx = " + "9" * 5000 + "\n",  # a number with 5000 digits
+    ],
+    ids=["deep", "long-number"],
+)
+def test_strange_toml_is_an_error_not_a_crash(text):
+    with pytest.raises(ConfigError, match="not valid TOML"):
+        parse(text)
+
+
+def test_too_many_plugin_blocks():
+    block = '\n[[plugin]]\nname = "Clock {n}"\ntype = "basic_clock"\n'
+    text = GOOD + "".join(block.format(n=n) for n in range(limits.PLUGIN_BLOCKS + 5))
+    cfg = parse(text)
+    assert len(cfg.plugins) == limits.PLUGIN_BLOCKS
+    assert "at most 100 are used" in problems(cfg, "error")[0]
+
+
+def test_broken_plugin_code_only_switches_off_that_plugin(monkeypatch):
+    real_load = config.plugins.load
+
+    def load(plugin_type, package=None):
+        if plugin_type == "broken":
+            raise ModuleNotFoundError("No module named 'requests'")
+        return real_load(plugin_type)
+
+    monkeypatch.setattr(config.plugins, "load", load)
+    monkeypatch.setattr(config.plugins, "available", lambda *a: ["basic_clock", "broken"])
+    cfg = parse(GOOD + '\n[[plugin]]\nname = "Broken"\ntype = "broken"\n')
+    assert [p.entry.name for p in cfg.plugins] == ["Clock"]
+    assert problems(cfg) == [
+        "config line 12 [[plugin]] 'Broken': the plugin itself is broken: "
+        "ModuleNotFoundError: No module named 'requests'"
+    ]
+
+
+def test_secret_values_are_never_shown(monkeypatch):
+    from pydantic import SecretStr
+
+    from paperpi.plugin import Plugin, PluginSettings, ready
+
+    class Settings(PluginSettings):
+        api_key: SecretStr = SecretStr("")
+        count: int = 1
+
+    plugin = Plugin(
+        type="keyed",
+        description="Has a key.",
+        settings=Settings,
+        layouts={"one": {"column": [{"name": "t", "type": "text"}]}},
+        fetch=lambda context: ready(1),
+        draw=lambda data, context: {"t": "x"},
+        sample=1,
+        refresh=60,
+    )
+    monkeypatch.setattr(config.plugins, "available", lambda: ["keyed"])
+    monkeypatch.setattr(config.plugins, "load", lambda plugin_type, package=None: plugin)
+    cfg = parse(GOOD.replace("basic_clock", "keyed") + "api_key = 12345678\ncount = 'x'\n")
+    text = "\n".join(problems(cfg))
+    assert "api_key: Input should be a valid string" in text
+    assert "12345678" not in text
+    assert "count: Input should be a valid integer" in text and "(got 'x')" in text
+
+
+def test_long_values_are_shortened_in_messages():
+    cfg = parse(GOOD + f'hours = "{"x" * 500}"\n')
+    (message,) = problems(cfg)
+    assert message.endswith("(got 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...)")
+
+
+def test_duplicate_name_is_found_even_if_the_first_block_is_broken():
+    first = '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\nhours = 13\n'
+    second = '\n[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n'
+    cfg = parse('config_version = 1\n[display]\ntype = "virtual"\n' + first + second)
+    assert cfg.plugins == []
+    assert len(problems(cfg, "error")) == 2
+
+
+def test_line_numbers_after_a_multi_line_string():
+    text = toml('''
+        config_version = 1
+        [display]
+        type = "virtual"
+        [[plugin]]
+        name = "Clock"
+        type = "basic_clock"
+        note = """
+        hours = 1
+        """
+        hours = 13
+        ''')
+    assert problems(parse(text), "error") == [
+        "config line 10 [[plugin]] 'Clock': hours: Input should be 12 or 24 (got 13)"
+    ]
+
+
+def test_hint_names_the_refresh_line_when_refresh_is_set():
+    cfg = parse(GOOD + "refresh = 120\n")  # display_time defaults to 120
+    (hint,) = problems(cfg, "hint")
+    assert hint.startswith("config line 9 ")
+
+
+def test_file_that_cant_be_read(tmp_path):
+    with pytest.raises(ConfigError, match="can't read"):
+        load(tmp_path, state_dir=None)  # a folder, not a file
+
+
+def test_file_with_only_warnings_is_saved_as_last_good(files):
+    path, state, last_good = files
+    path.write_text(GOOD + "colour = 1\n")
+    cfg = load(path, state_dir=state)
+    assert problems(cfg, "warning")
+    assert last_good.is_file()
+
+
+def test_broken_last_good_copy_raises_the_files_own_error(files):
+    path, state, last_good = files
+    state.mkdir()
+    last_good.write_text("not toml [")
+    path.write_text("config_version = 1\n")
+    with pytest.raises(ConfigError, match="a \\[display\\] part is needed"):
+        load(path, state_dir=state)
+
+
+def test_damaged_last_good_copy_is_replaced(files):
+    path, state, last_good = files
+    state.mkdir()
+    last_good.write_bytes(b"\xff\xfe broken")
+    load(path, state_dir=state)
+    assert last_good.read_text() == GOOD
+
+
+def test_state_folder_is_private_and_old_temporary_files_are_removed(files):
+    path, state, last_good = files
+    load(path, state_dir=state)
+    assert state.stat().st_mode & 0o777 == 0o700
+    leftover = state / f".{last_good.name}.abc123.tmp"
+    leftover.write_text("half written")
+    path.write_text(GOOD + "# changed\n")
+    load(path, state_dir=state)
+    assert not leftover.exists()

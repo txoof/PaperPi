@@ -15,4 +15,7 @@ PLUGIN_UPDATE_MAX = 600.0
 PLUGIN_EXIT = 5.0
 
 #: Largest config file PaperPi reads. A real config is a few kilobytes.
-CONFIG_FILE_BYTES = 1_000_000
+CONFIG_FILE_BYTES = 256_000
+
+#: Most ``[[plugin]]`` blocks PaperPi uses from one config file.
+PLUGIN_BLOCKS = 100

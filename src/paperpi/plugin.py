@@ -39,9 +39,9 @@ class State(StrEnum):
     NOTHING = "nothing"
     """Nothing to show right now, e.g. the music is stopped."""
     READY = "ready"
-    """Here is an image."""
+    """Here is something to show."""
     ALERT = "alert"
-    """Here is an image, and it is an alert."""
+    """Here is something to show, and it is an alert."""
 
 
 @dataclass(frozen=True)

@@ -6,7 +6,10 @@ import sys
 import pytest
 from PIL import Image
 
+from paperpi import cli, config
 from paperpi.cli import main
+from paperpi.plugin import State
+from paperpi.runner import PluginFailed, UpdateResult
 
 from .test_config import GOOD
 
@@ -117,3 +120,74 @@ def test_python_dash_m_paperpi(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert out.is_file()
+
+
+# --- Added after review ------------------------------------------------------------------------
+
+
+def fake_result(monkeypatch, result=None, error=None):
+    def run_update(*args, **kwargs):
+        if error:
+            raise error
+        return result
+
+    monkeypatch.setattr(cli, "run_update", run_update)
+
+
+def test_render_failed_plugin(monkeypatch, capsys):
+    fake_result(monkeypatch, error=PluginFailed("basic_clock", "ValueError: no"))
+    assert render("basic_clock") == 1
+    assert "plugin 'basic_clock': ValueError: no" in capsys.readouterr().err
+
+
+def test_render_nothing_to_show(monkeypatch, tmp_path, capsys):
+    fake_result(monkeypatch, UpdateResult(State.NOTHING, None, 0.1))
+    out = tmp_path / "c.png"
+    assert render("basic_clock", "-o", str(out)) == 0
+    assert "nothing to show" in capsys.readouterr().out
+    assert not out.exists()
+
+
+def test_render_alert(monkeypatch, tmp_path, capsys):
+    fake_result(monkeypatch, UpdateResult(State.ALERT, Image.new("L", (10, 10)), 0.1))
+    assert render("basic_clock", "-o", str(tmp_path / "c.png")) == 0
+    assert "(alert)" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("name", ["no-ending", "missing/c.png"])
+def test_render_output_names(tmp_path, capsys, name):
+    out = tmp_path / name
+    code = render("basic_clock", "-o", str(out))
+    if out.parent.exists():
+        assert code == 0
+        assert Image.open(out).format == "PNG"
+    else:
+        assert code == 2
+        assert "can't write" in capsys.readouterr().err
+
+
+def test_render_from_config_never_saves_a_last_good_copy(tmp_path, monkeypatch):
+    def save(*args):
+        raise AssertionError("render must not save a last good copy")
+
+    monkeypatch.setattr(config, "_save_last_good", save)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(GOOD)
+    assert render("--config", str(cfg), "--name", "Clock", "-o", str(tmp_path / "c.png")) == 0
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["basic_clock", "--name", "Clock"], "--name only works together with --config"),
+        (["basic_clock", "--config", "x.toml", "--name", "C"], "not both"),
+    ],
+)
+def test_render_name_and_config_mistakes(args, message, capsys):
+    assert render(*args) == 2
+    assert message in capsys.readouterr().err
+
+
+def test_render_prints_the_mode_name(tmp_path, capsys):
+    render("basic_clock", "--mode", "7color", "-o", str(tmp_path / "c.png"))
+    assert "1200x825 7color" in capsys.readouterr().out
