@@ -19,10 +19,10 @@ UNKNOWN = "?"
 
 class Settings(PluginSettings):
     text_color: ColorName = Field(
-        "black", description="Colour of the text on colour screens, or random"
+        "black", description="Colour of the text, or random (gray screens: black or white)"
     )
     background_color: ColorName = Field(
-        "white", description="Colour of the background on colour screens, or random"
+        "white", description="Colour of the background, or random (gray screens: black or white)"
     )
 
 
@@ -32,7 +32,7 @@ def fetch(context: Context):
         Info(
             hostname=readers.hostname(),
             ip=readers.ip_address(),
-            wifi=readers.wifi(),
+            wifi=readers.wifi(interface=readers.network_interface()),
             disk_used=used,
             disk_total=total,
             temperature=readers.temperature(),
@@ -88,7 +88,9 @@ def draw(info: Info, context: Context) -> Drawn:
     hostname = info.hostname or UNKNOWN
     ip = info.ip or "no network"
     wifi = "" if info.wifi is None else f"Wi-Fi {info.wifi}%"
-    disk_share = share(info.disk_used, info.disk_total or None) if info.disk_total else None
+    disk_share = None
+    if info.disk_used is not None and info.disk_total:
+        disk_share = info.disk_used / info.disk_total
     load_now = info.load[0] if info.load else None
     if context.layout == "small":
         values = {"hostname": hostname, "ip": ip, "temp": degrees(info.temperature)}

@@ -62,19 +62,40 @@ def ip_address() -> str | None:
     return None if address.startswith("0.") else address
 
 
-def wifi(root: Path = ROOT) -> int | None:
-    """Wi-Fi link quality in % (0-100) from /proc/net/wireless, or None without Wi-Fi."""
-    text = _text(root, "proc/net/wireless")
-    if not text:
-        return None
-    for line in text.splitlines()[2:]:
+def network_interface(root: Path = ROOT) -> str | None:
+    """The network connection the Pi uses to reach other networks (``eth0`` for the cable,
+    ``wlan0`` for Wi-Fi): the default route with the lowest metric, from /proc/net/route."""
+    best = None
+    for line in (_text(root, "proc/net/route") or "").splitlines()[1:]:
         fields = line.split()
-        if len(fields) >= 3 and fields[0].endswith(":"):
-            try:
-                quality = float(fields[2].rstrip("."))
-            except ValueError:
-                continue
-            return max(0, min(100, round(quality / 70 * 100)))  # Linux counts up to 70
+        if len(fields) < 7 or fields[1] != "00000000":
+            continue
+        try:
+            metric = int(fields[6])
+        except ValueError:
+            continue
+        if best is None or metric < best[0]:
+            best = (metric, fields[0])
+    return best[1] if best else None
+
+
+def wifi(root: Path = ROOT, interface: str | None = None) -> int | None:
+    """Wi-Fi link quality in % (0-100) from /proc/net/wireless, or None without Wi-Fi.
+    With ``interface``, only that connection counts: Wi-Fi quality next to the address of
+    the cable would be misleading."""
+    text = _text(root, "proc/net/wireless")
+    for line in (text or "").splitlines()[2:]:
+        fields = line.split()
+        if len(fields) < 3 or not fields[0].endswith(":"):
+            continue
+        if interface and fields[0][:-1] != interface:
+            continue
+        try:
+            quality = float(fields[2].rstrip("."))
+        except ValueError:
+            continue
+        # The Pi's own Wi-Fi chip, like most, counts quality up to 70.
+        return max(0, min(100, round(quality / 70 * 100)))
     return None
 
 
@@ -100,7 +121,7 @@ def temperature(root: Path = ROOT) -> float | None:
 def load(root: Path = ROOT, cores: int | None = None) -> tuple[float, float, float] | None:
     """Average load over 1, 5 and 15 minutes, as % of all processor cores together."""
     text = _text(root, "proc/loadavg")
-    cores = cores or os.cpu_count() or 1
+    cores = cores or os.process_cpu_count() or 1
     try:
         one, five, fifteen = (float(x) for x in text.split()[:3])
     except (AttributeError, ValueError):

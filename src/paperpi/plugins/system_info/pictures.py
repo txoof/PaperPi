@@ -40,21 +40,16 @@ def chip_icon(color: str, paper: str) -> Image.Image:
 
 def bar(share: float | None, color: str, paper: str, *, upright: bool) -> Image.Image:
     """A bar filled to ``share`` (0-1): an outline, filled from the bottom (upright) or
-    from the left. ``None`` (number not known) gives an empty outline."""
+    from the left. ``None`` (number not known) gives an empty outline.
+
+    Drawn larger than it will be shown, so the layout only ever shrinks it: enlarging
+    would blur the edges, and blurred edges show as dots on black-and-white screens.
+    """
     share = 0.0 if share is None else max(0.0, min(1.0, share))
-    long, short = 400, 60
-    # Stretched to its block, the short side grows most, so the lines along the long side
-    # are drawn thinner, to look about as thick as the ends.
-    thin, thick = 2, 4
-    if upright:
-        width, height, across, along = short, long, thin, thick
-    else:
-        width, height, across, along = long, short, thick, thin
+    long, short, line = 1600, 400, 16
+    width, height = (short, long) if upright else (long, short)
     image, draw = _canvas(width, height, paper)
-    draw.rectangle((0, 0, width - 1, along - 1), fill=color)  # top
-    draw.rectangle((0, height - along, width - 1, height - 1), fill=color)  # bottom
-    draw.rectangle((0, 0, across - 1, height - 1), fill=color)  # left
-    draw.rectangle((width - across, 0, width - 1, height - 1), fill=color)  # right
+    draw.rectangle((0, 0, width - 1, height - 1), outline=color, width=line)
     filled = round(long * share)
     if filled and upright:
         draw.rectangle((0, height - filled, width - 1, height - 1), fill=color)

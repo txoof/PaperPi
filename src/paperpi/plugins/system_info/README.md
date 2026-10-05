@@ -6,10 +6,10 @@ The numbers are read straight from the files Linux provides (`/proc` and `/sys`)
 
 | What | Meaning |
 |---|---|
-| Wi-Fi | link quality in % (Linux counts it from 0 to 70); left out when the Pi is not on Wi-Fi |
-| disk | "12 of 31 GB used" (TB from 1 TB on). Space the system keeps back for itself counts as used, so used and free add up to the total |
+| Wi-Fi | link quality in % (the Pi's own Wi-Fi chip counts it from 0 to 70); only shown when the address shown is the Wi-Fi's, not the cable's |
+| disk | "12 of 31 GB used" (TB from 1 TB on). Space the system keeps back for itself counts as used, so used and free add up to the total. GB here are 1,000,000,000 bytes, so the numbers differ a little from `df -h` |
 | temperature | of the processor. The Pi slows itself down from about 85 °C |
-| load | the average number of programs running or waiting, over 1, 5 and 15 minutes, as % of all processor cores together |
+| load | the average number of programs running or waiting (also for the SD card), over 1, 5 and 15 minutes, as % of all processor cores together. It can go above 100 % |
 | memory | memory in use: everything except what programs could still get |
 
 ## Layouts
@@ -19,6 +19,10 @@ The numbers are read straight from the files Linux provides (`/proc` and `/sys`)
 | `full` (default) | hostname, IP address and Wi-Fi on top; a disk row (icon, space used, bar) and a processor row (icon, temperature, memory, load); uptime, version and the time at the bottom |
 | `portrait` | for tall screens: hostname, IP address and Wi-Fi; four upright bars for disk, memory, load (1 minute) and temperature (0–85 °C), with the number under each; uptime, version and the time |
 | `small` | for tiny screens: hostname, IP address and temperature |
+
+Which layout for which screen: `full` for wide screens of 5" and more, `portrait` for screens standing upright (text in `full` gets small there), `small` for 2" and 3" screens (on a 2.13" screen, `full` text is about 6 pixels high).
+
+The screen shows the Pi's name and network address to anyone who can see it.
 
 ## Settings
 
@@ -40,7 +44,7 @@ type = "system_info"
 layout = "portrait"
 ```
 
-Try it without a screen: `uv run paperpi render system_info --live`.
+Try it without a screen: `uv run paperpi render system_info --live --out /tmp/system_info.png`. (Real data: written outside the repository, so this Pi's name and address can't be committed by mistake.)
 
 ## Sample images
 

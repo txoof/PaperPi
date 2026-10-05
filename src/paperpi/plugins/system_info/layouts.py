@@ -47,7 +47,8 @@ VERSION = "PaperPi 8.8.8a8"
 
 
 # Text sizes in the wide layout, as shares of the screen's shorter side, so blocks in a row
-# use the same size. ``shrink`` makes an unusually long hostname smaller instead of cut off.
+# use the same size. ``shrink`` makes a text smaller (in steps of 80 and 60 %) when it
+# doesn't fit, for example a long hostname, or this layout on a screen standing upright.
 SMALL, LARGE = 0.055, 0.07
 
 
@@ -59,8 +60,8 @@ def full(settings) -> dict:
             {
                 "row": [
                     _text("hostname", HOSTNAME, font_size=SMALL, shrink=True),
-                    _text("ip", IP, align="center", font_size=SMALL),
-                    _text("wifi", WIFI, align="right", font_size=SMALL),
+                    _text("ip", IP, align="center", font_size=SMALL, shrink=True),
+                    _text("wifi", WIFI, align="right", font_size=SMALL, shrink=True),
                 ],
                 "gap": 0,
                 "size": 1,
@@ -71,7 +72,7 @@ def full(settings) -> dict:
                     _image("disk_icon"),
                     {
                         "column": [
-                            _text("disk", DISK, font_size=LARGE),
+                            _text("disk", DISK, font_size=LARGE, shrink=True),
                             _image("disk_bar", fit="stretch"),
                         ],
                         "gap": 0,
@@ -87,8 +88,8 @@ def full(settings) -> dict:
                     _image("cpu_icon"),
                     {
                         "column": [
-                            _text("cpu", CPU, font_size=LARGE),
-                            _text("load", LOAD, font_size=LARGE),
+                            _text("cpu", CPU, font_size=LARGE, shrink=True),
+                            _text("load", LOAD, font_size=LARGE, shrink=True),
                         ],
                         "gap": 0,
                         "size": 3,
@@ -100,7 +101,7 @@ def full(settings) -> dict:
             _line("line3"),
             {
                 "row": [
-                    _text("about", f"{UPTIME} · {VERSION}", size=3, font_size=SMALL),
+                    _text("about", f"{UPTIME} · {VERSION}", size=3, font_size=SMALL, shrink=True),
                     _text("time", "88:88", align="right"),
                 ],
                 "gap": 0,
