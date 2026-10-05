@@ -11,7 +11,9 @@ These rules apply to every person and agent working in this repository.
 - **Do not copy code from v1.** Write new code. Good ideas are carried over through the v1 inventory and design notes (milestone M1), not by copying.
 
 ## Related repositories
-- `txoof/epdlib`: the display and layout library PaperPi uses. Developed alongside PaperPi. During development PaperPi uses the local copy at `~/src/epdlib`. Changes to rendering or display drivers go there, not here.
+- `txoof/epdlib`: the display and layout library PaperPi uses. Developed alongside PaperPi. Changes to rendering or display drivers go there, not here.
+- Until epdlib is on PyPI, `pyproject.toml` gets epdlib from GitHub at one fixed commit, so CI and every install use the same code. When PaperPi needs a newer epdlib, move that commit forward in the PR that needs it.
+- To try out epdlib changes that are not on GitHub yet, install the local copy into your worktree for a while (`uv pip install -e ~/src/epdlib`). Never commit that; `uv sync` puts the fixed commit back.
 
 ## How work is tracked
 - **GitHub Issues are the only to-do list.** Every change starts from an issue in a milestone (M0–M10).
