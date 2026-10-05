@@ -43,6 +43,12 @@ Each update returns one of the states from `plugin-scheduling.md`:
 
 The plugin never talks to the screen. Only the scheduler does.
 
+**Update 2026-10-05 (M4, issue #203):** in the code, the update function is split in two steps, so every plugin can draw its sample data without network access:
+- `fetch` gets the data and returns the state: nothing, ready (with data) or alert (with data).
+- `draw` turns the data into values for the blocks of the chosen layout. PaperPi then draws the layout with epdlib, in the plugin's process, and hands the finished image back.
+
+For sample images and tests, `fetch` is skipped and the sample data goes straight to `draw`. How to write a plugin: `docs/writing-plugins.md`.
+
 ### How a plugin is run
 
 - Every update runs in a **new, short-lived process**. When the update is done, the process exits and its memory is given back. A plugin that hangs or crashes is stopped without affecting PaperPi or the other plugins.

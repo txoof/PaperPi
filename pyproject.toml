@@ -6,7 +6,13 @@ readme = "README.md"
 requires-python = ">=3.13"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
-dependencies = []
+dependencies = [
+    "epdlib",
+    "pydantic>=2.9",
+]
+
+[project.scripts]
+paperpi = "paperpi.cli:main"
 
 [dependency-groups]
 dev = [
@@ -32,3 +38,8 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+
+# epdlib is not on PyPI yet, so it comes from GitHub at one fixed commit (see CLAUDE.md).
+# Move `rev` forward when PaperPi needs a newer epdlib.
+[tool.uv.sources]
+epdlib = { git = "https://github.com/txoof/epdlib", rev = "e7b25b771dd3aa3d14ba678036de3c8880d7c279" }

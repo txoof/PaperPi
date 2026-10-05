@@ -39,6 +39,26 @@ Examples: word clock, weather and moon phase are `rotation`. Music players are `
 - **Dismissed by someone, but the plugin still reports the same alert:** it comes back as a reminder after a set time. Setting: `alert_reminder` (default 1 hour).
 - **Safety limit:** an alert held longer than `alert_max_time` (default 24 hours) is dismissed automatically, in case the plugin is stuck. After that there are no reminders until the plugin reports a *new* alert, and the web interface shows a warning, e.g. "Leak alert was active for 24 hours and was dismissed".
 
+### Refreshes near the end of a turn
+
+A rotation plugin keeps updating at its refresh rate while it is on screen (see `plugin-interface.md`). A refresh that starts just before the plugin's turn ends wastes a screen redraw, and on a slow screen the redraw may still be running when the next plugin wants the screen.
+
+- **Rule:** if a refresh would start within the last part of a plugin's turn, it is skipped, because the next plugin is about to take over. The margin is the screen's measured redraw time (see `errors-and-time-limits.md`), so it also fits slow colour screens. This covers every timing, also ones that only line up now and then (display time 300 s with a refresh every 60 s: the 5th refresh would land exactly at the end of the turn).
+- **Hint:** when a plugin's `refresh` equals its `display_time`, the config check and the web interface show a hint, not an error: "refresh equals display time: the plugin may redraw just as it is swapped out; make refresh slightly longer, or a fraction of the display time". The config still loads.
+- Good choices: a refresh slightly longer than the display time (the plugin updates just before its turn and not during it), or a fraction of it. Defaults and examples follow this.
+
+Added 2026-10-05 (M4, issue #203), agreed with txoof.
+
+### Updates on the minute
+
+A clock must update right after the minute changes. If it updates every 60 seconds counted from some random moment, it can show the wrong minute for most of a minute.
+
+- A plugin can declare that its refreshes line up with the clock, e.g. "on the minute". This is part of the plugin's description, not a user setting.
+- The scheduler then starts the update just after the minute changes (second 0), instead of counting from the last update.
+- The other rules still apply: the refresh near the end of a turn is still skipped, and the update still has its time limit.
+
+Added 2026-10-05 (M4, issue #203), agreed with txoof.
+
 ### One decision-maker, so no race conditions
 
 A race condition is when two parts of a program try to change the same thing at the same moment and the result depends on which one is first.

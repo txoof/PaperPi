@@ -11,7 +11,9 @@ These rules apply to every person and agent working in this repository.
 - **Do not copy code from v1.** Write new code. Good ideas are carried over through the v1 inventory and design notes (milestone M1), not by copying.
 
 ## Related repositories
-- `txoof/epdlib`: the display and layout library PaperPi uses. Developed alongside PaperPi. During development PaperPi uses the local copy at `~/src/epdlib`. Changes to rendering or display drivers go there, not here.
+- `txoof/epdlib`: the display and layout library PaperPi uses. Developed alongside PaperPi. Changes to rendering or display drivers go there, not here.
+- Until epdlib is on PyPI, `pyproject.toml` gets epdlib from GitHub at one fixed commit, so CI and every install use the same code. When PaperPi needs a newer epdlib, move that commit forward in the PR that needs it.
+- To try out epdlib changes that are not on GitHub yet, install the local copy into your worktree (`uv pip install -e ~/src/epdlib`) and run commands with `uv run --no-sync ...` (for example `uv run --no-sync pytest`). A plain `uv run` puts the fixed commit back first. Never commit the local copy; `uv sync` undoes it.
 
 ## How work is tracked
 - **GitHub Issues are the only to-do list.** Every change starts from an issue in a milestone (M0–M10).
@@ -33,7 +35,13 @@ These rules apply to every person and agent working in this repository.
   gh issue comment <n> --body "released: <reason>"
   ```
   If you stop without finishing, move its card back to **Todo**.
-- Shared files (`pyproject.toml`, `uv.lock`, `.python-version`, `.github/`, the config schema) are changed only in their own small issue.
+- Shared files (`pyproject.toml`, `uv.lock`, `.python-version`, `.github/`, the config schema) are used by everyone, so take care when changing them:
+  - A PR may change `pyproject.toml` and `uv.lock` when its own work needs it (for example a new dependency), so related changes stay together. First check that no other open PR changes them:
+    ```bash
+    for n in $(gh pr list --json number --jq '.[].number'); do gh pr diff $n --name-only | grep -qxE 'pyproject.toml|uv.lock' && echo "PR $n"; done
+    ```
+    Once your own PR is open, it shows up in this list too.
+  - The other shared files are changed only in their own small issue.
 
 ## Project board
 All PaperPi and epdlib work is shown on one board, where each issue or PR is a card (one entry on the board) in a column: https://github.com/users/txoof/projects/4 (columns Todo, In Progress, In Review, Done).
