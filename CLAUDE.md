@@ -33,7 +33,12 @@ These rules apply to every person and agent working in this repository.
   gh issue comment <n> --body "released: <reason>"
   ```
   If you stop without finishing, move its card back to **Todo**.
-- Shared files (`pyproject.toml`, `uv.lock`, `.python-version`, `.github/`, the config schema) are changed only in their own small issue.
+- Shared files (`pyproject.toml`, `uv.lock`, `.python-version`, `.github/`, the config schema) are used by everyone, so take care when changing them:
+  - A PR may change `pyproject.toml` and `uv.lock` when its own work needs it (for example a new dependency), so related changes stay together. First check that no other open PR changes them:
+    ```bash
+    for n in $(gh pr list --json number --jq '.[].number'); do gh pr diff $n --name-only | grep -qxE 'pyproject.toml|uv.lock' && echo "PR $n"; done
+    ```
+  - The other shared files are changed only in their own small issue.
 
 ## Project board
 All PaperPi and epdlib work is shown on one board, where each issue or PR is a card (one entry on the board) in a column: https://github.com/users/txoof/projects/4 (columns Todo, In Progress, In Review, Done).
