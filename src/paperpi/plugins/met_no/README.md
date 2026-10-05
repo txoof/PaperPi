@@ -6,6 +6,8 @@ The weather for the next 12 hours, from [met.no](https://api.met.no/) (the Norwe
 - **per hour:** a bar for the rain (the mm under it), the temperature and a wind barb;
 - **a met.no weather icon every 2 hours.**
 
+That is the default layout, `hours_12`. The other layouts show the same numbers in other ways: in 3-hour steps, the current hour large, or for tiny and upright screens (see "Layouts").
+
 The 12 hours start at the current hour. Times are shown in the Pi's own time zone.
 
 ## Wind barbs
@@ -34,13 +36,13 @@ The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfSer
 | Layout | Shows |
 |---|---|
 | `hours_12` (default) | place and "Updated" time, the summary line, an icon every 2 hours, then per hour the rain bar and mm, the hour, the temperature and the wind barb |
-| `steps_3h` | the summary, then 4 steps of 3 hours: the hours, an icon, lowest and highest temperature, the rain, and the wind at the middle hour |
-| `now` | the next hour, large: icon, temperature and wind barb, with the summary below |
-| `small` | for tiny screens (2" to 3"): a big icon for the next hour, the temperature now, then max and min, and the rain and its hours for the next 12 hours. No wind barb |
+| `steps_3h` | the summary, then 4 steps of 3 hours: the hours, an icon (of the wettest hour, or the middle hour when dry), lowest and highest temperature, the rain, and the wind at the middle hour |
+| `now` | the current hour, large: icon, temperature and wind barb, with the summary below |
+| `small` | for tiny screens (2" to 3"): a big icon for the current hour, the temperature now, then max and min, and the rain and its hours for the next 12 hours. No wind barb |
 | `portrait_hours` | for screens standing upright: the summary on top, then one row per hour: hour, icon, temperature, rain as a sideways bar with the mm, wind barb |
-| `portrait_now` | for screens standing upright: a large icon for the next hour, its temperature and wind barb, then the summary |
+| `portrait_now` | for screens standing upright: a large icon for the current hour, its temperature and wind barb, then the summary |
 
-Every layout except `small` shows the place and the "Updated" time at the top.
+Every layout except `small` shows the place and the "Updated" time at the top. When a saved forecast is used for a long time, fewer than 12 hours may be left; the columns or rows without an hour then stay empty, and the summary covers the hours that are left.
 
 ## Settings
 
@@ -67,6 +69,7 @@ lat = 52.52
 lon = 13.40
 place = "Berlin"
 email = "you@example.com"
+layout = "steps_3h"   # optional; without it: hours_12
 ```
 
 Try it without a screen: `uv run paperpi render met_no --set place=Berlin` (sample data), or with real data: `uv run paperpi render met_no --live --set lat=52.52 --set lon=13.40 --set email=you@example.com`.
@@ -81,8 +84,8 @@ The sample data is made up: a day in Berlin from 09:00, with a shower in the aft
 |---|---|---|
 | ![hours_12](../../../../tests/images/met_no-hours_12-9in7.png) | ![steps_3h](../../../../tests/images/met_no-steps_3h-9in7.png) | ![now](../../../../tests/images/met_no-now-9in7.png) |
 
-| `small` (on a 5.65" screen) | `portrait_hours` (on a wide screen) | `hours_12`, °F and inches, 7.5" black and white |
-|---|---|---|
-| ![small](../../../../tests/images/met_no-small-5in65.png) | ![portrait_hours](../../../../tests/images/met_no-portrait_hours-9in7.png) | ![berlin-f](../../../../tests/images/met_no-hours_12-berlin-f-7in5.png) |
+| `small`, 2.13" (250x122) | `portrait_hours`, upright (480x800) | `portrait_now`, upright (480x800) | `hours_12`, °F and inches, 7.5" |
+|---|---|---|---|
+| ![small](../../../../tests/images/met_no-small-2in13.png) | ![portrait_hours](../../../../tests/images/met_no-portrait_hours-upright.png) | ![portrait_now](../../../../tests/images/met_no-portrait_now-upright.png) | ![berlin-f](../../../../tests/images/met_no-hours_12-berlin-f-7in5.png) |
 
-The `portrait_*` layouts are made for screens standing upright; the test pictures are drawn on the usual wide screens, so they look squeezed there.
+The `portrait_*` and `small` layouts are also drawn on the usual three test screens, where they look squeezed or large; the pictures above are at their own sizes (`-2in13`, `-upright`).

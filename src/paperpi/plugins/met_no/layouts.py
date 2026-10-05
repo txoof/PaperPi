@@ -1,7 +1,11 @@
 """Layouts for met_no. The first one is the default.
 
-Block names with a number (``hour_0`` ... ``hour_11``) are filled per hour by the plugin.
-Rows have no gaps, so the 6 icons (one per 2 hours) line up with the 12 hour columns.
+Block names with a number are filled per hour (``hour_0`` ... ``hour_11``: ``bar``, ``hbar``,
+``mm``, ``hour``, ``temp``, ``barb``, ``hicon``), per 2 hours (``icon_0`` ... ``icon_5``) or
+per 3-hour step (``step``, ``step_icon``, ``step_temp``, ``step_rain``, ``step_barb``, 0-3).
+The others: ``place``, ``updated``, ``summary`` (or ``temperatures`` and ``rain`` on two
+lines), ``now_temp``, ``now_icon``, ``now_barb``. Rows have no gaps, so in ``hours_12`` the 6
+icons line up with the 12 hour columns.
 """
 
 PAD = 0.008
@@ -44,14 +48,7 @@ def hours_12(settings) -> dict:
     t = settings.temperature
     return {
         "column": [
-            {
-                "row": [
-                    _text("place", "Rio de Janeiro", size=1, align="left", shrink=True),
-                    _text("updated", "Updated 88:88", size=1, align="right"),
-                ],
-                "gap": 0,
-                "size": 0.6,
-            },
+            _header(),
             _text(
                 "summary",
                 f"Max -88°{t} · Min -88°{t} · Rain {rain} {unit}, 88–88, 88–88",
@@ -98,7 +95,7 @@ def small(settings) -> dict:
                 "column": [
                     _text("now_temp", f"-88°{settings.temperature}", size=1.4, align="left"),
                     _text("temperatures", temperatures, align="left"),
-                    _text("rain", rain, align="left", shrink=True),
+                    _text("rain", rain, align="left", shrink=True, max_lines=2),
                 ],
                 "gap": 0,
                 "size": 3,

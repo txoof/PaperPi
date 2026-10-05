@@ -122,7 +122,17 @@ def _expires(text: str | None) -> datetime | None:
 
 def degrees(celsius: float, unit: str) -> str:
     value = celsius * 9 / 5 + 32 if unit == "F" else celsius
-    return f"{value:.0f}°"
+    return f"{round(value)}°"  # round(): -0.4 shows as "0°", not "-0°"
+
+
+def rain_unit(settings: Settings) -> str:
+    return "in" if settings.rain == "inch" else "mm"
+
+
+def end_hour(t: datetime, zone) -> str:
+    """The hour something ends, in local time: "24" for midnight, not "00"."""
+    hour = t.astimezone(zone).hour
+    return "24" if hour == 0 else f"{hour:02d}"
 
 
 def rain_text(mm: float, unit: str) -> str:
@@ -138,12 +148,7 @@ def rain_text(mm: float, unit: str) -> str:
 def spells_text(spells, zone) -> str:
     """ "13–17, 19–20": the hours it rains, in local time. Rain until midnight ends at
     "24", not "00"."""
-
-    def end_hour(t):
-        hour = t.astimezone(zone).hour
-        return "24" if hour == 0 else f"{hour:02d}"
-
-    return ", ".join(f"{start.astimezone(zone):%H}–{end_hour(end)}" for start, end in spells)
+    return ", ".join(f"{start.astimezone(zone):%H}–{end_hour(end, zone)}" for start, end in spells)
 
 
 def temperatures_text(s: forecast.Summary, settings: Settings) -> str:
@@ -155,13 +160,11 @@ def rain_summary_text(s: forecast.Summary, settings: Settings, zone) -> str:
     """ "Rain 6.6 mm, 13–17, 19–20", or "No rain"."""
     if not s.spells:
         return "No rain"
-    unit = "in" if settings.rain == "inch" else "mm"
     total = rain_text(s.rain, settings.rain) or "0.1"
-    return f"Rain {total} {unit}, {spells_text(s.spells, zone)}"
+    return f"Rain {total} {rain_unit(settings)}, {spells_text(s.spells, zone)}"
 
 
-def summary_text(hours: tuple[Hour, ...], settings: Settings, zone) -> str:
-    s = forecast.summarize(hours)
+def summary_text(s: forecast.Summary, settings: Settings, zone) -> str:
     return f"{temperatures_text(s, settings)} · {rain_summary_text(s, settings, zone)}"
 
 
@@ -196,16 +199,6 @@ def icon(symbol: str | None):
     return path if path.is_file() else None
 
 
-def _blocks(node) -> set[str]:
-    """The names of all blocks in a layout description."""
-    if isinstance(node, dict):
-        found = {node["name"]} if "name" in node else set()
-        for child in node.get("row", node.get("column", ())):
-            found |= _blocks(child)
-        return found
-    return set()
-
-
 def draw(weather: Weather, context: Context) -> dict:
     settings = context.settings
     zone = ZoneInfo(weather.zone) if weather.zone else None
@@ -226,7 +219,7 @@ def draw(weather: Weather, context: Context) -> dict:
     makers = {
         "place": lambda: settings.place,
         "updated": lambda: f"Updated {local(weather.forecast.fetched):%H:%M}",
-        "summary": lambda: summary_text(hours, settings, zone),
+        "summary": lambda: summary_text(summary, settings, zone),
         "temperatures": lambda: temperatures_text(summary, settings),
         "rain": lambda: rain_summary_text(summary, settings, zone),
         "now_temp": lambda: f"{degrees(hours[0].temperature, t)}{t}",
@@ -248,17 +241,20 @@ def draw(weather: Weather, context: Context) -> dict:
     for k in range(len(hours) // 3):
         part = hours[3 * k : 3 * k + 3]
         low, high = (degrees(f(h.temperature for h in part), t) for f in (min, max))
-        mm = rain_text(sum(h.rain for h in part), unit)
+        mm = rain_text(sum(h.rain for h in part if h.rain >= forecast.WET), unit)
+        # The icon of the wettest hour, so it matches the rain shown under it; when dry,
+        # the middle hour's, like the wind.
+        wettest = max(part, key=lambda h: h.rain)
+        shown = wettest if wettest.rain >= forecast.WET else part[1]
+        end = part[-1].time + timedelta(hours=1)
         makers |= {
-            f"step_{k}": lambda p=part: f"{local(p[0].time):%H}–{local(p[-1].time).hour + 1:02d}",
-            f"step_icon_{k}": lambda p=part: icon(p[0].symbol),
+            f"step_{k}": lambda p=part, e=end: f"{local(p[0].time):%H}–{end_hour(e, zone)}",
+            f"step_icon_{k}": lambda h=shown: icon(h.symbol),
             f"step_temp_{k}": lambda lo=low, hi=high: lo if lo == hi else f"{lo[:-1]}–{hi}",
-            f"step_rain_{k}": lambda mm=mm: (
-                f"{mm} {'in' if unit == 'inch' else 'mm'}" if mm else ""
-            ),
+            f"step_rain_{k}": lambda mm=mm: f"{mm} {rain_unit(settings)}" if mm else "",
             f"step_barb_{k}": lambda p=part: wind(p[1]),  # the wind at the middle hour
         }
-    wanted = _blocks(LAYOUTS[context.layout](settings))
+    wanted = PLUGIN.layout(context.layout, settings).blocks
     return {name: make() for name, make in makers.items() if name in wanted}
 
 

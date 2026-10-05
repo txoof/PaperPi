@@ -32,6 +32,14 @@ VARIANTS = {
     "basic_clock": {"12h": {"hours": 12}},
     "met_no": {"berlin-f": {"place": "Berlin", "temperature": "F", "rain": "inch"}},
 }
+# More screens for layouts made for a special shape, per plugin and layout.
+LAYOUT_SCREENS = {
+    "met_no": {
+        "small": {"2in13": (250, 122, ScreenMode.bw())},
+        "portrait_hours": {"upright": (480, 800, ScreenMode.gray(16))},
+        "portrait_now": {"upright": (480, 800, ScreenMode.gray(16))},
+    },
+}
 # Share of pixels allowed to differ: font drawing can change slightly between Pillow builds.
 TOLERANCE = 0.002
 
@@ -42,7 +50,8 @@ def cases():
         variants = {"": {}} | VARIANTS.get(plugin_type, {})
         for layout in plugin.layouts:
             for variant, settings in variants.items():
-                for screen in SCREENS:
+                extra = LAYOUT_SCREENS.get(plugin_type, {}).get(layout, {})
+                for screen in SCREENS | extra:
                     name = "-".join(filter(None, [plugin_type, layout, variant, screen]))
                     yield pytest.param(plugin_type, layout, settings, screen, id=name)
 
@@ -50,7 +59,7 @@ def cases():
 @pytest.mark.parametrize(("plugin_type", "layout", "settings", "screen"), list(cases()))
 def test_sample_matches_reference(plugin_type, layout, settings, screen, tmp_path, request, extras):
     plugin = plugins.load(plugin_type)
-    width, height, mode = SCREENS[screen]
+    width, height, mode = (SCREENS | LAYOUT_SCREENS.get(plugin_type, {}).get(layout, {}))[screen]
     context = Context(plugin.settings(**settings), width, height, mode, tmp_path, layout)
     _, image = draw_update(plugin, context, sample=True)
     path = REFERENCE / f"{request.node.callspec.id}.png"
