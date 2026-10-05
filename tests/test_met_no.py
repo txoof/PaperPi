@@ -1,7 +1,9 @@
 """The met_no weather plugin: trimming met.no's answer, the saved forecast, drawing."""
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 
 import pytest
 from epdlib import ScreenMode
@@ -70,13 +72,31 @@ def test_trim_keeps_one_small_entry_per_hour():
     )
 
 
+def test_trim_skips_steps_with_nan():
+    nan = step(1)
+    nan["data"]["instant"]["details"]["air_temperature"] = float("nan")
+    assert len(forecast.trim(answer(step(0), nan))) == 1
+
+
 def test_trim_skips_broken_steps():
     broken = step(1)
     del broken["data"]["instant"]["details"]["air_temperature"]
     assert len(forecast.trim(answer(step(0), broken, step(2)))) == 2
 
 
-@pytest.mark.parametrize("data", [{}, {"properties": {}}, answer(), [], "text"])
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"properties": {}},
+        answer(),
+        [],
+        "text",
+        {"properties": {"timeseries": 5}},
+        {"properties": "x"},
+        answer({"time": 1}, "step", {"data": []}),
+    ],
+)
 def test_trim_without_hours(data):
     with pytest.raises(ForecastError):
         forecast.trim(data)
@@ -160,10 +180,75 @@ def test_fetch_downloads_and_saves(tmp_path, monkeypatch):
 def test_fetch_waits_until_the_forecast_expires(tmp_path, monkeypatch):
     metno = FakeMetNo(monkeypatch)
     later = datetime.now(UTC) + timedelta(minutes=20)
-    metno.result = ok(step(0), expires=later.strftime("%a, %d %b %Y %H:%M:%S GMT"))
+    metno.result = ok(step(0), expires=format_datetime(later, usegmt=True))
     fetch(context(tmp_path))
     fetch(context(tmp_path))
     assert len(metno.calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("age", "expires", "downloads"),
+    [
+        (10, None, True),  # no Expires: ask again
+        (10, timedelta(minutes=-5), True),  # already passed
+        (10, timedelta(minutes=20), False),
+        (10, timedelta(days=3), False),  # far ahead, but the last download was 10 min ago
+        (70, timedelta(days=3), True),  # far ahead (or a wrong clock): wait at most 1 hour
+    ],
+)
+def test_expires(tmp_path, monkeypatch, age, expires, downloads):
+    metno = FakeMetNo(monkeypatch)
+    metno.result = webrequest.Answer(304, b"", {}, met_no.URL)
+    when = None if expires is None else datetime.now(UTC) + expires
+    saved(
+        tmp_path,
+        timedelta(minutes=age),
+        expires=when,
+        last_modified="Mon, 05 Oct 2026 06:30:00 GMT",
+    )
+    fetch(context(tmp_path))
+    assert bool(metno.calls) == downloads
+
+
+def test_a_changed_place_is_downloaded_again(tmp_path, monkeypatch):
+    metno = FakeMetNo(monkeypatch)
+    metno.result = ok(step(0), step(1), step(2))
+    later = datetime.now(UTC) + timedelta(minutes=20)
+    saved(
+        tmp_path,
+        timedelta(minutes=5),
+        place="9.0300,38.7400",
+        expires=later,
+        last_modified="Mon, 05 Oct 2026 06:30:00 GMT",
+    )
+    fetched = fetch(context(tmp_path))
+    assert metno.calls[0][1]["if_modified_since"] is None  # not the other place's time
+    assert len(fetched.data.forecast.hours) == 3
+    assert forecast.load(tmp_path / "forecast.json").place == HERE
+
+
+def test_a_changed_place_doesnt_use_the_old_forecast_as_fallback(tmp_path, monkeypatch):
+    metno = FakeMetNo(monkeypatch)
+    metno.result = webrequest.WebError("api.met.no answered 503 Service Unavailable")
+    saved(tmp_path, timedelta(minutes=30), place="-22.9100,-43.1700")
+    with pytest.raises(webrequest.WebError):
+        fetch(context(tmp_path))
+
+
+def test_broken_answer_falls_back_to_the_saved_forecast(tmp_path, monkeypatch):
+    metno = FakeMetNo(monkeypatch)
+    metno.result = webrequest.Answer(200, b'{"properties": {"timeseries": 5}}', {}, met_no.URL)
+    saved(tmp_path, timedelta(hours=1))
+    before = (tmp_path / "forecast.json").read_bytes()
+    assert len(fetch(context(tmp_path)).data.forecast.hours) == 2
+    assert (tmp_path / "forecast.json").read_bytes() == before  # not overwritten
+
+
+def test_saved_file_is_private(tmp_path, monkeypatch):
+    metno = FakeMetNo(monkeypatch)
+    metno.result = ok(step(0))
+    fetch(context(tmp_path))
+    assert os.stat(tmp_path / "forecast.json").st_mode & 0o077 == 0
 
 
 def test_fetch_asks_whether_anything_changed(tmp_path, monkeypatch):
@@ -176,8 +261,11 @@ def test_fetch_asks_whether_anything_changed(tmp_path, monkeypatch):
     assert len(again.data.forecast.hours) == 2
 
 
-def saved(tmp_path, age):
-    f = Forecast(hours(0, 1), datetime.now(UTC) - age)
+HERE = "52.5200,13.4000"  # BERLIN, rounded as the plugin saves it
+
+
+def saved(tmp_path, age, place=HERE, **more):
+    f = Forecast(hours(0, 1), datetime.now(UTC) - age, place=place, **more)
     (tmp_path / "forecast.json").write_bytes(forecast.save(f))
 
 
@@ -230,6 +318,20 @@ def test_fahrenheit_and_inches(tmp_path):
     assert values["mm_1"] == "1.00"
 
 
+def test_a_little_rain_in_inches_is_not_nothing(tmp_path):
+    values = draw(weather(0, 0.1, 0), context(tmp_path, rain="inch"))
+    assert values["mm_1"] == "0.01"
+    assert "Rain 0.01 in" in values["summary"]
+
+
+def test_rain_until_midnight_ends_at_24(tmp_path):
+    late = Weather(Forecast(hours(0, 0, 1.0), START), START, "Asia/Tokyo")  # 16:00 in Tokyo
+    one = timedelta(hours=1)
+    spell = ((START + 7 * one, START + 8 * one),)  # 23:00 to midnight in Tokyo
+    assert met_no.spells_text(spell, met_no.ZoneInfo("Asia/Tokyo")) == "23–24"
+    assert draw(late, context(tmp_path))["summary"].endswith("18–19")
+
+
 def test_no_rain(tmp_path):
     assert draw(weather(0, 0.05, 0), context(tmp_path))["summary"].endswith("No rain")
 
@@ -242,6 +344,7 @@ def test_nothing_left_to_show(tmp_path):
 
 def test_unknown_icon_is_left_empty():
     assert met_no.icon("no_such_symbol") is None
+    assert met_no.icon("../../../tests/images/met_no-hours_12-9in7") is None
     assert met_no.icon(None) is None
     assert met_no.icon("rain") == met_no.ICONS / "rain.png"
 
@@ -275,12 +378,29 @@ def dark(image, box):
     return image.crop(box).point(lambda p: 255 if p < 128 else 0).histogram()[255]
 
 
-def test_barb_points_where_the_wind_goes():
-    north_wind = barbs.barb(10, 0)  # coming from the north, so going south: arrow at the bottom
-    south_wind = barbs.barb(10, 180)
-    top, bottom = (100, 0, 150, 60), (100, 190, 150, 250)
-    assert dark(south_wind, top) > dark(south_wind, bottom)
-    assert dark(north_wind, bottom) > dark(north_wind, top)
+@pytest.mark.parametrize(
+    ("wind_from", "arrow_at"),
+    [(0, "bottom"), (180, "top"), (90, "left"), (270, "right")],
+)
+def test_barb_points_where_the_wind_goes(wind_from, arrow_at):
+    """Wind from the north goes south, so the arrow is at the bottom, and so on."""
+    image = barbs.barb(1.5, wind_from)  # no feathers: only the line and the arrowhead
+    sides = {
+        "top": (100, 0, 150, 60),
+        "bottom": (100, 190, 150, 250),
+        "left": (0, 100, 60, 150),
+        "right": (190, 100, 250, 150),
+    }
+    opposite = {"top": "bottom", "bottom": "top", "left": "right", "right": "left"}
+    assert dark(image, sides[arrow_at]) > dark(image, sides[opposite[arrow_at]])
+
+
+def test_a_feather_after_a_triangle_is_visible():
+    assert barbs.barb(60, 180).tobytes() != barbs.barb(50, 180).tobytes()
+    assert barbs.barb(55, 180).tobytes() != barbs.barb(50, 180).tobytes()
+    # The short feather adds clearly visible ink, not a bump on the triangle.
+    whole = (0, 0, 250, 250)
+    assert dark(barbs.barb(55, 180), whole) - dark(barbs.barb(50, 180), whole) > 150
 
 
 def test_calm_and_storm_look_different():

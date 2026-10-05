@@ -8,6 +8,7 @@ the plugin works with that list.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -42,32 +43,42 @@ class Forecast:
     fetched: datetime  # when met.no last confirmed it (UTC)
     expires: datetime | None = None  # met.no asks not to fetch again before this
     last_modified: str | None = None  # for "has anything changed?" next time
+    place: str = ""  # the rounded coordinates it is for, "52.5200,13.4000"
 
 
 def trim(answer: dict) -> tuple[Hour, ...]:
     """The hourly steps of a met.no ``locationforecast`` answer. Steps further ahead come
     in 6-hour blocks; they are left out."""
     try:
-        steps = answer["properties"]["timeseries"]
-    except (KeyError, TypeError):
+        steps = list(answer["properties"]["timeseries"])
+    except (KeyError, TypeError, IndexError):
         raise ForecastError("no time steps in the answer") from None
     hours = []
     for step in steps:
         try:
             now = step["data"]["instant"]["details"]
             hour = step["data"]["next_1_hours"]
+            numbers = [
+                float(now["air_temperature"]),
+                float(hour["details"].get("precipitation_amount", 0.0)),
+                float(now["wind_speed"]),
+                float(now["wind_from_direction"]),
+            ]
+            if not all(map(math.isfinite, numbers)):
+                continue  # "NaN" or "Infinity" would be drawn as text
+            symbol = hour.get("summary", {}).get("symbol_code")
             hours.append(
                 Hour(
                     time=datetime.fromisoformat(step["time"]).astimezone(UTC),
-                    temperature=float(now["air_temperature"]),
-                    rain=float(hour["details"].get("precipitation_amount", 0.0)),
-                    symbol=hour.get("summary", {}).get("symbol_code"),
-                    wind_speed=float(now["wind_speed"]),
-                    wind_from=float(now["wind_from_direction"]),
+                    temperature=numbers[0],
+                    rain=numbers[1],
+                    symbol=symbol if isinstance(symbol, str) else None,
+                    wind_speed=numbers[2],
+                    wind_from=numbers[3],
                 )
             )
-        except (KeyError, TypeError, ValueError):
-            continue  # not an hourly step, or one with missing values
+        except (KeyError, TypeError, ValueError, AttributeError):
+            continue  # not an hourly step, or one with missing or broken values
     if not hours:
         raise ForecastError("no hourly steps in the answer")
     return tuple(hours)
@@ -125,6 +136,7 @@ def load(path: Path) -> Forecast | None:
             fetched=datetime.fromisoformat(data["fetched"]),
             expires=datetime.fromisoformat(expires) if expires else None,
             last_modified=data.get("last_modified"),
+            place=data.get("place", ""),
         )
     except (OSError, ValueError, KeyError, TypeError):
         return None

@@ -29,14 +29,14 @@ def steps(knots: float) -> tuple[int, int, int]:
     return value // 50, value % 50 // 10, value % 10 // 5
 
 
-def barb(knots: float, wind_from: float, size: int = SIZE, color: str = "black") -> Image.Image:
+def barb(knots: float, wind_from: float, size: int = SIZE) -> Image.Image:
     """A ``size`` x ``size`` picture of a barb for wind of ``knots`` coming from the
     direction ``wind_from`` (degrees: 0 = from the north, 90 = from the east)."""
     big = size * _SCALE
     image = Image.new("L", (big, big), 255)
     draw = ImageDraw.Draw(image)
     unit = big / SIZE  # one unit of the 250-unit design, in pixels of the big picture
-    ink = 0 if color == "black" else 255
+    ink = 0
     width = round(8 * unit)  # v1 used 6; a little thicker reads better on small screens
     if knots < CALM:
         r = 95 * unit
@@ -68,6 +68,8 @@ def _barb(draw, knots, toward, unit, ink, width):
     for _ in range(triangles):
         draw.polygon([at(0, y), at(0, y - 36), at(-64, y - 16)], fill=ink)
         y -= 40
+    if triangles and (longs or shorts):
+        y -= 12  # a gap, so the next feather doesn't start inside the triangle (as in v1)
     for _ in range(longs):
         draw.line([at(0, y), at(-70, y + 22)], fill=ink, width=width)
         y -= 16

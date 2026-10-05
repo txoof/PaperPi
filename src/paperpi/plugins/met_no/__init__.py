@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
@@ -26,6 +27,8 @@ URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 SAVED = "forecast.json"
 #: A saved forecast is used when met.no can't be reached, until it is this old.
 OLDEST = timedelta(hours=6)
+#: The longest wait for met.no's "Expires" time, in case it is far ahead or the clock is off.
+LONGEST_WAIT = timedelta(hours=1)
 ICONS = Path(__file__).parent / "icons"
 
 
@@ -38,7 +41,10 @@ class Settings(PluginSettings):
     )
     place: str = Field("", max_length=60, description="Name shown on the screen, e.g. Berlin")
     email: str = Field(
-        "", max_length=200, description="Your email address (required: met.no asks for it)"
+        "",
+        max_length=200,
+        pattern=r"^$|^[^@\s]+@[^@\s]+$",
+        description="Your email address, sent only to met.no (required: met.no asks for it)",
     )
     temperature: Literal["C", "F"] = Field("C", description="Degrees Celsius or Fahrenheit")
     rain: Literal["mm", "inch"] = Field("mm", description="Rain in millimetres or inches")
@@ -60,37 +66,48 @@ class SettingsMissing(ValueError):
 
 def fetch(context: Context):
     settings = context.settings
-    if settings.lat is None or settings.lon is None or "@" not in settings.email:
+    if settings.lat is None or settings.lon is None or not settings.email:
         raise SettingsMissing(
             "met_no needs the settings lat, lon and email (met.no asks every program for "
             "contact details)"
         )
     now = datetime.now(UTC)
     path = context.storage / SAVED
+    place = f"{settings.lat:.4f},{settings.lon:.4f}"
     saved = forecast.load(path)
-    if saved and saved.expires and now < saved.expires:
+    if saved and saved.place != place:
+        saved = None  # the place was changed: the saved forecast is for somewhere else
+    if saved and saved.expires and now < min(saved.expires, saved.fetched + LONGEST_WAIT):
         return ready(Weather(saved, now))  # met.no asks not to fetch again before this
     try:
-        latest = download(settings, saved, now)
+        latest = download(settings, place, saved, now)
     except (webrequest.WebError, forecast.ForecastError) as error:
         if saved and now - saved.fetched <= OLDEST:
             log.warning("met.no can't be reached, showing the saved forecast: %s", error)
             return ready(Weather(saved, now))
         raise
-    write_atomic(path, forecast.save(latest), mode=0o644)
+    try:
+        write_atomic(path, forecast.save(latest))
+    except OSError as error:
+        log.warning("can't save the forecast, showing it anyway: %s", error)
     return ready(Weather(latest, now))
 
 
-def download(settings: Settings, saved: Forecast | None, now: datetime) -> Forecast:
+def download(settings: Settings, place: str, saved: Forecast | None, now: datetime) -> Forecast:
     # met.no asks for at most 4 decimals: more only makes its caching work less well.
-    url = f"{URL}?lat={settings.lat:.4f}&lon={settings.lon:.4f}"
+    lat, lon = place.split(",")
     answer = webrequest.get(
-        url, contact=settings.email, if_modified_since=saved.last_modified if saved else None
+        f"{URL}?lat={lat}&lon={lon}",
+        contact=settings.email,
+        if_modified_since=saved.last_modified if saved else None,
     )
+    if answer.status == 203:
+        # met.no's way of saying this version of its service will be switched off.
+        log.warning("met.no says this forecast service is going to be replaced")
     expires = _expires(answer.headers.get("expires"))
     if answer.not_modified and saved:
         return replace(saved, fetched=now, expires=expires)
-    return Forecast(forecast.trim(answer.json()), now, expires, answer.last_modified)
+    return Forecast(forecast.trim(answer.json()), now, expires, answer.last_modified, place)
 
 
 def _expires(text: str | None) -> datetime | None:
@@ -109,19 +126,24 @@ def degrees(celsius: float, unit: str) -> str:
 
 
 def rain_text(mm: float, unit: str) -> str:
-    """ "6.2 mm", "12 mm", "0.25 in". Dry hours give an empty text."""
+    """The number only: "6.2", "12", or in inches "0.25" (at least "0.01", so a little
+    rain never shows as nothing). Dry hours give an empty text."""
     if mm < forecast.WET:
         return ""
     if unit == "inch":
-        return f"{mm / 25.4:.2f}"
+        return f"{max(mm / 25.4, 0.01):.2f}"
     return f"{mm:.1f}" if mm < 10 else f"{mm:.0f}"
 
 
 def spells_text(spells, zone) -> str:
-    """ "13–17, 19–20": the hours it rains, in local time."""
-    return ", ".join(
-        f"{start.astimezone(zone):%H}–{end.astimezone(zone):%H}" for start, end in spells
-    )
+    """ "13–17, 19–20": the hours it rains, in local time. Rain until midnight ends at
+    "24", not "00"."""
+
+    def end_hour(t):
+        hour = t.astimezone(zone).hour
+        return "24" if hour == 0 else f"{hour:02d}"
+
+    return ", ".join(f"{start.astimezone(zone):%H}–{end_hour(end)}" for start, end in spells)
 
 
 def summary_text(hours: tuple[Hour, ...], settings: Settings, zone) -> str:
@@ -150,8 +172,12 @@ def rain_bar(mm: float, top: float):
 
 
 def icon(symbol: str | None):
+    """The icon file for a met.no symbol name, or ``None``. Only plain names are used, so
+    a strange name from the network can't point at another file."""
+    if not symbol or not re.fullmatch(r"[a-z_]+", symbol):
+        return None
     path = ICONS / f"{symbol}.png"
-    return path if symbol and path.is_file() else None
+    return path if path.is_file() else None
 
 
 def draw(weather: Weather, context: Context) -> dict:
@@ -209,7 +235,8 @@ def _sample() -> Weather:
         for i in range(13)
     )
     fetched = start - timedelta(minutes=28)
-    return Weather(Forecast(hours, fetched), start + timedelta(minutes=10), "Europe/Berlin")
+    forecast_ = Forecast(hours, fetched, place="52.5200,13.4000")
+    return Weather(forecast_, start + timedelta(minutes=10), "Europe/Berlin")
 
 
 PLUGIN = Plugin(
