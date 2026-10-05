@@ -60,5 +60,6 @@ WEB_TOTAL = 30.0
 WEB_RETRY_WAIT = 5.0
 
 #: Largest answer PaperPi accepts from a web server, after unpacking. A weather forecast is
-#: well under 1 MB; an image a few MB.
-WEB_ANSWER_BYTES = 20_000_000
+#: well under 1 MB. JSON takes several times its size in memory once read, which matters on a
+#: Pi Zero 2, so plugins that download large images pass a higher ``max_bytes`` themselves.
+WEB_ANSWER_BYTES = 5_000_000
