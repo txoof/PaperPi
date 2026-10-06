@@ -42,7 +42,7 @@ type = "dec_binary_clock"
 
 Try it without a screen: `uv run paperpi render dec_binary_clock --size 800x480 --mode bw`.
 
-The font is [Anton](https://fonts.google.com/specimen/Anton) by The Anton Project Authors, under the SIL Open Font License ([`fonts/OFL.txt`](fonts/OFL.txt)), as in v1.
+The font is [Anton](https://fonts.google.com/specimen/Anton) by The Anton Project Authors, under the SIL Open Font License ([`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt)), in PaperPi's shared fonts folder, as in v1.
 
 ## Sample images
 

@@ -5,9 +5,9 @@ Blocks: ``moon`` (the picture), ``moonrise`` and ``moonset`` ("Moonrise: 01:38")
 like the night sky.
 """
 
-from pathlib import Path
+from ... import fonts
 
-FONT = str(Path(__file__).parent / "fonts" / "Anton-Regular.ttf")
+FONT = fonts.ANTON
 PAD = 0.01
 NIGHT = {"fill": "white", "background": "black"}
 
