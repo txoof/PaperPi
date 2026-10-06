@@ -76,8 +76,12 @@ As in `plugin-scheduling.md`: a failed update is skipped and retried at the plug
 ### Saved files (cache)
 
 - Each plugin has its own folder in `/var/lib/paperpi/plugins/` (see `plugin-interface.md`).
-- Limits: 50 MB per plugin, 200 MB for all plugins together. When a limit is reached, the oldest files are removed first.
-- Files older than 30 days are always removed.
+- Limits per plugin, set in its `[[plugin]]` block (changed with txoof on 2026-10-06, M4 issue #224: SD cards are large, and a planned photo album plugin needs much more than the first limits of 50 MB per plugin and 200 MB in total):
+  - `storage_mb`: the most the plugin may keep, default 500 MB. Over it, the files changed longest ago are removed until it fits.
+  - `storage_days`: files not changed for this many days are removed, default 30; 0 keeps them.
+  - A plugin can suggest its own values (a photo album: for example 20 GB and 0); the setting in the config file always wins. `paperpi list` shows the values used.
+- PaperPi applies them at start (to every plugin block, also the ones switched off) and after each update of the plugin, in the main process, at most 10 s each (checked between files). Links are not followed, so nothing outside the folder is removed.
+- No limit for all plugins together. Instead PaperPi keeps at least 2 GB free on the disk: below that, plugins are told (`low_disk`) not to save more, and a warning goes to the log (when it starts, every 10 minutes while it lasts, and when it ends). PaperPi removes nothing else, because the space may be used by something outside PaperPi (`freeze-prevention.md`). Free disk is in the health report.
 
 ## Open questions
 

@@ -112,3 +112,26 @@ SCREEN_CLOSE = 30.0
 
 #: PaperPi exits because of a stuck screen helper process at most this often.
 SCREEN_STUCK_EXIT = 60 * 60.0
+
+#: Default most a plugin may keep in its storage folder, in megabytes. A plugin may
+#: suggest its own; the ``storage_mb`` setting always wins.
+STORAGE_MB = 500
+
+#: Highest ``storage_mb`` a user may set (1 TB).
+STORAGE_MB_MAX = 1_000_000
+
+#: Default age in days after which a plugin's files are removed (0 = keep them).
+STORAGE_DAYS = 30
+
+#: Highest ``storage_days`` a user may set (100 years).
+STORAGE_DAYS_MAX = 36_500
+
+#: PaperPi keeps at least this much free on the disk that holds its files, in megabytes.
+#: Below it, plugins are told the disk is low, so they don't save more.
+FREE_DISK_MB = 2_000
+
+#: Longest cleaning up one plugin's storage folder may take.
+STORAGE_CLEAN = 10.0
+
+#: While the disk stays low, the warning is repeated this often.
+LOW_DISK_REPEAT = 10 * 60.0

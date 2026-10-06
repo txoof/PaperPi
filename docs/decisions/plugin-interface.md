@@ -32,6 +32,7 @@ A folder in `src/paperpi/plugins/<name>/` with:
 |---|---|
 | settings | A description of each setting: type, default, short help text. Used for config checks, web forms and docs (see `config-format.md`). Includes a **recommended refresh rate**. |
 | update function | Gets the settings, the screen size and colour mode, and its own storage folder. Returns a state (below) and an image. |
+| storage limits | Optional suggested `storage_mb` and `storage_days` for its storage folder (default 500 MB and 30 days; the user's settings win). See `errors-and-time-limits.md`. |
 | layouts | One or more named layouts (e.g. large, compact). The user picks one in the web interface. |
 | sample data | Fixed example data, so the plugin can draw an image without network access. Used for tests and the sample images in the docs. |
 | README | What it shows and where the data comes from. |

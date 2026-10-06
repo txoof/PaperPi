@@ -46,6 +46,7 @@ fraction of a second.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 import queue
@@ -63,6 +64,7 @@ from .config import Config, PluginConfig
 from .plugin import Context, PluginEntry, PluginsStatus, State
 from .runner import UpdateResult, run_update, stop_all
 from .screen import Screen, ScreenResting, ScreenStuck
+from .storage import LowDisk, clean
 
 log = logging.getLogger(__name__)
 
@@ -185,6 +187,7 @@ class Scheduler:
         update: Update | None = None,
         stop_updates: Callable[[], None] | None = None,
         health: Report | None = None,
+        low_disk: LowDisk | None = None,
     ):
         self.screen = screen
         self.state_dir = Path(state_dir)
@@ -202,6 +205,7 @@ class Scheduler:
             stop_updates = stop_all if update is None else lambda: None
         self._stop_updates = stop_updates
         self._health = health
+        self._low_disk = low_disk or LowDisk(self.state_dir)
         self._next_report = -math.inf
         self._last_written: float | None = None
         """When the screen was last written without an error."""
@@ -364,10 +368,16 @@ class Scheduler:
             # Only PaperPi may read the plugins' files: they may hold e.g. downloaded tokens.
             context.storage.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             context.storage.mkdir(mode=0o700, exist_ok=True)
+            context = dataclasses.replace(context, low_disk=self._low_disk.check())
             result = self._update(slot.config.plugin.type, context, slot.config.entry.time_limit)
             event = _Finished(slot, result, None)
         except Exception as error:  # noqa: BLE001 - every failure is handled the same way
             event = _Finished(slot, None, error)
+        try:
+            # Here, not in the plugin process: also after a failed or stopped update.
+            clean(context.storage, slot.config.storage_mb, slot.config.storage_days)
+        except Exception as error:  # noqa: BLE001 - a clean-up problem never stops updates
+            log.warning("cleaning the folder of %r failed: %s", slot.name, error)
         self._events.put(event)
 
     def _finished(self, event: _Finished, now: float) -> None:

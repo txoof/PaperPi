@@ -295,8 +295,9 @@ def test_list_shows_the_plugins_as_used(capsys):
     example = Path(__file__).parent.parent / "paperpi.example.toml"
     assert main(["list", "--config", str(example)]) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert lines[0].split() == ["name", "type", "on", "level", "display", "refresh", "layout"]
-    assert lines[1].split() == "Clock basic_clock yes rotation 120 s 60 s time".split()
+    header = ["name", "type", "on", "level", "display", "refresh", "layout", "storage"]
+    assert lines[0].split() == header
+    assert lines[1].split() == "Clock basic_clock yes rotation 120 s 60 s time 500 MB, 30 d".split()
     assert lines[3].startswith("Weather Rio ")
 
 

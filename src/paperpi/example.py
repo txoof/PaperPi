@@ -94,7 +94,12 @@ def plugin_block(
     ]
     for key, value in values.items():
         lines += _setting(key, (own | entry)[key], value)
-    shown = {"refresh": plugin.refresh, "layout": plugin.default_layout}
+    shown = {
+        "refresh": plugin.refresh,
+        "layout": plugin.default_layout,
+        "storage_mb": plugin.storage_mb,
+        "storage_days": plugin.storage_days,
+    }
     lines += _settings(own, values, {})
     if shared:
         keys = [k for k in entry if k not in ("name", "type")]
