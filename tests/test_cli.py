@@ -328,6 +328,33 @@ def test_run_exits_at_once_when_the_helper_is_stuck_while_clearing(tmp_path, mon
     assert ended.value.code == 1
 
 
+def test_run_reloads_vcom_and_on_exit(tmp_path, monkeypatch):
+    from functools import partial
+
+    from .fake_screens import Pretend, notes
+
+    made = []
+
+    def pretend_driver(display, out):
+        made.append(display.vcom)
+        return partial(Pretend, tmp_path)
+
+    cfg = tmp_path / "paperpi.toml"
+
+    def run(self):
+        self.screen.check()
+        cfg.write_text(IT8951_CONFIG.format(extra='on_exit = "keep"\n').replace("-1.90", "-2.10"))
+        self._apply(self._reload())
+
+    monkeypatch.setattr(cli, "driver_for", pretend_driver)
+    monkeypatch.setattr(cli.Scheduler, "run", run)
+    cfg.write_text(IT8951_CONFIG.format(extra=""))
+    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
+    assert made == [-1.90, -2.10]  # a new driver for the new vcom
+    assert "clear" not in [what for _, what in notes(tmp_path)]  # on_exit = "keep" now
+
+
 def test_run_does_not_clear_the_screen_after_an_error(tmp_path, monkeypatch):
     from functools import partial
 
