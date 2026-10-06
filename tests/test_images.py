@@ -28,7 +28,10 @@ SCREENS = {
     "5in65": (600, 448, ScreenMode.palette()),
 }
 # Settings to draw besides the defaults, per plugin.
-VARIANTS = {"basic_clock": {"12h": {"hours": 12}}}
+VARIANTS = {
+    "basic_clock": {"12h": {"hours": 12}},
+    "word_clock": {"colors": {"text_color": "yellow", "background_color": "blue"}},
+}
 # Share of pixels allowed to differ: font drawing can change slightly between Pillow builds.
 TOLERANCE = 0.002
 
