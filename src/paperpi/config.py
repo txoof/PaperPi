@@ -83,14 +83,18 @@ class DisplaySettings(BaseModel):
 
     type: str = Field(description='The screen model, or "virtual" (writes PNG files)')
     rotation: Literal[0, 90, 180, 270] = Field(0, description="Turn the picture, in degrees")
-    color: bool = Field(True, description="false: draw in gray, even on a colour screen")
+    color: bool = Field(True, description="false: draw in gray, even on a color screen")
     fallback_clock: bool = Field(
         True,
         description="Show a small clock when no plugin has anything to show (strongly "
         "recommended: without it, an empty screen looks like a broken one)",
     )
-    width: int | None = Field(None, gt=0, le=10_000, description="Virtual screen only: pixels")
-    height: int | None = Field(None, gt=0, le=10_000, description="Virtual screen only: pixels")
+    width: int | None = Field(
+        None, gt=0, le=10_000, description="Virtual screen only: width in pixels"
+    )
+    height: int | None = Field(
+        None, gt=0, le=10_000, description="Virtual screen only: height in pixels"
+    )
     mode: Literal["bw", "gray4", "gray16", "7color", "rgb"] | None = Field(
         None, description="Virtual screen only: what it can show"
     )

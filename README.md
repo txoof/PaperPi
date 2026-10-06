@@ -66,14 +66,14 @@ Run `uv run paperpi render --help` for all options. How to write a plugin: [docs
 
 ### A config file
 
-`paperpi example-config` prints an example config file that works as it is: a virtual screen, a clock, and the weather in Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text.
+`paperpi example-config` prints an example config file that works as it is: a virtual screen, a clock, and the weather in Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text. Before you use the weather blocks, put your own email address in `email` (met.no asks for it). `-o` doesn't replace a file that is already there, unless you add `--force`.
 
 ```bash
 uv run paperpi example-config -o paperpi.toml
 uv run paperpi list --config paperpi.toml
 ```
 
-`paperpi list` shows the plugins of a config file, one line each, in the order of the file: name, type, on or off, level, display time, refresh and layout (the ones used: the setting, or the plugin's own suggestion). Anything wrong with the file is shown first; a block with an error is left out of the list.
+`paperpi list` shows the plugins of a config file, one line each, in the order of the file: name, type, on or off, level, display time, refresh and layout (the ones used: the setting, or else the plugin's suggested refresh and its first layout). Anything wrong with the file is shown first; a block with an error is left out of the list.
 
 ```
 name            type         on   level     display  refresh  layout

@@ -30,6 +30,7 @@ from epdlib.drivers.virtual import VirtualDriver
 from pydantic import ValidationError
 
 from . import __version__, config, example, health, limits, plugins
+from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
@@ -134,8 +135,8 @@ def _parser() -> argparse.ArgumentParser:
         description=(
             "Show the plugins of a config file, one line each, in the order of the file. "
             "Anything wrong with the file is shown first; a block with an error is not in the "
-            "list. Refresh and layout are the ones used: the setting, or the plugin's own "
-            "suggestion."
+            "list. Refresh and layout are the ones used: the setting, or else the plugin's "
+            "suggested refresh and its first layout."
         ),
     )
     listing.add_argument(
@@ -152,6 +153,9 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     sample.add_argument("-o", "--output", type=Path, help="file to write instead of printing")
+    sample.add_argument(
+        "--force", action="store_true", help="with -o: replace the file if it is already there"
+    )
     sample.set_defaults(command=_example_config)
 
     check = commands.add_parser(
@@ -324,8 +328,11 @@ def _example_config(args: argparse.Namespace) -> int:
     if args.output is None:
         print(text, end="")
         return 0
+    if args.output.exists() and not args.force:
+        raise UsageError(f"{args.output} is already there; add --force to replace it")
     try:
-        args.output.write_text(text)
+        # Only the owner may read it: once filled in, a config holds email addresses and keys.
+        write_atomic(args.output, text.encode())
     except OSError as error:
         print(f"paperpi: {error}", file=sys.stderr)
         return 1
