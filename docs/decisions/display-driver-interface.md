@@ -67,10 +67,12 @@ Drivers use only `gpiod` and `spidev`. Importing epdlib's layout code never impo
 ### Refresh types
 
 - PaperPi asks the driver for either a **full** refresh (the screen flashes and shows a clean image; takes seconds, much longer on colour screens) or a **fast** refresh (no flash, quick, but faint leftovers of old images build up).
-- Each driver maps this to its own modes. On the IT8951, full uses its best grayscale mode (GC16) and fast uses its quick black-and-white mode (DU or A2; M2 decides which).
+- Each driver maps this to its own modes. On the IT8951, full uses its best grayscale mode (GC16) and fast uses its quick black-and-white mode **DU** (chosen in M2: A2 left lines, stray pixels and negative shadows; see `docs/it8951-test-report.md`).
 - **Screens without a fast mode always do a full refresh**, whatever the settings say.
 - Plugins don't choose. PaperPi uses fast for small changes of the plugin already on screen (clock tick, next track) and full when another plugin comes on screen.
-- To clear the leftovers, PaperPi does a full refresh after a set number of fast ones. The setting works like v1's `max_refresh`; default **4**.
+- After a set number of fast refreshes in a row, the next write is a full one. Setting `max_refresh`, default **4**.
+- **Cleaning refresh:** a single full GC16 refresh does not remove all leftovers; the IT8951's INIT mode (a longer flash to white) does (M2 viewing test). PaperPi does a cleaning refresh (INIT, then the image in GC16) once an hour; the interval is a setting. Checked by eye on the screen in M4.
+- *Correction (M2):* this note first said `max_refresh` worked "like v1". v1 actually drew every update with a full GC16 refresh, never a fast one, and cleared the screen with INIT before every 4th update (`max_refresh = 4`). v2 keeps that cleaning idea but needs it less often, because most small updates are fast ones.
 - PaperPi measures how long each redraw takes (until the busy signal switches off) and never sends a new image before the screen is ready (see `plugin-interface.md`).
 
 ### Colour and grayscale

@@ -23,10 +23,11 @@ These rules apply to every person and agent working in this repository.
   ```bash
   gh issue list --label in-progress
   ```
-- **Claim an issue before starting:**
+- **One PR per task.** A task is one piece of work that may cover several issues (for example all design notes of a milestone, or a whole test round). Group them in one PR instead of opening one PR per issue: every PR costs txoof review time. Open it as a draft while work continues and mark it ready when the task is done.
+- **Claim the issues of a task before starting** (every issue the task covers):
   ```bash
   gh issue edit <n> --add-label in-progress
-  gh issue comment <n> --body "claimed by PaperPi-<n>-<short-name>"
+  gh issue comment <n> --body "claimed by PaperPi-<task-name>"
   ```
   Then move its card on the project board to **In Progress** (see "Project board" below).
 - **Release a claim** when the PR is merged (GitHub closes the issue) or when you stop working on it:
@@ -71,25 +72,26 @@ Column IDs: Todo `f75ad846`, In Progress `47fc9ee4`, In Review `b470c173`, Done 
 | plugins/<name> | `src/paperpi/plugins/<name>/` |
 | install | `install/`, `Dockerfile` |
 | docs | `docs/` |
+| bench | `bench/` (test programs that are not part of the app, e.g. the M2 driver test round) |
 | ci | `.github/`, `pyproject.toml`, `uv.lock`, `.python-version` |
 
 This map grows as the code grows. Update it in the same PR that adds a new area.
 
 ## Worktrees and branches
 A worktree is a separate folder with its own copy of the repo, so several agents can work at the same time without touching each other's files.
-- One worktree per issue, on branch `<n>-<short-name>`:
+- One worktree per task, on branch `<task-name>` (for a task with a single issue: `<n>-<short-name>`):
   ```bash
   git -C ~/src/PaperPi fetch origin
-  git -C ~/src/PaperPi worktree add -b <n>-<short-name> ~/src/wt/PaperPi-<n>-<short-name> origin/main
+  git -C ~/src/PaperPi worktree add -b <task-name> ~/src/wt/PaperPi-<task-name> origin/main
   ```
 - Never work directly on `main`.
 - After the PR is merged, remove the worktree:
   ```bash
-  git -C ~/src/PaperPi worktree remove ~/src/wt/PaperPi-<n>-<short-name>
+  git -C ~/src/PaperPi worktree remove ~/src/wt/PaperPi-<task-name>
   ```
 
 ## Pull requests
-1. Open a PR that links the issue (`Closes #<n>`). Fill in the PR template, including test results and before/after images for anything visual.
+1. Open one PR per task that links all its issues (`Closes #<a>, closes #<b>`). Fill in the PR template, including test results and before/after images for anything visual.
 2. Review agents check the PR and post their findings as PR comments: code quality, unit tests, security, documentation.
 3. Fix the findings, or explain in a reply why not.
 4. **Only txoof approves and merges. Agents never merge, never approve, and never push to `main`.** GitHub branch protection enforces this.
