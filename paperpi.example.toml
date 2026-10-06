@@ -1,0 +1,98 @@
+# PaperPi example config, made by "paperpi example-config". Don't edit this file: it is
+# made again from the program. Copy it to /etc/paperpi/paperpi.toml and change the copy.
+#
+# The file only needs the settings that differ from the default. Every other setting is
+# shown as a comment with its default: remove the # in front of it to change it.
+# Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
+# more than once, with a different name.
+
+config_version = 1
+
+[display]
+# The screen model, or "virtual" (writes PNG files)
+type = "virtual"
+# Turn the picture, in degrees. One of: 0, 90, 180, 270
+# rotation = 0
+# false: draw in gray, even on a colour screen
+# color = true
+# Show a small clock when no plugin has anything to show (strongly recommended: without it, an empty
+# screen looks like a broken one)
+# fallback_clock = true
+# Virtual screen only: pixels
+# width = 1200
+# Virtual screen only: pixels
+# height = 825
+# Virtual screen only: what it can show. One of: "bw", "gray4", "gray16", "7color", "rgb"
+# mode = "gray16"
+
+# basic_clock: The time, and optionally the date, in large text.
+# Layouts: time, time_date, small
+[[plugin]]
+name = "Clock"
+type = "basic_clock"
+# 12-hour (3:45 PM) or 24-hour (15:45) clock
+# hours = 24
+# --- Settings every plugin has ---
+# Show this plugin
+# enabled = true
+# When it is shown: alert, interrupt or rotation
+# level = "rotation"
+# Seconds on screen per turn, when several plugins take turns
+# display_time = 120
+# Seconds between updates (at least 5); empty means the plugin's suggestion
+# refresh = 60
+# Seconds one update may take before it is stopped
+# time_limit = 60
+# Which layout; empty means the plugin's first
+# layout = "time"
+# Alert plugins only: seconds before a dismissed alert comes back, if the plugin still reports it
+# alert_reminder = 3600
+# Alert plugins only: seconds after which an alert is dismissed by itself, in case the plugin is
+# stuck
+# alert_max_time = 86400
+
+# met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
+# Layouts: hours_12, small, steps_3h, now, portrait_hours, portrait_now
+[[plugin]]
+name = "Weather Berlin"
+type = "met_no"
+# Latitude of the place, e.g. 52.52 (required)
+lat = 52.52
+# Longitude of the place, e.g. 13.40 (required)
+lon = 13.4
+# Name shown on the screen, e.g. Berlin (else lat, lon)
+place = "Berlin"
+# Your email address, sent only to met.no (required: met.no asks for it)
+email = "you@example.com"
+# Degrees Celsius or Fahrenheit
+# temperature = "C"
+# Rain in millimetres or inches. One of: "mm", "inch"
+# rain = "mm"
+# --- Settings every plugin has (all of them are in the first block) ---
+# Seconds between updates (at least 5); empty means the plugin's suggestion
+# refresh = 1800
+# Which layout; empty means the plugin's first
+# layout = "hours_12"
+
+# met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
+# Layouts: hours_12, small, steps_3h, now, portrait_hours, portrait_now
+[[plugin]]
+name = "Weather Rio"
+type = "met_no"
+# Latitude of the place, e.g. 52.52 (required)
+lat = -22.91
+# Longitude of the place, e.g. 13.40 (required)
+lon = -43.17
+# Name shown on the screen, e.g. Berlin (else lat, lon)
+place = "Rio"
+# Your email address, sent only to met.no (required: met.no asks for it)
+email = "you@example.com"
+# Degrees Celsius or Fahrenheit
+# temperature = "C"
+# Rain in millimetres or inches. One of: "mm", "inch"
+# rain = "mm"
+# --- Settings every plugin has (all of them are in the first block) ---
+# Seconds between updates (at least 5); empty means the plugin's suggestion
+# refresh = 1800
+# Which layout; empty means the plugin's first
+# layout = "hours_12"

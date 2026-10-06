@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -267,3 +268,41 @@ def test_run_with_broken_config(tmp_path, capsys):
     cfg.write_text("not toml [")
     assert main(["run", "--config", str(cfg), "--state-dir", str(tmp_path)]) == 1
     assert "can't be used" in capsys.readouterr().err
+
+
+def test_list_shows_the_plugins_as_used(capsys):
+    example = Path(__file__).parent.parent / "paperpi.example.toml"
+    assert main(["list", "--config", str(example)]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].split() == ["name", "type", "on", "level", "display", "refresh", "layout"]
+    assert lines[1].split() == "Clock basic_clock yes rotation 120 s 60 s time".split()
+    assert lines[3].startswith("Weather Rio ")
+
+
+def test_list_says_how_many_problems(tmp_path, capsys):
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(
+        'config_version = 1\n[display]\ntype = "virtual"\n'
+        '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\nhours = 13\n'
+    )
+    assert main(["list", "--config", str(cfg)]) == 0
+    out = capsys.readouterr().out
+    assert "(no plugins)" in out
+    assert "1 problem in the file, shown above" in out
+
+
+def test_list_with_broken_config(tmp_path, capsys):
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text("not toml [")
+    assert main(["list", "--config", str(cfg)]) == 1
+    assert "can't be used" in capsys.readouterr().err
+
+
+def test_example_config_prints_or_saves_the_example(tmp_path, capsys):
+    from paperpi.example import example_config
+
+    assert main(["example-config"]) == 0
+    assert capsys.readouterr().out == example_config()
+    out = tmp_path / "example.toml"
+    assert main(["example-config", "-o", str(out)]) == 0
+    assert out.read_text() == example_config()

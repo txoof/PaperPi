@@ -62,7 +62,7 @@ display_time = 255
 
 ### Only changed values are stored
 
-The file only holds settings that differ from the default. This keeps it short and easy to fix by hand. When a later version improves a default, you get it automatically. The web interface shows every setting with its default filled in. `paperpi.example.toml` lists every setting with a short comment. It is generated from the program, so it is always up to date.
+The file only holds settings that differ from the default. This keeps it short and easy to fix by hand. When a later version improves a default, you get it automatically. The web interface shows every setting with its default filled in. `paperpi.example.toml` is generated from the program (`paperpi example-config`), so it is always up to date; a test checks the copy in the repository. It is short and works as it is: `[display]` with a virtual screen, a clock, and the weather in Berlin and in Rio (the same plugin type twice). Every setting it doesn't set is a comment with its default, and its help text on the line above. Agreed with txoof on 2026-10-06: the example does not list every plugin. Adding and removing plugin blocks is the job of a config manager (the web interface, M5), which builds a block the same way (`paperpi.example.plugin_block`).
 
 ### Checking the file
 

@@ -192,6 +192,39 @@ class Config:
         raise KeyError(name)
 
 
+@dataclass(frozen=True)
+class PluginRow:
+    """One configured plugin, as the plugin list shows it."""
+
+    name: str
+    type: str
+    enabled: bool
+    level: str
+    display_time: float
+    refresh: float
+    """As used: the setting, or the plugin's suggestion."""
+    layout: str
+    """As used: the setting, or the plugin's first layout."""
+
+
+def plugin_rows(config: Config) -> list[PluginRow]:
+    """The plugins of ``config``, in file order: for ``paperpi list`` and the web
+    interface's plugin list. Blocks with errors are not in it; ``config.problems`` says
+    what is wrong with them."""
+    return [
+        PluginRow(
+            name=p.entry.name,
+            type=p.plugin.type,
+            enabled=p.entry.enabled,
+            level=p.entry.level,
+            display_time=p.entry.display_time,
+            refresh=p.refresh,
+            layout=p.layout,
+        )
+        for p in config.plugins
+    ]
+
+
 def folder_name(name: str) -> str:
     """A safe folder name for a plugin name: ``"Weather Berlin"`` -> ``weather-berlin``."""
     return re.sub(r"[^a-z0-9]+", "-", name.casefold()).strip("-") or "plugin"
