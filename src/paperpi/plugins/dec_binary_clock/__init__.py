@@ -15,12 +15,13 @@ def fetch(context: Context):
 
 
 def draw(now: datetime, context: Context) -> Drawn:
-    from epdlib import Layout
-
     from . import dots
 
-    # Draw the dots at the exact size of their block, so epdlib doesn't scale them.
-    prepared = Layout(LAYOUTS[context.layout]).prepare(context.width, context.height, context.mode)
+    # Draw the dots at the exact size of their block, so epdlib doesn't scale them. The
+    # whole box is the drawing area only because the block has no padding and no border
+    # (see DOTS in layouts.py); a test checks that the screen shows the picture unscaled.
+    layout = PLUGIN.layout(context.layout, context.settings)
+    prepared = layout.prepare(context.width, context.height, context.mode)
     box = prepared.boxes["dots"]
     values = {"dots": dots.picture(now.hour, now.minute, box.width, box.height)}
     if "time" in prepared.boxes:

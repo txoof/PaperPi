@@ -2,6 +2,8 @@
 
 Shows the time as binary dots, with the time in digits small underneath. It needs no network. Ported from v1.
 
+"Binary" means each dot is either filled or empty, and the filled dots of a column add up to one digit of the time.
+
 ## How to read it
 
 There is one column of 4 dots for each digit of the 24-hour time: tens of the hour, ones of the hour, a bar (the colon), tens of the minute, ones of the minute. From top to bottom the dots of a column are worth 8, 4, 2 and 1. A filled dot counts, a ring doesn't; add up the filled dots to get the digit.
@@ -16,7 +18,7 @@ For 14:49:
  1  4     4  9
 ```
 
-(`#` filled, `.` ring.) Every column has 4 dots, also the tens of the hour and of the minute, which never need the top dots.
+(`#` filled, `.` ring.) Every column has 4 dots, also those that never need all of them: the tens of the hour (0-2) never use the 8 and 4 dots, the tens of the minute (0-5) never use the 8 dot (the 4 dot is filled from :40 to :59).
 
 ## Layouts
 

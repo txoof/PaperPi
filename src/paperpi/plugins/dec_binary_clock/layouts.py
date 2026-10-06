@@ -5,8 +5,8 @@ from pathlib import Path
 FONT = str(Path(__file__).parent / "fonts" / "Anton-Regular.ttf")
 PADDING = 0.01
 
-#: The picture of the dots. Its padding is 0, so ``draw`` can make the picture exactly the
-#: size of the block and nothing is scaled.
+#: The picture of the dots. It must keep padding 0 and no border: ``draw`` makes the picture
+#: exactly the size of the whole block, so epdlib doesn't scale it.
 DOTS = {"name": "dots", "type": "image", "size": 8, "fit": "contain", "padding": 0}
 
 LAYOUTS = {
