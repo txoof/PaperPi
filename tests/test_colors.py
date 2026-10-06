@@ -5,8 +5,9 @@ import random
 
 import pytest
 from epdlib import ScreenMode
+from PIL import ImageColor
 
-from paperpi.colors import COLORS, FALLBACK, screen_colors
+from paperpi.colors import COLORS, FALLBACK, READABLE, screen_colors
 
 GRAY = ScreenMode.gray(16)
 COLOUR = ScreenMode.palette()
@@ -41,6 +42,22 @@ def test_random_is_always_readable(mode, text, background, caplog):
         assert shown[0] != shown[1]
         assert all(c in COLORS for c in shown)
     assert "look the same" not in caplog.text
+
+
+@pytest.mark.parametrize("fixed", COLORS)
+def test_random_pairs_are_easy_to_read(fixed):
+    def brightness(c):
+        return ImageColor.getcolor(c, "L")
+
+    seen = set()
+    for seed in range(200):
+        pair = screen_colors("random", "random", COLOUR, random.Random(seed))
+        one = screen_colors(fixed, "random", COLOUR, random.Random(seed))
+        for text, background in (pair, one):
+            assert abs(brightness(text) - brightness(background)) >= READABLE
+        seen.add(pair)
+    assert ("white", "yellow") not in seen and ("yellow", "orange") not in seen
+    assert len(seen) > 8  # still plenty of different pairs
 
 
 def test_random_is_repeatable():
