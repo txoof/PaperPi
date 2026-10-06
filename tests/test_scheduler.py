@@ -133,6 +133,17 @@ class FakeScreen:
         self.clock.t += self.write_seconds
 
 
+class FakeHealth:
+    """Records each "still running" report: (fake time, seconds since the last write)."""
+
+    def __init__(self, clock):
+        self.clock = clock
+        self.reports = []
+
+    def __call__(self, since_screen):
+        self.reports.append((self.clock.t, since_screen))
+
+
 def make_config(*blocks, display=""):
     text = f'config_version = 1\n[display]\ntype = "virtual"\nwidth = {SIZE[0]}\n'
     text += f"height = {SIZE[1]}\n{display}\n"
@@ -166,12 +177,13 @@ def between(start, end, inside, outside="nothing"):
 
 
 class Sim:
-    def __init__(self, tmp_path, *blocks, display=""):
+    def __init__(self, tmp_path, *blocks, display="", health=False):
         self.clock = FakeTime()
         self.labels = Labels()
         self.updates = FakeUpdates(self.clock, self.labels)
         self.screen = FakeScreen(self.clock, self.labels)
         self.next_config = None
+        self.health = FakeHealth(self.clock) if health else None
         self.scheduler = Scheduler(
             make_config(*blocks, display=display),
             self.screen,
@@ -180,6 +192,7 @@ class Sim:
             clock=self.clock,
             executor=self.clock,
             update=self.updates,
+            health=self.health,
         )
 
     def load(self):
@@ -283,6 +296,20 @@ def test_refresh_near_the_end_is_written_when_no_other_plugin_is_waiting(tmp_pat
     sim.plan(a=lambda t: f"A{t:g}")
     sim.run(until=130)
     assert (105, "A105") in sim.writes
+
+
+@pytest.mark.parametrize(("display_time", "written"), [(100, False), (100.5, True)])
+def test_refresh_at_the_exact_edge_of_the_end_of_a_turn(tmp_path, display_time, written):
+    # Updates take no time and screen writes 20 s. A's updates finish at 0, 25, 50, 75 and
+    # 100. Its turn starts once the first image is on screen (t=20) and ends at 120 or
+    # 120.5. At 100, 20 s are left: exactly a screen write, so A100 is not written. Half a
+    # second more, and it is.
+    sim = Sim(tmp_path, rotation("a", display_time, refresh=25), rotation("b", refresh=1000))
+    sim.clock.duration = lambda context: 0.0
+    sim.screen.write_seconds = 20
+    sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=110)
+    assert ((100, "A100") in sim.writes) is written
 
 
 # Interrupts and alerts
@@ -637,6 +664,32 @@ def test_at_most_three_updates_run_at_once(tmp_path):
         assert scheduler.executor._max_workers == limits.PARALLEL_UPDATES == 3
     finally:
         scheduler.executor.shutdown()
+
+
+# Health reports
+
+
+def test_loop_reports_every_30_seconds_also_when_nothing_happens(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
+    sim.run(until=100)
+    # The first report is at the start, before anything is on screen.
+    assert sim.health.reports == [(0, None), (30, 29), (60, 59), (90, 89)]
+
+
+def test_time_since_the_screen_write_grows_while_writes_fail(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=25), health=True)
+    sim.plan(a=lambda t: f"A{t:g}")  # a new image with every update
+    sim.at(10, setattr, sim.screen, "fail", True)
+    sim.run(until=100)
+    assert sim.health.reports == [(0, None), (30, 29), (60, 59), (90, 89)]
+    assert len(sim.writes) > 1  # it kept trying
+
+
+def test_no_reports_while_the_loop_is_stuck(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
+    sim.screen.write_seconds = 200  # a screen write that hangs for 200 s
+    sim.run(until=250)
+    assert sim.health.reports == [(0, None), (201, 0), (231, 30)]
 
 
 # With the real parts: plugin processes, the worker pool, the virtual screen

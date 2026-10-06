@@ -5,6 +5,8 @@
   file.
 - ``paperpi run`` shows the plugins of a config file: it runs the scheduler until it is
   stopped. Until the real screens are added, it writes to a virtual screen (PNG files).
+- ``paperpi health`` says whether ``paperpi run`` still reports "healthy"; Docker's health
+  check uses it.
 
 Run ``paperpi <command> --help`` for all options.
 """
@@ -25,7 +27,7 @@ from epdlib import ScreenMode
 from epdlib.drivers.virtual import VirtualDriver
 from pydantic import ValidationError
 
-from . import __version__, config, limits, plugins
+from . import __version__, config, health, limits, plugins
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
@@ -116,7 +118,30 @@ def _parser() -> argparse.ArgumentParser:
         default=config.STATE_DIR,
         help=f"folder for plugin files and the last good config ({config.STATE_DIR})",
     )
+    run.add_argument(
+        "--health-file",
+        type=Path,
+        default=health.HEALTH_FILE,
+        help=f"where to write the health report (default: {health.HEALTH_FILE})",
+    )
     run.set_defaults(command=_run)
+
+    check = commands.add_parser(
+        "health",
+        help='check that "paperpi run" is still running its loop',
+        description=(
+            "Check the health report of paperpi run. Ends with exit status 0 (healthy) when "
+            f"the last report is at most {limits.HEALTH_STALE:.0f} s old, else 1 (the number a "
+            "program returns to say it failed). Docker's health check uses this command."
+        ),
+    )
+    check.add_argument(
+        "--health-file",
+        type=Path,
+        default=health.HEALTH_FILE,
+        help=f"the health report to check (default: {health.HEALTH_FILE})",
+    )
+    check.set_defaults(command=_health)
     return parser
 
 
@@ -206,7 +231,15 @@ def _run(args: argparse.Namespace) -> int:
     for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
         old.unlink(missing_ok=True)
     screen = VirtualDriver(width, height, mode, out)
-    scheduler = Scheduler(loaded, screen, state_dir=args.state_dir, reload=load)
+    # Taken out of the environment, so plugin processes can't send "still running" for a
+    # stuck loop.
+    notify_socket = os.environ.pop("NOTIFY_SOCKET", None)
+    # The hourly health line is shown, like warnings.
+    logging.getLogger(health.__name__).setLevel(logging.INFO)
+    reports = health.Health(args.health_file, disk=args.state_dir, notify_socket=notify_socket)
+    scheduler = Scheduler(
+        loaded, screen, state_dir=args.state_dir, reload=load, health=reports.report
+    )
     signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
     signal.signal(signal.SIGINT, lambda *_: scheduler.stop())
     signal.signal(signal.SIGHUP, lambda *_: scheduler.reload())
@@ -221,7 +254,15 @@ def _run(args: argparse.Namespace) -> int:
     except OSError as error:
         print(f"paperpi: {error}", file=sys.stderr)
         return 1
+    finally:
+        reports.stopping()
     return 0
+
+
+def _health(args: argparse.Namespace) -> int:
+    healthy, message = health.check(args.health_file)
+    print(message)
+    return 0 if healthy else 1
 
 
 def _job_from_options(args: argparse.Namespace) -> _Job:
