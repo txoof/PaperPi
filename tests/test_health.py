@@ -170,7 +170,9 @@ def test_check_a_fresh_report(tmp_path, systemd):
 @pytest.mark.parametrize(
     ("age", "healthy"),
     [
-        (limits.HEALTH_STALE, True),
+        # Just under the limit: exactly 120 s can come out as 120.00000001 s after adding
+        # to a large clock value (seen on GitHub's test machine).
+        (limits.HEALTH_STALE - 0.01, True),
         (limits.HEALTH_STALE + 1, False),
         (-limits.HEALTH_REPORT - 1, False),  # from the future: not a report of this start
     ],
