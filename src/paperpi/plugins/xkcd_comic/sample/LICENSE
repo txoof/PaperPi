@@ -1,0 +1,8 @@
+think_logically.png is xkcd comic 1112, "Think Logically", by Randall Munroe:
+https://xkcd.com/1112/
+
+It is not covered by PaperPi's licence (GPL-3.0). It is used unchanged, as the plugin's
+sample comic, under the Creative Commons Attribution-NonCommercial 2.5 licence
+(CC BY-NC 2.5): https://creativecommons.org/licenses/by-nc/2.5/
+See https://xkcd.com/license.html. It may be shared, with credit to xkcd.com, but not sold.
+The sample images made from it (tests/images/xkcd_comic-*.png) are under the same licence.

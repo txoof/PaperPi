@@ -36,6 +36,7 @@ VARIANTS = {
         "berlin": {"place": "Berlin"},
         "berlin-f": {"place": "Berlin", "temperature": "F", "rain": "inch"},
     },
+    "xkcd_comic": {"enlarge": {"enlarge": True}},
 }
 # More screens for layouts made for a special shape, per plugin and layout.
 LAYOUT_SCREENS = {
