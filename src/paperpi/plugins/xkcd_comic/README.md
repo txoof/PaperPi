@@ -2,7 +2,7 @@
 
 A random comic (or the newest one) from [xkcd.com](https://xkcd.com) by Randall Munroe, with its number and title ("1112: Think Logically") and its hover text (the "alt text" that the website shows when the mouse is over the comic).
 
-At each update it picks a random comic, from the first one to the newest. With `comic = "newest"` it shows the newest comic instead. Some comics are too large to read on an e-paper screen, and some are interactive pages without a picture. Those are skipped and another comic is picked, up to `tries` times. If none of them is suitable (or the newest comic is not), the update fails, and PaperPi tries again at the next update.
+At each update it picks a random comic, from the first one to the newest. With `comic = "newest"` it shows the newest comic instead; when the newest comic is too large or has no picture, that update shows a random comic, and the next update tries the newest again. Some comics are too large to read on an e-paper screen, and some are interactive pages without a picture. Those are skipped and another comic is picked, up to `tries` times. If none of them is suitable, the update fails, and PaperPi tries again at the next update.
 
 Comics smaller than the space on the screen keep their own size, so their lines stay sharp. With `enlarge = true` they are enlarged to fill the space. Comics larger than the space are always made smaller to fit.
 
@@ -22,7 +22,7 @@ The title is in Lato Bold and the hover text in Lato Italic. Long titles and hov
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `comic` | `"random"` | `"random"`: a random comic; `"newest"`: the newest comic |
+| `comic` | `"random"` | `"random"`: a random comic; `"newest"`: the newest comic (a random one when the newest can't be shown) |
 | `max_width` | `800` | comics wider than this many pixels are skipped (at most 4000) |
 | `max_height` | `600` | comics taller than this many pixels are skipped (at most 4000) |
 | `tries` | `10` | how many random comics to try (1 to 20) before the update fails, when they are too large or have no picture |

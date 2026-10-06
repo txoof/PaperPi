@@ -31,7 +31,9 @@ SAMPLE = Path(__file__).parent / "sample" / "think_logically.png"
 
 class Settings(PluginSettings):
     comic: Literal["random", "newest"] = Field(
-        "random", description="Which comic: a random one, or the newest one"
+        "random",
+        description="Which comic: a random one, or the newest one (a random one when the "
+        "newest can't be shown)",
     )
     max_width: int = Field(
         800, ge=1, le=4000, description="Comics wider than this many pixels are skipped"
@@ -68,9 +70,10 @@ class NoComicFound(ValueError):
 
 
 def fetch(context: Context):
-    """The newest or a random comic, ready to draw. Raises :class:`NoComicFound` when
-    xkcd.com sends no number for its newest comic, when the newest comic can't be shown,
-    or when no random comic in ``tries`` tries can be shown (too large, or no picture)."""
+    """The newest or a random comic, ready to draw. When the newest can't be shown, a
+    random one is shown instead, for this update only. Raises :class:`NoComicFound` when
+    xkcd.com sends no number for its newest comic, or when no random comic in ``tries``
+    tries can be shown (too large, or no picture)."""
     settings = context.settings
     newest = _info(f"{SITE}/info.0.json")
     latest = _number(newest)
@@ -80,7 +83,7 @@ def fetch(context: Context):
         comic, why = _comic(latest, newest, settings)
         if comic:
             return ready(comic)
-        raise NoComicFound(f"can't show the newest xkcd comic ({latest}): {why}")
+        log.info("can't show the newest xkcd comic (%d): %s; showing a random one", latest, why)
     numbers = [n for n in range(1, latest + 1) if n != MISSING]
     why = "none were tried"
     for _ in range(settings.tries):

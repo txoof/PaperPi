@@ -96,10 +96,20 @@ def test_newest_comic(tmp_path, monkeypatch, pick):
     assert site.urls == ["https://xkcd.com/info.0.json", "https://imgs.xkcd.com/comics/3.png"]
 
 
-def test_newest_comic_too_large_fails(tmp_path, monkeypatch, pick):
+def test_newest_comic_too_large_shows_a_random_one(tmp_path, monkeypatch, pick, caplog):
+    caplog.set_level("INFO")
+    comics = {3: (info(3), png(900, 200)), 1: (info(1), png(10, 10))}
+    NewestXkcd(monkeypatch, latest=3, comics=comics)
+    pick.append(1)
+    assert fetch(context(tmp_path, comic="newest")).data.number == 1
+    assert "newest xkcd comic (3): it is 900x200 pixels" in caplog.text
+
+
+def test_newest_and_random_comics_too_large_fails(tmp_path, monkeypatch, pick):
     NewestXkcd(monkeypatch, latest=3, comics={3: (info(3), png(900, 200))})
-    with pytest.raises(NoComicFound, match=r"newest xkcd comic \(3\).*900x200"):
-        fetch(context(tmp_path, comic="newest"))
+    pick.extend([3, 3])
+    with pytest.raises(NoComicFound, match="in 2 tries"):
+        fetch(context(tmp_path, comic="newest", tries=2))
 
 
 def test_picks_from_all_comics_but_404(tmp_path, monkeypatch):
