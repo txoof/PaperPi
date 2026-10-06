@@ -28,7 +28,7 @@ from typing import Any, Literal
 
 from epdlib import Layout, ScreenMode
 from PIL import Image
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from . import limits
 
@@ -121,7 +121,8 @@ class PluginEntry(BaseModel):
         None,
         ge=limits.SHORTEST_REFRESH,
         le=limits.LONGEST_SETTING,
-        description="Seconds between updates (at least 5); empty means the plugin's suggestion",
+        description="Seconds between updates (at least 5). Leave it out to use the plugin's "
+        "suggestion (shown below)",
     )
     time_limit: float = Field(
         limits.PLUGIN_UPDATE,
@@ -129,7 +130,9 @@ class PluginEntry(BaseModel):
         le=limits.PLUGIN_UPDATE_MAX,
         description="Seconds one update may take before it is stopped",
     )
-    layout: str | None = Field(None, description="Which layout; empty means the plugin's first")
+    layout: str | None = Field(
+        None, description='Which layout (see "Layouts" above). Leave it out to use the first'
+    )
     alert_reminder: float = Field(
         limits.ALERT_REMINDER,
         gt=0,
@@ -144,6 +147,15 @@ class PluginEntry(BaseModel):
         description="Alert plugins only: seconds after which an alert is dismissed by itself, "
         "in case the plugin is stuck",
     )
+
+    @field_validator("name")
+    @classmethod
+    def _no_control_characters(cls, name: str) -> str:
+        # They can't be written back to the file reliably, and would change the terminal's
+        # output in ``paperpi list``.
+        if re.search(r"[\x00-\x1f\x7f]", name):
+            raise ValueError("must not hold control characters (such as tab or new line)")
+        return name
 
 
 #: Names a plugin may not use for its own settings.

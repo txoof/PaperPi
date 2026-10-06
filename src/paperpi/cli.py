@@ -5,6 +5,8 @@
   file.
 - ``paperpi run`` shows the plugins of a config file: it runs the scheduler until it is
   stopped. Until the real screens are added, it writes to a virtual screen (PNG files).
+- ``paperpi list`` shows the plugins of a config file; ``paperpi example-config`` prints an
+  example config file.
 - ``paperpi health`` says whether ``paperpi run`` still reports "healthy"; Docker's health
   check uses it.
 
@@ -27,7 +29,8 @@ from epdlib import ScreenMode
 from epdlib.drivers.virtual import VirtualDriver
 from pydantic import ValidationError
 
-from . import __version__, config, health, limits, plugins
+from . import __version__, config, example, health, limits, plugins
+from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
@@ -125,6 +128,35 @@ def _parser() -> argparse.ArgumentParser:
         help=f"where to write the health report (default: {health.HEALTH_FILE})",
     )
     run.set_defaults(command=_run)
+
+    listing = commands.add_parser(
+        "list",
+        help="show the plugins of a config file",
+        description=(
+            "Show the plugins of a config file, one line each, in the order of the file. "
+            "Anything wrong with the file is shown first; a block with an error is not in the "
+            "list. Refresh and layout are the ones used: the setting, or else the plugin's "
+            "suggested refresh and its first layout."
+        ),
+    )
+    listing.add_argument(
+        "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    listing.set_defaults(command=_list)
+
+    sample = commands.add_parser(
+        "example-config",
+        help="print an example config file",
+        description=(
+            "Print an example config file that works as it is: a clock and the weather in two "
+            "places, with every other setting as a comment with its default and help text."
+        ),
+    )
+    sample.add_argument("-o", "--output", type=Path, help="file to write instead of printing")
+    sample.add_argument(
+        "--force", action="store_true", help="with -o: replace the file if it is already there"
+    )
+    sample.set_defaults(command=_example_config)
 
     check = commands.add_parser(
         "health",
@@ -256,6 +288,55 @@ def _run(args: argparse.Namespace) -> int:
         return 1
     finally:
         reports.stopping()
+    return 0
+
+
+def _list(args: argparse.Namespace) -> int:
+    try:
+        loaded = config.load(args.config, state_dir=None)
+    except config.ConfigError as error:
+        print(f"paperpi: the config file can't be used:\n{error}", file=sys.stderr)
+        return 1
+    rows = [("name", "type", "on", "level", "display", "refresh", "layout")]
+    for row in config.plugin_rows(loaded):
+        rows.append(
+            (
+                row.name,
+                row.type,
+                "yes" if row.enabled else "no",
+                row.level,
+                f"{row.display_time:g} s",
+                f"{row.refresh:g} s",
+                row.layout,
+            )
+        )
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+    for row in rows:
+        print(
+            "  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=True)).rstrip()
+        )
+    if len(rows) == 1:
+        print("(no plugins)")
+    if loaded.problems:
+        count = len(loaded.problems)
+        print(f"{count} problem{'' if count == 1 else 's'} in the file, shown above")
+    return 0
+
+
+def _example_config(args: argparse.Namespace) -> int:
+    text = example.example_config()
+    if args.output is None:
+        print(text, end="")
+        return 0
+    if args.output.exists() and not args.force:
+        raise UsageError(f"{args.output} is already there; add --force to replace it")
+    try:
+        # Only the owner may read it: once filled in, a config holds email addresses and keys.
+        write_atomic(args.output, text.encode())
+    except OSError as error:
+        print(f"paperpi: {error}", file=sys.stderr)
+        return 1
+    print(f"saved {args.output}")
     return 0
 
 

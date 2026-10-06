@@ -74,7 +74,7 @@ For tests and sample images, step 2 is skipped and `sample` is drawn instead. So
 
 ## Settings
 
-Each setting is a field of the plugin's `Settings` class, with a type, a default and a short help text (`description`). From this one description PaperPi checks the config file, and later builds the web interface's form and the docs.
+Each setting is a field of the plugin's `Settings` class, with a type, a default and a short help text (`description`). From this one description PaperPi checks the config file, writes the plugin's block for the config file (each setting as a comment with its default and the help text on the line above; for a `Literal` type the allowed values are added unless the help text names each of them as a word of its own), and later builds the web interface's form and the docs. A test uncomments every setting of every plugin's block and checks that it loads, so every default must be a valid value.
 
 - Every setting needs a default.
 - Don't use the names of the shared settings, which every `[[plugin]]` block already has: `name`, `type`, `enabled`, `level`, `display_time`, `refresh`, `time_limit`, `layout`, `alert_reminder`, `alert_max_time`.

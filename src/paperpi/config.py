@@ -83,14 +83,18 @@ class DisplaySettings(BaseModel):
 
     type: str = Field(description='The screen model, or "virtual" (writes PNG files)')
     rotation: Literal[0, 90, 180, 270] = Field(0, description="Turn the picture, in degrees")
-    color: bool = Field(True, description="false: draw in gray, even on a colour screen")
+    color: bool = Field(True, description="false: draw in gray, even on a color screen")
     fallback_clock: bool = Field(
         True,
         description="Show a small clock when no plugin has anything to show (strongly "
         "recommended: without it, an empty screen looks like a broken one)",
     )
-    width: int | None = Field(None, gt=0, le=10_000, description="Virtual screen only: pixels")
-    height: int | None = Field(None, gt=0, le=10_000, description="Virtual screen only: pixels")
+    width: int | None = Field(
+        None, gt=0, le=10_000, description="Virtual screen only: width in pixels"
+    )
+    height: int | None = Field(
+        None, gt=0, le=10_000, description="Virtual screen only: height in pixels"
+    )
     mode: Literal["bw", "gray4", "gray16", "7color", "rgb"] | None = Field(
         None, description="Virtual screen only: what it can show"
     )
@@ -190,6 +194,39 @@ class Config:
             if plugin.entry.name == name:
                 return plugin
         raise KeyError(name)
+
+
+@dataclass(frozen=True)
+class PluginRow:
+    """One configured plugin, as the plugin list shows it."""
+
+    name: str
+    type: str
+    enabled: bool
+    level: str
+    display_time: float
+    refresh: float
+    """As used: the setting, or the plugin's suggestion."""
+    layout: str
+    """As used: the setting, or the plugin's first layout."""
+
+
+def plugin_rows(config: Config) -> list[PluginRow]:
+    """The plugins of ``config``, in file order: for ``paperpi list`` and the web
+    interface's plugin list. Blocks with errors are not in it; ``config.problems`` says
+    what is wrong with them."""
+    return [
+        PluginRow(
+            name=p.entry.name,
+            type=p.plugin.type,
+            enabled=p.entry.enabled,
+            level=p.entry.level,
+            display_time=p.entry.display_time,
+            refresh=p.refresh,
+            layout=p.layout,
+        )
+        for p in config.plugins
+    ]
 
 
 def folder_name(name: str) -> str:

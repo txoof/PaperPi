@@ -9,6 +9,7 @@ license-files = ["LICENSE"]
 dependencies = [
     "epdlib",
     "pydantic>=2.9",
+    "tomlkit>=0.13",
 ]
 
 [project.scripts]
