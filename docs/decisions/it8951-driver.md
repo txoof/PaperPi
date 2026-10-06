@@ -1,6 +1,6 @@
 # IT8951 driver
 
-Status: proposed (M2, issue #201). Final once the 72-hour endurance run passes and txoof approves.
+Status: proposed (M2, issue #201). Endurance run passed (34 hours, see the test report); final when txoof approves.
 
 ## Problem
 
@@ -21,11 +21,9 @@ Measured on the real screen; full results in `docs/it8951-test-report.md`.
 - **Full refresh is GC16.** After 4 fast refreshes in a row the next write is full (`max_refresh`, default 4).
 - **Cleaning refresh once an hour:** INIT, then the image in GC16 (interval is a setting). One GC16 refresh did not remove all leftovers; INIT did.
 - Time limits (defaults, settings in the driver): 2 s waiting for the busy line, 15 s for a redraw. On timeout the driver raises `DisplayTimeout`; PaperPi then handles it as decided in `errors-and-time-limits.md` (retry, reset, and so on).
-
-- **The screen helper process is restarted once a day,** even when nothing is wrong (interval is a setting). Screen writes already run in a separate helper process (`display-driver-interface.md`); a planned restart takes about 2.6 s and frees any memory the driver or the C libraries it uses (`gpiod`, `spidev`) did not give back. Large Python projects do the same (gunicorn `max_requests`, Celery `worker_max_tasks_per_child`). Reason: during the endurance run the process's memory grew by about 8 KB per hour.
+- **The screen helper process is restarted once a day,** even when nothing is wrong (interval is a setting). Screen writes already run in a separate helper process (`display-driver-interface.md`); a planned restart takes about 2.6 s and frees any memory the driver or the C libraries it uses (`gpiod`, `spidev`) did not give back. Large Python projects do the same (gunicorn `max_requests`, Celery `worker_max_tasks_per_child`). Reason: in the first hours of the endurance run the process's memory grew by about 8 KB per hour (it then levelled off), and C libraries can leak in ways Python cannot see.
 - **Memory limit in the Docker setup** (M6), with a restart policy, as a safety net: if PaperPi ever goes over the limit, Docker restarts it instead of letting the Pi run short of memory. Together with the watchdog (`errors-and-time-limits.md`), a leak can at worst cause a restart, never a slow freeze.
 
 ## Open questions
 
-- Endurance run result (ends about 2026-10-07 21:25). If it shows a leak or a hang, this decision is reopened.
-- If the memory growth (about 8 KB per hour after 8 hours) has not levelled off by the end of the run, find its source with Python's `tracemalloc` in a faster run (one write per second) before M3.
+None. The endurance run passed: 2,063 writes, 0 unexpected failures, 206 of 206 planned faults recovered, open files flat, no memory leak (growth levelled off in the first 13 hours, so the `tracemalloc` check is not needed). Decided with txoof: the report uses the first 34 hours; the run keeps going until the screen is needed, and this decision is reopened only if later data shows a problem.

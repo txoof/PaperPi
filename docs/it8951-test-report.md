@@ -1,6 +1,6 @@
 # IT8951 driver test round (M2)
 
-Status: endurance run in progress (started 2026-10-04 21:25, ends about 2026-10-07 21:25; a first start at 21:13 was stopped after 7 writes for a reboot).
+Status: complete for review. The endurance run started 2026-10-04 21:25 (a first start at 21:13 was stopped after 7 writes for a reboot). By txoof's decision this report uses the first 34 hours (written 2026-10-06 07:48); the run keeps going until the screen is needed and later data is added only if it shows something new.
 
 Tested on this Pi 4 (Raspberry Pi OS trixie, Python 3.13) with the Waveshare 9.7" e-paper HAT: IT8951 controller, firmware `WS_v.0.2T1`, LUT `8M14T`, 1200 × 825 pixels, VCOM -1.90 (from the ribbon cable). Test programs and raw results (CSV): `bench/it8951/`.
 
@@ -83,4 +83,25 @@ Purpose: find slow problems a short test cannot show: memory that is not given b
 
 A 2-minute trial before the real run (22 writes, 2 faults) showed: all faults stopped with an error and recovered in 2.6 s; open files stayed at 7, memory at about 24 MB.
 
-Results: *to be added when the run ends.*
+### Results after 34 hours
+
+Data: `bench/it8951/results/endurance-new-first-34h.csv` (2026-10-04 21:25 to 2026-10-06 07:47).
+
+| Item | Result |
+|---|---|
+| Writes | 2,063 (1,651 fast, 206 full, 206 with a planned fault) |
+| Unexpected failures | **0** |
+| Planned faults | 206 of 206 stopped with `DisplayTimeout` (median 2.2 s) and recovered with close + open (2.6 s every time) |
+| Hangs | none (the run's own 120 s watchdog never fired) |
+| Write time, first vs last quarter (median) | fast 0.746 / 0.743 s; full 1.258 / 1.236 s; no growth |
+| Open files | 7 the whole time, also after 206 error recoveries |
+| Threads / child processes | 2 / 0 the whole time |
+| Run memory | see below: no leak |
+
+![Write times and memory per hour](images/it8951-endurance.svg)
+
+**Memory.** For the first 13 hours the run's memory in RAM grew slowly and the growth slowed down: 25,468 KB to 25,552 KB, about 8 KB per hour at first and about 1 KB per hour by hour 13. This is how Python's memory manager usually behaves (it keeps freed memory for reuse), not a leak. From hour 17 the number in the graph drops: other Claude Code sessions working on M3 and M4 on the same Pi used most of its 1.8 GB, and Linux moved unused parts of the run into swap (space on the SD card used as extra memory). At 34 hours the run used 11.9 MB in RAM plus 8.1 MB in swap, 20 MB in total: less than at the start. The Pi's free memory dropped to 186 MB at its lowest; that came from the parallel sessions, not the run, and write times did not change.
+
+**What the run shows:** the new driver releases its SPI and GPIO handles every time, also after errors; it never waited past its time limit; and it does not slow down or leak over 2,000 writes and 206 recoveries. That is about 1.5 days of PaperPi use at one write per minute.
+
+**What it cannot show:** that no problem happens over months. With 0 failures in 2,063 writes, a problem could still happen about once in every 700 writes or less often. This is covered by the design (time limits, watchdog, daily helper restart, Docker memory limit) and by the long run on this Pi from M4 on.
