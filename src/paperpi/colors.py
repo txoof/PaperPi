@@ -24,21 +24,26 @@ ColorName = Literal["red", "orange", "yellow", "green", "blue", "black", "white"
 #: Used when the chosen text and background would look the same on this screen.
 FALLBACK = ("white", "black")
 
+#: Smallest difference in brightness (0 = black, 255 = white) between two colours that
+#: ``random`` puts together, so the text is always easy to read. It rules out pairs such
+#: as white and yellow, yellow and orange, red and orange, or black and blue.
+READABLE = 100
+
 
 def screen_colors(
     text: str, background: str, mode: ScreenMode, rng: random.Random
 ) -> tuple[str, str]:
     """The text and background colour to draw with on a screen with ``mode``.
 
-    ``"random"`` picks one of :data:`COLORS` with ``rng``, always one that can be told
-    apart from the other colour. On gray and black-and-white screens every colour becomes
-    black or white, whichever is closer. If both end up the same, white on black is used
-    and a warning is logged.
+    ``"random"`` picks one of :data:`COLORS` with ``rng``, always one that is easy to read
+    with the other colour (see :data:`READABLE`). Colours the user names are kept. On gray
+    and black-and-white screens every colour becomes black or white, whichever is closer.
+    If both end up the same, white on black is used and a warning is logged.
     """
     if background == "random":
-        background = rng.choice([c for c in COLORS if text == "random" or _differ(c, text, mode)])
+        background = rng.choice([c for c in COLORS if text == "random" or _readable(c, text, mode)])
     if text == "random":
-        text = rng.choice([c for c in COLORS if _differ(c, background, mode)])
+        text = rng.choice([c for c in COLORS if _readable(c, background, mode)])
     text, background = _shown(text, mode), _shown(background, mode)
     if text == background:
         log.warning("text and background colour look the same on this screen; using white on black")
@@ -53,5 +58,7 @@ def _shown(color: str, mode: ScreenMode) -> str:
     return "black" if ImageColor.getcolor(color, "L") < 128 else "white"
 
 
-def _differ(one: str, other: str, mode: ScreenMode) -> bool:
-    return _shown(one, mode) != _shown(other, mode)
+def _readable(one: str, other: str, mode: ScreenMode) -> bool:
+    """True when text in one colour is easy to read on the other, on this screen."""
+    a, b = (ImageColor.getcolor(_shown(c, mode), "L") for c in (one, other))
+    return abs(a - b) >= READABLE
