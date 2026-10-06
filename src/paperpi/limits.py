@@ -112,3 +112,41 @@ SCREEN_CLOSE = 30.0
 
 #: PaperPi exits because of a stuck screen helper process at most this often.
 SCREEN_STUCK_EXIT = 60 * 60.0
+
+#: Default size limit of a plugin's storage folder, in megabytes (1 MB = 1,000,000 bytes,
+#: as everywhere in PaperPi). A plugin may suggest its own; the ``storage_mb`` setting wins.
+STORAGE_MB = 500
+
+#: Highest ``storage_mb`` a user may set (1 TB).
+STORAGE_MB_MAX = 1_000_000
+
+#: Default age in days after which a plugin's files are removed (0 = keep them).
+STORAGE_DAYS = 30
+
+#: Highest ``storage_days`` a user may set (100 years).
+STORAGE_DAYS_MAX = 36_500
+
+#: PaperPi keeps at least this much free on the disk that holds its files, in megabytes.
+#: Below it, plugins are told the disk is low, so they don't save more.
+FREE_DISK_MB = 2_000
+
+#: Once the disk is low, it counts as fine again only with this much more free, so a value
+#: around the limit doesn't give a pair of log lines at every update. In megabytes.
+FREE_DISK_GAP_MB = 100
+
+#: Longest cleaning up one plugin's storage folder may take, in seconds.
+STORAGE_CLEAN = 10.0
+
+#: While the disk stays low, the warning is repeated at most this often, in seconds.
+LOW_DISK_REPEAT = 10 * 60.0
+
+#: A plugin's storage folder is cleaned after an update at most this often, in seconds, so a
+#: plugin that updates every minute doesn't read a large folder every minute.
+STORAGE_CLEAN_EVERY = 5 * 60.0
+
+#: Most files PaperPi looks at in one plugin's storage folder per clean-up; keeps the
+#: memory a clean-up uses small (a few tens of megabytes at most).
+STORAGE_MAX_FILES = 100_000
+
+#: Longest cleaning up all plugin folders at start may take in all, in seconds.
+STORAGE_CLEAN_START = 30.0

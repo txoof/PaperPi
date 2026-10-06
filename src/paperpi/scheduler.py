@@ -21,6 +21,9 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
   "alert" mean the same.
 - The screen is written only when the image changes. A new image from the plugin on screen
   is not written when its turn ends sooner than a screen write takes.
+- Before each update the plugin is told whether the disk is low (``low_disk``,
+  :mod:`paperpi.storage`). After each update, also a failed one, its storage folder is
+  cleaned up in the worker thread, before the result reaches the loop.
 - Screen writes run in their own thread (and, with :class:`paperpi.screen.Screen`, in a
   helper process with a time limit), so the loop keeps reporting "still running" during a
   slow write. Nothing new is chosen until the write has finished. A failed write is tried
@@ -46,6 +49,7 @@ fraction of a second.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 import queue
@@ -63,6 +67,7 @@ from .config import Config, PluginConfig
 from .plugin import Context, PluginEntry, PluginsStatus, State
 from .runner import UpdateResult, run_update, stop_all
 from .screen import Screen, ScreenResting, ScreenStuck
+from .storage import LowDisk, clean
 
 log = logging.getLogger(__name__)
 
@@ -185,6 +190,7 @@ class Scheduler:
         update: Update | None = None,
         stop_updates: Callable[[], None] | None = None,
         health: Report | None = None,
+        low_disk: LowDisk | None = None,
     ):
         self.screen = screen
         self.state_dir = Path(state_dir)
@@ -202,6 +208,10 @@ class Scheduler:
             stop_updates = stop_all if update is None else lambda: None
         self._stop_updates = stop_updates
         self._health = health
+        self._low_disk = low_disk or LowDisk(self.state_dir)
+        self._cleaned: dict[Path, float] = {}
+        """When each storage folder was last cleaned (monotonic clock)."""
+        self._stopping = False
         self._next_report = -math.inf
         self._last_written: float | None = None
         """When the screen was last written without an error."""
@@ -249,6 +259,7 @@ class Scheduler:
 
     def run(self) -> None:
         """Show plugins until :meth:`stop` is called."""
+        self._stopping = False
         try:
             while True:
                 now = self.clock.monotonic()
@@ -266,6 +277,7 @@ class Scheduler:
         finally:
             # Drop the updates that have not started, and stop the running ones, so stopping
             # never waits for a hanging plugin's time limit.
+            self._stopping = True
             self.executor.shutdown(wait=False, cancel_futures=True)
             self._stop_updates()
             self.executor.shutdown(wait=True)
@@ -364,11 +376,26 @@ class Scheduler:
             # Only PaperPi may read the plugins' files: they may hold e.g. downloaded tokens.
             context.storage.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             context.storage.mkdir(mode=0o700, exist_ok=True)
+            context = dataclasses.replace(context, low_disk=self._low_disk.check())
             result = self._update(slot.config.plugin.type, context, slot.config.entry.time_limit)
             event = _Finished(slot, result, None)
         except Exception as error:  # noqa: BLE001 - every failure is handled the same way
             event = _Finished(slot, None, error)
+        self._clean(slot, context.storage)
         self._events.put(event)
+
+    def _clean(self, slot: _Slot, folder: Path) -> None:
+        """Runs in a worker thread, after an update: apply the plugin's storage limits."""
+        now = self.clock.monotonic()
+        last = self._cleaned.get(folder)
+        if self._stopping or (last is not None and now - last < limits.STORAGE_CLEAN_EVERY):
+            return  # when stopping: cleaned at the next start anyway
+        self._cleaned[folder] = now
+        try:
+            # Here, not in the plugin process: also after a failed or stopped update.
+            clean(folder, slot.config.storage_mb, slot.config.storage_days)
+        except Exception as error:  # noqa: BLE001 - a clean-up problem never stops updates
+            log.warning("cleaning the folder of %r failed: %s", slot.name, error)
 
     def _finished(self, event: _Finished, now: float) -> None:
         slot = event.slot

@@ -168,6 +168,17 @@ class PluginConfig:
         return self.entry.layout or self.plugin.default_layout
 
     @property
+    def storage_mb(self) -> int:
+        """Most megabytes in the storage folder: the user's choice, or the plugin's."""
+        return self.plugin.storage_mb if self.entry.storage_mb is None else self.entry.storage_mb
+
+    @property
+    def storage_days(self) -> int:
+        """Days after which saved files are removed (0 = keep): the user's or the plugin's."""
+        days = self.entry.storage_days
+        return self.plugin.storage_days if days is None else days
+
+    @property
     def folder_name(self) -> str:
         """The name of this plugin's storage folder, made from its name."""
         return folder_name(self.entry.name)
@@ -209,6 +220,10 @@ class PluginRow:
     """As used: the setting, or the plugin's suggestion."""
     layout: str
     """As used: the setting, or the plugin's first layout."""
+    storage_mb: int
+    """As used: the setting, or the plugin's suggestion."""
+    storage_days: int
+    """As used: the setting, or the plugin's suggestion (0 = files are kept)."""
 
 
 def plugin_rows(config: Config) -> list[PluginRow]:
@@ -224,6 +239,8 @@ def plugin_rows(config: Config) -> list[PluginRow]:
             display_time=p.entry.display_time,
             refresh=p.refresh,
             layout=p.layout,
+            storage_mb=p.storage_mb,
+            storage_days=p.storage_days,
         )
         for p in config.plugins
     ]

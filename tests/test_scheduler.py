@@ -92,11 +92,13 @@ class FakeUpdates:
         self.labels = labels
         self.plans = {}
         self.calls = []
+        self.contexts = []
         self.default_fails = False
 
     def __call__(self, plugin_type, context, time_limit):
         name = context.storage.name
         self.calls.append((self.clock.t, name))
+        self.contexts.append(context)
         if context.status is not None:
             if self.default_fails:
                 raise PluginFailed(plugin_type, "fake failure of default")
@@ -198,7 +200,7 @@ def between(start, end, inside, outside="nothing"):
 
 
 class Sim:
-    def __init__(self, tmp_path, *blocks, display="", health=False):
+    def __init__(self, tmp_path, *blocks, display="", health=False, low_disk=None):
         self.clock = FakeTime()
         self.labels = Labels()
         self.updates = FakeUpdates(self.clock, self.labels)
@@ -215,6 +217,7 @@ class Sim:
             writer=FakeWriter(self.clock, self.screen),
             update=self.updates,
             health=self.health,
+            low_disk=low_disk,
         )
 
     def load(self):
@@ -836,3 +839,98 @@ def test_stop_ends_a_hanging_update_at_once(tmp_path):
         thread.join(30)
     assert not thread.is_alive()
     assert time.monotonic() - start < 10
+
+
+# Storage folders
+
+
+def test_plugins_are_told_when_the_disk_is_low(tmp_path):
+    from paperpi.storage import LowDisk
+
+    free = [10**12]
+    low = LowDisk(tmp_path, free=lambda path: free[0])
+    sim = Sim(tmp_path, rotation("a", refresh=30), low_disk=low)
+    sim.at(40, free.__setitem__, 0, 10**9)  # 1 GB free
+    sim.run(until=100)
+    assert [c.low_disk for c in sim.updates.contexts] == [False, False, True, True]
+
+
+def test_storage_folder_is_cleaned_after_an_update_at_most_every_5_minutes(tmp_path, monkeypatch):
+    import os
+
+    from paperpi import storage
+
+    # os.utime can't set the status-change time back, so only the modification time counts.
+    monkeypatch.setattr(storage, "_changed", lambda info: info.st_mtime)
+
+    sim = Sim(tmp_path, rotation("a", refresh=30) + "\nstorage_days = 1")
+    old = tmp_path / "plugins" / "a" / "old.json"
+    old.parent.mkdir(parents=True)
+    old.write_text("{}")
+    os.utime(old, (0, 0))
+    sim.run(until=10)
+    assert not old.exists()
+    old.write_text("{}")
+    os.utime(old, (0, 0))
+    sim.run(until=290)  # updates at 32, 63, ...: not cleaned again within 5 minutes
+    assert old.exists()
+    sim.run(until=330)
+    assert not old.exists()
+
+
+@pytest.fixture
+def mtime_only(monkeypatch):
+    from paperpi import storage
+
+    # os.utime can't set the status-change time back, so only the modification time counts.
+    monkeypatch.setattr(storage, "_changed", lambda info: info.st_mtime)
+
+
+def old_file(tmp_path, name, days):
+    import os
+    import time
+
+    path = tmp_path / "plugins" / name / "old.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}")
+    when = time.time() - days * 24 * 60 * 60
+    os.utime(path, (when, when))
+    return path
+
+
+def test_the_plugins_own_storage_days_is_used(tmp_path, mtime_only):
+    sim = Sim(tmp_path, rotation("a", refresh=30) + "\nstorage_days = 3")
+    old = old_file(tmp_path, "a", 5)  # kept with the default of 30 days
+    sim.run(until=10)
+    assert not old.exists()
+
+
+def test_folder_is_cleaned_also_after_a_failed_update(tmp_path, mtime_only):
+    sim = Sim(tmp_path, rotation("a", refresh=30) + "\nstorage_days = 3")
+    sim.plan(a="fail")
+    old = old_file(tmp_path, "a", 5)
+    sim.run(until=10)
+    assert not old.exists()
+
+
+def test_failing_clean_up_does_not_stop_updates(tmp_path, monkeypatch, caplog):
+    import paperpi.scheduler
+
+    def broken(*args):
+        raise OSError("disk gone")
+
+    monkeypatch.setattr(paperpi.scheduler, "clean", broken)
+    monkeypatch.setattr(limits, "STORAGE_CLEAN_EVERY", 0)
+    sim = Sim(tmp_path, rotation("a", refresh=30))
+    sim.run(until=100)
+    assert sim.updates.times("a") == [1, 32, 63, 94]
+    assert "cleaning the folder of 'a' failed: disk gone" in caplog.text
+
+
+def test_low_disk_removes_nothing_more(tmp_path, mtime_only):
+    from paperpi.storage import LowDisk
+
+    sim = Sim(tmp_path, rotation("a", refresh=30), low_disk=LowDisk(tmp_path, free=lambda p: 0))
+    recent = old_file(tmp_path, "a", 1)  # within the plugin's limits
+    sim.run(until=100)
+    assert recent.exists()

@@ -148,6 +148,22 @@ class PluginEntry(BaseModel):
         "in case the plugin is stuck",
     )
 
+    storage_mb: int | None = Field(
+        None,
+        ge=1,
+        le=limits.STORAGE_MB_MAX,
+        description="Most megabytes this plugin may keep in its storage folder; over it, the files "
+        "changed longest ago are removed first. Leave it out to use the plugin's suggestion "
+        "(shown below)",
+    )
+    storage_days: int | None = Field(
+        None,
+        ge=0,
+        le=limits.STORAGE_DAYS_MAX,
+        description="Files the plugin has not changed for this many days are removed (0 = keep "
+        "them). Leave it out to use the plugin's suggestion (shown below)",
+    )
+
     @field_validator("name")
     @classmethod
     def _no_control_characters(cls, name: str) -> str:
@@ -196,6 +212,10 @@ class Context:
     """The name of the layout to draw."""
     status: PluginsStatus | None = None
     """Only for the ``default`` plugin: how many plugins are not working."""
+    low_disk: bool = False
+    """Less than :data:`~paperpi.limits.FREE_DISK_MB` is free on the disk that holds
+    PaperPi's state folder (``/var/lib/paperpi``): don't save more
+    files (e.g. don't download new photos). Files can still be replaced."""
 
 
 class PluginDefinitionError(ValueError):
@@ -224,6 +244,10 @@ class Plugin:
     """Suggested seconds between updates."""
     refresh_on_minute: bool = False
     """Updates should start just after the minute changes (for clocks)."""
+    storage_mb: int = limits.STORAGE_MB
+    """Suggested most megabytes in its storage folder (e.g. more for a photo album)."""
+    storage_days: int = limits.STORAGE_DAYS
+    """Suggested days after which its saved files are removed (0 = keep them)."""
 
     def __post_init__(self) -> None:
         problems = []
@@ -246,6 +270,10 @@ class Plugin:
                 f"refresh must be between {limits.SHORTEST_REFRESH:g} "
                 f"and {limits.LONGEST_SETTING:g} seconds"
             )
+        if not 1 <= self.storage_mb <= limits.STORAGE_MB_MAX:
+            problems.append(f"storage_mb must be between 1 and {limits.STORAGE_MB_MAX}")
+        if not 0 <= self.storage_days <= limits.STORAGE_DAYS_MAX:
+            problems.append(f"storage_days must be between 0 and {limits.STORAGE_DAYS_MAX}")
         if problems:
             raise PluginDefinitionError(f"plugin {self.type!r}: " + "; ".join(problems))
 

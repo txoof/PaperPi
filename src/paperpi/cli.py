@@ -30,7 +30,7 @@ from epdlib import ScreenMode
 from epdlib.drivers.virtual import VirtualDriver
 from pydantic import ValidationError
 
-from . import __version__, config, example, health, limits, plugins
+from . import __version__, config, example, health, limits, plugins, storage
 from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
@@ -267,6 +267,7 @@ def _run(args: argparse.Namespace) -> int:
     # The numbers start again at 0001 at every start, so files of an earlier run go.
     for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
         old.unlink(missing_ok=True)
+    storage.clean_all(loaded.plugins, args.state_dir)
     # The driver is made and used in the screen helper process (paperpi.screen).
     screen = Screen(
         partial(VirtualDriver, width, height, mode, out),
@@ -315,7 +316,7 @@ def _list(args: argparse.Namespace) -> int:
     except config.ConfigError as error:
         print(f"paperpi: the config file can't be used:\n{error}", file=sys.stderr)
         return 1
-    rows = [("name", "type", "on", "level", "display", "refresh", "layout")]
+    rows = [("name", "type", "on", "level", "display", "refresh", "layout", "storage")]
     for row in config.plugin_rows(loaded):
         rows.append(
             (
@@ -326,6 +327,8 @@ def _list(args: argparse.Namespace) -> int:
                 f"{row.display_time:g} s",
                 f"{row.refresh:g} s",
                 row.layout,
+                f"{row.storage_mb} MB, "
+                + (f"{row.storage_days} d" if row.storage_days else "no age limit"),
             )
         )
     widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]

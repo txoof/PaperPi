@@ -291,12 +291,45 @@ def test_run_exits_at_once_when_a_screen_helper_is_stuck(tmp_path, monkeypatch, 
     assert "1234 can't be stopped; exiting" in capsys.readouterr().err
 
 
+def test_run_cleans_every_plugin_folder_at_start(tmp_path, monkeypatch):
+    import time as clock
+
+    from paperpi import storage
+
+    monkeypatch.setattr(storage, "_changed", lambda info: info.st_mtime)
+    monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(
+        'config_version = 1\n[display]\ntype = "virtual"\n'
+        '[[plugin]]\nname = "Off"\ntype = "basic_clock"\nenabled = false\n'
+    )
+    old = tmp_path / "plugins" / "off" / "old.json"
+    old.parent.mkdir(parents=True)
+    old.write_text("{}")
+    when = clock.time() - 400 * 24 * 60 * 60
+    os.utime(old, (when, when))
+    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
+    assert not old.exists()
+
+
+def test_list_shows_no_age_limit(tmp_path, capsys):
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(
+        'config_version = 1\n[display]\ntype = "virtual"\n'
+        '[[plugin]]\nname = "Photos"\ntype = "basic_clock"\nstorage_days = 0\n'
+    )
+    assert main(["list", "--config", str(cfg)]) == 0
+    assert capsys.readouterr().out.splitlines()[1].endswith("500 MB, no age limit")
+
+
 def test_list_shows_the_plugins_as_used(capsys):
     example = Path(__file__).parent.parent / "paperpi.example.toml"
     assert main(["list", "--config", str(example)]) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert lines[0].split() == ["name", "type", "on", "level", "display", "refresh", "layout"]
-    assert lines[1].split() == "Clock basic_clock yes rotation 120 s 60 s time".split()
+    header = ["name", "type", "on", "level", "display", "refresh", "layout", "storage"]
+    assert lines[0].split() == header
+    assert lines[1].split() == "Clock basic_clock yes rotation 120 s 60 s time 500 MB, 30 d".split()
     assert lines[3].startswith("Weather Rio ")
 
 

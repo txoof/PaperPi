@@ -73,7 +73,7 @@ uv run paperpi example-config -o paperpi.toml
 uv run paperpi list --config paperpi.toml
 ```
 
-`paperpi list` shows the plugins of a config file, one line each, in the order of the file: name, type, on or off, level, display time, refresh and layout (the ones used: the setting, or else the plugin's suggested refresh and its first layout). Anything wrong with the file is shown first; a block with an error is left out of the list.
+`paperpi list` shows the plugins of a config file, one line each, in the order of the file: name, type, on or off, level, display time, refresh, layout and storage (the ones used: the setting, or else the plugin's suggestion or first layout; storage is the size limit and the age limit, for example `500 MB, 30 d`, or `500 MB, no age limit`). Anything wrong with the file is shown first; a block with an error is left out of the list.
 
 ```
 name            type         on   level     display  refresh  layout

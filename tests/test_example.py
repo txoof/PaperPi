@@ -51,7 +51,8 @@ def test_every_default_shown_is_a_valid_setting(plugin_type):
     assert found.settings == plugin.settings()
     assert found.refresh == plugin.refresh
     assert found.layout == plugin.default_layout
-    skip = {"name", "type", "refresh", "layout"}
+    assert (found.storage_mb, found.storage_days) == (plugin.storage_mb, plugin.storage_days)
+    skip = {"name", "type", "refresh", "layout", "storage_mb", "storage_days"}
     default = PluginEntry(name="Test", type=plugin_type)
     assert found.entry.model_dump(exclude=skip) == default.model_dump(exclude=skip)
 
@@ -173,10 +174,11 @@ def test_plugin_rows():
         + '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n'
         + '[[plugin]]\nname = "Big"\ntype = "basic_clock"\nenabled = false\nrefresh = 300\n'
         + 'layout = "time_date"\ndisplay_time = 90\nlevel = "interrupt"\n'
+        + "storage_mb = 20000\nstorage_days = 0\n"
         + '[[plugin]]\nname = "Broken"\ntype = "basic_clock"\nhours = 13\n'
     )
     rows = config.plugin_rows(config.parse(text))
     assert rows == [
-        config.PluginRow("Clock", "basic_clock", True, "rotation", 120, 60, "time"),
-        config.PluginRow("Big", "basic_clock", False, "interrupt", 90, 300, "time_date"),
+        config.PluginRow("Clock", "basic_clock", True, "rotation", 120, 60, "time", 500, 30),
+        config.PluginRow("Big", "basic_clock", False, "interrupt", 90, 300, "time_date", 20000, 0),
     ]
