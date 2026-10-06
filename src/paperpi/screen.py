@@ -18,8 +18,7 @@ so the driver still knows what is on screen and a fast write sends only the chan
   too, writes pause: the next try is after :data:`~paperpi.limits.SCREEN_REST` seconds, and
   each failed try doubles the wait, up to :data:`~paperpi.limits.SCREEN_REST_LONGEST`. A
   wrong setting or a switched-off SPI is not fixed by trying again, so trying less often
-  keeps the log short. :meth:`Screen.change` (a config reload) tries again at once. PaperPi
-  keeps running.
+  keeps the log short. PaperPi keeps running.
 - When a helper process can't be stopped (it is stuck inside the operating system), only a
   restart of PaperPi can help: :class:`ScreenStuck` is raised, so PaperPi exits and systemd
   or Docker starts it again. At most once per :data:`~paperpi.limits.SCREEN_STUCK_EXIT`
@@ -294,8 +293,6 @@ class Screen:
         """Failed tries while paused; each one doubles the wait before the next."""
         self._paused_since: float | None = None
         """When writes paused (real time), for the log."""
-        self._last_try: float | None = None
-        """When the helper process was last asked to do something (monotonic clock)."""
         self._lock = threading.Lock()
         self._closed = False
 
@@ -319,35 +316,6 @@ class Screen:
     def clear(self) -> None:
         """Make the screen blank."""
         self._run("clear")
-
-    def change(self, make_driver: MakeDriver) -> None:
-        """New screen settings: use ``make_driver`` from now on. The next write starts a new
-        helper process, and when writes were paused, the counting starts from zero."""
-        with self._lock:
-            self._helper.make_driver = make_driver  # also when stopping the old one fails
-            self._fresh_start()
-            try:
-                self._helper.stop(close=True)
-            except ScreenStuck:
-                self._stuck()
-                raise
-
-    def retry_now(self, *, fresh: bool) -> None:
-        """After a config reload: when writes are paused, try again at once. ``fresh`` (the
-        screen settings changed): the counting starts from zero. Otherwise one try, at most
-        every :data:`~paperpi.limits.SCREEN_REST` seconds; when it fails, the waits go on
-        where they were, so reloading again and again doesn't make the screen be tried
-        again and again."""
-        with self._lock:
-            if self.retry_at is None:
-                return
-            if fresh:
-                self._fresh_start()
-            elif self._last_try is None or self.clock() - self._last_try >= limits.SCREEN_REST:
-                self.retry_at = None
-            else:
-                return
-            log.info("config reloaded: trying the screen again")
 
     def clear_before_exit(self) -> None:
         """Make the screen blank when PaperPi stops, within a short time limit. Skipped when
@@ -374,10 +342,6 @@ class Screen:
     def abort(self) -> None:
         """End a running screen operation at once (e.g. a second Ctrl+C while clearing)."""
         self._helper.kill()
-
-    def _fresh_start(self) -> None:
-        self.retry_at = self._paused_since = None
-        self.failures = self.resets = self.rests = 0
 
     def close(self) -> None:
         """Close the screen and end the helper process. Never raises."""
@@ -412,7 +376,6 @@ class Screen:
                 image, fast = args
                 args = (image.mode, image.size, image.tobytes(), fast)
             try:
-                self._last_try = now
                 if not self._helper.running:
                     self._helper.start(self.time_limit)
                 if command != "check":

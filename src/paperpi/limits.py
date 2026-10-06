@@ -14,9 +14,6 @@ PLUGIN_UPDATE_MAX = 600.0
 #: How long a plugin process may take to exit after it has handed over its image.
 PLUGIN_EXIT = 5.0
 
-#: Longest reading and checking the config file may take when it is loaded again (reload).
-CONFIG_RELOAD = 10.0
-
 #: Largest config file PaperPi reads. A real config is a few kilobytes.
 CONFIG_FILE_BYTES = 256_000
 

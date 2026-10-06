@@ -368,31 +368,6 @@ def pause(screen, clock, tries=1):
     return screen.retry_at - clock.t
 
 
-def test_changed_screen_settings_try_again_at_once_with_the_shortest_wait():
-    screen, helper, clock = make_screen()
-    helper.fail = True
-    assert pause(screen, clock) == 1200
-    screen.retry_now(fresh=True)  # e.g. vcom was fixed in the config
-    assert screen.retry_at is None
-    fail(screen)  # tried at once; the counting starts from zero
-    assert screen.retry_at is None and screen.failures == 1
-    fail(screen, 9)
-    assert screen.retry_at - clock.t == 600  # the shortest wait again
-
-
-def test_a_reload_without_screen_changes_tries_once_and_the_waits_go_on():
-    screen, helper, clock = make_screen()
-    helper.fail = True
-    assert pause(screen, clock, tries=2) == 2400
-    clock.t += 600  # the last try was 10 minutes ago
-    screen.retry_now(fresh=False)
-    fail(screen)  # tried at once, and failed: the next wait is longer again
-    assert screen.retry_at - clock.t == 4800
-    clock.t += 60
-    screen.retry_now(fresh=False)  # a minute later: not tried again
-    assert screen.retry_at is not None
-
-
 def test_a_stuck_helper_within_the_hour_pauses_with_growing_waits(tmp_path):
     screen, helper, clock = make_screen(tmp_path)
     (tmp_path / "screen-stuck").write_text(f"{1e9}\n")  # PaperPi exited for this just now
@@ -414,26 +389,6 @@ def test_backoff_stops_growing():
     helper.fail = True
     assert pause(screen, clock, tries=2000) == limits.SCREEN_REST_LONGEST
     assert screen.rests == 7
-
-
-def test_change_with_a_new_driver_stops_the_helper_with_the_old_one():
-    screen, helper, _ = make_screen()
-    screen.write(image(WHITE))
-    new = object()
-    screen.change(new)
-    assert not helper.running and helper.make_driver is new
-    screen.write(image(WHITE))
-    assert helper.starts == 2
-
-
-def test_new_driver_is_kept_when_the_old_helper_is_stuck(tmp_path):
-    screen, helper, _ = make_screen()  # no stuck file: pause instead of exit
-    screen.write(image(WHITE))
-    helper.stuck = True
-    new = object()
-    with pytest.raises(ScreenResting):
-        screen.change(new)
-    assert helper.make_driver is new
 
 
 def test_check_starts_the_screen_only_once():

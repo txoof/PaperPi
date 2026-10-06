@@ -78,13 +78,6 @@ VIRTUAL_WIDTH, VIRTUAL_HEIGHT, VIRTUAL_MODE = 1200, 825, "gray16"
 _TOP_LEVEL = ("config_version", "display", "web", "plugin")
 _VIRTUAL_ONLY = ("width", "height", "mode")
 
-#: ``[display]`` settings that need the screen to be connected again, so a change applies
-#: only at the next start of PaperPi (see ``docs/decisions/live-config-reload.md``).
-NEXT_START = ("type", "model", "width", "height", "mode")
-
-#: ``[display]`` settings the screen driver uses: a change starts a new screen helper process.
-DRIVER_SETTINGS = ("vcom", "max_refresh")
-
 
 class DisplaySettings(BaseModel):
     """The ``[display]`` part of the config file."""

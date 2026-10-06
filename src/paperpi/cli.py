@@ -282,7 +282,6 @@ def _run(args: argparse.Namespace) -> int:
         state_dir=args.state_dir,
         reload=load,
         health=reports.report,
-        new_driver=lambda changed: driver_for(changed, out),
     )
     signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
     signal.signal(signal.SIGINT, lambda *_: scheduler.stop())
