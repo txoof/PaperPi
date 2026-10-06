@@ -54,7 +54,11 @@ def test_hanging_write_is_stopped_and_the_next_one_gets_a_new_helper(tmp_path, s
         screen.write(image(WHITE))
     inits = [pid for pid, what in notes(tmp_path) if what == "init"]
     assert len(set(inits)) == 2  # a new helper process, whose init resets the screen
-    assert notes(tmp_path)[-2:] == [(inits[1], "write 255"), (inits[1], "close")]
+    assert notes(tmp_path)[-3:] == [
+        (inits[1], "write 255"),
+        (inits[1], "sleep"),  # after every write; the next one wakes it
+        (inits[1], "close"),
+    ]
 
 
 def test_crashed_helper_is_noticed_at_once(tmp_path, short_limit):
@@ -63,6 +67,23 @@ def test_crashed_helper_is_noticed_at_once(tmp_path, short_limit):
             screen.write(image(GRAY))
         screen.write(image(WHITE))
     assert [what for _, what in notes(tmp_path)][:4] == ["init", "write 128", "init", "write 255"]
+
+
+def test_screen_sleeps_after_every_write_and_clear_without_a_new_init(tmp_path):
+    with Screen(partial(Pretend, tmp_path)) as screen:
+        screen.write(image(WHITE))
+        screen.write(image(0x44), fast=True)
+        screen.clear()
+    assert [what for _, what in notes(tmp_path)] == [
+        "init",
+        "write 255",
+        "sleep",
+        "write 68",
+        "sleep",
+        "clear",
+        "sleep",
+        "close",
+    ]
 
 
 def test_driver_error_keeps_the_helper(tmp_path):
@@ -192,6 +213,7 @@ class FakeHelper:
         self.seconds = 2.0
         self.starts = 0
         self.stops = 0
+        self.make_driver = None
 
     def start(self, limit):
         self.running = True
@@ -266,14 +288,14 @@ def test_every_third_failure_resets_the_screen(tmp_path, caplog):
     assert (helper.starts, screen.resets) == (3, 3)
 
 
-def test_writes_pause_when_three_resets_did_not_help_and_are_tried_every_10_minutes(caplog):
+def test_writes_pause_when_three_resets_did_not_help_and_the_wait_doubles(caplog):
     screen, helper, clock = make_screen()
     helper.fail = True
     fail(screen, 9)
     with pytest.raises(ScreenResting) as paused:
         screen.write(image(WHITE))  # the write that starts the pause says so
     assert paused.value.wait == 600
-    assert "does not answer after 3 resets; trying again every 10 minutes" in caplog.text
+    assert "does not answer after 3 resets: pretend failure; next try in 10 minutes" in caplog.text
     assert not helper.running  # the pins are free during the pause
     starts = helper.starts
     clock.t = 599
@@ -281,13 +303,51 @@ def test_writes_pause_when_three_resets_did_not_help_and_are_tried_every_10_minu
         screen.write(image(WHITE))
     assert paused.value.wait == pytest.approx(1)
     assert helper.starts == starts  # not tried
-    clock.t = 600
-    fail(screen)  # one try, which fails: pause again
-    assert screen.retry_at == 1200
-    clock.t, helper.fail = 1200, False
+    # Each failed try doubles the wait: 20, 40, 80, 160 minutes, then at most 6 hours.
+    waits = []
+    for _ in range(7):
+        clock.t = screen.retry_at
+        fail(screen)  # one try, which fails: pause again
+        waits.append(screen.retry_at - clock.t)
+    assert waits == [1200, 2400, 4800, 9600, 19200, 21600, 21600]
+    assert "screen still not answering (since " in caplog.text
+    assert "next try in 6 hours" in caplog.text
+    assert caplog.text.count("pretend failure") == 1  # the full message once
+    clock.t, helper.fail = screen.retry_at, False
     screen.write(image(WHITE))
-    assert (screen.failures, screen.resets, screen.retry_at) == (0, 0, None)
-    assert "the screen answers again, after 11 failures" in caplog.text
+    assert (screen.failures, screen.resets, screen.retry_at, screen.rests) == (0, 0, None, 0)
+    assert "the screen answers again, after 17 failures" in caplog.text
+
+
+def test_a_config_change_tries_again_at_once_with_the_shortest_wait():
+    screen, helper, clock = make_screen()
+    helper.fail = True
+    fail(screen, 10)
+    clock.t = screen.retry_at
+    fail(screen)
+    assert screen.retry_at - clock.t == 1200
+    screen.change()  # e.g. vcom was fixed in the config
+    assert screen.retry_at is None
+    fail(screen)  # tried at once, without the pause; 3 failures start the counting again
+    assert screen.retry_at is None and screen.failures == 1
+
+
+def test_change_with_a_new_driver_stops_the_helper_with_the_old_one():
+    screen, helper, _ = make_screen()
+    screen.write(image(WHITE))
+    new = object()
+    screen.change(new)
+    assert not helper.running and helper.make_driver is new
+    screen.write(image(WHITE))
+    assert helper.starts == 2
+
+
+def test_check_starts_the_screen_only_once():
+    screen, helper, _ = make_screen()
+    screen.check()
+    screen.check()
+    screen.write(image(WHITE))
+    assert helper.starts == 1
 
 
 def test_one_good_write_resets_the_counts():

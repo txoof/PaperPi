@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
-    "epdlib",
+    "epdlib[it8951]",
     "pydantic>=2.9",
     "tomlkit>=0.13",
 ]
@@ -43,4 +43,4 @@ select = ["E", "F", "W", "I", "B", "UP"]
 # epdlib is not on PyPI yet, so it comes from GitHub at one fixed commit (see CLAUDE.md).
 # Move `rev` forward when PaperPi needs a newer epdlib.
 [tool.uv.sources]
-epdlib = { git = "https://github.com/txoof/epdlib", rev = "e7b25b771dd3aa3d14ba678036de3c8880d7c279" }
+epdlib = { git = "https://github.com/txoof/epdlib", rev = "f3092caf840d8136030b0a7739a01fb2db0d7bdf" }

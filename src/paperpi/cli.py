@@ -23,11 +23,9 @@ import sys
 import tempfile
 import tomllib
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 
 from epdlib import ScreenMode
-from epdlib.drivers.virtual import VirtualDriver
 from pydantic import ValidationError
 
 from . import __version__, config, example, health, limits, plugins, storage
@@ -35,7 +33,7 @@ from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
-from .screen import Screen, ScreenStuck
+from .screen import Screen, ScreenError, ScreenStuck, driver_for
 
 log = logging.getLogger("paperpi")
 
@@ -259,19 +257,16 @@ def _run(args: argparse.Namespace) -> int:
         print(f"paperpi: the config file can't be used:\n{error}", file=sys.stderr)
         return 1
     display = loaded.display
-    if display.type != "virtual":
-        raise UsageError(f"screen type {display.type!r} is not supported yet; use virtual")
-    width, height = display.size
-    mode = config.MODES[display.mode or config.VIRTUAL_MODE]
     out = args.out or args.state_dir / "screen"
-    # The numbers start again at 0001 at every start, so files of an earlier run go.
-    for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
-        old.unlink(missing_ok=True)
+    if display.type == "virtual":
+        # The numbers start again at 0001 at every start, so files of an earlier run go.
+        for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
+            old.unlink(missing_ok=True)
     storage.clean_all(loaded.plugins, args.state_dir)
     # The driver is made and used in the screen helper process (paperpi.screen).
     screen = Screen(
-        partial(VirtualDriver, width, height, mode, out),
-        color=mode.kind in ("palette", "rgb"),
+        driver_for(display, out),
+        color=display.screen_mode.kind in ("palette", "rgb"),
         stuck_file=args.state_dir / "screen-stuck",
     )
     # Taken out of the environment, so plugin processes can't send "still running" for a
@@ -281,7 +276,12 @@ def _run(args: argparse.Namespace) -> int:
     logging.getLogger(health.__name__).setLevel(logging.INFO)
     reports = health.Health(args.health_file, disk=args.state_dir, notify_socket=notify_socket)
     scheduler = Scheduler(
-        loaded, screen, state_dir=args.state_dir, reload=load, health=reports.report
+        loaded,
+        screen,
+        state_dir=args.state_dir,
+        reload=load,
+        health=reports.report,
+        new_driver=lambda changed: driver_for(changed, out),
     )
     signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
     signal.signal(signal.SIGINT, lambda *_: scheduler.stop())
@@ -289,11 +289,16 @@ def _run(args: argparse.Namespace) -> int:
     try:
         with screen:
             count = sum(1 for p in loaded.plugins if p.entry.enabled and p.plugin.type != "default")
+            where = f"images in {out}" if display.type == "virtual" else f"screen {display.type}"
             print(
-                f"showing {count} plugin{'' if count == 1 else 's'}; images in {out}; "
+                f"showing {count} plugin{'' if count == 1 else 's'}; {where}; "
                 f"process id {os.getpid()} (kill -HUP {os.getpid()} applies config changes)"
             )
             scheduler.run()
+            # Only after a stop that was asked for (Ctrl+C, systemctl stop, shutdown or
+            # reboot): after an error, the restart draws the picture again anyway.
+            if scheduler.display.on_exit == "clear":
+                _clear(screen)
     except ScreenStuck as error:
         print(f"paperpi: {error}; exiting, so PaperPi is started again", file=sys.stderr)
         reports.stopping()
@@ -308,6 +313,16 @@ def _run(args: argparse.Namespace) -> int:
     finally:
         reports.stopping()
     return 0
+
+
+def _clear(screen: Screen) -> None:
+    """Make the screen blank before exit, within the normal screen-write time limit."""
+    try:
+        screen.clear()
+    except ScreenError as error:
+        log.warning("the screen could not be cleared before exit: %s", error)
+    else:
+        log.info("screen cleared")
 
 
 def _list(args: argparse.Namespace) -> int:

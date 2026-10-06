@@ -10,7 +10,7 @@
 config_version = 1
 
 [display]
-# The screen model, or "virtual" (writes PNG files)
+# The kind of screen: "virtual" (writes PNG files) or "it8951" (Waveshare's IT8951 board)
 type = "virtual"
 # Turn the picture, in degrees. One of: 0, 90, 180, 270
 # rotation = 0
@@ -25,6 +25,19 @@ type = "virtual"
 # height = 825
 # Virtual screen only: what it can show. One of: "bw", "gray4", "gray16", "7color", "rgb"
 # mode = "gray16"
+# Real screens: the screen model. For it8951 its size in inches: "6", "7.8", "9.7" or "10.3"
+# model = "9.7"
+# it8951 only, and required: the voltage printed on the screen's ribbon cable, e.g. -1.90. Each
+# screen has its own; a wrong value gives poor contrast
+# vcom = -1.9
+# After this many fast refreshes in a row, the next one is a full refresh, which removes most
+# leftovers of earlier images (0 = never force one)
+# max_refresh = 4
+# Seconds between cleaning refreshes, which flash the screen white to remove all leftovers of
+# earlier images (0 = never; else at least 60)
+# clean_every = 3600
+# When PaperPi is stopped: make the screen blank, or keep the last picture. One of: "clear", "keep"
+# on_exit = "clear"
 
 # basic_clock: The time, and optionally the date, in large text.
 # Layouts (values for "layout"): time, time_date, small

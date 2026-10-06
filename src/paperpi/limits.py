@@ -14,6 +14,9 @@ PLUGIN_UPDATE_MAX = 600.0
 #: How long a plugin process may take to exit after it has handed over its image.
 PLUGIN_EXIT = 5.0
 
+#: Longest reading and checking the config file may take when it is loaded again (reload).
+CONFIG_RELOAD = 10.0
+
 #: Largest config file PaperPi reads. A real config is a few kilobytes.
 CONFIG_FILE_BYTES = 256_000
 
@@ -101,8 +104,12 @@ SCREEN_FAILURES_BEFORE_RESET = 3
 #: Resets that did not help, after which screen writes pause.
 SCREEN_RESETS_BEFORE_REST = 3
 
-#: While screen writes pause, one try this often.
+#: While screen writes pause, the first wait before the next try. Each failed try doubles
+#: the wait, up to :data:`SCREEN_REST_LONGEST`. A config change or a restart starts again here.
 SCREEN_REST = 10 * 60.0
+
+#: The longest wait between two tries while screen writes pause.
+SCREEN_REST_LONGEST = 6 * 60 * 60.0
 
 #: How long a screen helper process may take to end after it was told to (or killed).
 SCREEN_STOP = 5.0

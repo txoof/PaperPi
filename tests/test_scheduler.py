@@ -119,7 +119,8 @@ class FakeUpdates:
 
 
 class FakeScreen:
-    """Records each write (fake time it started, label). ``fail`` is raised by each write."""
+    """Records each write (fake time it started, label), whether it was fast, the clears and
+    the config changes. ``fail`` is raised by each write (and by the check at start)."""
 
     def __init__(self, clock, labels):
         self.clock = clock
@@ -128,27 +129,50 @@ class FakeScreen:
         self.fail: Exception | bool = False
         self.writes = []
         self.sizes = []
+        self.fast = []
+        self.clears = []
+        self.changes = []
+        self.checks = 0
 
     def started(self, image):
         assert len(self.writes) < 5000, "the scheduler writes without waiting"
         self.sizes.append(image.size)
         self.writes.append((self.clock.t, self.labels.label(image)))
 
-    def write(self, image):
+    def _failing(self):
         if self.fail:
             raise self.fail if isinstance(self.fail, Exception) else OSError("not answering")
 
+    def check(self):
+        self.checks += 1
+        self._failing()
+
+    def change(self, make_driver=None):
+        self.changes.append(make_driver)
+
+    def clear(self):
+        self._failing()
+        self.clears.append(self.clock.t)
+
+    def write(self, image, *, fast=False):
+        self._failing()
+        self.fast.append(fast)
+
 
 class FakeWriter:
-    """Runs each screen write; it ends ``screen.write_seconds`` of fake time later."""
+    """Runs each screen write; it ends ``screen.write_seconds`` of fake time later. The check
+    at start takes no time."""
 
     def __init__(self, clock, screen):
         self.clock = clock
         self.screen = screen
 
-    def submit(self, fn, image, *args):
-        self.screen.started(image)
-        self.clock.at(self.clock.t + self.screen.write_seconds, fn, image, *args)
+    def submit(self, fn, *args):
+        if args and isinstance(args[0], Image.Image):
+            self.screen.started(args[0])
+            self.clock.at(self.clock.t + self.screen.write_seconds, fn, *args)
+        else:
+            self.clock.at(self.clock.t, fn, *args)
 
     def shutdown(self, **options):
         pass
@@ -556,11 +580,13 @@ def test_failed_screen_write_is_tried_again_at_the_next_update_and_logged_once(t
     sim.run(until=100)
     # Tried at every update of the plugin on screen, not again and again in between.
     assert sim.writes == [(1, "A1"), (32, "A1"), (63, "A2"), (94, "A2")]
-    assert caplog.text.count("screen write failed") == 1
+    # Logged once: by the check at start, which failed too.
+    assert caplog.text.count("the screen does not answer at start: not answering") == 1
+    assert caplog.text.count("screen write failed") == 0
     sim.screen.fail = False
     sim.run(until=130)
     assert sim.writes[-1] == (125, "A2")
-    assert "screen writes work again, after 4 failed" in caplog.text
+    assert "screen writes work again, after 5 failed" in caplog.text
 
 
 def test_updates_go_on_during_a_slow_screen_write(tmp_path):
@@ -578,7 +604,7 @@ def test_paused_screen_is_tried_again_at_the_end_of_the_pause(tmp_path):
     from paperpi.screen import ScreenResting
 
     sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
-    sim.screen.fail = ScreenResting("paused", wait=50)
+    sim.at(0.5, setattr, sim.screen, "fail", ScreenResting("paused", wait=50))  # after the check
     sim.at(30, setattr, sim.screen, "fail", False)
     sim.run(until=100)
     # Tried at the end of the pause, although a has no new update.
@@ -707,14 +733,113 @@ def test_broken_config_on_reload_keeps_the_old_settings(tmp_path, broken):
     assert sim.shown == ["A", "B", "A"]
 
 
-def test_screen_settings_take_effect_at_the_next_start(tmp_path, caplog):
+def test_screen_size_takes_effect_at_the_next_start(tmp_path, caplog):
     sim = Sim(tmp_path, rotation("a"))
     sim.run(until=10)
-    sim.next_config = make_config(rotation("a"), display="rotation = 180")
+    sim.next_config = make_config(rotation("a"), display='mode = "bw"')
+    sim.next_config.display = sim.next_config.display.model_copy(update={"width": 80})
     sim.scheduler.reload()
     sim.run(until=200)
-    assert "screen settings take effect at the next start" in caplog.text
+    assert "[display] width, mode changed: this applies at the next start" in caplog.text
     assert sim.screen.sizes == [SIZE]
+    assert sim.scheduler.display.size == SIZE and sim.scheduler.display.mode is None
+    assert sim.updates.contexts[-1].mode == config.MODES["gray16"]
+
+
+def test_rotation_on_reload_draws_every_plugin_again(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=1000), rotation("b", refresh=1000))
+    sim.run(until=10)
+    sim.next_config = make_config(
+        rotation("a", refresh=1000), rotation("b", refresh=1000), display="rotation = 90"
+    )
+    sim.scheduler.reload()
+    sim.run(until=150)
+    # a and b update at once (finished at 11) with the turned size; the screen keeps A
+    # until the new one, which is a full write.
+    assert sim.updates.times("a") == [1, 11] and sim.updates.times("b") == [1, 11]
+    assert sim.updates.contexts[-1].width == SIZE[1]
+    assert sim.writes == [(1, "A"), (11, "A"), (101, "B")]
+    assert sim.screen.sizes[1:] == [(SIZE[1], SIZE[0])] * 2  # the fake draws 40x30: turned
+    assert sim.screen.fast == [False, False, False]
+
+
+def test_vcom_on_reload_starts_the_screen_again_with_a_full_redraw(tmp_path):
+    made = []
+    sim = Sim(tmp_path, rotation("a", refresh=30), display="vcom = -1.9")
+    sim.scheduler._new_driver = lambda display: made.append(display.vcom) or "new driver"
+    sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=40)
+    sim.next_config = make_config(rotation("a", refresh=30), display="vcom = -2.1")
+    sim.scheduler.reload()
+    sim.run(until=100)
+    assert made == [-2.1]
+    assert sim.screen.changes == ["new driver"]
+    # Full, fast, then at once a full one with the new driver, then fast again.
+    assert sim.writes == [(1, "A1"), (32, "A32"), (40, "A32"), (63, "A63"), (94, "A94")]
+    assert sim.screen.fast == [False, True, False, True, True]
+
+
+def test_reload_while_paused_tries_the_screen_again_at_once(tmp_path):
+    from paperpi.screen import ScreenResting
+
+    sim = Sim(tmp_path, rotation("a", refresh=1000))
+    sim.at(0.5, setattr, sim.screen, "fail", ScreenResting("paused", wait=600))
+    sim.run(until=50)
+    sim.screen.fail = False
+    sim.next_config = make_config(rotation("a", refresh=1000))
+    sim.scheduler.reload()
+    sim.run(until=100)
+    assert sim.writes == [(1, "A"), (50, "A")]
+    assert sim.screen.changes == [None]  # the screen's own pause ends too
+
+
+def test_slow_config_file_is_not_applied_after_10_seconds(tmp_path, caplog, monkeypatch):
+    import time
+
+    monkeypatch.setattr(limits, "CONFIG_RELOAD", 0.2)
+    sim = Sim(tmp_path, rotation("a"))
+    sim.run(until=10)
+    sim.load = lambda: time.sleep(5)
+    sim.scheduler._reload = sim.load
+    started = time.monotonic()
+    sim.scheduler.reload()
+    sim.run(until=20)
+    assert time.monotonic() - started < 2
+    assert "reading the config took longer than 0.2 s" in caplog.text
+
+
+def test_fast_writes_for_the_same_plugin_and_full_for_another(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=30), rotation("b", refresh=1000))
+    sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=150)
+    assert sim.shown == ["A1", "A32", "A63", "A94", "B"]
+    assert sim.screen.fast == [False, True, True, True, False]
+
+
+def test_cleaning_at_the_first_write_and_then_every_clean_every(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=30), display="clean_every = 100")
+    sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=250)
+    assert sim.screen.clears == [1, 125, 249]  # at the first write, then the next one after 100 s
+    assert sim.screen.fast == [False, True, True, True, False, True, True, True, False]
+
+
+def test_no_cleaning_with_clean_every_0(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=30), display="clean_every = 0")
+    sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=250)
+    assert sim.screen.clears == []
+    assert sim.screen.fast[0] is False and all(sim.screen.fast[1:])
+
+
+def test_check_at_start_that_fails_keeps_running(tmp_path, caplog):
+    sim = Sim(tmp_path, rotation("a"), health=True)
+    sim.screen.fail = True
+    sim.at(5, setattr, sim.screen, "fail", False)
+    sim.run(until=200)
+    assert sim.screen.checks == 1
+    assert "the screen does not answer at start" in caplog.text
+    assert sim.health.states[0] is None and sim.health.states[-1] == "ok"
 
 
 # The screen

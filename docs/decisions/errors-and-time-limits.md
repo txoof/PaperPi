@@ -37,13 +37,14 @@ How it is built (`src/paperpi/health.py`, M4):
 |---|---|
 | 1 failed write | Try again at the next update. |
 | 3 failures in a row | Reset the display: restart the screen helper process (see `display-driver-interface.md`) and pulse the screen's reset pin. |
-| 3 resets in a row that don't help | Stop writing. Show "screen not answering" in the web interface and try again every 10 minutes. PaperPi keeps running. |
+| 3 resets in a row that don't help | Stop writing. Show "screen not answering" in the web interface and try again after 10 minutes; each failed try doubles the wait, up to 6 hours. PaperPi keeps running. |
 | A write is stuck and stopping the helper process doesn't end it | Exit, so systemd/Docker restarts PaperPi. At most once per hour, so this can't become a loop. |
 
 How it is built (`src/paperpi/screen.py`, M4 issue #222):
 - The screen driver lives in a helper process. The scheduler sends each image there from a thread of its own, so its loop keeps reporting "healthy" during a slow write, and decides nothing new until the write has finished.
 - A write that runs over its time limit stops the helper process. The next write starts a new one, and the driver's `init` resets the screen (the IT8951 driver pulses its reset pin). A helper process that crashes is noticed at once.
-- Every 3rd failed write in a row restarts the helper process (a reset). When the write after the 3rd reset fails too, writes pause and are tried once every 10 minutes; the helper process is not running during the pause, so the pins are free. One good write ends the pause and resets the counts.
+- Every 3rd failed write in a row restarts the helper process (a reset). When the write after the 3rd reset fails too, writes pause; the helper process is not running during the pause, so the pins are free. One good write ends the pause and resets the counts.
+- *Update (M4 part 5b, agreed with txoof on 2026-10-06):* during a pause the wait before the next try doubles after each failed try: 10, 20, 40, 80, 160 minutes, then every 6 hours. A wrong setting or a switched-off SPI is not fixed by trying again, so this keeps the log short (about 10 tries in 36 hours instead of 216). The full error is logged once, then one short line per try ("screen still not answering (since 20:15); next try in 40 minutes"). A config reload, a restart of PaperPi or a reboot tries again at once, with the wait back at 10 minutes. The same rule applies when the check at start fails.
 - The health report has a `screen` value: `ok`, `failing` or `paused` (none before the first write).
 - The helper process is a direct child of PaperPi (started with Python's "spawn" method, not by the forkserver that starts plugin processes), so PaperPi can always stop it. It ignores Ctrl+C and systemd's stop signal; PaperPi closes it, and kills it if needed.
 - When a helper process can't be stopped, PaperPi exits at once with status 1 (without Python's normal exit steps, which would wait for that process), and systemd or Docker starts it again. The time of that exit is kept in `screen-stuck` in the state folder; within an hour of the last one, or when that file can't be written, PaperPi pauses writes instead of exiting. No new helper process starts while a stuck one still runs.
@@ -60,7 +61,7 @@ As in `plugin-scheduling.md`: a failed update is skipped and retried at the plug
 | One plugin update (fetch data and draw) | 60 s; can be changed per plugin in the web interface |
 | One web request by a plugin | 10 s to connect, 30 s in total, including one retry after 5 s (so a plugin still has time to draw). At most 5 MB in the answer after unpacking; a plugin can ask for more, e.g. for images. All plugins use one shared helper for web requests: `paperpi.webrequest`. |
 | One screen write | 3 × the measured redraw time, at least 30 s, at most 5 min. Before the first measurement: 2 min (5 min for colour screens). |
-| Reading or writing a file | 10 s |
+| Reading or writing a file | 10 s. Reading and checking the config on a reload has this limit too: a file that takes longer is not applied, the old settings keep running, and the log says why. |
 
 - All defaults are set in one place in the code.
 - Only the plugin time limit is in the web interface. The others can be changed in the config file for unusual cases (not yet for web requests).

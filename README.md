@@ -84,7 +84,7 @@ Weather Rio     met_no       yes  rotation  120 s    1800 s   hours_12
 
 ### Run PaperPi without a screen
 
-`paperpi run` shows the plugins of a config file, the way they will appear on the screen: they take turns, alerts and interrupts take over, failing plugins are skipped. Until the real screens are added, it only works with `type = "virtual"` in `[display]`: every screen write is saved as a numbered PNG file (the newest 50 are kept), and the newest is also `latest.png`. The numbers start again at `0001.png` at every start, so the files of an earlier run are removed first.
+`paperpi run` shows the plugins of a config file, the way they will appear on the screen: they take turns, alerts and interrupts take over, failing plugins are skipped. With `type = "virtual"` in `[display]`, every screen write is saved as a numbered PNG file (the newest 50 are kept), and the newest is also `latest.png`. The numbers start again at `0001.png` at every start, so the files of an earlier run are removed first. The first write after a start, and one write an hour, first clear the screen (a white PNG; on a real screen this removes leftovers of earlier images), and the screen is cleared when PaperPi is stopped (`clean_every` and `on_exit` in `[display]`).
 
 ```bash
 uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/ --health-file /run/user/$(id -u)/paperpi-health
@@ -94,6 +94,19 @@ uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/ --heal
 - After changing the config file, send it the reload signal SIGHUP (a standard message to a running program, here meaning "read your settings again"): `kill -HUP <process id>`. The process id is printed at the start. Use exactly that number: `pkill -f` would also reach PaperPi's helper processes and stop them. Once PaperPi is installed as a service (M6), `systemctl reload paperpi` does the same. Changes are applied without a restart; a broken file is not applied, and the old settings keep running.
 - While it runs, it says "still running" every 30 seconds: to systemd, when it runs as a service, and in the file `/run/paperpi/health`. Only root or the service can make `/run/paperpi`, so the example above uses `--health-file` to put the file in your own folder in `/run/user/`, which is also kept in memory (a file that can't be written is only a warning). `paperpi health` (with the same `--health-file`) prints the last report and ends with an error when there is no report or the last one is more than 2 minutes old. Once an hour the same values (time since the last screen write, whether screen writes work, memory use, open files, free disk) also go to the log, starting with a `health:` line at the start. If PaperPi gets stuck, systemd (or Docker, from M6) uses this to restart it: [docs/decisions/errors-and-time-limits.md](docs/decisions/errors-and-time-limits.md).
 - `--state-dir` holds the plugins' own folders, the last good copy of the config and the time PaperPi last exited because of a stuck screen (default `/var/lib/paperpi`). The PNG files go to `screen/` in it, unless `--out` names another folder.
+
+### Run PaperPi on the 9.7" IT8951 screen
+
+Turn on SPI first (`sudo raspi-config nonint do_spi 0`, then reboot; see epdlib's `docs/it8951.md`), and set the screen in `[display]`. `vcom` is printed on the screen's ribbon cable; each screen has its own:
+
+```toml
+[display]
+type = "it8951"
+model = "9.7"
+vcom = -1.90
+```
+
+Then start `paperpi run` as above (as a user in the `spi` and `gpio` groups). Small changes of the plugin on screen are fast refreshes of only the changed area; another plugin gets a full refresh, and so does every 5th write in a row (`max_refresh = 4`). If the screen does not answer at start, the error is in the log and PaperPi keeps running and tries again.
 
 When no plugin has anything to show (e.g. no music is playing), a small clock is shown at the bottom of the screen, so you can tell the screen still works. `fallback_clock = false` in `[display]` switches it off, which is not recommended.
 

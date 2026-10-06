@@ -40,10 +40,10 @@ What v1 does well and v2 keeps:
 | Part | What it does |
 |---|---|
 | description | Model name, size in pixels, what it can show (1-bit, gray levels, colours), whether it has a fast refresh, and its status: tested or untested. |
-| `init` | Wake the screen and check it answers (IT8951: the size it reports must match the model). |
+| `init` | Start the screen and check it answers (IT8951: the size it reports must match the model). Needed at the first start and after `close`, not after `sleep`. |
 | `write(image, fast)` | Show an image. `fast` is only a request; see refresh types below. |
 | `clear` | Make the screen blank. |
-| `sleep` | Put the screen into low power. |
+| `sleep` | Put the screen into low power. The next `write` or `clear` wakes it by itself. |
 | `close` | Release the SPI and GPIO connections. Always runs, even after an error. |
 
 Every operation has a time limit. When it runs out, the driver stops with a timeout error. It never waits forever.
@@ -68,7 +68,7 @@ Drivers use only `gpiod` and `spidev`. Importing epdlib's layout code never impo
 ### Refresh types
 
 - PaperPi asks the driver for either a **full** refresh (the screen flashes and shows a clean image; takes seconds, much longer on colour screens) or a **fast** refresh (no flash, quick, but faint leftovers of old images build up).
-- Each driver maps this to its own modes. On the IT8951, full uses its best grayscale mode (GC16) and fast uses its quick black-and-white mode **DU** (chosen in M2: A2 left lines, stray pixels and negative shadows; see `docs/it8951-test-report.md`).
+- Each driver maps this to its own modes. On the IT8951, full uses its best grayscale mode (GC16) and fast uses its quick black-and-white mode **DU** (chosen in M2: A2 left lines, stray pixels and negative shadows; see `docs/it8951-test-report.md`). *Update (M3, epdlib #84):* a fast write sends only the rectangle that changed; when that rectangle has grays, which DU can't show (for example the soft edges of text), it uses GL16 instead (chosen by eye on 2026-10-06: sharp, no flash on light backgrounds).
 - **Screens without a fast mode always do a full refresh**, whatever the settings say.
 - Plugins don't choose. PaperPi uses fast for small changes of the plugin already on screen (clock tick, next track) and full when another plugin comes on screen.
 - After a set number of fast refreshes in a row, the next write is a full one. Setting `max_refresh`, default **4**.
@@ -92,6 +92,9 @@ Drivers use only `gpiod` and `spidev`. Importing epdlib's layout code never impo
 ### Sleep, start-up and exit
 
 - The screen sleeps after every write and is woken for the next one. Waveshare warns that a screen left powered for long periods can be damaged.
+- *Update (M4 part 5b, 2026-10-06):* the driver's `write` and `clear` wake a sleeping screen by themselves, as epdlib 0.6 did (epdlib #85). `init` is not used for this: on the IT8951 it resets the controller, which then forgets what it shows, so every write would be a full one.
+- The start-up check runs in the screen's own thread, so PaperPi starts and reports "healthy" while it runs. An error is logged; after that the screen is tried as in `errors-and-time-limits.md`.
+- "On exit" means a stop that was asked for: Ctrl+C, `systemctl stop`, or a shutdown or reboot of the Pi (they all send the stop signal). After an error (a crash, or a stuck screen helper process) the last image stays: the restart draws it again soon, and a clear would only add a flash.
 - At start, PaperPi checks that the screen answers. If it doesn't, PaperPi keeps running and shows a clear error in the web interface, e.g. "screen not answering: check the cable and the selected model". It does not crash and restart in a loop.
 - On exit the screen is cleared by default, or keeps the last image if the user chose that (setting, see `config-format.md`).
 

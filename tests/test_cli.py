@@ -227,18 +227,21 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
         assert systemd.recv(100) == b"READY=1"
         assert systemd.recv(100) == b"WATCHDOG=1"
         assert main(["health", "--health-file", str(health)]) == 0
-        deadline = time.monotonic() + 30
-        while not (out / "latest.png").exists() and time.monotonic() < deadline:
-            time.sleep(0.2)
-        assert (out / "latest.png").exists()
-        assert Image.open(out / "latest.png").size == (200, 100)
-        # A changed setting is applied on SIGHUP and redraws the screen.
-        cfg.write_text(cfg.read_text() + 'text = "changed"\n')
-        process.send_signal(signal.SIGHUP)
+        # The first write cleans the screen (0001.png, white), then draws (0002.png).
         deadline = time.monotonic() + 30
         while not (out / "0002.png").exists() and time.monotonic() < deadline:
             time.sleep(0.2)
         assert (out / "0002.png").exists()
+        # (0001.png is complete once 0002.png exists; latest.png may be half written.)
+        assert Image.open(out / "0001.png").getextrema() == (255, 255)
+        assert Image.open(out / "0001.png").size == (200, 100)
+        # A changed setting is applied on SIGHUP and redraws the screen.
+        cfg.write_text(cfg.read_text() + 'text = "changed"\n')
+        process.send_signal(signal.SIGHUP)
+        deadline = time.monotonic() + 30
+        while not (out / "0003.png").exists() and time.monotonic() < deadline:
+            time.sleep(0.2)
+        assert (out / "0003.png").exists()
         process.send_signal(getattr(signal, stop))
         stdout, stderr = process.communicate(timeout=30)
         # More "WATCHDOG=1" reports may come first, every 30 seconds.
@@ -255,6 +258,72 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
     assert f"process id {process.pid}" in stdout
     assert not (out / "0007.png").exists()  # files of an earlier run are removed
     assert (state / "paperpi.last-good.toml").is_file()
+    # Stopped on purpose: the screen is cleared (on_exit = "clear", the default).
+    assert (out / "0004.png").exists()
+    assert Image.open(out / "latest.png").getextrema() == (255, 255)
+
+
+IT8951_CONFIG = (
+    'config_version = 1\n[display]\ntype = "it8951"\nmodel = "9.7"\nvcom = -1.90\n'
+    'max_refresh = 2\n{extra}[[plugin]]\nname = "Test"\ntype = "debugging"\n'
+)
+
+
+def test_driver_for_an_it8951_screen():
+    from epdlib.drivers.it8951 import IT8951Driver
+
+    from paperpi import config
+    from paperpi.screen import driver_for
+
+    display = config.parse(IT8951_CONFIG.format(extra="")).display
+    make = driver_for(display, Path("unused"))
+    assert make.func is IT8951Driver
+    driver = make()  # makes no connection yet: that is init's job, in the helper process
+    assert (driver.info.width, driver.vcom, driver.max_refresh) == (1200, -1.90, 2)
+
+
+@pytest.mark.parametrize("on_exit, cleared", [("clear", True), ("keep", False)])
+def test_run_with_an_it8951_screen(tmp_path, monkeypatch, capsys, on_exit, cleared):
+    """A real screen type, with a pretend driver: no SPI or pins are used."""
+    from functools import partial
+
+    from .fake_screens import Pretend, notes
+
+    made = []
+
+    def pretend_driver(display, out):
+        made.append(display)
+        return partial(Pretend, tmp_path)
+
+    monkeypatch.setattr(cli, "driver_for", pretend_driver)
+    monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)  # stops at once
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(IT8951_CONFIG.format(extra=f'on_exit = "{on_exit}"\n'))
+    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
+    assert [(d.type, d.model, d.vcom) for d in made] == [("it8951", "9.7", -1.90)]
+    assert "screen it8951" in capsys.readouterr().out
+    steps = [what for _, what in notes(tmp_path)]
+    assert steps == (["init", "clear", "sleep", "close"] if cleared else [])
+
+
+def test_run_does_not_clear_the_screen_after_an_error(tmp_path, monkeypatch):
+    from functools import partial
+
+    from .fake_screens import Pretend, notes
+
+    def broken(self):
+        self.screen.check()
+        raise RuntimeError("a bug")
+
+    monkeypatch.setattr(cli, "driver_for", lambda display, out: partial(Pretend, tmp_path))
+    monkeypatch.setattr(cli.Scheduler, "run", broken)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(IT8951_CONFIG.format(extra=""))
+    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    with pytest.raises(RuntimeError, match="a bug"):
+        main([*args, "--health-file", str(tmp_path / "health")])
+    assert [what for _, what in notes(tmp_path)] == ["init", "close"]
 
 
 def test_health_command(tmp_path, capsys):

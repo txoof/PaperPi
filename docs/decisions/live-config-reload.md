@@ -39,15 +39,22 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 - A plugin that is removed or switched off while on screen: rotation moves on to the next plugin.
 - A new plugin joins the end of the rotation.
 
-**Update 2026-10-05 (M4, issue #205):** plugins take turns in the order of the config file, so a new plugin takes the place where it is in the file (the end, when it is added at the end). Until reloading screen settings is built (M4 issue #222, part 5b), changed screen settings take effect at the next start, with a warning in the log.
+**Update 2026-10-05 (M4, issue #205):** plugins take turns in the order of the config file, so a new plugin takes the place where it is in the file (the end, when it is added at the end). Until reloading screen settings is built (M4 issue #222, part 5b), changed screen settings take effect at the next start, with a warning in the log. *(Built in part 5b; see the table below.)*
 
 ### Screen settings
 
 | Setting | When it applies |
 |---|---|
 | Rotation, mirror, number of fast refreshes before a full one | At once. The screen helper process (see `display-driver-interface.md`) restarts with the new values and does a full refresh. |
+| Cleaning interval (`clean_every`), what happens on exit (`on_exit`), the fallback clock | At once. |
 | Colour on/off | At once. Only offered for screens that can show colour. |
 | Screen model and vcom | At the next start. |
+
+*Update (M4 part 5b, agreed with txoof on 2026-10-06):*
+- Everything about the screen itself (`type`, `model`, and for the virtual screen `width`, `height` and `mode`) applies **only at the next start** of PaperPi. On a reload the log says "[display] model changed: this applies at the next start of PaperPi", and the old values keep running.
+- `vcom` applies **at once**: the screen helper process starts again, its `init` sends the new value to the screen, and the picture is drawn in full. This makes fixing a typo possible without a restart. The driver only accepts values from −3.0 to −0.5 V and checks that the screen took it; a wrong value in that range gives weaker contrast, nothing worse. So "vcom at the next start" above no longer holds.
+- Rotation and colour on/off: every plugin draws again at its new size; the screen keeps its picture until the new images are ready. There is no mirror setting (yet).
+- While screen writes are paused (see `errors-and-time-limits.md`), any reload tries the screen again at once.
 
 - vcom is a voltage value that belongs to one panel and is printed on its ribbon cable. It changes only when the panel changes, so the web interface asks for it together with the screen model. It is not offered as a separate setting to adjust.
 - Screens can't be swapped while the Pi is running. After a model change, the web interface says: "Shut down the Pi, connect the new screen, then start it again." If the new screen doesn't answer at start, the start-up check shows the error in the web interface.

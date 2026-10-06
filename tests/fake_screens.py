@@ -49,7 +49,7 @@ class Pretend(Driver):
         self._note("clear")
 
     def sleep(self):
-        pass
+        self._note("sleep")
 
     def close(self):
         self._note("close")
