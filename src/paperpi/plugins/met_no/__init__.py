@@ -30,6 +30,8 @@ OLDEST = timedelta(hours=6)
 #: The longest wait for met.no's "Expires" time, in case it is far ahead or the clock is off.
 LONGEST_WAIT = timedelta(hours=1)
 ICONS = Path(__file__).parent / "icons"
+#: met.no's data licence (CC BY 4.0) asks for credit; it is shown on the screen.
+CREDIT = "Data: MET Norway"
 
 
 class Settings(PluginSettings):
@@ -229,7 +231,7 @@ def draw(weather: Weather, context: Context) -> dict:
     # pictures (barbs, bars) take time to draw.
     makers = {
         "place": lambda: place_name(settings),
-        "updated": lambda: f"Updated {local(weather.forecast.fetched):%H:%M}",
+        "updated": lambda: f"Updated {local(weather.forecast.fetched):%H:%M} · {CREDIT}",
         "summary": lambda: summary_text(summary, settings, zone),
         "temperatures": lambda: temperatures_text(summary, settings),
         "rain": lambda: rain_summary_text(summary, settings, zone),

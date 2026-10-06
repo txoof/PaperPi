@@ -35,14 +35,14 @@ The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfSer
 
 | Layout | Shows |
 |---|---|
-| `hours_12` (default) | place and "Updated" time, the summary line, an icon every 2 hours, then per hour the rain bar and mm, the hour, the temperature and the wind barb |
+| `hours_12` (default) | place, "Updated" time and "Data: MET Norway", the summary line, an icon every 2 hours, then per hour the rain bar and mm, the hour, the temperature and the wind barb |
 | `steps_3h` | the summary, then 4 steps of 3 hours: the hours, an icon (of the wettest hour, or the middle hour when dry), lowest and highest temperature, the rain, and the wind at the middle hour |
 | `now` | the current hour, large: icon, temperature and wind barb, with the summary below |
 | `small` | for tiny screens (2" to 3"): a big icon for the current hour, the place, the temperature now, then max and min, and the rain and its hours for the next 12 hours. No wind barb |
 | `portrait_hours` | for screens standing upright: the summary on top, then one row per hour: hour, icon, temperature, rain as a sideways bar with the mm, wind barb |
 | `portrait_now` | for screens standing upright: a large icon for the current hour, its temperature and wind barb, then the summary |
 
-Every layout shows the place: the `place` setting, or the coordinates when it is empty. All but `small` also show the "Updated" time at the top. When a saved forecast is used for a long time, fewer than 12 hours may be left; the columns or rows without an hour then stay empty, and the summary covers the hours that are left.
+Every layout shows the place: the `place` setting, or the coordinates when it is empty. All but `small` also show the "Updated" time and "Data: MET Norway" at the top. When a saved forecast is used for a long time, fewer than 12 hours may be left; the columns or rows without an hour then stay empty, and the summary covers the hours that are left.
 
 ## Settings
 
@@ -74,7 +74,7 @@ layout = "steps_3h"   # optional; without it: hours_12
 
 Try it without a screen: `uv run paperpi render met_no --set place=Berlin` (sample data), or with real data: `uv run paperpi render met_no --live --set lat=52.52 --set lon=13.40 --set email=you@example.com`.
 
-The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Meteorological Institute), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) licence. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT licence ([`icons/LICENSE`](icons/LICENSE)).
+The screen shows "Data: MET Norway" next to the "Updated" time, as met.no's data licence asks. The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Meteorological Institute), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) licence. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT licence ([`icons/LICENSE`](icons/LICENSE)).
 
 ## Sample images
 
