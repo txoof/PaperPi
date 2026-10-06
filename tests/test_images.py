@@ -32,6 +32,7 @@ VARIANTS = {
     "basic_clock": {"12h": {"hours": 12}},
     "word_clock": {"colors": {"text_color": "yellow", "background_color": "blue"}},
     "system_info": {"inverse": {"text_color": "white", "background_color": "black"}},
+    "met_no": {"berlin-f": {"place": "Berlin", "temperature": "F", "rain": "inch"}},
 }
 # Share of pixels allowed to differ: font drawing can change slightly between Pillow builds.
 TOLERANCE = 0.002
