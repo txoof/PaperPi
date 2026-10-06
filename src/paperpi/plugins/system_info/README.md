@@ -31,7 +31,7 @@ The screen shows the Pi's name and network address to anyone who can see it.
 | `text_color` | `"black"` | colour of the text, lines, icons and bars: `red`, `orange`, `yellow`, `green`, `blue`, `black`, `white`, or `random` |
 | `background_color` | `"white"` | colour of the background, same choices |
 
-On gray and black-and-white screens each colour becomes black or white, whichever is closer. `random` picks new colours once a day, always two that can be told apart.
+On gray and black-and-white screens each colour becomes black or white, whichever is closer. `random` picks new colours once a day, always two that are easy to read together (pairs too close in brightness, such as white and yellow, are skipped).
 
 It suggests a refresh every 120 seconds, starting just after the minute changes.
 
