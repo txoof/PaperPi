@@ -63,3 +63,12 @@ WEB_RETRY_WAIT = 5.0
 #: well under 1 MB. JSON takes several times its size in memory once read, which matters on a
 #: Pi Zero 2, so plugins that download large images pass a higher ``max_bytes`` themselves.
 WEB_ANSWER_BYTES = 5_000_000
+
+#: How often the scheduler loop reports "still running" to systemd and the health file.
+HEALTH_REPORT = 30.0
+
+#: A report older than this counts as "not responding": the watchdog restarts PaperPi.
+HEALTH_STALE = 2 * 60.0
+
+#: Largest health file ``paperpi health`` reads. A report is under 200 bytes.
+HEALTH_FILE_BYTES = 1_000

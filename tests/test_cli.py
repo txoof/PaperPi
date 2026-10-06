@@ -1,5 +1,6 @@
 """The paperpi command (paperpi.cli)."""
 
+import os
 import subprocess
 import sys
 
@@ -196,6 +197,7 @@ def test_render_prints_the_mode_name(tmp_path, capsys):
 @pytest.mark.parametrize("stop", ["SIGTERM", "SIGINT"])
 def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
     import signal
+    import socket
     import time
 
     cfg = tmp_path / "paperpi.toml"
@@ -207,14 +209,23 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
     out = state / "screen"  # the default for --out
     out.mkdir(parents=True)
     (out / "0007.png").write_bytes(b"from an earlier run")
-    args = ["--config", str(cfg), "--state-dir", str(state)]
+    health = tmp_path / "run" / "health"
+    args = ["--config", str(cfg), "--state-dir", str(state), "--health-file", str(health)]
+    # Stands in for systemd, which listens on this socket for "READY=1" and so on.
+    systemd = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    systemd.bind(str(tmp_path / "notify"))
+    systemd.settimeout(30)
     process = subprocess.Popen(
         [sys.executable, "-m", "paperpi", "run", *args],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        env={**os.environ, "NOTIFY_SOCKET": str(tmp_path / "notify")},
     )
     try:
+        assert systemd.recv(100) == b"READY=1"
+        assert systemd.recv(100) == b"WATCHDOG=1"
+        assert main(["health", "--health-file", str(health)]) == 0
         deadline = time.monotonic() + 30
         while not (out / "latest.png").exists() and time.monotonic() < deadline:
             time.sleep(0.2)
@@ -229,13 +240,25 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
         assert (out / "0002.png").exists()
         process.send_signal(getattr(signal, stop))
         stdout, stderr = process.communicate(timeout=30)
+        # More "WATCHDOG=1" reports may come first, every 30 seconds.
+        while (message := systemd.recv(100)) == b"WATCHDOG=1":
+            pass
+        assert message == b"STOPPING=1"
     finally:
         process.kill()
+        systemd.close()
     assert process.returncode == 0, stderr
+    assert not health.exists()  # removed when stopping on purpose
     assert "showing 1 plugin;" in stdout
     assert f"process id {process.pid}" in stdout
     assert not (out / "0007.png").exists()  # files of an earlier run are removed
     assert (state / "paperpi.last-good.toml").is_file()
+
+
+def test_health_command(tmp_path, capsys):
+    path = tmp_path / "health"
+    assert main(["health", "--health-file", str(path)]) == 1
+    assert "PaperPi is not running" in capsys.readouterr().out
 
 
 def test_run_with_broken_config(tmp_path, capsys):

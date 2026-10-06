@@ -24,6 +24,12 @@ Status: proposed (M1, issue #190). Decided with txoof.
 - If no report arrives for 2 minutes, the watchdog restarts PaperPi: systemd's watchdog outside Docker, Docker's health check inside it. Both use the same report.
 - Healthy does **not** require a recent screen update.
 
+How it is built (`src/paperpi/health.py`, M4):
+- Only the scheduler loop reports, so a loop stuck anywhere (for example in a screen write that never ends) stops the reports. The loop wakes up for a report even when nothing else is due.
+- To systemd: the first report says `READY=1`, every report `WATCHDOG=1`, and stopping on purpose says `STOPPING=1`. The messages are sent with the `cysystemd` package, only when systemd asked for them (the `NOTIFY_SOCKET` variable is set). The service (M6) needs `Type=notify` and `WatchdogSec=120`.
+- For Docker: each report replaces the file `/run/paperpi/health` (in memory, emptied at every start of the Pi). It holds one line: the time of the report, and the health data of `freeze-prevention.md` rule 8 (time since the last screen write, memory use, open files, free disk). It is replaced, never added to, so it can't grow. `paperpi health` ends with status 1 when the report is older than 2 minutes or missing; Docker's health check runs it. Stopping on purpose removes the file.
+- A failed report (no file can be written, systemd not answering) is logged once and does not stop PaperPi.
+
 ### When screen writes fail
 
 | Situation | What PaperPi does |
@@ -65,4 +71,6 @@ As in `plugin-scheduling.md`: a failed update is skipped and retried at the plug
 
 ## Open questions
 
-None. All points above were agreed with txoof on 2026-10-04.
+- For M6: Docker itself only marks a container "unhealthy"; it does not restart it. The install must choose how an unhealthy PaperPi is restarted (for example, the health check command also ends the container, which `restart: always` then starts again).
+
+All other points above were agreed with txoof on 2026-10-04.

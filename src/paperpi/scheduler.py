@@ -31,7 +31,9 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
 One loop (:meth:`Scheduler.run`) makes every decision, in one thread, so two decisions can
 never happen at the same moment. Finished updates, "stop", "reload" and "dismiss" reach it as
 events in one queue. The loop sleeps until the next event or the next moment something is
-due. The clock and the executor (what runs the updates) are passed in, so tests can use a
+due, and at least every :data:`~paperpi.limits.HEALTH_REPORT` seconds it reports "still
+running" (:mod:`paperpi.health`), so a stuck loop is noticed and PaperPi restarted. The clock
+and the executor (what runs the updates) are passed in, so tests can use a
 fake clock and check hours of switching in a fraction of a second.
 """
 
@@ -59,6 +61,9 @@ log = logging.getLogger(__name__)
 
 #: Runs one update: ``update(plugin_type, context, time_limit)``. Raises on failure.
 Update = Callable[[str, Context, float], UpdateResult]
+
+#: Says "still running": ``report(seconds since the last screen write, or None)``.
+Report = Callable[[float | None], None]
 
 
 class Clock:
@@ -147,7 +152,8 @@ class Scheduler:
     ``executor``, ``update`` and ``stop_updates`` are for tests; by default updates run in
     plugin processes with :func:`paperpi.runner.run_update`, at most
     :data:`~paperpi.limits.PARALLEL_UPDATES` at once, and stopping ends the running ones
-    with :func:`paperpi.runner.stop_all`.
+    with :func:`paperpi.runner.stop_all`. ``health`` (e.g. :meth:`paperpi.health.Health.report`)
+    is called by the loop every :data:`~paperpi.limits.HEALTH_REPORT` seconds.
     """
 
     def __init__(
@@ -161,6 +167,7 @@ class Scheduler:
         executor: Executor | None = None,
         update: Update | None = None,
         stop_updates: Callable[[], None] | None = None,
+        health: Report | None = None,
     ):
         self.screen = screen
         self.state_dir = Path(state_dir)
@@ -174,6 +181,10 @@ class Scheduler:
         if stop_updates is None:
             stop_updates = stop_all if update is None else lambda: None
         self._stop_updates = stop_updates
+        self._health = health
+        self._next_report = -math.inf
+        self._last_written: float | None = None
+        """When the screen was last written without an error."""
         self._events: queue.SimpleQueue = queue.SimpleQueue()
         self._slots: list[_Slot] = []
         self._default = _Slot(_default_config(config))
@@ -217,6 +228,7 @@ class Scheduler:
         try:
             while True:
                 now = self.clock.monotonic()
+                self._report(now)
                 self._start_due(now)
                 self._show(now)
                 event = self.clock.wait(self._events, self._wait_time(self.clock.monotonic()))
@@ -255,6 +267,15 @@ class Scheduler:
                 log.error("config file can't be used; the old settings keep running")
                 return
             self._apply(new)
+
+    def _report(self, now: float) -> None:
+        # Only this loop reports, so the reports stop when the loop is stuck, for example
+        # in a screen write that never ends.
+        if self._health is None or now < self._next_report:
+            return
+        since = None if self._last_written is None else now - self._last_written
+        self._health(since)
+        self._next_report = now + limits.HEALTH_REPORT
 
     def _apply(self, config: Config) -> None:
         """Use a new config. Plugins whose settings did not change keep their place and image."""
@@ -500,13 +521,16 @@ class Scheduler:
         if self._write_failures:
             log.warning("screen writes work again, after %d failed", self._write_failures)
             self._write_failures = 0
-        self.write_seconds = self.clock.monotonic() - start
+        self._last_written = self.clock.monotonic()
+        self.write_seconds = self._last_written - start
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""
         times = [s.due for s in self._slots if not s.running]
+        if self._health is not None:
+            times.append(self._next_report)
         if any(t <= now for t in times):
-            return 0  # an update came due while the screen was being written
+            return 0  # something came due while the screen was being written
         if self._current is not None:
             times.append(self._turn_start + self._current.config.entry.display_time)
             if self._current is self._fallback and not self._fallback.running:
