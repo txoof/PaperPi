@@ -21,18 +21,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cysystemd"
-version = "2.0.5"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/11/ca/2451ce4dd2e9d9d770630486bdae5dd161cf10576e0bf7443a8b33d42a2f/cysystemd-2.0.5.tar.gz", hash = "sha256:faac7506b6a709e96c0b0028bc5b3b62c3f5457b31e13e7d82b7a5f1c1889d96", size = 338663, upload-time = "2026-03-04T21:55:52.79Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/19/98/51677d2b07e8fcec04288c0a2fd3e76d4676930a5751e1ed3927037300a4/cysystemd-2.0.5-cp313-cp313-manylinux_2_34_aarch64.whl", hash = "sha256:9ec006a3549f1eef13f34e87bf62eb744cd0d588171c936e90d93cf3e3ac4ec3", size = 2237884, upload-time = "2026-03-04T21:55:38.782Z" },
-    { url = "https://files.pythonhosted.org/packages/99/70/91cadc7439b8ecc2c35287226ba434eb19d82f1984d437d176429629dd37/cysystemd-2.0.5-cp313-cp313-manylinux_2_34_x86_64.whl", hash = "sha256:a8c573e6ec970b3643dfae675a904ef81aa59d78e8e9ff331896c293a4057279", size = 2369743, upload-time = "2026-03-04T21:55:40.541Z" },
-    { url = "https://files.pythonhosted.org/packages/85/bd/3eb545685d68b46e9d694e6205ee5798b7a7c9093dd4e2059a2f04e80813/cysystemd-2.0.5-cp314-cp314-manylinux_2_34_aarch64.whl", hash = "sha256:87b474cb6a3a4c6fea5e822c4c61a3dcdd913b5255bbd1d887677db68279ed91", size = 2238626, upload-time = "2026-03-04T21:55:42.593Z" },
-    { url = "https://files.pythonhosted.org/packages/af/00/3c6419b2dc62b271e50dfcd52d2a25b83c8e47e792e49cc4c0eec8db8754/cysystemd-2.0.5-cp314-cp314-manylinux_2_34_x86_64.whl", hash = "sha256:4597b258d7ea55ef6ff2471fbf6ac674b47432ed7b3009e061532bd2e73251d7", size = 2359646, upload-time = "2026-03-04T21:55:44.218Z" },
-]
-
-[[package]]
 name = "epdlib"
 version = "1.0.0.dev0"
 source = { git = "https://github.com/txoof/epdlib?rev=e7b25b771dd3aa3d14ba678036de3c8880d7c279#e7b25b771dd3aa3d14ba678036de3c8880d7c279" }
@@ -173,7 +161,6 @@ name = "paperpi"
 version = "2.0.0.dev0"
 source = { editable = "." }
 dependencies = [
-    { name = "cysystemd", marker = "sys_platform == 'linux'" },
     { name = "epdlib" },
     { name = "pydantic" },
 ]
@@ -187,7 +174,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cysystemd", marker = "sys_platform == 'linux'", specifier = ">=2.0" },
     { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=e7b25b771dd3aa3d14ba678036de3c8880d7c279" },
     { name = "pydantic", specifier = ">=2.9" },
 ]

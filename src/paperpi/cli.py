@@ -231,7 +231,10 @@ def _run(args: argparse.Namespace) -> int:
     for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
         old.unlink(missing_ok=True)
     screen = VirtualDriver(width, height, mode, out)
-    reports = health.Health(args.health_file, disk=args.state_dir)
+    # Taken out of the environment, so plugin processes can't send "still running" for a
+    # stuck loop.
+    notify_socket = os.environ.pop("NOTIFY_SOCKET", None)
+    reports = health.Health(args.health_file, disk=args.state_dir, notify_socket=notify_socket)
     scheduler = Scheduler(
         loaded, screen, state_dir=args.state_dir, reload=load, health=reports.report
     )

@@ -6,11 +6,11 @@ The reasons are in ``docs/decisions/errors-and-time-limits.md``. In short:
   seconds. When the loop gets stuck, the reports stop, and after
   :data:`~paperpi.limits.HEALTH_STALE` seconds the watchdog restarts PaperPi.
 - Under systemd, each report is a ``WATCHDOG=1`` message (the first one also says
-  ``READY=1``), sent with the ``cysystemd`` package. The service needs ``Type=notify``
-  (systemd counts PaperPi as started only after ``READY=1``), ``WatchdogSec=120`` (systemd
-  restarts PaperPi when no ``WATCHDOG=1`` arrives for 120 seconds) and the default
-  ``NotifyAccess=main`` (only messages from the main process count, not from plugin
-  processes). Without systemd nothing is sent.
+  ``READY=1``), sent as systemd documents it (:func:`send_to_systemd`). The service needs
+  ``Type=notify`` (systemd counts PaperPi as started only after ``READY=1``),
+  ``WatchdogSec=120`` (systemd restarts PaperPi when no ``WATCHDOG=1`` arrives for 120
+  seconds) and the default ``NotifyAccess=main`` (only messages from the main process
+  count, not from plugin processes). Without systemd nothing is sent.
 - Each report also replaces the health file (default :data:`HEALTH_FILE`). Docker's health
   check runs ``paperpi health``, which reads it with :func:`check`. The file holds one line
   of JSON: the time of the report, the time since the last screen write, memory use and
@@ -27,10 +27,12 @@ import json
 import logging
 import os
 import shutil
+import socket
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 from . import limits
@@ -86,8 +88,9 @@ class Health:
     """Sends the health reports of one ``paperpi run``.
 
     ``path`` is the health file (``None``: no file). ``disk`` is the folder whose free space
-    is reported. ``notify`` sends a message to systemd; by default it uses ``cysystemd``,
-    and only when systemd asked for messages (``NOTIFY_SOCKET`` in ``environ``).
+    is reported. ``notify_socket`` is where systemd listens for messages (the value of
+    ``NOTIFY_SOCKET``, which systemd sets); ``None``: not under systemd, nothing is sent.
+    ``notify`` replaces the sending, for tests.
     """
 
     def __init__(
@@ -95,13 +98,13 @@ class Health:
         path: Path | None = HEALTH_FILE,
         *,
         disk: Path,
+        notify_socket: str | None = None,
         notify: Notify | None = None,
-        environ: Mapping[str, str] = os.environ,
     ):
         self.path = path
         self.disk = disk
         if notify is None:
-            notify = _systemd_notify if environ.get("NOTIFY_SOCKET") else lambda name: None
+            notify = partial(_notify, notify_socket) if notify_socket else _not_under_systemd
         self._notify = notify
         self._ready = False
         self._failed: set[str] = set()
@@ -142,7 +145,7 @@ class Health:
         """Send one message to systemd; whether it worked."""
         try:
             self._notify(name)
-        except Exception as error:  # noqa: BLE001 - cysystemd raises ValueError, RuntimeError...
+        except OSError as error:
             self._log_once("systemd", "can't send %s to systemd: %s", name, error)
             return False
         self._failed.discard("systemd")
@@ -185,11 +188,30 @@ def check(path: Path = HEALTH_FILE, *, now: float | None = None) -> tuple[bool, 
     return True, f"healthy: last report {max(age, 0):.0f} s ago ({details})"
 
 
-def _systemd_notify(name: str) -> None:
-    # Imported here: the package is only needed when PaperPi runs under systemd.
-    from cysystemd.daemon import Notification, notify
+def send_to_systemd(address: str, message: str) -> None:
+    """Send ``message`` (e.g. ``"WATCHDOG=1"``) to systemd. Raises ``OSError`` on failure.
 
-    notify(Notification[name], return_exceptions=False)
+    ``address`` is the value of ``NOTIFY_SOCKET``: the path of a socket (a connection point
+    between programs on the same computer), or, starting with ``@``, the name of an
+    "abstract" socket, which has no file. This is the protocol systemd documents for
+    programs that send the messages themselves (``man sd_notify``).
+    """
+    if address.startswith("@"):
+        address = "\0" + address[1:]
+    elif not address.startswith("/"):
+        raise OSError(f"unsupported NOTIFY_SOCKET {address!r}")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM | socket.SOCK_CLOEXEC) as sock:
+        sock.settimeout(limits.SYSTEMD_MESSAGE)
+        sock.connect(address)
+        sock.sendall(message.encode())
+
+
+def _notify(address: str, name: str) -> None:
+    send_to_systemd(address, f"{name}=1")
+
+
+def _not_under_systemd(name: str) -> None:
+    pass
 
 
 def _memory_mb() -> float | None:

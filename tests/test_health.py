@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import socket
 import time
 
 import pytest
@@ -19,8 +20,7 @@ class FakeSystemd:
     def __call__(self, name):
         self.messages.append(name)
         if self.fail:
-            # What cysystemd raises when the message can't be sent.
-            raise ValueError("Notification error #-2", -2)
+            raise OSError("socket gone")
 
 
 @pytest.fixture
@@ -40,21 +40,33 @@ def test_nothing_is_sent_without_systemd(tmp_path, monkeypatch):
     def fail(name):
         raise AssertionError("sent without systemd")
 
-    monkeypatch.setattr(health, "_systemd_notify", fail)
-    reports = Health(tmp_path / "health", disk=tmp_path, environ={})
+    monkeypatch.setattr(health, "send_to_systemd", fail)
+    reports = Health(tmp_path / "health", disk=tmp_path, notify_socket=None)
     reports.report(None)
     reports.stopping()
 
 
-def test_real_systemd_message_to_a_missing_socket_is_only_logged(tmp_path, caplog):
-    reports = Health(tmp_path / "health", disk=tmp_path, environ={"NOTIFY_SOCKET": "x"})
-    os.environ["NOTIFY_SOCKET"] = str(tmp_path / "no-socket")  # cysystemd reads it itself
-    try:
-        with caplog.at_level(logging.WARNING):
-            reports.report(None)
-            reports.stopping()
-    finally:
-        del os.environ["NOTIFY_SOCKET"]
+@pytest.mark.parametrize("abstract", [False, True])
+def test_messages_reach_a_real_socket(tmp_path, abstract):
+    # Stands in for systemd. An address starting with @ is an "abstract" socket (no file).
+    address = f"@paperpi-test-{os.getpid()}" if abstract else str(tmp_path / "notify")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as systemd:
+        systemd.bind("\0" + address[1:] if abstract else address)
+        systemd.settimeout(5)
+        reports = Health(tmp_path / "health", disk=tmp_path, notify_socket=address)
+        reports.report(None)
+        reports.report(None)
+        reports.stopping()
+        received = [systemd.recv(100) for _ in range(4)]
+    assert received == [b"READY=1", b"WATCHDOG=1", b"WATCHDOG=1", b"STOPPING=1"]
+
+
+@pytest.mark.parametrize("address", ["/no/such/socket", "vsock:2:1234"])
+def test_message_to_a_missing_or_unknown_socket_is_only_logged(tmp_path, caplog, address):
+    reports = Health(tmp_path / "health", disk=tmp_path, notify_socket=address)
+    with caplog.at_level(logging.WARNING):
+        reports.report(None)
+        reports.stopping()
     assert "can't send READY to systemd" in caplog.text
 
 

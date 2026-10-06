@@ -70,5 +70,8 @@ HEALTH_REPORT = 30.0
 #: A report older than this counts as "not responding": the watchdog restarts PaperPi.
 HEALTH_STALE = 2 * 60.0
 
+#: Longest sending one message to systemd may take.
+SYSTEMD_MESSAGE = 5.0
+
 #: Largest health file ``paperpi health`` reads. A report is under 200 bytes.
 HEALTH_FILE_BYTES = 1_000
