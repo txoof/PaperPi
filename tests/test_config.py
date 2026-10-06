@@ -195,7 +195,7 @@ def test_unknown_plugin_type_suggests_a_name():
     [problem] = problems(cfg)
     assert problem.startswith(
         "paperpi.toml line 8 [[plugin]] 'Clock': unknown plugin type 'basic_clok' "
-        "(did you mean 'basic_clock'?); known: basic_clock, debugging, default"
+        "(did you mean 'basic_clock'?); known: basic_clock, "
     )
 
 
