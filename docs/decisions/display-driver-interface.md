@@ -72,7 +72,7 @@ Drivers use only `gpiod` and `spidev`. Importing epdlib's layout code never impo
 - **Screens without a fast mode always do a full refresh**, whatever the settings say.
 - Plugins don't choose. PaperPi uses fast for small changes of the plugin already on screen (clock tick, next track) and full when another plugin comes on screen.
 - After a set number of fast refreshes in a row, the next write is a full one. Setting `max_refresh`, default **4**.
-- **Cleaning refresh:** a single full GC16 refresh does not remove all leftovers; the IT8951's INIT mode (a longer flash to white) does (M2 viewing test). PaperPi does a cleaning refresh (INIT, then the image in GC16) once an hour; the interval is a setting. Checked by eye on the screen in M4.
+- **Cleaning refresh:** a single full GC16 refresh does not remove all leftovers; the IT8951's INIT mode (a longer flash to white) does (M2 viewing test). PaperPi does a cleaning refresh (INIT, then the image in GC16) once an hour; the interval is a setting (`[display] clean_every`, default 3600 s; also at the first write after a start). Checked by eye on the screen in M4.
 - *Correction (M2):* this note first said `max_refresh` worked "like v1". v1 actually drew every update with a full GC16 refresh, never a fast one, and cleared the screen with INIT before every 4th update (`max_refresh = 4`). v2 keeps that cleaning idea but needs it less often, because most small updates are fast ones.
 - PaperPi measures how long each redraw takes (until the busy signal switches off) and never sends a new image before the screen is ready (see `plugin-interface.md`).
 
@@ -93,10 +93,10 @@ Drivers use only `gpiod` and `spidev`. Importing epdlib's layout code never impo
 
 - The screen sleeps after every write and is woken for the next one. Waveshare warns that a screen left powered for long periods can be damaged.
 - *Update (M4 part 5b, 2026-10-06):* the driver's `write` and `clear` wake a sleeping screen by themselves, as epdlib 0.6 did (epdlib #85). `init` is not used for this: on the IT8951 it resets the controller, which then forgets what it shows, so every write would be a full one.
-- The start-up check runs in the screen's own thread, so PaperPi starts and reports "healthy" while it runs. An error is logged; after that the screen is tried as in `errors-and-time-limits.md`.
-- "On exit" means a stop that was asked for: Ctrl+C, `systemctl stop`, or a shutdown or reboot of the Pi (they all send the stop signal). After an error (a crash, or a stuck screen helper process) the last image stays: the restart draws it again soon, and a clear would only add a flash.
+- The start-up check starts the screen (the driver's `init`) in the screen's own thread, so PaperPi starts and reports "healthy" while it runs. The screen sleeps after it, and also after a failed write, until the next write. An error is logged; after that the screen is tried as in `errors-and-time-limits.md`.
+- "On exit" means a stop that was asked for: Ctrl+C, `systemctl stop`, or a shutdown or reboot of the Pi (they all send the stop signal). After an error (a crash, or a stuck screen helper process) the last image stays: the restart draws it again soon, and a clear would only add a flash. The clear at exit must not make stopping slow (systemd waits 90 s by default, Docker 10 s): it is skipped when a write is still running after 2 s, when writes are paused, or when the screen was never started; it may take at most 30 s; and a second stop signal ends it at once.
 - At start, PaperPi checks that the screen answers. If it doesn't, PaperPi keeps running and shows a clear error in the web interface, e.g. "screen not answering: check the cable and the selected model". It does not crash and restart in a loop.
-- On exit the screen is cleared by default, or keeps the last image if the user chose that (setting, see `config-format.md`).
+- On exit the screen is cleared by default, or keeps the last image if the user chose that (setting `on_exit = "clear"` or `"keep"` in `[display]`; every setting is listed in `paperpi.example.toml`).
 
 ### Supported screens
 

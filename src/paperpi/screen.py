@@ -213,6 +213,7 @@ def _child(pipe: Connection, make_driver: MakeDriver) -> None:
         except Exception as error:  # noqa: BLE001 - reported to the main process
             pipe.send(("error", f"{type(error).__name__}: {error}"))
             return
+        _sleep(driver)  # until the first write, which may be a while
         pipe.send(("ok", time.monotonic() - start))
         while True:
             command, *args = pipe.recv()
@@ -220,14 +221,19 @@ def _child(pipe: Connection, make_driver: MakeDriver) -> None:
             try:
                 if command == "close":
                     driver, closing = None, driver
+                    _sleep(closing)
                     closing.close()
                 elif command == "write":
                     mode, size, data, fast = args
-                    driver.write(Image.frombytes(mode, size, data), fast=fast)
-                    driver.sleep()  # the next write wakes it
+                    try:
+                        driver.write(Image.frombytes(mode, size, data), fast=fast)
+                    finally:
+                        _sleep(driver)  # also after a failed write; the next write wakes it
                 elif command == "clear":
-                    driver.clear()
-                    driver.sleep()
+                    try:
+                        driver.clear()
+                    finally:
+                        _sleep(driver)
                 else:
                     raise ValueError(f"unknown command {command!r}")
             except Exception as error:  # noqa: BLE001 - reported to the main process
@@ -241,6 +247,15 @@ def _child(pipe: Connection, make_driver: MakeDriver) -> None:
     finally:
         if driver is not None:
             driver.close()  # safe to call more than once
+
+
+def _sleep(driver: Driver) -> None:
+    """Put the screen into low power. A failure is not reported: the picture is on screen,
+    and a screen that really fails shows it at the next write."""
+    try:
+        driver.sleep()
+    except Exception:  # noqa: BLE001, S110 - see above
+        pass
 
 
 class Screen:
@@ -279,6 +294,8 @@ class Screen:
         """Failed tries while paused; each one doubles the wait before the next."""
         self._paused_since: float | None = None
         """When writes paused (real time), for the log."""
+        self._last_try: float | None = None
+        """When the helper process was last asked to do something (monotonic clock)."""
         self._lock = threading.Lock()
         self._closed = False
 
@@ -303,21 +320,64 @@ class Screen:
         """Make the screen blank."""
         self._run("clear")
 
-    def change(self, make_driver: MakeDriver | None = None) -> None:
-        """After a config change: use ``make_driver`` from now on (``None``: keep the driver),
-        and try again at once if writes are paused, with the shortest wait after that."""
+    def change(self, make_driver: MakeDriver) -> None:
+        """New screen settings: use ``make_driver`` from now on. The next write starts a new
+        helper process, and when writes were paused, the counting starts from zero."""
         with self._lock:
-            if make_driver is not None:
-                try:
-                    self._helper.stop(close=True)  # the next write starts one with the new driver
-                except ScreenStuck:
-                    self._stuck()
-                    raise
-                self._helper.make_driver = make_driver
-            if self.retry_at is not None:
-                log.info("config changed: trying the screen again")
-            self.retry_at = self._paused_since = None
-            self.failures = self.resets = self.rests = 0
+            self._helper.make_driver = make_driver  # also when stopping the old one fails
+            self._fresh_start()
+            try:
+                self._helper.stop(close=True)
+            except ScreenStuck:
+                self._stuck()
+                raise
+
+    def retry_now(self, *, fresh: bool) -> None:
+        """After a config reload: when writes are paused, try again at once. ``fresh`` (the
+        screen settings changed): the counting starts from zero. Otherwise one try, at most
+        every :data:`~paperpi.limits.SCREEN_REST` seconds; when it fails, the waits go on
+        where they were, so reloading again and again doesn't make the screen be tried
+        again and again."""
+        with self._lock:
+            if self.retry_at is None:
+                return
+            if fresh:
+                self._fresh_start()
+            elif self._last_try is None or self.clock() - self._last_try >= limits.SCREEN_REST:
+                self.retry_at = None
+            else:
+                return
+            log.info("config reloaded: trying the screen again")
+
+    def clear_before_exit(self) -> None:
+        """Make the screen blank when PaperPi stops, within a short time limit. Skipped when
+        a write is still running, writes are paused, or no helper process runs (the screen
+        would first need a reset). Raises :class:`ScreenStuck` when the helper process can't
+        be stopped; other problems are only logged."""
+        if not self._lock.acquire(timeout=limits.SCREEN_EXIT_WAIT):
+            log.warning("the screen is not cleared before exit: a write is still running")
+            return
+        try:
+            if self._closed or self.retry_at is not None or not self._helper.running:
+                log.info("the screen is not cleared before exit: it is not answering")
+                return
+            limit = min(self.time_limit, limits.SCREEN_EXIT_CLEAR)
+            self._helper.call("clear", limit=limit)
+            log.info("screen cleared")
+        except ScreenStuck:
+            raise
+        except ScreenError as error:
+            log.warning("the screen could not be cleared before exit: %s", error)
+        finally:
+            self._lock.release()
+
+    def abort(self) -> None:
+        """End a running screen operation at once (e.g. a second Ctrl+C while clearing)."""
+        self._helper.kill()
+
+    def _fresh_start(self) -> None:
+        self.retry_at = self._paused_since = None
+        self.failures = self.resets = self.rests = 0
 
     def close(self) -> None:
         """Close the screen and end the helper process. Never raises."""
@@ -352,6 +412,7 @@ class Screen:
                 image, fast = args
                 args = (image.mode, image.size, image.tobytes(), fast)
             try:
+                self._last_try = now
                 if not self._helper.running:
                     self._helper.start(self.time_limit)
                 if command != "check":
@@ -398,12 +459,9 @@ class Screen:
             self._stop_helper()  # the next write starts a new one, whose init resets the screen
 
     def _rest(self) -> None:
-        if self._paused_since is None:
-            self._paused_since = self.wall()
-        wait = min(limits.SCREEN_REST * 2**self.rests, limits.SCREEN_REST_LONGEST)
-        self.rests += 1
-        self.retry_at = self.clock() + wait
+        # First: a stuck helper process counts the wait itself (in _stuck), only once.
         self._stop_helper()  # releases the pins while writes are paused
+        self.retry_at = self.clock() + self._next_wait()
 
     def _stop_helper(self) -> None:
         try:
@@ -428,17 +486,26 @@ class Screen:
                 return
         log.error("a screen helper process is stuck; writes pause (no exit within the hour)")
         self.failures += 1
-        if self._paused_since is None:
-            self._paused_since = self.wall()
-        wait = min(limits.SCREEN_REST * 2**self.rests, limits.SCREEN_REST_LONGEST)
-        self.rests += 1
+        wait = self._next_wait()
         self.retry_at = self.clock() + wait
         raise ScreenResting("screen helper process stuck", wait)
 
+    def _next_wait(self) -> float:
+        """The wait before the next try while paused: it doubles after each failed try."""
+        if self._paused_since is None:
+            self._paused_since = self.wall()
+        # 2**6 × 10 minutes is past the longest wait; capped so the number can't grow forever.
+        self.rests = min(self.rests + 1, 7)
+        return min(limits.SCREEN_REST * 2 ** (self.rests - 1), limits.SCREEN_REST_LONGEST)
+
 
 def _minutes(seconds: float) -> str:
+    """``40 minutes``, ``2 hours``, ``5 hours 20 minutes``."""
     minutes = round(seconds / 60)
-    return f"{minutes} minutes" if minutes < 120 else f"{minutes / 60:g} hours"
+    if minutes < 120:
+        return f"{minutes} minutes"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours} hours" + (f" {minutes} minutes" if minutes else "")
 
 
 def _read_time(path: Path | None, now: float) -> float | None:

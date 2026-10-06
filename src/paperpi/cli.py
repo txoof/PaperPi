@@ -4,7 +4,8 @@
   uses the plugin's sample data and default settings, so it needs no network and no config
   file.
 - ``paperpi run`` shows the plugins of a config file: it runs the scheduler until it is
-  stopped. Until the real screens are added, it writes to a virtual screen (PNG files).
+  stopped. With ``type = "virtual"`` it writes PNG files; with ``type = "it8951"`` it writes
+  to the real screen.
 - ``paperpi list`` shows the plugins of a config file; ``paperpi example-config`` prints an
   example config file.
 - ``paperpi health`` says whether ``paperpi run`` still reports "healthy"; Docker's health
@@ -33,7 +34,7 @@ from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
-from .screen import Screen, ScreenError, ScreenStuck, driver_for
+from .screen import Screen, ScreenStuck, driver_for
 
 log = logging.getLogger("paperpi")
 
@@ -295,10 +296,14 @@ def _run(args: argparse.Namespace) -> int:
                 f"process id {os.getpid()} (kill -HUP {os.getpid()} applies config changes)"
             )
             scheduler.run()
+            reports.stopping()
             # Only after a stop that was asked for (Ctrl+C, systemctl stop, shutdown or
-            # reboot): after an error, the restart draws the picture again anyway.
+            # reboot): after an error, the restart draws the picture again anyway. A second
+            # stop signal ends the clear at once.
             if scheduler.display.on_exit == "clear":
-                _clear(screen)
+                signal.signal(signal.SIGTERM, lambda *_: screen.abort())
+                signal.signal(signal.SIGINT, lambda *_: screen.abort())
+                screen.clear_before_exit()
     except ScreenStuck as error:
         print(f"paperpi: {error}; exiting, so PaperPi is started again", file=sys.stderr)
         reports.stopping()
@@ -313,16 +318,6 @@ def _run(args: argparse.Namespace) -> int:
     finally:
         reports.stopping()
     return 0
-
-
-def _clear(screen: Screen) -> None:
-    """Make the screen blank before exit, within the normal screen-write time limit."""
-    try:
-        screen.clear()
-    except ScreenError as error:
-        log.warning("the screen could not be cleared before exit: %s", error)
-    else:
-        log.info("screen cleared")
 
 
 def _list(args: argparse.Namespace) -> int:

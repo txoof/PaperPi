@@ -25,18 +25,20 @@ type = "virtual"
 # height = 825
 # Virtual screen only: what it can show. One of: "bw", "gray4", "gray16", "7color", "rgb"
 # mode = "gray16"
-# Real screens: the screen model. For it8951 its size in inches: "6", "7.8", "9.7" or "10.3"
+# Real screens (required for it8951): the screen model. For it8951 its size in inches: "6", "7.8",
+# "9.7" or "10.3"
 # model = "9.7"
-# it8951 only, and required: the voltage printed on the screen's ribbon cable, e.g. -1.90. Each
-# screen has its own; a wrong value gives poor contrast
+# it8951 only, and required: the voltage printed on the screen's ribbon cable, e.g. -1.9 (between
+# -3.0 and -0.5). Each screen has its own; a wrong value gives poor contrast
 # vcom = -1.9
 # After this many fast refreshes in a row, the next one is a full refresh, which removes most
 # leftovers of earlier images (0 = never force one)
 # max_refresh = 4
 # Seconds between cleaning refreshes, which flash the screen white to remove all leftovers of
-# earlier images (0 = never; else at least 60)
+# earlier images; also at the first write after a start (0 = never; else at least 600)
 # clean_every = 3600
-# When PaperPi is stopped: make the screen blank, or keep the last picture. One of: "clear", "keep"
+# When PaperPi is stopped on purpose (Ctrl+C, systemctl stop, shutdown): make the screen blank, or
+# keep the last picture. After a crash the picture stays. One of: "clear", "keep"
 # on_exit = "clear"
 
 # basic_clock: The time, and optionally the date, in large text.

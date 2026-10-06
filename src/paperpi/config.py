@@ -113,8 +113,8 @@ class DisplaySettings(BaseModel):
     )
     model: str | None = Field(
         None,
-        description='Real screens: the screen model. For it8951 its size in inches: "6", '
-        '"7.8", "9.7" or "10.3"',
+        description="Real screens (required for it8951): the screen model. For it8951 its "
+        'size in inches: "6", "7.8", "9.7" or "10.3"',
     )
     vcom: float | None = Field(
         None,
@@ -122,7 +122,8 @@ class DisplaySettings(BaseModel):
         le=VCOM_RANGE[1],
         allow_inf_nan=False,
         description="it8951 only, and required: the voltage printed on the screen's ribbon "
-        "cable, e.g. -1.90. Each screen has its own; a wrong value gives poor contrast",
+        "cable, e.g. -1.9 (between -3.0 and -0.5). Each screen has its own; a wrong value "
+        "gives poor contrast",
     )
     max_refresh: int = Field(
         4,
@@ -137,11 +138,13 @@ class DisplaySettings(BaseModel):
         ge=0,
         le=limits.LONGEST_SETTING,
         description="Seconds between cleaning refreshes, which flash the screen white to "
-        "remove all leftovers of earlier images (0 = never; else at least 60)",
+        "remove all leftovers of earlier images; also at the first write after a start (0 = "
+        "never; else at least 600)",
     )
     on_exit: Literal["clear", "keep"] = Field(
         "clear",
-        description="When PaperPi is stopped: make the screen blank, or keep the last picture",
+        description="When PaperPi is stopped on purpose (Ctrl+C, systemctl stop, shutdown): "
+        "make the screen blank, or keep the last picture. After a crash the picture stays",
     )
 
     @field_validator("model", mode="before")
@@ -155,8 +158,9 @@ class DisplaySettings(BaseModel):
     @field_validator("clean_every")
     @classmethod
     def _not_too_often(cls, seconds: float) -> float:
-        if 0 < seconds < 60:
-            raise ValueError("must be 0 (never) or at least 60 seconds")
+        # Each one flashes the whole screen; Waveshare advises few full refreshes.
+        if 0 < seconds < 600:
+            raise ValueError("must be 0 (never) or at least 600 seconds")
         return seconds
 
     @property
@@ -518,6 +522,15 @@ class _Checker:
                     )
         if settings.type == "it8951":
             self.check_it8951(settings, section)
+        if settings.max_refresh == 0 and settings.clean_every == 0:
+            self.add(
+                "hint",
+                "max_refresh = 0 and clean_every = 0: the screen is never fully refreshed, so "
+                "faint leftovers of earlier images build up",
+                section,
+                "clean_every",
+                "[display]",
+            )
         if not settings.fallback_clock:
             self.add(
                 "hint",

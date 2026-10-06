@@ -7,7 +7,9 @@ requires-python = ">=3.13"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
-    "epdlib[it8951]",
+    "epdlib",
+    # The pin and SPI libraries for the IT8951 screen; they build only on Linux.
+    "epdlib[it8951]; sys_platform == 'linux'",
     "pydantic>=2.9",
     "tomlkit>=0.13",
 ]

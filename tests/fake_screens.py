@@ -55,9 +55,10 @@ class Pretend(Driver):
         self._note("close")
 
 
-def notes(folder):
-    """The operations, as (process id, what) pairs."""
+def notes(folder, sleeps=False):
+    """The operations, as (process id, what) pairs; "sleep" only with ``sleeps``."""
     path = folder / "log"
     if not path.exists():
         return []
-    return [tuple(line.split(" ", 1)) for line in path.read_text().splitlines()]
+    found = [tuple(line.split(" ", 1)) for line in path.read_text().splitlines()]
+    return [note for note in found if sleeps or note[1] != "sleep"]

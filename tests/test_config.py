@@ -224,7 +224,7 @@ def test_it8951_unknown_model():
         ("max_refresh = -1", "max_refresh: Input should be greater than or equal to 0"),
         ("max_refresh = true", "max_refresh: Input should be a valid integer"),
         ("max_refresh = 2.5", "max_refresh: Input should be a valid integer"),
-        ("clean_every = 30", "clean_every: Value error, must be 0 (never) or at least 60"),
+        ("clean_every = 300", "clean_every: Value error, must be 0 (never) or at least 600"),
         ("clean_every = -1", "clean_every: Input should be greater than or equal to 0"),
         ('on_exit = "blank"', "on_exit: Input should be 'clear' or 'keep'"),
     ],
@@ -233,6 +233,14 @@ def test_wrong_screen_settings(line, wrong):
     text = IT8951 + 'model = "9.7"\n' + ("" if line.startswith("vcom") else "vcom = -2\n")
     messages = errors_of(text + line + "\n")
     assert len(messages) == 1 and wrong in messages[0], messages
+
+
+def test_hint_when_the_screen_is_never_fully_refreshed():
+    cfg = parse(GOOD.replace('"virtual"', '"virtual"\nmax_refresh = 0\nclean_every = 0'))
+    assert problems(cfg, "hint") == [
+        "config line 6 [display]: max_refresh = 0 and clean_every = 0: the screen is never "
+        "fully refreshed, so faint leftovers of earlier images build up"
+    ]
 
 
 def test_clean_every_0_means_never():

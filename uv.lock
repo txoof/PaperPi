@@ -1,6 +1,10 @@
 version = 1
 revision = 5
 requires-python = ">=3.13"
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
 
 [[package]]
 name = "annotated-types"
@@ -187,7 +191,8 @@ name = "paperpi"
 version = "2.0.0.dev0"
 source = { editable = "." }
 dependencies = [
-    { name = "epdlib", extra = ["it8951"] },
+    { name = "epdlib" },
+    { name = "epdlib", extra = ["it8951"], marker = "sys_platform == 'linux'" },
     { name = "pydantic" },
     { name = "tomlkit" },
 ]
@@ -201,7 +206,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "epdlib", extras = ["it8951"], git = "https://github.com/txoof/epdlib?rev=f3092caf840d8136030b0a7739a01fb2db0d7bdf" },
+    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=f3092caf840d8136030b0a7739a01fb2db0d7bdf" },
+    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=f3092caf840d8136030b0a7739a01fb2db0d7bdf" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "tomlkit", specifier = ">=0.13" },
 ]

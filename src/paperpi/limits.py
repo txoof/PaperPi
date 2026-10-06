@@ -111,6 +111,12 @@ SCREEN_REST = 10 * 60.0
 #: The longest wait between two tries while screen writes pause.
 SCREEN_REST_LONGEST = 6 * 60 * 60.0
 
+#: When PaperPi stops: how long to wait for a running screen write before clearing the
+#: screen, and the longest the clear may take. A stop must stay well under systemd's stop
+#: time limit (90 s by default).
+SCREEN_EXIT_WAIT = 2.0
+SCREEN_EXIT_CLEAR = 30.0
+
 #: How long a screen helper process may take to end after it was told to (or killed).
 SCREEN_STOP = 5.0
 

@@ -296,7 +296,8 @@ def test_run_with_an_it8951_screen(tmp_path, monkeypatch, capsys, on_exit, clear
         return partial(Pretend, tmp_path)
 
     monkeypatch.setattr(cli, "driver_for", pretend_driver)
-    monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)  # stops at once
+    # The check at start, then a stop that was asked for.
+    monkeypatch.setattr(cli.Scheduler, "run", lambda self: self.screen.check())
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(IT8951_CONFIG.format(extra=f'on_exit = "{on_exit}"\n'))
     args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
@@ -304,7 +305,54 @@ def test_run_with_an_it8951_screen(tmp_path, monkeypatch, capsys, on_exit, clear
     assert [(d.type, d.model, d.vcom) for d in made] == [("it8951", "9.7", -1.90)]
     assert "screen it8951" in capsys.readouterr().out
     steps = [what for _, what in notes(tmp_path)]
-    assert steps == (["init", "clear", "sleep", "close"] if cleared else [])
+    assert steps == (["init", "clear", "close"] if cleared else ["init", "close"])
+
+
+def test_run_exits_at_once_when_the_helper_is_stuck_while_clearing(tmp_path, monkeypatch):
+    from paperpi.screen import Screen, ScreenStuck
+
+    def stuck(self):
+        raise ScreenStuck("the screen helper process 1234 can't be stopped")
+
+    def exit_now(code):
+        raise SystemExit(code)
+
+    monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)
+    monkeypatch.setattr(Screen, "clear_before_exit", stuck)
+    monkeypatch.setattr(cli.os, "_exit", exit_now)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(GOOD)
+    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    with pytest.raises(SystemExit) as ended:
+        main([*args, "--health-file", str(tmp_path / "health")])
+    assert ended.value.code == 1
+
+
+def test_run_reloads_vcom_and_on_exit(tmp_path, monkeypatch):
+    from functools import partial
+
+    from .fake_screens import Pretend, notes
+
+    made = []
+
+    def pretend_driver(display, out):
+        made.append(display.vcom)
+        return partial(Pretend, tmp_path)
+
+    cfg = tmp_path / "paperpi.toml"
+
+    def run(self):
+        self.screen.check()
+        cfg.write_text(IT8951_CONFIG.format(extra='on_exit = "keep"\n').replace("-1.90", "-2.10"))
+        self._apply(self._reload())
+
+    monkeypatch.setattr(cli, "driver_for", pretend_driver)
+    monkeypatch.setattr(cli.Scheduler, "run", run)
+    cfg.write_text(IT8951_CONFIG.format(extra=""))
+    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
+    assert made == [-1.90, -2.10]  # a new driver for the new vcom
+    assert "clear" not in [what for _, what in notes(tmp_path)]  # on_exit = "keep" now
 
 
 def test_run_does_not_clear_the_screen_after_an_error(tmp_path, monkeypatch):
