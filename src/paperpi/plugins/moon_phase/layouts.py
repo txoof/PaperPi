@@ -1,7 +1,8 @@
 """Layouts for moon_phase. The first one is the default.
 
 Blocks: ``moon`` (the picture), ``moonrise`` and ``moonset`` ("Moonrise: 01:38"), ``phase``
-("Waning Crescent") and ``credit`` ("Data: MET Norway"). White on black, like the night sky.
+("Waning Crescent") and ``credit`` ("Data: MET Norway · Image: NASA SVS"). White on black,
+like the night sky.
 """
 
 from pathlib import Path
@@ -42,7 +43,7 @@ def moon_data(settings) -> dict:
             },
             _moon(8.4),
             _text("phase", "Waxing Crescent", 1),
-            _text("credit", "Data: MET Norway", 0.4, "right", pad=PAD / 4),
+            _text("credit", "Data: MET Norway · Image: NASA SVS", 0.4, "right", pad=PAD / 4),
         ],
         "gap": 0,
     }

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from dataclasses import dataclass
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from PIL import Image, ImageDraw
+from PIL import Image
 from pydantic import Field
 
 from ... import webrequest
@@ -21,8 +21,11 @@ log = logging.getLogger(__name__)
 
 URL = "https://api.met.no/weatherapi/sunrise/3.0/moon"
 SAVED = "moon.json"
-#: met.no's data licence (CC BY 4.0) asks for credit; it is shown on the screen.
-CREDIT = "Data: MET Norway"
+#: Credit for the data (met.no's licence, CC BY 4.0, asks for it) and the photos.
+CREDIT = "Data: MET Norway · Image: NASA SVS"
+#: Photos of the moon from NASA's Scientific Visualization Studio, one every 1.8°, named
+#: by their phase angle ("1.8.jpeg").
+PHOTOS = Path(__file__).parent / "images"
 #: The new moon, quarters and full moon are moments; their name is shown for this many
 #: degrees on each side (the moon moves about 12° a day, so about a day in all).
 MOMENT = 6.0
@@ -36,9 +39,6 @@ NAMES = (
     "Last Quarter",
     "Waning Crescent",
 )
-#: Gray levels of the drawn moon: the sunlit part, and the dark part (lit faintly by the
-#: earth, as in a photo), on a black sky.
-LIT, DARK = 255, 45
 
 
 class Settings(PluginSettings):
@@ -159,27 +159,17 @@ def phase_name(phase: float) -> str:
     return NAMES[2 * int(phase // 90) + 1]
 
 
-def moon_picture(phase: float, size: int = 1000) -> Image.Image:
-    """The moon as seen from the northern half of the earth: lit from the right while it
-    waxes, from the left while it wanes. Drawn larger than it will be shown, so the layout
-    only ever shrinks it."""
-    image = Image.new("L", (size, size), 0)
-    draw = ImageDraw.Draw(image)
-    r = size / 2 - 1
-    c = size / 2
-    draw.ellipse((c - r, c - r, c + r, c + r), fill=DARK)
-    # The line between day and night is half an ellipse, as wide as the disc times
-    # cos(phase). Each row of the disc is lit from ``start`` to ``end`` (as a share of the
-    # row's half width, -1 left edge to 1 right edge).
-    k = math.cos(math.radians(phase))
-    start, end = (k, 1.0) if phase <= 180 else (-1.0, -k)
-    steps = 180
-    rows = [r * math.sin(math.pi * (i / steps - 0.5)) for i in range(steps + 1)]
-    left = [(c + start * math.sqrt(max(r * r - y * y, 0)), c + y) for y in rows]
-    right = [(c + end * math.sqrt(max(r * r - y * y, 0)), c + y) for y in reversed(rows)]
-    if end - start > 1e-3:
-        draw.polygon(left + right, fill=LIT)
-    return image
+def photo_file(phase: float) -> Path:
+    """The photo whose phase angle is nearest to ``phase``."""
+    return min(PHOTOS.glob("*.jpeg"), key=lambda path: abs(float(path.stem) - phase))
+
+
+def moon_photo(phase: float, lat: float | None) -> Image.Image:
+    """The photo for this phase, as seen from the northern half of the earth. South of the
+    equator the moon looks upside down, so the photo is turned by 180°."""
+    with Image.open(photo_file(phase)) as photo:
+        photo.load()
+    return photo.rotate(180) if lat is not None and lat < 0 else photo
 
 
 def time_text(label: str, t: datetime | None, zone) -> str:
@@ -195,7 +185,7 @@ def draw(moon: Moon, context: Context) -> dict:
         "moonrise": time_text("Moonrise", moon.rise, zone),
         "moonset": time_text("Moonset", moon.set, zone),
         "phase": phase_name(moon.phase),
-        "moon": moon_picture(moon.phase),
+        "moon": moon_photo(moon.phase, context.settings.lat),
         "credit": CREDIT,
     }
     wanted = PLUGIN.layout(context.layout, context.settings).blocks

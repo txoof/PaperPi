@@ -5,12 +5,12 @@ from datetime import date, datetime
 
 import pytest
 from epdlib import ScreenMode
+from PIL import ImageChops, ImageStat
 
 import paperpi.plugins.moon_phase as moon_phase
 from paperpi import webrequest
 from paperpi.plugin import Context
 from paperpi.plugins.moon_phase import (
-    LIT,
     PLUGIN,
     SAMPLE,
     Moon,
@@ -18,9 +18,10 @@ from paperpi.plugins.moon_phase import (
     draw,
     fetch,
     load,
-    moon_picture,
+    moon_photo,
     parse,
     phase_name,
+    photo_file,
     save,
 )
 
@@ -170,21 +171,39 @@ def test_phase_name(phase, name):
     assert phase_name(phase) == name
 
 
+def test_a_photo_every_1_8_degrees():
+    angles = sorted(float(path.stem) for path in moon_phase.PHOTOS.glob("*.jpeg"))
+    assert angles == [round(i * 1.8, 1) for i in range(201)]  # 0.0 to 360.0
+
+
 @pytest.mark.parametrize(
-    ("phase", "left", "right"),
-    [(0, False, False), (45, False, True), (90, False, True), (180, True, True),
-     (270, True, False), (315, True, False)],
-)  # fmt: skip
-def test_picture_is_lit_on_the_right_side(phase, left, right):
-    image = moon_picture(phase, 100)
-    assert (image.getpixel((5, 50)) == LIT) is left
-    assert (image.getpixel((95, 50)) == LIT) is right
-    assert image.getpixel((1, 1)) == 0  # the sky stays black
+    ("phase", "photo"),
+    [(0, "0.0"), (0.8, "0.0"), (1.0, "1.8"), (301.33, "300.6"), (359.5, "360.0")],
+)
+def test_the_nearest_photo(phase, photo):
+    assert photo_file(phase).stem == photo
 
 
-def test_crescent_is_thinner_than_half():
-    lit = [moon_picture(p, 100).histogram()[LIT] for p in (45, 90, 135)]
-    assert lit[0] < lit[1] < lit[2]
+def brightness(image, box):
+    return ImageStat.Stat(image.convert("L").crop(box)).sum[0]
+
+
+@pytest.mark.parametrize(
+    ("lat", "lit_on_the_right"), [(52.52, True), (None, True), (-22.91, False)]
+)
+def test_south_of_the_equator_the_photo_is_upside_down(lat, lit_on_the_right):
+    """At first quarter the moon is lit on the right in the north, on the left in the south
+    (Rio)."""
+    photo = moon_photo(90, lat)
+    width, height = photo.size
+    left = brightness(photo, (0, 0, width // 2, height))
+    right = brightness(photo, (width // 2, 0, width, height))
+    assert (right > left) is lit_on_the_right
+
+
+def test_southern_photo_is_the_northern_one_turned():
+    north, south = moon_photo(301.33, 52.52), moon_photo(301.33, -22.91)
+    assert ImageChops.difference(south, north.rotate(180)).getbbox() is None
 
 
 # --- Drawing ---------------------------------------------------------------------------------
@@ -195,8 +214,8 @@ def test_draw_the_sample(tmp_path):
     assert values["moonrise"] == "Moonrise: 01:38"
     assert values["moonset"] == "Moonset: 17:04"
     assert values["phase"] == "Waning Crescent"
-    assert values["credit"] == "Data: MET Norway"
-    assert values["moon"].size == (1000, 1000)
+    assert values["credit"] == "Data: MET Norway · Image: NASA SVS"
+    assert values["moon"].size == (1080, 1080)
 
 
 def test_draw_a_day_without_moonset(tmp_path):
