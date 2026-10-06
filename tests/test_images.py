@@ -30,6 +30,8 @@ SCREENS = {
 # Settings to draw besides the defaults, per plugin.
 VARIANTS = {
     "basic_clock": {"12h": {"hours": 12}},
+    "word_clock": {"colors": {"text_color": "yellow", "background_color": "blue"}},
+    "system_info": {"inverse": {"text_color": "white", "background_color": "black"}},
     "met_no": {
         "berlin": {"place": "Berlin"},
         "berlin-f": {"place": "Berlin", "temperature": "F", "rain": "inch"},
