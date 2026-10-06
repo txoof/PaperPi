@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 
 import pytest
-from epdlib import ScreenMode
+from epdlib import Layout, ScreenMode
 
 import paperpi.plugins.met_no as met_no
 from paperpi import webrequest
@@ -416,3 +416,133 @@ def test_calm_and_storm_look_different():
 
 def test_barb_size():
     assert barbs.barb(10, 45, size=100).size == (100, 100)
+
+
+# --- The other layouts -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("layout", list(met_no.LAYOUTS))
+def test_every_block_gets_a_value(tmp_path, layout):
+    """draw fills exactly the blocks of the chosen layout, no more, no fewer."""
+    blocks = Layout(met_no.LAYOUTS[layout](Settings())).blocks
+    assert set(draw(PLUGIN.sample, context(tmp_path, layout))) == set(blocks)
+
+
+@pytest.mark.parametrize("layout", list(met_no.LAYOUTS))
+def test_every_layout_shows_the_place(tmp_path, layout):
+    assert draw(PLUGIN.sample, context(tmp_path, layout))["place"] == "Berlin"
+
+
+@pytest.mark.parametrize("count", [1, 2, 4, 7])
+@pytest.mark.parametrize("layout", list(met_no.LAYOUTS))
+def test_fewer_than_12_hours_still_draws(tmp_path, layout, count):
+    """Near the 6-hour limit of a saved forecast, fewer hours are left; the rest stays empty."""
+    few = Weather(Forecast(hours(*[0.5] * count), START), START, "Europe/Berlin")
+    values = draw(few, context(tmp_path, layout))
+    assert sum(name.startswith("step_temp_") for name in values) == (
+        count // 3 if layout == "steps_3h" else 0
+    )
+    PLUGIN.layout(layout, Settings()).prepare(400, 300, ScreenMode.gray(16)).render(values)
+
+
+def steps_at(start, zone, count=12, rain=0.0):
+    hours_ = tuple(
+        Hour(start + timedelta(hours=i), 10.0, rain, "cloudy", 3.0, 200.0) for i in range(count)
+    )
+    return Weather(Forecast(hours_, start), start, zone)
+
+
+@pytest.mark.parametrize(
+    ("start", "zone", "labels"),
+    [
+        (
+            datetime(2026, 10, 5, 19, tzinfo=UTC),
+            "Europe/Berlin",
+            ["21–24", "00–03", "03–06", "06–09"],
+        ),
+        (
+            datetime(2026, 10, 5, 20, tzinfo=UTC),
+            "Europe/Berlin",
+            ["22–01", "01–04", "04–07", "07–10"],
+        ),
+        # The night the clocks go forward: 02:00 becomes 03:00.
+        (
+            datetime(2026, 3, 28, 23, tzinfo=UTC),
+            "Europe/Berlin",
+            ["00–04", "04–07", "07–10", "10–13"],
+        ),
+    ],
+)
+def test_step_labels(tmp_path, start, zone, labels):
+    values = draw(steps_at(start, zone), context(tmp_path, "steps_3h"))
+    assert [values[f"step_{k}"] for k in range(4)] == labels
+
+
+def test_small_and_now(tmp_path):
+    small = draw(PLUGIN.sample, context(tmp_path, "small"))
+    assert small["now_temp"] == "8°C"
+    assert small["temperatures"] == "Max 14°C · Min 8°C"
+    assert small["rain"] == "Rain 6.6 mm, 13–17, 19–20"
+    assert small["now_icon"].name == "clearsky_day.png"
+    assert "now_barb" not in small  # txoof: no wind barb on tiny screens
+    assert small["now_icon"] == met_no.icon(PLUGIN.sample.forecast.hours[0].symbol)
+    assert draw(weather(0, 0), context(tmp_path, "small"))["rain"] == "No rain"
+
+
+def test_steps_of_3_hours(tmp_path):
+    values = draw(PLUGIN.sample, context(tmp_path, "steps_3h"))
+    assert [values[f"step_{k}"] for k in range(4)] == ["09–12", "12–15", "15–18", "18–21"]
+    assert values["step_temp_0"] == "8–11°"
+    assert values["step_rain_0"] == ""
+    assert values["step_rain_2"] == "4.5 mm"  # 3.4 + 1.1 + 0
+    same = draw(weather(0, 0, 0), context(tmp_path, "steps_3h"))
+    assert same["step_temp_0"] == "10–12°"
+    # The icon of the wettest hour (15:00, heavy rain), the wind of the middle hour.
+    assert values["step_icon_2"].name == "heavyrain.png"
+    middle = PLUGIN.sample.forecast.hours[7]  # 16:00, the middle of 15-18
+    expected = barbs.barb(middle.wind_speed * forecast.KNOTS, middle.wind_from)
+    assert values["step_barb_2"].tobytes() == expected.tobytes()
+
+
+def test_drizzle_is_dry_in_steps_too(tmp_path):
+    values = draw(steps_at(START, "Europe/Berlin", rain=0.05), context(tmp_path, "steps_3h"))
+    assert values["summary"].endswith("No rain")
+    assert values["step_rain_0"] == ""
+
+
+def test_step_rain_in_inches(tmp_path):
+    values = draw(
+        steps_at(START, "Europe/Berlin", rain=8.5), context(tmp_path, "steps_3h", rain="inch")
+    )
+    assert values["step_rain_0"] == "1.00 in"
+
+
+def test_now(tmp_path):
+    values = draw(PLUGIN.sample, context(tmp_path, "now"))
+    first = PLUGIN.sample.forecast.hours[0]
+    assert values["now_temp"] == "8°C"
+    assert (
+        values["now_barb"].tobytes()
+        == barbs.barb(first.wind_speed * forecast.KNOTS, first.wind_from).tobytes()
+    )
+
+
+def test_portrait_rows_hold_their_own_hour(tmp_path):
+    values = draw(PLUGIN.sample, context(tmp_path, "portrait_hours"))
+    hour = PLUGIN.sample.forecast.hours[6]  # 15:00
+    assert values["hour_6"] == "15"
+    assert values["temp_6"] == "13°"
+    assert values["mm_6"] == "3.4"
+    assert values["hicon_6"].name == f"{hour.symbol}.png"
+
+
+def test_no_minus_zero(tmp_path):
+    assert met_no.degrees(-0.4, "C") == "0°"
+
+
+def test_sideways_rain_bars():
+    upright = met_no.rain_bar(1.0, 2.0)
+    sideways = met_no.rain_bar(1.0, 2.0, upright=False)
+    assert upright.width < upright.height and sideways.width > sideways.height
+    assert sideways.getpixel((500, 200)) == 0  # half full from the left
+    assert sideways.getpixel((700, 200)) == 255
