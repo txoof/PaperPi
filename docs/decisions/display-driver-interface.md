@@ -62,6 +62,7 @@ Drivers use only `gpiod` and `spidev`. Importing epdlib's layout code never impo
 - Every screen write runs in a small separate helper process.
 - If a write takes longer than its time limit, PaperPi stops that helper and starts a new one. The operating system then releases the pins and data lines, so the next write starts clean.
 - Normal writes are not slower. A restart costs about a second.
+- Built in M4 (issue #222, `src/paperpi/screen.py`); details in `errors-and-time-limits.md`.
 - How many failed writes lead to a display reset, and how many to PaperPi exiting, is decided in the error-handling note (#190) and `freeze-prevention.md`.
 
 ### Refresh types

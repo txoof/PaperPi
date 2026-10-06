@@ -40,6 +40,14 @@ How it is built (`src/paperpi/health.py`, M4):
 | 3 resets in a row that don't help | Stop writing. Show "screen not answering" in the web interface and try again every 10 minutes. PaperPi keeps running. |
 | A write is stuck and stopping the helper process doesn't end it | Exit, so systemd/Docker restarts PaperPi. At most once per hour, so this can't become a loop. |
 
+How it is built (`src/paperpi/screen.py`, M4 issue #222):
+- The screen driver lives in a helper process. The scheduler sends each image there from a thread of its own, so its loop keeps reporting "healthy" during a slow write, and decides nothing new until the write has finished.
+- A write that runs over its time limit stops the helper process. The next write starts a new one, and the driver's `init` resets the screen (the IT8951 driver pulses its reset pin). A helper process that crashes is noticed at once.
+- Every 3rd failed write in a row restarts the helper process (a reset). When the write after the 3rd reset fails too, writes pause and are tried once every 10 minutes; the helper process is not running during the pause, so the pins are free. One good write ends the pause and resets the counts.
+- The health report has a `screen` value: `ok`, `failing` or `paused` (none before the first write).
+- When a helper process can't be stopped, PaperPi exits with status 1, and systemd or Docker starts it again. The time of that exit is kept in `screen-stuck` in the state folder; within an hour of the last one, PaperPi pauses writes instead of exiting again.
+- There is no planned restart of the helper process (see `it8951-driver.md`).
+
 ### When plugins fail
 
 As in `plugin-scheduling.md`: a failed update is skipped and retried at the plugin's next turn. After 3 failures in a row, the plugin is left out for 30 minutes and the web interface shows a warning. If all plugins fail, the default plugin shows "X of Y plugins are not working" with a QR code to the web interface.

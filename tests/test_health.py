@@ -82,10 +82,11 @@ def test_ready_is_sent_again_until_it_works(tmp_path, systemd):
 
 def test_report_holds_the_health_data(tmp_path, systemd):
     path = tmp_path / "run" / "health"  # the folder is made when needed
-    Health(path, disk=tmp_path, notify=systemd).report(12.34)
+    Health(path, disk=tmp_path, notify=systemd).report(12.34, "paused")
     values = json.loads(path.read_text())
     assert abs(values["monotonic"] - time.monotonic()) < 5
     assert values["since_screen"] == 12.3
+    assert values["screen"] == "paused"
     assert values["memory_mb"] > 1
     assert abs(values["open_files"] - (len(os.listdir("/proc/self/fd")) - 1)) <= 1
     assert values["free_disk_mb"] > 0
@@ -98,11 +99,11 @@ def test_health_values_go_to_the_log_at_the_start_and_then_every_hour(tmp_path, 
     reports = Health(tmp_path / "health", disk=tmp_path, notify=systemd, clock=lambda: now[0])
     with caplog.at_level(logging.INFO, logger="paperpi.health"):
         for _ in range(250):  # 2 hours and 5 minutes, a report every 30 s
-            reports.report(7)
+            reports.report(7, "ok")
             now[0] += limits.HEALTH_REPORT
     lines = [r.getMessage() for r in caplog.records]
     assert len(lines) == 3  # at the start, after 1 hour, after 2 hours
-    assert lines[0].startswith("health: since_screen 7, memory_mb ")
+    assert lines[0].startswith("health: since_screen 7, screen ok, memory_mb ")
     assert "open_files" in lines[0] and "free_disk_mb" in lines[0]
 
 

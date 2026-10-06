@@ -4,7 +4,9 @@ Milestone M1, issue #185. Docs only, no code.
 
 ## Problem
 
-PaperPi v1 stopped updating the display after 3–6 months but did not crash, so systemd never restarted it. We do not investigate the old code further; we assume the cause was the quality of the v1 code. The freezes happened on the 9.7" IT8951 setup. A 7.5" Waveshare display on a Pi 3 ran v1 for a very long time without freezing (never with the HiFiBerry).
+PaperPi v1 stopped updating the display after 3–6 months but did not crash, so systemd never restarted it. We do not investigate the old code further; we assume the cause was the quality of the v1 code.
+
+Added on 2026-10-06 (txoof, M4 issue #222): restarting PaperPi, or the whole Pi, did **not** fix a frozen v1. Only wiping the SD card and installing everything again did. So the cause was something kept on the SD card (a file that kept growing, a damaged file read at every start, or installed packages that changed over time), not something in memory. Restarts are still the right answer to a hang, but v2 must also keep what it stores on the SD card small and replaceable (last row of the checklist). The freezes happened on the 9.7" IT8951 setup. A 7.5" Waveshare display on a Pi 3 ran v1 for a very long time without freezing (never with the HiFiBerry).
 
 Terms: **SPI** is the data connection to the display board; **GPIO** are the Pi's control pins; a **watchdog** is a timer outside the program that restarts it if it stops reporting "still working"; the **monotonic clock** only counts forward and does not jump when the time is corrected.
 
@@ -20,6 +22,7 @@ Terms: **SPI** is the data connection to the display board; **GPIO** are the Pi'
 | Memory or disk growth | Cache and logs have size and age limits and live outside `/tmp` (in RAM on trixie) | Memory and free disk in the health data | Oldest cache files removed; watchdog restart as last resort | M4, M6 |
 | Clock jumps | All durations use the monotonic clock | Not needed | Not needed | M3, M4 |
 | Nothing notices the program stopped | systemd watchdog and Docker health check; `Restart=always` | No "healthy" report within the limit | systemd/Docker restarts PaperPi | M4, M6 |
+| Something kept on the SD card grows or goes bad (v1's freeze survived restarts) | PaperPi keeps its files in `/var/lib/paperpi` (state) and `/run/paperpi` (in memory); logs have a size limit, and plugin folders get the size and age limits of `errors-and-time-limits.md` (not built yet); files are replaced in one step (`paperpi.files.write_atomic`), so a power cut can't leave half a file; the config has a last good copy; the Docker install gives a fresh copy of the program at every update | Free disk in the health data; config problems are shown | Remove or replace the bad file; a reinstall of the container replaces the program | M4, M6 |
 | GPIO shared with HiFiBerry DAC+ | Drivers claim only the pins they need; install warns about conflicts | Clear start-up error if a pin is busy | Not needed (setup error, not a freeze) | M2, M6 |
 
 Test for each row: a fake driver, fake plugin or fake server that fails or hangs, checked in unit tests; hardware tests in M2 (including unplugging the display and playing music on the HiFiBerry); and a long run on this Pi from M4 that records time since the last screen update, memory, open files and free disk.

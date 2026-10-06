@@ -98,7 +98,7 @@ A worktree is a separate folder with its own copy of the repo, so several agents
 
 ### Size of a PR
 Every PR costs txoof review time. Too many small PRs and too few huge ones both waste it.
-- **Aim for 300–600 changed lines** (code, tests and docs together; images don't count). Above about 800 lines, split the work. Below that, keep a task in one PR (see "One PR per task" above).
+- **Aim for 300–600 changed lines** (code, tests and docs together; images don't count). Above about 800 lines, split the work: 800 is a guideline and an upper bound, so a PR may go a little over it, but never much. Below that, keep a task in one PR (see "One PR per task" above).
 - **Each PR does one thing that works on its own**, with its tests and docs. `main` is never left half-built.
 - **No PR for one small change** (a typo, a one-line rule). Put it in the next related PR.
 - **Plan the split before coding.** Show the planned PRs to txoof together with the design questions. One issue may need several PRs; list them in the issue. For example, the scheduler (+1925 lines in #206) could have been four PRs: the new plugins and settings; the scheduler core with its tests (which use a pretend clock); failures, the fallback plugins and config reload; the `paperpi run` command and README.

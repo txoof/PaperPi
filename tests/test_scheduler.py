@@ -117,20 +117,38 @@ class FakeUpdates:
 
 
 class FakeScreen:
+    """Records each write (fake time it started, label). ``fail`` is raised by each write."""
+
     def __init__(self, clock, labels):
         self.clock = clock
         self.labels = labels
         self.write_seconds = 0.0
-        self.fail = False
+        self.fail: Exception | bool = False
         self.writes = []
         self.sizes = []
 
-    def write(self, image):
+    def started(self, image):
         self.sizes.append(image.size)
         self.writes.append((self.clock.t, self.labels.label(image)))
+
+    def write(self, image):
         if self.fail:
-            raise OSError("screen not answering")
-        self.clock.t += self.write_seconds
+            raise self.fail if isinstance(self.fail, Exception) else OSError("not answering")
+
+
+class FakeWriter:
+    """Runs each screen write; it ends ``screen.write_seconds`` of fake time later."""
+
+    def __init__(self, clock, screen):
+        self.clock = clock
+        self.screen = screen
+
+    def submit(self, fn, image, *args):
+        self.screen.started(image)
+        self.clock.at(self.clock.t + self.screen.write_seconds, fn, image, *args)
+
+    def shutdown(self, **options):
+        pass
 
 
 class FakeHealth:
@@ -139,9 +157,11 @@ class FakeHealth:
     def __init__(self, clock):
         self.clock = clock
         self.reports = []
+        self.states = []
 
-    def __call__(self, since_screen):
+    def __call__(self, since_screen, screen_state):
         self.reports.append((self.clock.t, since_screen))
+        self.states.append(screen_state)
 
 
 def make_config(*blocks, display=""):
@@ -191,6 +211,7 @@ class Sim:
             reload=self.load,
             clock=self.clock,
             executor=self.clock,
+            writer=FakeWriter(self.clock, self.screen),
             update=self.updates,
             health=self.health,
         )
@@ -538,13 +559,36 @@ def test_failed_screen_write_is_tried_again_at_the_next_update_and_logged_once(t
     assert "screen writes work again, after 4 failed" in caplog.text
 
 
-def test_update_that_comes_due_during_a_slow_screen_write_starts_right_after_it(tmp_path):
+def test_updates_go_on_during_a_slow_screen_write(tmp_path):
     sim = Sim(tmp_path, rotation("a", refresh=30))
-    # Each write takes 40 s: from 1 to 41 (a is due at 31), and from 42 to 82 (due at 72).
+    # Each write takes 40 s; a's updates still finish every 31 s.
     sim.screen.write_seconds = 40
     sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=130)
+    assert sim.updates.times("a") == [1, 32, 63, 94, 125]
+    # The next write starts when the one before has finished, with the newest image.
+    assert sim.writes == [(1, "A1"), (41, "A32"), (81, "A63"), (121, "A94")]
+
+
+def test_paused_screen_is_tried_again_at_the_end_of_the_pause(tmp_path):
+    from paperpi.screen import ScreenResting
+
+    sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
+    sim.screen.fail = ScreenResting("paused", wait=50)
+    sim.at(30, setattr, sim.screen, "fail", False)
     sim.run(until=100)
-    assert sim.updates.times("a")[:3] == [1, 42, 83]
+    # Tried at the end of the pause, although a has no new update.
+    assert sim.writes == [(1, "A"), (51, "A")]
+    assert sim.health.states == [None, "paused", "ok", "ok"]
+
+
+def test_stuck_screen_ends_the_run(tmp_path):
+    from paperpi.screen import ScreenStuck
+
+    sim = Sim(tmp_path, rotation("a"))
+    sim.screen.fail = ScreenStuck("stuck")
+    with pytest.raises(ScreenStuck):
+        sim.run(until=100)
 
 
 # On the minute
@@ -685,11 +729,12 @@ def test_time_since_the_screen_write_grows_while_writes_fail(tmp_path):
     assert len(sim.writes) > 1  # it kept trying
 
 
-def test_no_reports_while_the_loop_is_stuck(tmp_path):
+def test_reports_go_on_during_a_slow_screen_write(tmp_path):
     sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
-    sim.screen.write_seconds = 200  # a screen write that hangs for 200 s
+    sim.screen.write_seconds = 200  # a screen write that takes 200 s
     sim.run(until=250)
-    assert sim.health.reports == [(0, None), (201, 0), (231, 30)]
+    assert sim.health.reports[:3] == [(0, None), (30, None), (60, None)]
+    assert sim.health.reports[-2:] == [(210, 9), (240, 39)]
 
 
 # With the real parts: plugin processes, the worker pool, the virtual screen
