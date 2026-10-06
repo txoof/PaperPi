@@ -40,7 +40,7 @@ background_color = "random"
 
 Try it without a screen: `uv run paperpi render word_clock --layout words --set text_color=yellow`.
 
-The font is [Anton](https://fonts.google.com/specimen/Anton) by The Anton Project Authors, under the SIL Open Font License ([`fonts/OFL.txt`](fonts/OFL.txt)).
+The font is [Anton](https://fonts.google.com/specimen/Anton) by The Anton Project Authors, under the SIL Open Font License ([`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt)), in PaperPi's shared fonts folder.
 
 ## Sample images
 

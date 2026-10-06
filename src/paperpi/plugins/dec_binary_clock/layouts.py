@@ -1,8 +1,8 @@
 """Layouts for dec_binary_clock. The first one is the default."""
 
-from pathlib import Path
+from ... import fonts
 
-FONT = str(Path(__file__).parent / "fonts" / "Anton-Regular.ttf")
+FONT = fonts.ANTON
 PADDING = 0.01
 
 #: The picture of the dots. It must keep padding 0 and no border: ``draw`` makes the picture

@@ -5,9 +5,9 @@ update. Their sample is the widest sentence the clock can make, so every sentenc
 and the font size never changes.
 """
 
-from pathlib import Path
+from ... import fonts
 
-FONT = str(Path(__file__).parent / "fonts" / "Anton-Regular.ttf")
+FONT = fonts.ANTON
 PADDING = 0.03
 
 #: The widest sentence in this font. Written out, because working it out from all 7140
