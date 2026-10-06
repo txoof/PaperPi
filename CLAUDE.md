@@ -96,6 +96,15 @@ A worktree is a separate folder with its own copy of the repo, so several agents
 3. Fix the findings, or explain in a reply why not.
 4. **Only txoof approves and merges. Agents never merge, never approve, and never push to `main`.** GitHub branch protection enforces this.
 
+### Size of a PR
+Every PR costs txoof review time. Too many small PRs and too few huge ones both waste it.
+- **Aim for 300–600 changed lines** (code, tests and docs together; images don't count). Above about 800 lines, split the work.
+- **Each PR does one thing that works on its own**, with its tests and docs. `main` is never left half-built.
+- **No PR for one small change** (a typo, a one-line rule). Put it in the next related PR.
+- **Plan the split before coding.** Show the planned PRs to txoof together with the design questions. One issue may need several PRs; list them in the issue. For example, the scheduler (+1925 lines in #206) could have been four PRs: the new plugins and settings; the scheduler core with its tests (which use a pretend clock); failures, the fallback plugins and config reload; the `paperpi run` command and README.
+- **Review fixes:** small fixes go into the same PR. Fixes that add a new feature go into a follow-up PR, so the first one doesn't keep growing.
+- See the size with `git diff --shortstat origin/main...HEAD`.
+
 ## Tools and commands
 - Python 3.13 (the version in Raspberry Pi OS trixie). `uv` installs Python and all packages into `.venv`.
 - `uv sync`: install. `uv run pytest`: tests. `uv run ruff check .` and `uv run ruff format .`: code style.

@@ -95,6 +95,32 @@ hours = 12
 
 Give every text block a `sample`: the widest text it normally shows (`"88:88"` for a clock). The font size is then chosen once, so it doesn't change between updates.
 
+## Web requests
+
+Use PaperPi's helper `paperpi.webrequest` for every download. It keeps to the limits (10 s to connect, 30 s in total, at most 5 MB), and unpacks gzip (the usual way servers pack an answer so fewer bytes are sent; other ways of packing are refused).
+
+```python
+from paperpi import webrequest
+
+answer = webrequest.get(url, contact=context.settings.email)  # the plugin's own "email" setting
+data = answer.json()
+```
+
+`get` takes:
+- `contact`: an email or web address, added to the User-Agent header (the line in every request that names the program), so the service knows whom to ask about problems. Some services, like met.no, require it. Give your plugin a setting for it, as `met_no` does with `email`.
+- `headers=`: more headers to send, for example an API key. They are sent only to the server of `url`: if that server redirects to another one, they are left out.
+- `if_modified_since=`: the `last_modified` of an earlier answer. If nothing changed since, `answer.not_modified` is `True` and `answer.body` is empty. Save `last_modified` (it can be `None` when the server didn't send one) and the data in `context.storage`, so the next update can ask.
+- `max_bytes=`: a higher size limit, for example for large images.
+
+The answer has `status`, `body` (the content as bytes, for example an image), `headers` (with lowercase names), `url` (the address that answered, after redirects), `not_modified`, `last_modified` and `json()`.
+
+What it does when something goes wrong:
+- **Retries once, after 5 s,** when the server can't be reached, doesn't answer in time, breaks off the connection, or answers "too many requests" (429) or "server error" (500, 502, 503, 504). Not when there is too little time left for a second try within the 30 s, and not for other answers such as "not found" (404).
+- Follows up to 3 redirects (answers that say "this moved to ..."), but never from `https` to `http`.
+- Raises `webrequest.WebError` with a plain message that names only the server, for example "api.met.no answered 404 Not Found". The rest of the address is left out, because it may hold an API key or a location.
+- Don't catch `WebError` unless the plugin can show something without new data (for example a saved forecast). PaperPi then writes the message to the log and tries again at the plugin's next update.
+- Looking up the server's address (DNS) has no time limit of its own; the plugin's time limit covers it.
+
 ## Refresh
 
 `refresh` is the suggested number of seconds between updates, at least 5; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes.

@@ -193,7 +193,7 @@ class Config:
 
 
 def folder_name(name: str) -> str:
-    """A safe folder name for a plugin name: ``"Weather Den Haag"`` -> ``weather-den-haag``."""
+    """A safe folder name for a plugin name: ``"Weather Berlin"`` -> ``weather-berlin``."""
     return re.sub(r"[^a-z0-9]+", "-", name.casefold()).strip("-") or "plugin"
 
 
