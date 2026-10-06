@@ -36,6 +36,8 @@ VARIANTS = {
         "berlin": {"place": "Berlin"},
         "berlin-f": {"place": "Berlin", "temperature": "F", "rain": "inch"},
     },
+    "xkcd_comic": {"enlarge": {"enlarge": True}},
+    "moon_phase": {"rio": {"lat": -22.91, "lon": -43.17}},  # south: the photo turned
 }
 # More screens for layouts made for a special shape, per plugin and layout.
 LAYOUT_SCREENS = {
