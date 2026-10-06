@@ -23,6 +23,7 @@ import sys
 import tempfile
 import tomllib
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 from epdlib import ScreenMode
@@ -34,6 +35,7 @@ from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
+from .screen import Screen, ScreenStuck
 
 log = logging.getLogger("paperpi")
 
@@ -119,7 +121,10 @@ def _parser() -> argparse.ArgumentParser:
         "--state-dir",
         type=Path,
         default=config.STATE_DIR,
-        help=f"folder for plugin files and the last good config ({config.STATE_DIR})",
+        help=(
+            "folder for plugin files, the last good config and the screen-stuck time "
+            f"({config.STATE_DIR})"
+        ),
     )
     run.add_argument(
         "--health-file",
@@ -262,7 +267,12 @@ def _run(args: argparse.Namespace) -> int:
     # The numbers start again at 0001 at every start, so files of an earlier run go.
     for old in [*out.glob("[0-9][0-9][0-9][0-9].png"), out / "latest.png"]:
         old.unlink(missing_ok=True)
-    screen = VirtualDriver(width, height, mode, out)
+    # The driver is made and used in the screen helper process (paperpi.screen).
+    screen = Screen(
+        partial(VirtualDriver, width, height, mode, out),
+        color=mode.kind in ("palette", "rgb"),
+        stuck_file=args.state_dir / "screen-stuck",
+    )
     # Taken out of the environment, so plugin processes can't send "still running" for a
     # stuck loop.
     notify_socket = os.environ.pop("NOTIFY_SOCKET", None)
@@ -283,6 +293,14 @@ def _run(args: argparse.Namespace) -> int:
                 f"process id {os.getpid()} (kill -HUP {os.getpid()} applies config changes)"
             )
             scheduler.run()
+    except ScreenStuck as error:
+        print(f"paperpi: {error}; exiting, so PaperPi is started again", file=sys.stderr)
+        reports.stopping()
+        logging.shutdown()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        # A normal exit would wait, without a time limit, for the stuck helper process.
+        os._exit(1)
     except OSError as error:
         print(f"paperpi: {error}", file=sys.stderr)
         return 1

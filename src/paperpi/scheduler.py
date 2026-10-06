@@ -21,6 +21,12 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
   "alert" mean the same.
 - The screen is written only when the image changes. A new image from the plugin on screen
   is not written when its turn ends sooner than a screen write takes.
+- Screen writes run in their own thread (and, with :class:`paperpi.screen.Screen`, in a
+  helper process with a time limit), so the loop keeps reporting "still running" during a
+  slow write. Nothing new is chosen until the write has finished. A failed write is tried
+  again at the next update of the plugin on screen; while the screen watchdog pauses writes,
+  at the end of the pause. When a helper process is stuck, :meth:`Scheduler.run` raises
+  :class:`~paperpi.screen.ScreenStuck`, so PaperPi exits and is started again.
 - A failed update is skipped and tried again at the next refresh. After
   :data:`~paperpi.limits.FAILURES_BEFORE_LEFT_OUT` failures in a row the plugin is left out
   for :data:`~paperpi.limits.LEFT_OUT` seconds. When nothing can be shown because plugins
@@ -29,12 +35,13 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
   fallback_clock``), so an empty screen is never mistaken for a broken one.
 
 One loop (:meth:`Scheduler.run`) makes every decision, in one thread, so two decisions can
-never happen at the same moment. Finished updates, "stop", "reload" and "dismiss" reach it as
-events in one queue. The loop sleeps until the next event or the next moment something is
-due, and at least every :data:`~paperpi.limits.HEALTH_REPORT` seconds it reports "still
-running" (:mod:`paperpi.health`), so a stuck loop is noticed and PaperPi restarted. The clock
-and the executor (what runs the updates) are passed in, so tests can use a
-fake clock and check hours of switching in a fraction of a second.
+never happen at the same moment. Finished updates and screen writes, "stop", "reload" and
+"dismiss" reach it as events in one queue. The loop sleeps until the next event or the next
+moment something is due, and at least every :data:`~paperpi.limits.HEALTH_REPORT` seconds it
+reports "still running" (:mod:`paperpi.health`), so a stuck loop is noticed and PaperPi
+restarted. The clock, the executor (what runs the updates) and the writer (what runs the
+screen writes) are passed in, so tests can use a fake clock and check hours of switching in a
+fraction of a second.
 """
 
 from __future__ import annotations
@@ -49,21 +56,22 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from epdlib.drivers import Driver
 from PIL import Image, ImageChops
 
 from . import limits, plugins
 from .config import Config, PluginConfig
 from .plugin import Context, PluginEntry, PluginsStatus, State
 from .runner import UpdateResult, run_update, stop_all
+from .screen import Screen, ScreenResting, ScreenStuck
 
 log = logging.getLogger(__name__)
 
 #: Runs one update: ``update(plugin_type, context, time_limit)``. Raises on failure.
 Update = Callable[[str, Context, float], UpdateResult]
 
-#: Says "still running": ``report(seconds since the last screen write, or None)``.
-Report = Callable[[float | None], None]
+#: Says "still running": ``report(seconds since the last screen write or None, screen state)``.
+#: The screen state is ``None`` before the first write, then "ok", "failing" or "paused".
+Report = Callable[[float | None, str | None], None]
 
 
 class Clock:
@@ -94,6 +102,13 @@ class _Finished:
     slot: _Slot
     result: UpdateResult | None
     error: BaseException | None
+
+
+@dataclass(frozen=True)
+class _Written:
+    seconds: float
+    error: Exception | None
+    new_turn: bool
 
 
 @dataclass(frozen=True)
@@ -152,19 +167,21 @@ class Scheduler:
     ``executor``, ``update`` and ``stop_updates`` are for tests; by default updates run in
     plugin processes with :func:`paperpi.runner.run_update`, at most
     :data:`~paperpi.limits.PARALLEL_UPDATES` at once, and stopping ends the running ones
-    with :func:`paperpi.runner.stop_all`. ``health`` (e.g. :meth:`paperpi.health.Health.report`)
+    with :func:`paperpi.runner.stop_all`. ``writer`` runs the screen writes (default: one
+    thread of their own). ``health`` (e.g. :meth:`paperpi.health.Health.report`)
     is called by the loop every :data:`~paperpi.limits.HEALTH_REPORT` seconds.
     """
 
     def __init__(
         self,
         config: Config,
-        screen: Driver,
+        screen: Screen,
         *,
         state_dir: Path,
         reload: Callable[[], Config] | None = None,
         clock: Clock | None = None,
         executor: Executor | None = None,
+        writer: Executor | None = None,
         update: Update | None = None,
         stop_updates: Callable[[], None] | None = None,
         health: Report | None = None,
@@ -176,6 +193,9 @@ class Scheduler:
         self.clock = clock or Clock()
         self.executor = executor or ThreadPoolExecutor(
             max_workers=limits.PARALLEL_UPDATES, thread_name_prefix="paperpi-update"
+        )
+        self.writer = writer or ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="paperpi-screen"
         )
         self._update = update or _run_update
         if stop_updates is None:
@@ -201,6 +221,10 @@ class Scheduler:
         """How long the last screen write took."""
         self._write_failures = 0
         """Failed screen writes in a row."""
+        self._writing = False
+        """A screen write is running."""
+        self._retry_at: float | None = None
+        """While the screen watchdog pauses writes: when to try again."""
         self._apply(config)
 
     # Called from other threads or signal handlers: they only put an event in the queue.
@@ -245,6 +269,8 @@ class Scheduler:
             self.executor.shutdown(wait=False, cancel_futures=True)
             self._stop_updates()
             self.executor.shutdown(wait=True)
+            # A running write is ended by closing the screen (paperpi.screen.Screen.close).
+            self.writer.shutdown(wait=False)
 
     # Everything below runs in the loop's thread only.
 
@@ -252,6 +278,8 @@ class Scheduler:
         now = self.clock.monotonic()
         if isinstance(event, _Finished):
             self._finished(event, now)
+        elif isinstance(event, _Written):
+            self._written(event, now)
         elif isinstance(event, _Dismiss):
             for slot in self._slots:
                 if slot.name == event.name and slot.level == "alert":
@@ -274,7 +302,7 @@ class Scheduler:
         if self._health is None or now < self._next_report:
             return
         since = None if self._last_written is None else now - self._last_written
-        self._health(since)
+        self._health(since, self._screen_state)
         self._next_report = now + limits.HEALTH_REPORT
 
     def _apply(self, config: Config) -> None:
@@ -423,6 +451,11 @@ class Scheduler:
 
     def _show(self, now: float) -> None:
         """Choose what is on screen, and write it when it changed."""
+        if self._writing:
+            return  # decided again when the write has finished
+        if self._retry_at is not None and now >= self._retry_at:
+            self._retry_at = None
+            self._attempted = None  # the screen watchdog allows a new try
         chosen, new_turn = self._choose(now)
         if chosen is None:
             return
@@ -432,10 +465,13 @@ class Scheduler:
         if chosen.level == "rotation" and chosen in self._slots:
             self._last_rotation = chosen.name
         self._current = chosen
-        if self._attempted is None or not _same_image(chosen.image, self._attempted):
-            self._write(chosen.image)
-        if new_turn:
-            self._turn_start = self.clock.monotonic()  # the turn starts once it is on screen
+        paused = self._retry_at is not None
+        if not paused and (
+            self._attempted is None or not _same_image(chosen.image, self._attempted)
+        ):
+            self._write(chosen.image, new_turn)
+        elif new_turn:
+            self._turn_start = now
 
     def _choose(self, now: float) -> tuple[_Slot | None, bool]:
         """The plugin to show, and whether a new turn starts."""
@@ -505,30 +541,65 @@ class Scheduler:
         left = self._turn_start + current.config.entry.display_time - now
         return left <= self.write_seconds
 
-    def _write(self, image: Image.Image) -> None:
+    @property
+    def _screen_state(self) -> str | None:
+        if self._retry_at is not None:
+            return "paused"
+        if self._write_failures:
+            return "failing"
+        return None if self._last_written is None else "ok"
+
+    def _write(self, image: Image.Image, new_turn: bool) -> None:
         self._attempted = image
-        start = self.clock.monotonic()
+        self._writing = True
         rotation = self.display.rotation
+        # Rotation turns the picture clockwise.
+        image = image.rotate(-rotation, expand=True) if rotation else image
+        self.writer.submit(self._write_job, image, self.clock.monotonic(), new_turn)
+
+    def _write_job(self, image: Image.Image, start: float, new_turn: bool) -> None:
+        """Runs in the writer thread: one screen write, then hand the result to the loop."""
         try:
-            # Rotation turns the picture clockwise.
-            self.screen.write(image.rotate(-rotation, expand=True) if rotation else image)
-        except Exception as error:  # noqa: BLE001 - tried again at the next update
+            self.screen.write(image)
+            error = None
+        except Exception as failed:  # noqa: BLE001 - handled in the loop
+            error = failed
+        self._events.put(_Written(self.clock.monotonic() - start, error, new_turn))
+
+    def _written(self, event: _Written, now: float) -> None:
+        self._writing = False
+        if isinstance(event.error, ScreenStuck):
+            raise event.error  # only a restart of PaperPi can help
+        if event.new_turn:
+            # The turn starts once it is on screen, or once the try has failed: otherwise a
+            # failing screen would hand the turn on again and again without waiting.
+            self._turn_start = now
+        if event.error is not None:
             self._write_failures += 1
+            if isinstance(event.error, ScreenResting):
+                self._retry_at = now + event.error.wait
             # Logged once; the same failure again and again would fill the log.
             level = logging.ERROR if self._write_failures == 1 else logging.DEBUG
-            log.log(level, "screen write failed: %s", error)
+            log.log(level, "screen write failed: %s", event.error)
             return
         if self._write_failures:
             log.warning("screen writes work again, after %d failed", self._write_failures)
             self._write_failures = 0
-        self._last_written = self.clock.monotonic()
-        self.write_seconds = self._last_written - start
+        self._retry_at = None
+        self._last_written = now
+        self.write_seconds = event.seconds
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""
         times = [s.due for s in self._slots if not s.running]
         if self._health is not None:
             times.append(self._next_report)
+        if self._writing:
+            # Nothing is chosen during a write; only updates and reports can be due.
+            later = [t for t in times if now < t < math.inf]
+            return min(later) - now if later else None
+        if self._retry_at is not None:
+            times.append(self._retry_at)
         if any(t <= now for t in times):
             return 0  # something came due while the screen was being written
         if self._current is not None:

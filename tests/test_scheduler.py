@@ -117,20 +117,39 @@ class FakeUpdates:
 
 
 class FakeScreen:
+    """Records each write (fake time it started, label). ``fail`` is raised by each write."""
+
     def __init__(self, clock, labels):
         self.clock = clock
         self.labels = labels
         self.write_seconds = 0.0
-        self.fail = False
+        self.fail: Exception | bool = False
         self.writes = []
         self.sizes = []
 
-    def write(self, image):
+    def started(self, image):
+        assert len(self.writes) < 5000, "the scheduler writes without waiting"
         self.sizes.append(image.size)
         self.writes.append((self.clock.t, self.labels.label(image)))
+
+    def write(self, image):
         if self.fail:
-            raise OSError("screen not answering")
-        self.clock.t += self.write_seconds
+            raise self.fail if isinstance(self.fail, Exception) else OSError("not answering")
+
+
+class FakeWriter:
+    """Runs each screen write; it ends ``screen.write_seconds`` of fake time later."""
+
+    def __init__(self, clock, screen):
+        self.clock = clock
+        self.screen = screen
+
+    def submit(self, fn, image, *args):
+        self.screen.started(image)
+        self.clock.at(self.clock.t + self.screen.write_seconds, fn, image, *args)
+
+    def shutdown(self, **options):
+        pass
 
 
 class FakeHealth:
@@ -139,9 +158,11 @@ class FakeHealth:
     def __init__(self, clock):
         self.clock = clock
         self.reports = []
+        self.states = []
 
-    def __call__(self, since_screen):
+    def __call__(self, since_screen, screen_state):
         self.reports.append((self.clock.t, since_screen))
+        self.states.append(screen_state)
 
 
 def make_config(*blocks, display=""):
@@ -191,6 +212,7 @@ class Sim:
             reload=self.load,
             clock=self.clock,
             executor=self.clock,
+            writer=FakeWriter(self.clock, self.screen),
             update=self.updates,
             health=self.health,
         )
@@ -538,13 +560,67 @@ def test_failed_screen_write_is_tried_again_at_the_next_update_and_logged_once(t
     assert "screen writes work again, after 4 failed" in caplog.text
 
 
-def test_update_that_comes_due_during_a_slow_screen_write_starts_right_after_it(tmp_path):
+def test_updates_go_on_during_a_slow_screen_write(tmp_path):
     sim = Sim(tmp_path, rotation("a", refresh=30))
-    # Each write takes 40 s: from 1 to 41 (a is due at 31), and from 42 to 82 (due at 72).
+    # Each write takes 40 s; a's updates still finish every 31 s.
     sim.screen.write_seconds = 40
     sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=130)
+    assert sim.updates.times("a") == [1, 32, 63, 94, 125]
+    # The next write starts when the one before has finished, with the newest image.
+    assert sim.writes == [(1, "A1"), (41, "A32"), (81, "A63"), (121, "A94")]
+
+
+def test_paused_screen_is_tried_again_at_the_end_of_the_pause(tmp_path):
+    from paperpi.screen import ScreenResting
+
+    sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
+    sim.screen.fail = ScreenResting("paused", wait=50)
+    sim.at(30, setattr, sim.screen, "fail", False)
     sim.run(until=100)
-    assert sim.updates.times("a")[:3] == [1, 42, 83]
+    # Tried at the end of the pause, although a has no new update.
+    assert sim.writes == [(1, "A"), (51, "A")]
+    assert sim.health.states == [None, "paused", "ok", "ok"]
+
+
+@pytest.mark.parametrize("paused, write_seconds", [(False, 0), (False, 30), (True, 0)])
+def test_failing_screen_does_not_make_the_loop_spin(tmp_path, paused, write_seconds):
+    from paperpi.screen import ScreenResting
+
+    sim = Sim(tmp_path, *(rotation(n, display_time=50, refresh=1000) for n in "abc"))
+    sim.screen.write_seconds = write_seconds
+    error = ScreenResting("paused", wait=600) if paused else OSError("not answering")
+    sim.at(150, setattr, sim.screen, "fail", error)
+    sim.run(until=400)
+    # One try per turn at most (every 50 s), not thousands without the clock moving.
+    assert len(sim.writes) <= 400 / 50 + 1
+
+
+def test_scheduler_and_the_real_screen_watchdog_agree(tmp_path):
+    from paperpi.screen import Screen
+
+    from .test_screen import FakeHelper
+
+    sim = Sim(tmp_path, rotation("a", refresh=10), health=True)
+    helper = FakeHelper()
+    helper.fail = True
+    sim.scheduler.screen = Screen(None, helper=helper, clock=sim.clock.monotonic)
+    sim.run(until=125)  # 10 failed writes (one per update, every 11 s): the pause starts
+    assert sim.health.states[-1] == "paused"
+    starts = helper.starts
+    helper.fail = False
+    sim.run(until=125 + 600 + 40)
+    assert helper.starts == starts + 1  # one new helper at the end of the pause
+    assert sim.health.states[-1] == "ok"
+
+
+def test_stuck_screen_ends_the_run(tmp_path):
+    from paperpi.screen import ScreenStuck
+
+    sim = Sim(tmp_path, rotation("a"))
+    sim.screen.fail = ScreenStuck("stuck")
+    with pytest.raises(ScreenStuck):
+        sim.run(until=100)
 
 
 # On the minute
@@ -685,11 +761,12 @@ def test_time_since_the_screen_write_grows_while_writes_fail(tmp_path):
     assert len(sim.writes) > 1  # it kept trying
 
 
-def test_no_reports_while_the_loop_is_stuck(tmp_path):
+def test_reports_go_on_during_a_slow_screen_write(tmp_path):
     sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
-    sim.screen.write_seconds = 200  # a screen write that hangs for 200 s
+    sim.screen.write_seconds = 200  # a screen write that takes 200 s
     sim.run(until=250)
-    assert sim.health.reports == [(0, None), (201, 0), (231, 30)]
+    assert sim.health.reports[:3] == [(0, None), (30, None), (60, None)]
+    assert sim.health.reports[-2:] == [(210, 9), (240, 39)]
 
 
 # With the real parts: plugin processes, the worker pool, the virtual screen
@@ -703,27 +780,34 @@ def run_in_thread(scheduler):
     return thread
 
 
+def written(tmp_path):
+    return len(list((tmp_path / "screen").glob("[0-9]*.png")))
+
+
 def test_real_run_with_debugging_plugins(tmp_path):
     import time
+    from functools import partial
 
     from epdlib import ScreenMode
     from epdlib.drivers.virtual import VirtualDriver
+
+    from paperpi.screen import Screen
 
     loaded = make_config(
         rotation("one", display_time=1, refresh=5) + '\ntext = "one"',
         rotation("two", display_time=1, refresh=5) + '\ntext = "two"\ncrash_every = 2',
     )
-    screen = VirtualDriver(*SIZE, ScreenMode.gray(16), tmp_path / "screen")
+    screen = Screen(partial(VirtualDriver, *SIZE, ScreenMode.gray(16), tmp_path / "screen"))
     scheduler = Scheduler(loaded, screen, state_dir=tmp_path)
     with screen:
         thread = run_in_thread(scheduler)
         deadline = time.monotonic() + 30
-        while screen.count < 3 and time.monotonic() < deadline:
+        while written(tmp_path) < 3 and time.monotonic() < deadline:
             time.sleep(0.1)
         scheduler.stop()
         thread.join(30)
     assert not thread.is_alive()
-    assert screen.count >= 3  # took turns
+    assert written(tmp_path) >= 3  # took turns
     assert (tmp_path / "plugins" / "one" / "count").is_file()
     assert (tmp_path / "plugins" / "two" / "count").is_file()
     assert (tmp_path / "screen" / "latest.png").is_file()
@@ -731,12 +815,15 @@ def test_real_run_with_debugging_plugins(tmp_path):
 
 def test_stop_ends_a_hanging_update_at_once(tmp_path):
     import time
+    from functools import partial
 
     from epdlib import ScreenMode
     from epdlib.drivers.virtual import VirtualDriver
 
+    from paperpi.screen import Screen
+
     block = rotation("hang", refresh=100) + "\nhang_every = 1\ntime_limit = 300"
-    screen = VirtualDriver(*SIZE, ScreenMode.gray(16), tmp_path / "screen")
+    screen = Screen(partial(VirtualDriver, *SIZE, ScreenMode.gray(16), tmp_path / "screen"))
     scheduler = Scheduler(make_config(block), screen, state_dir=tmp_path)
     with screen:
         thread = run_in_thread(scheduler)

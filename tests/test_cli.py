@@ -270,6 +270,27 @@ def test_run_with_broken_config(tmp_path, capsys):
     assert "can't be used" in capsys.readouterr().err
 
 
+def test_run_exits_at_once_when_a_screen_helper_is_stuck(tmp_path, monkeypatch, capsys):
+    from paperpi.screen import ScreenStuck
+
+    def stuck(self):
+        raise ScreenStuck("the screen helper process 1234 can't be stopped")
+
+    def exit_now(code):
+        raise SystemExit(code)
+
+    # os._exit, not a normal return: Python would wait for the stuck process at exit.
+    monkeypatch.setattr(cli.Scheduler, "run", stuck)
+    monkeypatch.setattr(cli.os, "_exit", exit_now)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(GOOD)
+    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    with pytest.raises(SystemExit) as ended:
+        main([*args, "--health-file", str(tmp_path / "health")])
+    assert ended.value.code == 1
+    assert "1234 can't be stopped; exiting" in capsys.readouterr().err
+
+
 def test_list_shows_the_plugins_as_used(capsys):
     example = Path(__file__).parent.parent / "paperpi.example.toml"
     assert main(["list", "--config", str(example)]) == 0

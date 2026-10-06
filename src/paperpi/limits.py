@@ -79,3 +79,36 @@ SYSTEMD_MESSAGE = 5.0
 
 #: Largest health file ``paperpi health`` reads. A report is under 200 bytes.
 HEALTH_FILE_BYTES = 1_000
+
+#: Longest one screen write may take before its redraw time is measured.
+SCREEN_FIRST = 2 * 60.0
+
+#: The same for colour screens, which take much longer to redraw.
+SCREEN_FIRST_COLOR = 5 * 60.0
+
+#: Once measured, a screen write may take this many times the last redraw ...
+SCREEN_REDRAW_FACTOR = 3
+
+#: ... but never less than this ...
+SCREEN_SHORTEST = 30.0
+
+#: ... or more than this.
+SCREEN_LONGEST = 5 * 60.0
+
+#: Failed screen writes in a row after which the screen is reset (new helper process).
+SCREEN_FAILURES_BEFORE_RESET = 3
+
+#: Resets that did not help, after which screen writes pause.
+SCREEN_RESETS_BEFORE_REST = 3
+
+#: While screen writes pause, one try this often.
+SCREEN_REST = 10 * 60.0
+
+#: How long a screen helper process may take to end after it was told to (or killed).
+SCREEN_STOP = 5.0
+
+#: How long closing the screen may take when PaperPi stops.
+SCREEN_CLOSE = 30.0
+
+#: PaperPi exits because of a stuck screen helper process at most this often.
+SCREEN_STUCK_EXIT = 60 * 60.0

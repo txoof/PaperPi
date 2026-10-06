@@ -13,15 +13,16 @@ The reasons are in ``docs/decisions/errors-and-time-limits.md``. In short:
   count, not from plugin processes). Without systemd nothing is sent.
 - Each report also replaces the health file (default :data:`HEALTH_FILE`). Docker's health
   check runs ``paperpi health``, which reads it with :func:`check`. The file holds one line
-  of JSON: the time of the report, the time since the last screen write, memory use and
-  open files of the main process, and free disk. It is replaced, never added to, so it
-  can't grow. The file is written first and systemd told after it, so "ready" means the
+  of JSON: the time of the report, the time since the last screen write, the screen state,
+  memory use and open files of the main process, and free disk. It is replaced, never added
+  to, so it can't grow. The file is written first and systemd told after it, so "ready" means the
   file is there.
 - The same values go to the log at the first report and then every
   :data:`~paperpi.limits.HEALTH_LOG` seconds, so slow growth (memory, open files) can be
   seen over weeks.
 - Healthy means only "the loop still reports". A broken screen does not make PaperPi
-  restart again and again; screen failures are handled by the scheduler itself.
+  restart again and again; screen failures are handled by the screen watchdog
+  (:mod:`paperpi.screen`).
 """
 
 from __future__ import annotations
@@ -64,6 +65,9 @@ class Report:
     time: str
     since_screen: float | None
     """Seconds since the last successful screen write; ``None``: none yet."""
+    screen: str | None
+    """"ok", "failing" (the last write failed) or "paused" (the screen watchdog pauses
+    writes: the screen does not answer); ``None`` before the first write."""
     memory_mb: float | None
     """Memory used by the main PaperPi process."""
     open_files: int | None
@@ -73,10 +77,12 @@ class Report:
 
 
 #: The values shown to people, in this order.
-DETAILS = ("since_screen", "memory_mb", "open_files", "free_disk_mb")
+DETAILS = ("since_screen", "screen", "memory_mb", "open_files", "free_disk_mb")
 
 
-def measure(since_screen: float | None, disk: Path, now: float | None = None) -> Report:
+def measure(
+    since_screen: float | None, disk: Path, now: float | None = None, screen: str | None = None
+) -> Report:
     """A report about this process at ``now`` (monotonic clock, default: now). A value that
     can't be measured is ``None``."""
     return Report(
@@ -84,6 +90,7 @@ def measure(since_screen: float | None, disk: Path, now: float | None = None) ->
         monotonic=time.monotonic() if now is None else now,
         time=datetime.now().astimezone().isoformat(timespec="seconds"),
         since_screen=None if since_screen is None else round(since_screen, 1),
+        screen=screen,
         memory_mb=_memory_mb(),
         open_files=_open_files(),
         free_disk_mb=_free_disk_mb(disk),
@@ -123,10 +130,10 @@ class Health:
         self._failed: set[str] = set()
         """What failed already; each failure is logged once, not every 30 seconds."""
 
-    def report(self, since_screen: float | None) -> None:
+    def report(self, since_screen: float | None, screen: str | None = None) -> None:
         """Say "still running". Never raises: a failure is logged once (and again only
         when it comes back after working)."""
-        measured = measure(since_screen, self.disk, self.clock())
+        measured = measure(since_screen, self.disk, self.clock(), screen)
         if self.path is not None:
             self._write(measured)
         if measured.monotonic >= self._next_log:

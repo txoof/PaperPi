@@ -39,7 +39,7 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 - A plugin that is removed or switched off while on screen: rotation moves on to the next plugin.
 - A new plugin joins the end of the rotation.
 
-**Update 2026-10-05 (M4, issue #205):** plugins take turns in the order of the config file, so a new plugin takes the place where it is in the file (the end, when it is added at the end). Until the screen helper process exists, changed screen settings take effect at the next start, with a warning in the log.
+**Update 2026-10-05 (M4, issue #205):** plugins take turns in the order of the config file, so a new plugin takes the place where it is in the file (the end, when it is added at the end). Until reloading screen settings is built (M4 issue #222, part 5b), changed screen settings take effect at the next start, with a warning in the log.
 
 ### Screen settings
 
