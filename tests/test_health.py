@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import time
 
 import pytest
@@ -18,7 +19,8 @@ class FakeSystemd:
     def __call__(self, name):
         self.messages.append(name)
         if self.fail:
-            raise OSError("socket gone")
+            # What cysystemd raises when the message can't be sent.
+            raise ValueError("Notification error #-2", -2)
 
 
 @pytest.fixture
@@ -44,6 +46,28 @@ def test_nothing_is_sent_without_systemd(tmp_path, monkeypatch):
     reports.stopping()
 
 
+def test_real_systemd_message_to_a_missing_socket_is_only_logged(tmp_path, caplog):
+    reports = Health(tmp_path / "health", disk=tmp_path, environ={"NOTIFY_SOCKET": "x"})
+    os.environ["NOTIFY_SOCKET"] = str(tmp_path / "no-socket")  # cysystemd reads it itself
+    try:
+        with caplog.at_level(logging.WARNING):
+            reports.report(None)
+            reports.stopping()
+    finally:
+        del os.environ["NOTIFY_SOCKET"]
+    assert "can't send READY to systemd" in caplog.text
+
+
+def test_ready_is_sent_again_until_it_works(tmp_path, systemd):
+    reports = Health(tmp_path / "health", disk=tmp_path, notify=systemd)
+    systemd.fail = True
+    reports.report(None)
+    systemd.fail = False
+    reports.report(None)
+    reports.report(None)
+    assert systemd.messages == ["READY", "WATCHDOG", "READY", "WATCHDOG", "WATCHDOG"]
+
+
 def test_report_holds_the_health_data(tmp_path, systemd):
     path = tmp_path / "run" / "health"  # the folder is made when needed
     Health(path, disk=tmp_path, notify=systemd).report(12.34)
@@ -51,7 +75,7 @@ def test_report_holds_the_health_data(tmp_path, systemd):
     assert abs(values["monotonic"] - time.monotonic()) < 5
     assert values["since_screen"] == 12.3
     assert values["memory_mb"] > 1
-    assert values["open_files"] >= 3  # at least standard input, output and error
+    assert abs(values["open_files"] - (len(os.listdir("/proc/self/fd")) - 1)) <= 1
     assert values["free_disk_mb"] > 0
     assert values["time"]
     assert path.stat().st_mode & 0o777 == 0o644
@@ -83,11 +107,30 @@ def test_failures_are_logged_once_and_never_raise(tmp_path, systemd, caplog):
     with caplog.at_level(logging.WARNING):
         for _ in range(5):
             reports.report(None)
-    assert len(systemd.messages) == 6  # READY and 5 WATCHDOG: it keeps trying
+    # It keeps trying: READY (not sent yet) and WATCHDOG, at every report.
+    assert systemd.messages == ["READY", "WATCHDOG"] * 5
     assert [r.getMessage().split(":")[0] for r in caplog.records] == [
-        "can't send READY to systemd",
         f"can't write the health report to {blocked / 'health'}",
+        "can't send READY to systemd",
     ]
+
+
+def test_failure_that_comes_back_after_working_is_logged_again(tmp_path, systemd, caplog):
+    blocked = tmp_path / "folder"
+    reports = Health(blocked / "health", disk=tmp_path, notify=systemd)
+    with caplog.at_level(logging.WARNING):
+        for fails in (True, False, True):
+            systemd.fail = fails
+            if fails:
+                blocked.write_text("")  # a file where the folder should be
+            else:
+                blocked.unlink()
+            reports.report(None)
+            if not fails:
+                (blocked / "health").unlink()
+                blocked.rmdir()
+    messages = [r.getMessage().split(" ")[1] for r in caplog.records]
+    assert messages == ["write", "send", "write", "send"]
 
 
 def test_check_a_fresh_report(tmp_path, systemd):

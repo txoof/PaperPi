@@ -26,9 +26,9 @@ Status: proposed (M1, issue #190). Decided with txoof.
 
 How it is built (`src/paperpi/health.py`, M4):
 - Only the scheduler loop reports, so a loop stuck anywhere (for example in a screen write that never ends) stops the reports. The loop wakes up for a report even when nothing else is due.
-- To systemd: the first report says `READY=1`, every report `WATCHDOG=1`, and stopping on purpose says `STOPPING=1`. The messages are sent with the `cysystemd` package, only when systemd asked for them (the `NOTIFY_SOCKET` variable is set). The service (M6) needs `Type=notify` and `WatchdogSec=120`.
-- For Docker: each report replaces the file `/run/paperpi/health` (in memory, emptied at every start of the Pi). It holds one line: the time of the report, and the health data of `freeze-prevention.md` rule 8 (time since the last screen write, memory use, open files, free disk). It is replaced, never added to, so it can't grow. `paperpi health` ends with status 1 when the report is older than 2 minutes or missing; Docker's health check runs it. Stopping on purpose removes the file.
-- A failed report (no file can be written, systemd not answering) is logged once and does not stop PaperPi.
+- To systemd: the first report says `READY=1`, every report `WATCHDOG=1`, and stopping on purpose says `STOPPING=1`. The messages are sent with the `cysystemd` package, only when systemd asked for them (the `NOTIFY_SOCKET` variable is set). The service (M6) needs `Type=notify` (systemd counts PaperPi as started only after `READY=1`), `WatchdogSec=120` (systemd restarts PaperPi when no `WATCHDOG=1` arrives for 120 seconds), `RuntimeDirectory=paperpi` (systemd makes `/run/paperpi` for PaperPi's user; only root can make it otherwise) and the default `NotifyAccess=main` (only messages from the main process count, so a plugin process can't say "still running" for a stuck loop).
+- For Docker: each report replaces the file `/run/paperpi/health` (on Raspberry Pi OS `/run` is in memory and emptied at every start of the Pi). It holds one line: the time of the report, and the health data of `freeze-prevention.md` rule 8 (time since the last screen write, memory use and open files of the main PaperPi process, not of the plugin processes, and free space on the disk that holds `--state-dir`). It is replaced, never added to, so it can't grow. The file is written before systemd is told, so "ready" means the file is there. `paperpi health` fails (exit status 1, the number a program returns to say it failed) when the report is missing or older than 2 minutes; Docker's health check runs it. Stopping on purpose removes the file.
+- A failed report (no file can be written, systemd not answering) is logged once, and again only if it comes back after working. It does not stop PaperPi. `READY=1` is tried again with every report until it works.
 
 ### When screen writes fail
 
@@ -71,6 +71,10 @@ As in `plugin-scheduling.md`: a failed update is skipped and retried at the plug
 
 ## Open questions
 
-- For M6: Docker itself only marks a container "unhealthy"; it does not restart it. The install must choose how an unhealthy PaperPi is restarted (for example, the health check command also ends the container, which `restart: always` then starts again).
+- For M6 (Docker):
+  - Docker itself only marks a container "unhealthy"; it does not restart it. The install must choose how an unhealthy PaperPi is restarted (for example, the health check command also ends the container, which `restart: always` then starts again).
+  - Inside a container `/run` is not kept in memory. The container must keep `/run/paperpi` in memory (a "tmpfs" mount), so the report causes no SD card writes and is gone after a restart.
+  - There is no report until the scheduler loop has started, so the health check needs a start period (a time at the start when failures don't count).
+  - The health file holds only the newest values. The long run on this Pi (`freeze-prevention.md`) needs them kept over time; how is still open.
 
 All other points above were agreed with txoof on 2026-10-04.

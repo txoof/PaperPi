@@ -6,12 +6,17 @@ The reasons are in ``docs/decisions/errors-and-time-limits.md``. In short:
   seconds. When the loop gets stuck, the reports stop, and after
   :data:`~paperpi.limits.HEALTH_STALE` seconds the watchdog restarts PaperPi.
 - Under systemd, each report is a ``WATCHDOG=1`` message (the first one also says
-  ``READY=1``), sent with the ``cysystemd`` package. The service needs ``Type=notify`` and
-  ``WatchdogSec=120``. Without systemd nothing is sent.
+  ``READY=1``), sent with the ``cysystemd`` package. The service needs ``Type=notify``
+  (systemd counts PaperPi as started only after ``READY=1``), ``WatchdogSec=120`` (systemd
+  restarts PaperPi when no ``WATCHDOG=1`` arrives for 120 seconds) and the default
+  ``NotifyAccess=main`` (only messages from the main process count, not from plugin
+  processes). Without systemd nothing is sent.
 - Each report also replaces the health file (default :data:`HEALTH_FILE`). Docker's health
   check runs ``paperpi health``, which reads it with :func:`check`. The file holds one line
-  of JSON: the time of the report, the time since the last screen write, memory use, open
-  files and free disk. It is replaced, never added to, so it can't grow.
+  of JSON: the time of the report, the time since the last screen write, memory use and
+  open files of the main process, and free disk. It is replaced, never added to, so it
+  can't grow. The file is written first and systemd told after it, so "ready" means the
+  file is there.
 - Healthy means only "the loop still reports". A broken screen does not make PaperPi
   restart again and again; screen failures are handled by the scheduler itself.
 """
@@ -33,9 +38,10 @@ from .files import write_atomic
 
 log = logging.getLogger(__name__)
 
-#: Where ``paperpi run`` writes the health report. ``/run`` is kept in memory and emptied
-#: at every start of the Pi, so the report costs no SD card writes and an old report can
-#: never look new.
+#: Where ``paperpi run`` writes the health report. On Raspberry Pi OS, ``/run`` is kept in
+#: memory and emptied at every start of the Pi, so the report costs no SD card writes and an
+#: old report can never look new. Only root can make the folder: the service gets it from
+#: systemd (``RuntimeDirectory=paperpi``), and Docker must keep it in memory too (M6).
 HEALTH_FILE = Path("/run/paperpi/health")
 
 
@@ -63,7 +69,7 @@ class Report:
 def measure(since_screen: float | None, disk: Path) -> Report:
     """A report about this process, now. A value that can't be measured is ``None``."""
     return Report(
-        monotonic=round(time.monotonic(), 1),
+        monotonic=time.monotonic(),  # not rounded: rounded up, it would lie in the future
         time=datetime.now().astimezone().isoformat(timespec="seconds"),
         since_screen=None if since_screen is None else round(since_screen, 1),
         memory_mb=_memory_mb(),
@@ -102,18 +108,22 @@ class Health:
         """What failed already; each failure is logged once, not every 30 seconds."""
 
     def report(self, since_screen: float | None) -> None:
-        """Say "still running". Never raises: a failed report is logged once."""
+        """Say "still running". Never raises: a failure is logged once (and again only
+        when it comes back after working)."""
+        if self.path is not None:
+            self._write(since_screen)
         if not self._ready:
-            self._send("READY")
-            self._ready = True
+            # Tried again with every report until it works: systemd waits for it.
+            self._ready = self._send("READY")
         self._send("WATCHDOG")
-        if self.path is None:
-            return
+
+    def _write(self, since_screen: float | None) -> None:
         line = json.dumps(asdict(measure(since_screen, self.disk))) + "\n"
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            # Anyone may read it: the health check may run as another user.
-            write_atomic(self.path, line.encode(), mode=0o644)
+            # Anyone may read it: the health check may run as another user. Not forced onto
+            # the disk: after a power cut it is out of date anyway.
+            write_atomic(self.path, line.encode(), mode=0o644, durable=False)
         except OSError as error:
             self._log_once("file", "can't write the health report to %s: %s", self.path, error)
         else:
@@ -128,13 +138,15 @@ class Health:
             except OSError as error:
                 log.warning("can't remove the health report %s: %s", self.path, error)
 
-    def _send(self, name: str) -> None:
+    def _send(self, name: str) -> bool:
+        """Send one message to systemd; whether it worked."""
         try:
             self._notify(name)
-        except OSError as error:
+        except Exception as error:  # noqa: BLE001 - cysystemd raises ValueError, RuntimeError...
             self._log_once("systemd", "can't send %s to systemd: %s", name, error)
-        else:
-            self._failed.discard("systemd")
+            return False
+        self._failed.discard("systemd")
+        return True
 
     def _log_once(self, what: str, message: str, *args) -> None:
         if what not in self._failed:
@@ -169,7 +181,8 @@ def check(path: Path = HEALTH_FILE, *, now: float | None = None) -> tuple[bool, 
     )
     if not -limits.HEALTH_REPORT <= age <= limits.HEALTH_STALE:
         return False, f"not responding: the last report is {age:.0f} s old ({details})"
-    return True, f"healthy: last report {age:.0f} s ago ({details})"
+    # Up to one report interval in the future is accepted above; shown as 0.
+    return True, f"healthy: last report {max(age, 0):.0f} s ago ({details})"
 
 
 def _systemd_notify(name: str) -> None:

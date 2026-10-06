@@ -676,6 +676,15 @@ def test_loop_reports_every_30_seconds_also_when_nothing_happens(tmp_path):
     assert sim.health.reports == [(0, None), (30, 29), (60, 59), (90, 89)]
 
 
+def test_time_since_the_screen_write_grows_while_writes_fail(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=25), health=True)
+    sim.plan(a=lambda t: f"A{t:g}")  # a new image with every update
+    sim.at(10, setattr, sim.screen, "fail", True)
+    sim.run(until=100)
+    assert sim.health.reports == [(0, None), (30, 29), (60, 59), (90, 89)]
+    assert len(sim.writes) > 1  # it kept trying
+
+
 def test_no_reports_while_the_loop_is_stuck(tmp_path):
     sim = Sim(tmp_path, rotation("a", refresh=1000), health=True)
     sim.screen.write_seconds = 200  # a screen write that hangs for 200 s

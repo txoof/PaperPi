@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
-    "cysystemd>=2.0",
+    "cysystemd>=2.0; sys_platform == 'linux'",
     "epdlib",
     "pydantic>=2.9",
 ]

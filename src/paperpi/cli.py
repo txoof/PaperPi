@@ -130,16 +130,16 @@ def _parser() -> argparse.ArgumentParser:
         "health",
         help='check that "paperpi run" is still running its loop',
         description=(
-            "Check the health report of paperpi run. Ends with status 0 when the last report "
-            f"is at most {limits.HEALTH_STALE:.0f} s old, else 1. Docker's health check uses "
-            "this command."
+            "Check the health report of paperpi run. Ends with exit status 0 (healthy) when "
+            f"the last report is at most {limits.HEALTH_STALE:.0f} s old, else 1 (the number a "
+            "program returns to say it failed). Docker's health check uses this command."
         ),
     )
     check.add_argument(
         "--health-file",
         type=Path,
         default=health.HEALTH_FILE,
-        help=f"default: {health.HEALTH_FILE}",
+        help=f"the health report to check (default: {health.HEALTH_FILE})",
     )
     check.set_defaults(command=_health)
     return parser

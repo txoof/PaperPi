@@ -173,7 +173,7 @@ name = "paperpi"
 version = "2.0.0.dev0"
 source = { editable = "." }
 dependencies = [
-    { name = "cysystemd" },
+    { name = "cysystemd", marker = "sys_platform == 'linux'" },
     { name = "epdlib" },
     { name = "pydantic" },
 ]
@@ -187,7 +187,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cysystemd", specifier = ">=2.0" },
+    { name = "cysystemd", marker = "sys_platform == 'linux'", specifier = ">=2.0" },
     { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=e7b25b771dd3aa3d14ba678036de3c8880d7c279" },
     { name = "pydantic", specifier = ">=2.9" },
 ]
