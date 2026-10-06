@@ -8,6 +8,7 @@ from paperpi import plugins
 from paperpi.plugin import (
     NOTHING,
     Context,
+    Drawn,
     Plugin,
     PluginDefinitionError,
     PluginSettings,
@@ -94,6 +95,69 @@ def test_layout_can_depend_on_settings(tmp_path):
     plugin = make(layouts={"one": layout})
     state, image = draw_update(plugin, context(tmp_path, plugin), sample=True)
     assert state is State.READY
+
+
+def test_drawn_seed_makes_random_placement_repeatable(tmp_path):
+    layouts = {
+        "one": {
+            "column": [
+                {
+                    "name": "text",
+                    "type": "text",
+                    "align": "random",
+                    "valign": "random",
+                    "font_size": 0.2,
+                }
+            ]
+        }
+    }
+
+    def image(seed):
+        plugin = make(layouts=layouts, draw=lambda word, context: Drawn({"text": "x"}, seed=seed))
+        return draw_update(plugin, context(tmp_path, plugin), sample=True)[1].tobytes()
+
+    assert image(1) == image(1)
+    assert image(1) != image(2)
+
+
+def test_drawn_colors_change_only_rgb_support_blocks(tmp_path):
+    layouts = {
+        "one": {
+            "row": [
+                {"name": "a", "type": "text", "rgb_support": True},
+                {"name": "b", "type": "text"},
+            ],
+            "gap": 0,
+        }
+    }
+    plugin = make(layouts=layouts, draw=lambda word, context: Drawn({}, colors=("white", "black")))
+    ctx = Context(Settings(), 100, 50, ScreenMode.gray(16), tmp_path, "one")
+    image = draw_update(plugin, ctx, sample=True)[1].convert("L")
+    assert image.getpixel((0, 0)) == 0  # block a: black background
+    assert image.getpixel((99, 0)) == 255  # block b: still white
+
+
+def test_recolor_reaches_nested_blocks_and_keeps_the_original():
+    from paperpi.plugin import _recolor
+
+    layout = {
+        "column": (
+            {
+                "row": [
+                    {"name": "a", "rgb_support": True},
+                    {"name": "b", "rgb_support": True, "inverse": True},
+                ]
+            },
+            {"name": "c"},
+        )
+    }
+    new = _recolor(layout, "yellow", "blue")
+    a, b = new["column"][0]["row"]
+    assert (a["fill"], a["background"]) == ("yellow", "blue")
+    assert (b["fill"], b["background"]) == ("blue", "yellow")  # inverse swaps them back
+    assert "fill" not in new["column"][1]
+    assert isinstance(new["column"], tuple)
+    assert "fill" not in layout["column"][0]["row"][0]  # the original is unchanged
 
 
 def test_loader_lists_and_loads_the_plugins():
