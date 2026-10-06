@@ -33,7 +33,7 @@ The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfSer
 
 | Layout | Shows |
 |---|---|
-| `hours_12` (default) | place and "Updated" time, the summary line, an icon every 2 hours, then per hour the rain bar and mm, the hour, the temperature and the wind barb |
+| `hours_12` (default) | place, "Updated" time and "Data: MET Norway", the summary line, an icon every 2 hours, then per hour the rain bar and mm, the hour, the temperature and the wind barb |
 
 ## Settings
 
@@ -64,7 +64,7 @@ email = "you@example.com"
 
 Try it without a screen: `uv run paperpi render met_no --set place=Berlin` (sample data), or with real data: `uv run paperpi render met_no --live --set lat=52.52 --set lon=13.40 --set email=you@example.com`.
 
-The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Meteorological Institute), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) licence. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT licence ([`icons/LICENSE`](icons/LICENSE)).
+The screen shows "Data: MET Norway" next to the "Updated" time, as met.no's data licence asks. The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Meteorological Institute), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) licence. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT licence ([`icons/LICENSE`](icons/LICENSE)).
 
 ## Sample images
 

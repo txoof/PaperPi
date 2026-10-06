@@ -302,7 +302,7 @@ def weather(*rain):
 def test_draw_the_sample(tmp_path):
     values = draw(PLUGIN.sample, context(tmp_path))
     assert values["place"] == "Berlin"
-    assert values["updated"] == "Updated 08:32"
+    assert values["updated"] == "Updated 08:32 · Data: MET Norway"
     assert values["summary"] == "Max 14°C · Min 8°C · Rain 6.6 mm, 13–17, 19–20"
     assert [values[f"hour_{i}"] for i in (0, 11)] == ["09", "20"]
     assert values["mm_6"] == "3.4"

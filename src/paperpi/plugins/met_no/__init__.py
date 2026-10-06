@@ -30,6 +30,8 @@ OLDEST = timedelta(hours=6)
 #: The longest wait for met.no's "Expires" time, in case it is far ahead or the clock is off.
 LONGEST_WAIT = timedelta(hours=1)
 ICONS = Path(__file__).parent / "icons"
+#: met.no's data licence (CC BY 4.0) asks for credit; it is shown on the screen.
+CREDIT = "Data: MET Norway"
 
 
 class Settings(PluginSettings):
@@ -200,7 +202,7 @@ def draw(weather: Weather, context: Context) -> dict:
     local = (lambda t: t.astimezone(zone)) if zone else (lambda t: t.astimezone())
     values = {
         "place": place_name(settings),
-        "updated": f"Updated {local(weather.forecast.fetched):%H:%M}",
+        "updated": f"Updated {local(weather.forecast.fetched):%H:%M} · {CREDIT}",
         "summary": summary_text(hours, settings, zone),
     }
     # Bars share one scale: at least 2 mm per hour, so a drizzle doesn't look like a storm.

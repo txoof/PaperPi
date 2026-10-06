@@ -47,7 +47,7 @@ def hours_12(settings) -> dict:
             {
                 "row": [
                     _text("place", "Rio de Janeiro", size=1, align="left", shrink=True),
-                    _text("updated", "Updated 88:88", size=1, align="right"),
+                    _text("updated", "Updated 88:88 · Data: MET Norway", size=1.4, align="right"),
                 ],
                 "gap": 0,
                 "size": 0.6,
