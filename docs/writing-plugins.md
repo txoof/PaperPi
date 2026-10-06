@@ -106,7 +106,7 @@ from ... import fonts
 {"name": "title", "type": "text", "font": fonts.LATO_BOLD}  # also fonts.LATO_ITALIC
 ```
 
-A font only one plugin uses can stay in the plugin's own folder, with its licence (see `word_clock`).
+To add a shared font, put the font file and its licence in `src/paperpi/fonts/`, and add a name for its path in `src/paperpi/fonts/__init__.py`. A font only one plugin uses can stay in the plugin's own folder, with its licence (see `word_clock`).
 
 ### Moving blocks and colours
 

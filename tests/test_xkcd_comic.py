@@ -110,21 +110,47 @@ def test_picks_from_all_comics_but_404(tmp_path, monkeypatch):
     assert seen[0] == [n for n in range(1, 406) if n != 404]
 
 
+def picture(width, height, format) -> bytes:
+    buffer = io.BytesIO()
+    Image.new("L", (width, height), 0).save(buffer, format)
+    return buffer.getvalue()
+
+
 def test_too_large_and_broken_comics_are_skipped(tmp_path, monkeypatch, pick, caplog):
     caplog.set_level("INFO")
-    FakeXkcd(
+    refused = [
+        "",  # no picture
+        "https://imgs.xkcd.com/comics/",  # interactive comics, e.g. 1608: only the folder
+        "http://imgs.xkcd.com/comics/3.png",  # not https
+        "https://example.com/comics/4.png",  # another server
+    ]
+    site = FakeXkcd(
         monkeypatch,
         comics={
-            1: (info(1), png(801, 100)),  # wider than max_width
-            2: (info(2, img="https://xkcd.com/2/"), b"<html>interactive</html>"),
-            3: (info(3, img=""), b""),  # no picture
-            4: (info(4), png(800, 600)),  # exactly the largest allowed
+            1: (info(1, img=refused[0]), b""),
+            2: (info(2, img=refused[1]), b""),
+            3: (info(3, img=refused[2]), png(10, 10)),
+            4: (info(4, img=refused[3]), png(10, 10)),
+            5: (info(5), png(801, 100)),  # wider than max_width
+            6: (info(6), b"<html>not a picture</html>"),
+            7: (info(7), picture(300, 200, "PNG")[:60]),  # cut off after the size
+            8: (info(8), picture(30, 20, "BMP")),  # a format xkcd doesn't use
+            9: (info(9), picture(800, 600, "GIF")),  # exactly the largest allowed
         },
-        latest=4,
+        latest=9,
     )
-    pick.extend([1, 2, 3, 4])
-    assert fetch(context(tmp_path)).data.number == 4
+    pick.extend(range(1, 10))
+    assert fetch(context(tmp_path)).data.number == 9
+    assert not set(refused) & set(site.urls)
+    assert caplog.text.count("it has no picture") == 4
     assert "801x100 pixels" in caplog.text
+    assert caplog.text.count("or is damaged") == 3
+
+
+def test_picture_address():
+    assert xkcd.picture_address("https://imgs.xkcd.com/comics/think_logically.png")
+    for url in [None, 5, "", "https://imgs.xkcd.com/comics/", "https://imgs.xkcd.com.evil/a.png"]:
+        assert not xkcd.picture_address(url)
 
 
 def test_gives_up_after_the_tries(tmp_path, monkeypatch, pick):
@@ -164,6 +190,14 @@ def test_title_falls_back_and_texts_are_strings(tmp_path, monkeypatch, pick):
     pick.append(1)
     comic = fetch(context(tmp_path)).data
     assert (comic.title, comic.alt) == ("Plain", "")
+
+
+def test_safe_title_is_used_not_title(tmp_path, monkeypatch, pick):
+    # On xkcd.com, "title" can hold HTML for a few comics; "safe_title" is plain text.
+    data = info(1, safe_title="Plain", title="<i>Plain</i>")
+    FakeXkcd(monkeypatch, comics={1: (data, png(10, 10))})
+    pick.append(1)
+    assert fetch(context(tmp_path)).data.title == "Plain"
 
 
 # --- Drawing ---------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ At each update it picks a random comic, from the first one to the newest. With `
 
 Comics smaller than the space on the screen keep their own size, so their lines stay sharp. With `enlarge = true` they are enlarged to fill the space. Comics larger than the space are always made smaller to fit.
 
-The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small file per comic that lists its number, title, hover text and picture). Each update downloads three small files (two for the newest comic): the newest comic's number, the chosen comic's details, and its picture (more when comics are skipped). It saves nothing in its storage folder.
+The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small file per comic that lists its number, title, hover text and picture). Each update downloads two small files, the newest comic's number and the chosen comic's details, and then the comic's picture (at most 5 MB; usually tens to a few hundred kB). For the newest comic, one small file is enough. Skipped comics add more downloads. Pictures come only from xkcd's picture server (`imgs.xkcd.com`, over https), and only PNG, JPEG and GIF files are used. It saves nothing in its storage folder.
 
 ## Layouts
 
@@ -23,9 +23,9 @@ The title is in Lato Bold and the hover text in Lato Italic. Long titles and hov
 | Setting | Default | Meaning |
 |---|---|---|
 | `comic` | `"random"` | `"random"`: a random comic; `"newest"`: the newest comic |
-| `max_width` | `800` | comics wider than this many pixels are skipped |
-| `max_height` | `600` | comics taller than this many pixels are skipped |
-| `tries` | `10` | how many random comics to try (1 to 20) before the update fails, when they are too large |
+| `max_width` | `800` | comics wider than this many pixels are skipped (at most 4000) |
+| `max_height` | `600` | comics taller than this many pixels are skipped (at most 4000) |
+| `tries` | `10` | how many random comics to try (1 to 20) before the update fails, when they are too large or have no picture |
 | `enlarge` | `false` | `true` enlarges comics that are smaller than the space on the screen |
 
 It suggests a refresh every 20 minutes.

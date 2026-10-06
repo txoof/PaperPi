@@ -8,6 +8,7 @@ import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from PIL import Image, UnidentifiedImageError
 from pydantic import Field
@@ -21,6 +22,10 @@ log = logging.getLogger(__name__)
 SITE = "https://xkcd.com"
 #: xkcd has no comic 404: its page answers "not found", as a joke.
 MISSING = 404
+#: The only server pictures are downloaded from.
+PICTURES = "imgs.xkcd.com"
+#: The only picture formats xkcd uses. Pillow's other formats are refused, to be safe.
+FORMATS = ("PNG", "JPEG", "GIF")
 SAMPLE = Path(__file__).parent / "sample" / "think_logically.png"
 
 
@@ -29,16 +34,17 @@ class Settings(PluginSettings):
         "random", description="Which comic: a random one, or the newest one"
     )
     max_width: int = Field(
-        800, ge=1, le=10_000, description="Comics wider than this many pixels are skipped"
+        800, ge=1, le=4000, description="Comics wider than this many pixels are skipped"
     )
     max_height: int = Field(
-        600, ge=1, le=10_000, description="Comics taller than this many pixels are skipped"
+        600, ge=1, le=4000, description="Comics taller than this many pixels are skipped"
     )
     tries: int = Field(
         10,
         ge=1,
         le=20,
-        description="How many random comics to try before giving up, when they are too large",
+        description="How many random comics to try before giving up, when they are too large "
+        "or have no picture",
     )
     enlarge: bool = Field(
         False,
@@ -62,6 +68,9 @@ class NoComicFound(ValueError):
 
 
 def fetch(context: Context):
+    """The newest or a random comic, ready to draw. Raises :class:`NoComicFound` when
+    xkcd.com sends no number for its newest comic, when the newest comic can't be shown,
+    or when no random comic in ``tries`` tries can be shown (too large, or no picture)."""
     settings = context.settings
     newest = _info(f"{SITE}/info.0.json")
     latest = _number(newest)
@@ -98,26 +107,40 @@ def _comic(number: int, info: dict, settings: Settings) -> tuple[Comic | None, s
     ``None`` and the reason it can't be shown. Network errors are raised: trying another
     comic would not help."""
     url = info.get("img")
-    if not isinstance(url, str) or not url.startswith("https://"):
-        return None, "it has no picture"
+    if not picture_address(url):
+        return None, "it has no picture"  # e.g. an interactive comic
     body = webrequest.get(url).body
     try:
-        with Image.open(io.BytesIO(body)) as picture:  # reads only the size, not the pixels
+        with Image.open(io.BytesIO(body), formats=FORMATS) as picture:  # reads only the size
             width, height = picture.size
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
-        return None, "its picture is not an image file"  # e.g. an interactive comic
-    if width > settings.max_width or height > settings.max_height:
-        return None, f"it is {width}x{height} pixels, larger than the settings allow"
+            if width > settings.max_width or height > settings.max_height:
+                return None, f"it is {width}x{height} pixels, larger than the settings allow"
+            picture.load()  # decodes it all, so a damaged file is found here, not in draw
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        return None, "its picture is not a PNG, JPEG or GIF file, or is damaged"
     title = info.get("safe_title") or info.get("title") or ""
     alt = info.get("alt") or ""
     return Comic(number, str(title), str(alt), body), ""
+
+
+def picture_address(url) -> bool:
+    """True for a picture file on xkcd's picture server, over https. Interactive comics
+    have only the folder, ``https://imgs.xkcd.com/comics/``, which is refused."""
+    if not isinstance(url, str):
+        return False
+    parts = urlsplit(url)
+    return (
+        parts.scheme == "https"
+        and parts.hostname == PICTURES
+        and bool(parts.path.rsplit("/", 1)[-1])
+    )
 
 
 # --- Drawing ---------------------------------------------------------------------------------
 
 
 def _open(image: bytes | Path) -> Image.Image:
-    picture = Image.open(io.BytesIO(image) if isinstance(image, bytes) else image)
+    picture = Image.open(io.BytesIO(image) if isinstance(image, bytes) else image, formats=FORMATS)
     picture.load()
     return picture
 
