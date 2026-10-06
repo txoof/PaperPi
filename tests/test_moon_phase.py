@@ -1,7 +1,9 @@
 """The moon_phase plugin: reading met.no's answer, the saved answer, the phase, drawing."""
 
 import json
-from datetime import date, datetime
+import os
+import time
+from datetime import UTC, date, datetime
 
 import pytest
 from epdlib import ScreenMode
@@ -53,6 +55,18 @@ def test_parse():
     )
 
 
+@pytest.mark.parametrize("phase", [0, 360])
+def test_new_moon_at_both_ends_is_accepted(phase):
+    assert parse(answer(phase=phase), date(2026, 10, 6), PLACE).phase == phase
+
+
+def test_a_day_without_moonrise_and_moonset(tmp_path):
+    moon = parse(answer(rise=None, set_=...), date(2026, 10, 6), PLACE)
+    assert (moon.rise, moon.set) == (None, None)
+    values = draw(moon, context(tmp_path))
+    assert (values["moonrise"], values["moonset"]) == ("Moonrise: none", "Moonset: none")
+
+
 @pytest.mark.parametrize("missing", [None, ...])  # no time, or no moonrise at all
 def test_a_day_without_moonrise(missing):
     moon = parse(answer(rise=missing), date(2026, 10, 6), PLACE)
@@ -63,7 +77,9 @@ def test_a_day_without_moonrise(missing):
 @pytest.mark.parametrize(
     "broken",
     [{}, {"properties": None}, answer(phase=None), answer(phase="x"), answer(phase=361),
-     answer(phase=-1), answer(rise="not a time")],
+     answer(phase=-1), answer(rise="not a time"),
+     {"properties": {"moonphase": 10, "moonrise": "2026-10-06T01:38+02:00"}},
+     {"properties": {"moonphase": 10, "moonset": ["x"]}}],
 )  # fmt: skip
 def test_broken_answers(broken):
     with pytest.raises(MoonError):
@@ -91,9 +107,10 @@ def test_load_broken_or_missing(tmp_path, content):
 class FakeMetNo:
     """Stands in for webrequest.get and records the addresses asked for."""
 
-    def __init__(self, monkeypatch, result=None):
+    def __init__(self, monkeypatch, result=None, status=200):
         self.urls = []
         self.result = result
+        self.status = status
         monkeypatch.setattr(moon_phase.webrequest, "get", self)
 
     def __call__(self, url, **options):
@@ -101,7 +118,7 @@ class FakeMetNo:
         self.options = options
         if isinstance(self.result, Exception):
             raise self.result
-        return webrequest.Answer(200, json.dumps(answer()).encode(), {}, url)
+        return webrequest.Answer(self.status, json.dumps(answer()).encode(), {}, url)
 
 
 def context(tmp_path, layout="moon_data", **settings):
@@ -122,6 +139,65 @@ def test_fetch_downloads_and_saves(tmp_path, monkeypatch):
     assert metno.options == {"contact": "me@example.com"}
     assert load(tmp_path / "moon.json") == fetched.data
     assert (tmp_path / "moon.json").stat().st_mode & 0o077 == 0  # only PaperPi can read it
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    """Sets the Pi's time zone and clock: ``clock("Africa/Addis_Ababa", utc_time)``."""
+    old = os.environ.get("TZ")
+
+    def set_clock(zone: str, utc: datetime):
+        os.environ["TZ"] = zone
+        time.tzset()
+
+        class Fixed(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return utc.astimezone(tz) if tz else utc.astimezone()
+
+        monkeypatch.setattr(moon_phase, "datetime", Fixed)
+
+    yield set_clock
+    if old is None:
+        os.environ.pop("TZ", None)
+    else:
+        os.environ["TZ"] = old
+    time.tzset()
+
+
+@pytest.mark.parametrize(
+    ("zone", "utc", "day", "offset"),
+    [  # 01:30 on 6 October in Addis Ababa, but still 5 October in UTC
+        ("Africa/Addis_Ababa", datetime(2026, 10, 5, 22, 30, tzinfo=UTC), "2026-10-06", "+03:00"),
+        # 22:00 on 5 October in Rio, already 6 October in UTC
+        ("America/Sao_Paulo", datetime(2026, 10, 6, 1, 0, tzinfo=UTC), "2026-10-05", "-03:00"),
+    ],
+)
+def test_fetch_asks_for_the_pis_own_date_and_offset(
+    tmp_path, monkeypatch, clock, zone, utc, day, offset
+):
+    clock(zone, utc)
+    metno = FakeMetNo(monkeypatch)
+    fetched = fetch(context(tmp_path, **BERLIN))
+    assert metno.urls[0].endswith(f"&date={day}&offset={offset}")
+    assert fetched.data.day == day
+
+
+def test_a_failed_save_still_shows_the_moon(tmp_path, monkeypatch, caplog):
+    FakeMetNo(monkeypatch)
+
+    def fail(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(moon_phase, "write_atomic", fail)
+    assert fetch(context(tmp_path, **BERLIN)).data.phase == 301.33
+    assert "can't save the moon data" in caplog.text
+
+
+def test_warns_when_metno_will_switch_the_service_off(tmp_path, monkeypatch, caplog):
+    FakeMetNo(monkeypatch, status=203)
+    fetch(context(tmp_path, **BERLIN))
+    assert "going to be replaced" in caplog.text
 
 
 def test_fetch_asks_once_a_day(tmp_path, monkeypatch):
@@ -165,7 +241,11 @@ def test_settings_are_required(tmp_path, monkeypatch, missing):
     ("phase", "name"),
     [(0, "New Moon"), (6, "New Moon"), (7, "Waxing Crescent"), (89, "First Quarter"),
      (120, "Waxing Gibbous"), (180, "Full Moon"), (200, "Waning Gibbous"),
-     (270, "Last Quarter"), (301.33, "Waning Crescent"), (355, "New Moon"), (360, "New Moon")],
+     (270, "Last Quarter"), (301.33, "Waning Crescent"), (355, "New Moon"), (360, "New Moon"),
+     # the second half of each quarter, and the edges of the moments
+     (60, "Waxing Crescent"), (150, "Waxing Gibbous"), (240, "Waning Gibbous"),
+     (330, "Waning Crescent"), (83.9, "Waxing Crescent"), (84, "First Quarter"),
+     (186, "Full Moon"), (186.1, "Waning Gibbous"), (354, "New Moon")],
 )  # fmt: skip
 def test_phase_name(phase, name):
     assert phase_name(phase) == name
@@ -178,10 +258,17 @@ def test_a_photo_every_1_8_degrees():
 
 @pytest.mark.parametrize(
     ("phase", "photo"),
-    [(0, "0.0"), (0.8, "0.0"), (1.0, "1.8"), (301.33, "300.6"), (359.5, "360.0")],
-)
+    [(0, "0.0"), (0.8, "0.0"), (1.0, "1.8"), (301.33, "300.6"), (359.5, "360.0"),
+     # exactly halfway between two pictures: the later one
+     (0.9, "1.8"), (4.5, "5.4"), (180.9, "181.8"), (359.1, "360.0")],
+)  # fmt: skip
 def test_the_nearest_photo(phase, photo):
     assert photo_file(phase).stem == photo
+
+
+def test_every_phase_has_a_picture():
+    for hundredths in range(36001):  # met.no gives 2 decimals
+        assert photo_file(hundredths / 100).is_file(), hundredths / 100
 
 
 def brightness(image, box):
@@ -216,6 +303,12 @@ def test_draw_the_sample(tmp_path):
     assert values["phase"] == "Waning Crescent"
     assert values["credit"] == "Data: MET Norway · Image: NASA SVS"
     assert values["moon"].size == (1080, 1080)
+
+
+def test_times_are_shown_in_the_pis_time_zone(tmp_path):
+    rise = datetime.fromisoformat("2026-10-05T23:38+00:00")
+    moon = Moon("2026-10-06", PLACE, 301.33, rise, None, "Europe/Berlin")
+    assert draw(moon, context(tmp_path))["moonrise"] == "Moonrise: 01:38"
 
 
 def test_draw_a_day_without_moonset(tmp_path):

@@ -21,10 +21,10 @@ log = logging.getLogger(__name__)
 
 URL = "https://api.met.no/weatherapi/sunrise/3.0/moon"
 SAVED = "moon.json"
-#: Credit for the data (met.no's licence, CC BY 4.0, asks for it) and the photos.
+#: Credit for the data (met.no's licence, CC BY 4.0, asks for it) and the pictures.
 CREDIT = "Data: MET Norway · Image: NASA SVS"
-#: Photos of the moon from NASA's Scientific Visualization Studio, one every 1.8°, named
-#: by their phase angle ("1.8.jpeg").
+#: Pictures of the moon made by NASA's Scientific Visualization Studio from spacecraft
+#: measurements, one every 1.8°, named by their phase angle ("1.8.jpeg").
 PHOTOS = Path(__file__).parent / "images"
 #: The new moon, quarters and full moon are moments; their name is shown for this many
 #: degrees on each side (the moon moves about 12° a day, so about a day in all).
@@ -82,6 +82,8 @@ class MoonError(ValueError):
 
 
 def fetch(context: Context):
+    """Today's moon: the saved answer when it is for today (the Pi's own date) and this
+    place, otherwise a new one from met.no, which is then saved."""
     settings = context.settings
     if settings.lat is None or settings.lon is None or not settings.email:
         raise SettingsMissing(
@@ -103,6 +105,8 @@ def fetch(context: Context):
 
 
 def download(settings: Settings, place: str, today: datetime) -> Moon:
+    """met.no's answer for ``today``'s date at ``place``, with times in ``today``'s offset
+    from UTC (sent as "+02:00")."""
     lat, lon = place.split(",")
     offset = today.strftime("%z")  # "+0200"; met.no wants "+02:00"
     answer = webrequest.get(
@@ -110,6 +114,9 @@ def download(settings: Settings, place: str, today: datetime) -> Moon:
         f"&offset={offset[:3]}:{offset[3:]}",
         contact=settings.email,
     )
+    if answer.status == 203:
+        # met.no's way of saying this version of its service will be switched off.
+        log.warning("met.no says this moon service is going to be replaced")
     return parse(answer.json(), today.date(), place)
 
 
@@ -118,7 +125,7 @@ def parse(answer: dict, day: date, place: str) -> Moon:
         properties = answer["properties"]
         phase = float(properties["moonphase"])
         rise, set_ = (_time(properties.get(key)) for key in ("moonrise", "moonset"))
-    except (KeyError, TypeError, ValueError) as error:
+    except (KeyError, TypeError, ValueError, AttributeError) as error:
         raise MoonError(f"met.no's moon answer can't be read: {error!r}") from None
     if not 0 <= phase <= 360:
         raise MoonError(f"met.no's moon phase is out of range: {phase}")
@@ -160,13 +167,16 @@ def phase_name(phase: float) -> str:
 
 
 def photo_file(phase: float) -> Path:
-    """The photo whose phase angle is nearest to ``phase``."""
-    return min(PHOTOS.glob("*.jpeg"), key=lambda path: abs(float(path.stem) - phase))
+    """The picture whose phase angle is nearest to ``phase``. Exactly halfway between two
+    (e.g. 0.9°), the later one. Worked out in hundredths of a degree (met.no gives 2
+    decimals), so it is exact."""
+    step = (round(phase * 100) + 90) // 180  # 0 ... 200
+    return PHOTOS / f"{step * 1.8:.1f}.jpeg"
 
 
 def moon_photo(phase: float, lat: float | None) -> Image.Image:
-    """The photo for this phase, as seen from the northern half of the earth. South of the
-    equator the moon looks upside down, so the photo is turned by 180°."""
+    """The picture for this phase, as seen from the northern half of the earth. South of the
+    equator the moon looks upside down, so the picture is turned by 180°."""
     with Image.open(photo_file(phase)) as photo:
         photo.load()
     return photo.rotate(180) if lat is not None and lat < 0 else photo

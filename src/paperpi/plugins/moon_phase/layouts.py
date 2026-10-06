@@ -30,7 +30,8 @@ def _moon(size: float = 1) -> dict:
 
 
 def moon_data(settings) -> dict:
-    """Moonrise and moonset on top, the moon, then the name of the phase."""
+    """Moonrise and moonset on top, the moon, the name of the phase, and the credit line
+    small at the bottom."""
     return {
         "column": [
             {
