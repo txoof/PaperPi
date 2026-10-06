@@ -93,6 +93,19 @@ def test_report_holds_the_health_data(tmp_path, systemd):
     assert path.stat().st_mode & 0o777 == 0o644
 
 
+def test_health_values_go_to_the_log_at_the_start_and_then_every_hour(tmp_path, systemd, caplog):
+    now = [1000.0]
+    reports = Health(tmp_path / "health", disk=tmp_path, notify=systemd, clock=lambda: now[0])
+    with caplog.at_level(logging.INFO, logger="paperpi.health"):
+        for _ in range(250):  # 2 hours and 5 minutes, a report every 30 s
+            reports.report(7)
+            now[0] += limits.HEALTH_REPORT
+    lines = [r.getMessage() for r in caplog.records]
+    assert len(lines) == 3  # at the start, after 1 hour, after 2 hours
+    assert lines[0].startswith("health: since_screen 7, memory_mb ")
+    assert "open_files" in lines[0] and "free_disk_mb" in lines[0]
+
+
 def test_report_is_replaced_and_never_grows(tmp_path, systemd):
     path = tmp_path / "health"
     reports = Health(path, disk=tmp_path, notify=systemd)

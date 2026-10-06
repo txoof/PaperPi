@@ -249,6 +249,7 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
         systemd.close()
     assert process.returncode == 0, stderr
     assert not health.exists()  # removed when stopping on purpose
+    assert "INFO: health: since_screen" in stderr  # the health values, in the log
     assert "showing 1 plugin;" in stdout
     assert f"process id {process.pid}" in stdout
     assert not (out / "0007.png").exists()  # files of an earlier run are removed

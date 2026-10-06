@@ -70,6 +70,10 @@ HEALTH_REPORT = 30.0
 #: A report older than this counts as "not responding": the watchdog restarts PaperPi.
 HEALTH_STALE = 2 * 60.0
 
+#: How often the health values are also written to the log, so they can be compared over
+#: weeks (the health file only holds the newest).
+HEALTH_LOG = 60 * 60.0
+
 #: Longest sending one message to systemd may take.
 SYSTEMD_MESSAGE = 5.0
 

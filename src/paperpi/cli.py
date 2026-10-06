@@ -234,6 +234,8 @@ def _run(args: argparse.Namespace) -> int:
     # Taken out of the environment, so plugin processes can't send "still running" for a
     # stuck loop.
     notify_socket = os.environ.pop("NOTIFY_SOCKET", None)
+    # The hourly health line is shown, like warnings.
+    logging.getLogger(health.__name__).setLevel(logging.INFO)
     reports = health.Health(args.health_file, disk=args.state_dir, notify_socket=notify_socket)
     scheduler = Scheduler(
         loaded, screen, state_dir=args.state_dir, reload=load, health=reports.report

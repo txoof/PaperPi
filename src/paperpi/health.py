@@ -17,6 +17,9 @@ The reasons are in ``docs/decisions/errors-and-time-limits.md``. In short:
   open files of the main process, and free disk. It is replaced, never added to, so it
   can't grow. The file is written first and systemd told after it, so "ready" means the
   file is there.
+- The same values go to the log at the first report and then every
+  :data:`~paperpi.limits.HEALTH_LOG` seconds, so slow growth (memory, open files) can be
+  seen over weeks.
 - Healthy means only "the loop still reports". A broken screen does not make PaperPi
   restart again and again; screen failures are handled by the scheduler itself.
 """
@@ -25,6 +28,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import shutil
 import socket
@@ -68,10 +72,16 @@ class Report:
     """Free space on the disk that holds PaperPi's files."""
 
 
-def measure(since_screen: float | None, disk: Path) -> Report:
-    """A report about this process, now. A value that can't be measured is ``None``."""
+#: The values shown to people, in this order.
+DETAILS = ("since_screen", "memory_mb", "open_files", "free_disk_mb")
+
+
+def measure(since_screen: float | None, disk: Path, now: float | None = None) -> Report:
+    """A report about this process at ``now`` (monotonic clock, default: now). A value that
+    can't be measured is ``None``."""
     return Report(
-        monotonic=time.monotonic(),  # not rounded: rounded up, it would lie in the future
+        # Not rounded: rounded up, it would lie in the future.
+        monotonic=time.monotonic() if now is None else now,
         time=datetime.now().astimezone().isoformat(timespec="seconds"),
         since_screen=None if since_screen is None else round(since_screen, 1),
         memory_mb=_memory_mb(),
@@ -90,7 +100,7 @@ class Health:
     ``path`` is the health file (``None``: no file). ``disk`` is the folder whose free space
     is reported. ``notify_socket`` is where systemd listens for messages (the value of
     ``NOTIFY_SOCKET``, which systemd sets); ``None``: not under systemd, nothing is sent.
-    ``notify`` replaces the sending, for tests.
+    ``notify`` (the sending) and ``clock`` (the monotonic clock) are for tests.
     """
 
     def __init__(
@@ -100,9 +110,12 @@ class Health:
         disk: Path,
         notify_socket: str | None = None,
         notify: Notify | None = None,
+        clock: Callable[[], float] = time.monotonic,
     ):
         self.path = path
         self.disk = disk
+        self.clock = clock
+        self._next_log = -math.inf
         if notify is None:
             notify = partial(_notify, notify_socket) if notify_socket else _not_under_systemd
         self._notify = notify
@@ -113,15 +126,19 @@ class Health:
     def report(self, since_screen: float | None) -> None:
         """Say "still running". Never raises: a failure is logged once (and again only
         when it comes back after working)."""
+        measured = measure(since_screen, self.disk, self.clock())
         if self.path is not None:
-            self._write(since_screen)
+            self._write(measured)
+        if measured.monotonic >= self._next_log:
+            log.info("health: %s", details(asdict(measured)))
+            self._next_log = measured.monotonic + limits.HEALTH_LOG
         if not self._ready:
             # Tried again with every report until it works: systemd waits for it.
             self._ready = self._send("READY")
         self._send("WATCHDOG")
 
-    def _write(self, since_screen: float | None) -> None:
-        line = json.dumps(asdict(measure(since_screen, self.disk))) + "\n"
+    def _write(self, measured: Report) -> None:
+        line = json.dumps(asdict(measured)) + "\n"
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             # Anyone may read it: the health check may run as another user. Not forced onto
@@ -178,14 +195,16 @@ def check(path: Path = HEALTH_FILE, *, now: float | None = None) -> tuple[bool, 
         age = now - float(values["monotonic"])
     except (ValueError, KeyError, TypeError) as error:
         return False, f"the health report in {path} can't be read: {error}"
-    details = ", ".join(
-        f"{key} {values.get(key)}"
-        for key in ("since_screen", "memory_mb", "open_files", "free_disk_mb")
-    )
+    shown = details(values)
     if not -limits.HEALTH_REPORT <= age <= limits.HEALTH_STALE:
-        return False, f"not responding: the last report is {age:.0f} s old ({details})"
+        return False, f"not responding: the last report is {age:.0f} s old ({shown})"
     # Up to one report interval in the future is accepted above; shown as 0.
-    return True, f"healthy: last report {max(age, 0):.0f} s ago ({details})"
+    return True, f"healthy: last report {max(age, 0):.0f} s ago ({shown})"
+
+
+def details(values: dict) -> str:
+    """The health values for people, e.g. ``since_screen 12.3, memory_mb 39.6, ...``."""
+    return ", ".join(f"{key} {values.get(key)}" for key in DETAILS)
 
 
 def send_to_systemd(address: str, message: str) -> None:
