@@ -39,7 +39,9 @@ class Settings(PluginSettings):
     lon: float | None = Field(
         None, ge=-180, le=180, description="Longitude of the place, e.g. 13.40 (required)"
     )
-    place: str = Field("", max_length=60, description="Name shown on the screen, e.g. Berlin")
+    place: str = Field(
+        "", max_length=60, description="Name shown on the screen, e.g. Berlin (else lat, lon)"
+    )
     email: str = Field(
         "",
         max_length=200,
@@ -171,6 +173,15 @@ def rain_bar(mm: float, top: float):
     return image
 
 
+def place_name(settings: Settings) -> str:
+    """The name shown for the place: the ``place`` setting, or else the coordinates."""
+    if settings.place:
+        return settings.place
+    if settings.lat is None or settings.lon is None:
+        return ""
+    return f"{settings.lat:.2f}, {settings.lon:.2f}"
+
+
 def icon(symbol: str | None):
     """The icon file for a met.no symbol name, or ``None``. Only plain names are used, so
     a strange name from the network can't point at another file."""
@@ -188,7 +199,7 @@ def draw(weather: Weather, context: Context) -> dict:
         raise forecast.ForecastError("the saved forecast has no hours from now on")
     local = (lambda t: t.astimezone(zone)) if zone else (lambda t: t.astimezone())
     values = {
-        "place": settings.place,
+        "place": place_name(settings),
         "updated": f"Updated {local(weather.forecast.fetched):%H:%M}",
         "summary": summary_text(hours, settings, zone),
     }

@@ -311,6 +311,11 @@ def test_draw_the_sample(tmp_path):
     assert "icon_6" not in values  # one icon every 2 hours
 
 
+def test_place_name_or_coordinates(tmp_path):
+    assert draw(PLUGIN.sample, context(tmp_path, place=""))["place"] == "52.52, 13.40"
+    assert draw(PLUGIN.sample, context(tmp_path))["place"] == "Berlin"
+
+
 def test_fahrenheit_and_inches(tmp_path):
     values = draw(weather(0, 25.4, 0), context(tmp_path, temperature="F", rain="inch"))
     assert values["summary"] == "Max 54°F · Min 50°F · Rain 1.00 in, 10–11"

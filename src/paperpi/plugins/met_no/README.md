@@ -42,7 +42,7 @@ The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfSer
 | `lat` | none, required | latitude of the place, e.g. `52.52` |
 | `lon` | none, required | longitude of the place, e.g. `13.40` |
 | `email` | none, required | your email address, sent only to met.no. met.no requires contact details from every program, so it can ask before blocking one that misbehaves |
-| `place` | `""` | name shown at the top, e.g. `"Berlin"` |
+| `place` | `""` | name shown at the top, e.g. `"Berlin"`. Without it, the coordinates are shown ("52.52, 13.40") |
 | `temperature` | `"C"` | `"C"` (Celsius) or `"F"` (Fahrenheit) |
 | `rain` | `"mm"` | `"mm"` or `"inch"` |
 
