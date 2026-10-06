@@ -23,10 +23,11 @@ These rules apply to every person and agent working in this repository.
   ```bash
   gh issue list --label in-progress
   ```
-- **Claim an issue before starting:**
+- **One PR per task, unless the task is too big.** A task is one piece of work that may cover several issues (for example all design notes of a milestone, or a whole test round). Group them in one PR instead of opening one PR per issue: every PR costs txoof review time. A task that would be more than about 800 changed lines is split into several PRs that each work on their own (see "Size of a PR" below); list them in the task's issue. Open a PR as a draft while work continues and mark it ready when its part is done.
+- **Claim the issues of a task before starting** (every issue the task covers):
   ```bash
   gh issue edit <n> --add-label in-progress
-  gh issue comment <n> --body "claimed by PaperPi-<n>-<short-name>"
+  gh issue comment <n> --body "claimed by PaperPi-<task-name>"
   ```
   Then move its card on the project board to **In Progress** (see "Project board" below).
 - **Release a claim** when the PR is merged (GitHub closes the issue) or when you stop working on it:
@@ -71,28 +72,38 @@ Column IDs: Todo `f75ad846`, In Progress `47fc9ee4`, In Review `b470c173`, Done 
 | plugins/<name> | `src/paperpi/plugins/<name>/` |
 | install | `install/`, `Dockerfile` |
 | docs | `docs/` |
+| bench | `bench/` (test programs that are not part of the app, e.g. the M2 driver test round) |
 | ci | `.github/`, `pyproject.toml`, `uv.lock`, `.python-version` |
 
 This map grows as the code grows. Update it in the same PR that adds a new area.
 
 ## Worktrees and branches
 A worktree is a separate folder with its own copy of the repo, so several agents can work at the same time without touching each other's files.
-- One worktree per issue, on branch `<n>-<short-name>`:
+- One worktree per task, on branch `<task-name>` (for a task with a single issue: `<n>-<short-name>`):
   ```bash
   git -C ~/src/PaperPi fetch origin
-  git -C ~/src/PaperPi worktree add -b <n>-<short-name> ~/src/wt/PaperPi-<n>-<short-name> origin/main
+  git -C ~/src/PaperPi worktree add -b <task-name> ~/src/wt/PaperPi-<task-name> origin/main
   ```
 - Never work directly on `main`.
 - After the PR is merged, remove the worktree:
   ```bash
-  git -C ~/src/PaperPi worktree remove ~/src/wt/PaperPi-<n>-<short-name>
+  git -C ~/src/PaperPi worktree remove ~/src/wt/PaperPi-<task-name>
   ```
 
 ## Pull requests
-1. Open a PR that links the issue (`Closes #<n>`). Fill in the PR template, including test results and before/after images for anything visual.
+1. Open one PR per task (or per part of a big task, see "Size of a PR") that links its issues (`Closes #<a>, closes #<b>`; a part that doesn't finish an issue says "Part of #<n>"). Fill in the PR template, including test results and before/after images for anything visual.
 2. Review agents check the PR and post their findings as PR comments: code quality, unit tests, security, documentation.
 3. Fix the findings, or explain in a reply why not.
 4. **Only txoof approves and merges. Agents never merge, never approve, and never push to `main`.** GitHub branch protection enforces this.
+
+### Size of a PR
+Every PR costs txoof review time. Too many small PRs and too few huge ones both waste it.
+- **Aim for 300–600 changed lines** (code, tests and docs together; images don't count). Above about 800 lines, split the work. Below that, keep a task in one PR (see "One PR per task" above).
+- **Each PR does one thing that works on its own**, with its tests and docs. `main` is never left half-built.
+- **No PR for one small change** (a typo, a one-line rule). Put it in the next related PR.
+- **Plan the split before coding.** Show the planned PRs to txoof together with the design questions. One issue may need several PRs; list them in the issue. For example, the scheduler (+1925 lines in #206) could have been four PRs: the new plugins and settings; the scheduler core with its tests (which use a pretend clock); failures, the fallback plugins and config reload; the `paperpi run` command and README.
+- **Review fixes:** small fixes go into the same PR. Fixes that add a new feature go into a follow-up PR, so the first one doesn't keep growing.
+- See the size with `git diff --shortstat origin/main...HEAD`.
 
 ## Tools and commands
 - Python 3.13 (the version in Raspberry Pi OS trixie). `uv` installs Python and all packages into `.venv`.

@@ -1,0 +1,20 @@
+time,candidate,scenario,step,mode,area,seconds,ok,detail
+2026-10-04T20:57:29,new,fault,open,,,2.649,True,
+2026-10-04T20:57:29,new,fault,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T20:57:30,new,fault,write before fault,GC16,"0,0 1200x825",1.05,True,
+2026-10-04T20:57:31,new,fault,reset held low,,,,True,
+2026-10-04T20:57:33,new,fault,write during fault,GC16,"0,0 1200x825",2.054,False,DisplayTimeout: display not ready (busy line stayed low)
+2026-10-04T20:57:33,new,fault,reset released,,,2.0,True,
+2026-10-04T20:57:33,new,fault,close after fault,,,0.0,True,
+2026-10-04T20:57:35,new,fault,open,,,2.627,True,
+2026-10-04T20:57:35,new,fault,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T20:57:36,new,fault,write after reopen,GC16,"0,0 1200x825",1.225,True,
+2026-10-04T20:57:36,new,fault,sleep,,,0.0,True,
+2026-10-04T20:57:36,new,fault,close,,,0.0,True,
+2026-10-04T20:57:36,new,fault,pins released,,,,True,all lines released
+2026-10-04T20:57:40,new,recover,open,,,2.649,True,
+2026-10-04T20:57:40,new,recover,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T20:57:42,new,recover,write in new process,GC16,"0,0 1200x825",1.096,True,
+2026-10-04T20:57:42,new,recover,sleep,,,0.0,True,
+2026-10-04T20:57:42,new,recover,close,,,0.0,True,
+2026-10-04T20:57:42,new,recover,pins released,,,,True,all lines released

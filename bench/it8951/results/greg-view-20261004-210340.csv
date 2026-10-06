@@ -1,0 +1,7 @@
+time,candidate,scenario,step,mode,area,seconds,ok,detail
+2026-10-04T21:03:43,greg,view,open,,,2.646,True,
+2026-10-04T21:03:43,greg,view,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T21:03:44,greg,view,step 3 gradient,GC16,"0,0 1200x825",1.044,True,
+2026-10-04T21:03:44,greg,view,sleep,,,0.0,True,
+2026-10-04T21:03:44,greg,view,close,,,0.016,True,
+2026-10-04T21:03:44,greg,view,pins released,,,,True,all lines released

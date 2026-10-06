@@ -396,7 +396,7 @@ def test_state_folder_that_cant_be_written_is_only_a_warning(files, caplog):
 @pytest.mark.parametrize(
     ("name", "folder"),
     [
-        ("Weather Den Haag", "weather-den-haag"),
+        ("Weather Berlin", "weather-berlin"),
         ("../../etc", "etc"),
         ("Clock!", "clock"),
         ("Ünïcode", "n-code"),
