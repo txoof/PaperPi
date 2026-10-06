@@ -1,0 +1,7 @@
+time,candidate,scenario,step,mode,area,seconds,ok,detail
+2026-10-04T21:06:12,greg,view,open,,,2.645,True,
+2026-10-04T21:06:12,greg,view,device info,,,,True,"DeviceInfo(width=1200, height=825, firmware='WS_v.0.2T1', lut='8M14T', vcom=-1.9)"
+2026-10-04T21:06:12,greg,view,step 6 text DU,DU,"0,0 1200x825",0.797,True,
+2026-10-04T21:06:12,greg,view,sleep,,,0.0,True,
+2026-10-04T21:06:12,greg,view,close,,,0.015,True,
+2026-10-04T21:06:12,greg,view,pins released,,,,True,all lines released
