@@ -2,13 +2,14 @@
 
 import io
 import json
+from pathlib import Path
 
 import pytest
 from epdlib import ScreenMode
 from PIL import Image
 
 import paperpi.plugins.xkcd_comic as xkcd
-from paperpi import webrequest
+from paperpi import fonts, webrequest
 from paperpi.plugin import Context, State
 from paperpi.plugins.xkcd_comic import PLUGIN, Comic, NoComicFound, Settings, fetch, keep_size
 
@@ -78,6 +79,29 @@ def test_fetch_gets_a_comic(tmp_path, monkeypatch, pick):
     ]
 
 
+class NewestXkcd(FakeXkcd):
+    """The newest comic's details are in the main info.0.json, as on xkcd.com."""
+
+    def __call__(self, url, **options):
+        if url == "https://xkcd.com/info.0.json":
+            self.urls.append(url)
+            return self.answer(url, json.dumps(self.comics[self.latest][0]).encode())
+        return super().__call__(url, **options)
+
+
+def test_newest_comic(tmp_path, monkeypatch, pick):
+    site = NewestXkcd(monkeypatch, latest=3, comics={3: (info(3), png(300, 200))})
+    comic = fetch(context(tmp_path, comic="newest")).data
+    assert (comic.number, comic.title) == (3, "Comic 3")
+    assert site.urls == ["https://xkcd.com/info.0.json", "https://imgs.xkcd.com/comics/3.png"]
+
+
+def test_newest_comic_too_large_fails(tmp_path, monkeypatch, pick):
+    NewestXkcd(monkeypatch, latest=3, comics={3: (info(3), png(900, 200))})
+    with pytest.raises(NoComicFound, match=r"newest xkcd comic \(3\).*900x200"):
+        fetch(context(tmp_path, comic="newest"))
+
+
 def test_picks_from_all_comics_but_404(tmp_path, monkeypatch):
     FakeXkcd(monkeypatch, latest=405, comics={1: (info(1), png(10, 10))})
     seen = []
@@ -130,7 +154,7 @@ def test_latest_without_a_number(tmp_path, monkeypatch, answer):
     monkeypatch.setattr(
         xkcd.webrequest, "get", lambda url: FakeXkcd.answer(url, json.dumps(answer).encode())
     )
-    with pytest.raises(NoComicFound, match="latest"):
+    with pytest.raises(NoComicFound, match="newest"):
         fetch(context(tmp_path))
 
 
@@ -187,4 +211,16 @@ def test_small_comics_keep_their_size_unless_enlarged(tmp_path, enlarge, wider):
 def test_draw_gives_only_the_layouts_blocks(tmp_path, layout, blocks):
     values = xkcd.draw(PLUGIN.sample, context(tmp_path, layout))
     assert set(values) == blocks
-    assert values.get("title", "Think Logically") == "Think Logically"
+    assert values.get("title", "1112: Think Logically") == "1112: Think Logically"
+
+
+def test_title_without_a_name_is_the_number(tmp_path):
+    comic = Comic(7, "", "", png(10, 10))
+    assert xkcd.draw(comic, context(tmp_path, "comic_title"))["title"] == "7"
+
+
+def test_layouts_use_lato():
+    layout = PLUGIN.layout("comic_title_alttext", Settings())
+    assert layout.blocks["title"].options["font"] == fonts.LATO_BOLD
+    assert layout.blocks["alt"].options["font"] == fonts.LATO_ITALIC
+    assert Path(fonts.LATO_BOLD).is_file() and Path(fonts.LATO_ITALIC).is_file()

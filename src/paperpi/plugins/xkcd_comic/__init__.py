@@ -7,6 +7,7 @@ import logging
 import random
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from PIL import Image, UnidentifiedImageError
 from pydantic import Field
@@ -24,6 +25,9 @@ SAMPLE = Path(__file__).parent / "sample" / "think_logically.png"
 
 
 class Settings(PluginSettings):
+    comic: Literal["random", "newest"] = Field(
+        "random", description="Which comic: a random one, or the newest one"
+    )
     max_width: int = Field(
         800, ge=1, le=10_000, description="Comics wider than this many pixels are skipped"
     )
@@ -34,7 +38,7 @@ class Settings(PluginSettings):
         10,
         ge=1,
         le=20,
-        description="How many comics to try before giving up, when they are too large",
+        description="How many random comics to try before giving up, when they are too large",
     )
     enlarge: bool = Field(
         False,
@@ -59,14 +63,20 @@ class NoComicFound(ValueError):
 
 def fetch(context: Context):
     settings = context.settings
-    latest = _number(_info(f"{SITE}/info.0.json"))
+    newest = _info(f"{SITE}/info.0.json")
+    latest = _number(newest)
     if latest is None:
-        raise NoComicFound("xkcd.com sent no number for its latest comic")
+        raise NoComicFound("xkcd.com sent no number for its newest comic")
+    if settings.comic == "newest":
+        comic, why = _comic(latest, newest, settings)
+        if comic:
+            return ready(comic)
+        raise NoComicFound(f"can't show the newest xkcd comic ({latest}): {why}")
     numbers = [n for n in range(1, latest + 1) if n != MISSING]
     why = "none were tried"
     for _ in range(settings.tries):
         number = random.choice(numbers)
-        comic, why = _download(number, settings)
+        comic, why = _comic(number, _info(f"{SITE}/{number}/info.0.json"), settings)
         if comic:
             return ready(comic)
         log.info("skipping xkcd comic %d: %s", number, why)
@@ -83,10 +93,10 @@ def _number(info: dict) -> int | None:
     return number if isinstance(number, int) and number > 0 else None
 
 
-def _download(number: int, settings: Settings) -> tuple[Comic | None, str]:
-    """One comic, or ``None`` and the reason it can't be shown. Network errors are raised:
-    trying another comic would not help."""
-    info = _info(f"{SITE}/{number}/info.0.json")
+def _comic(number: int, info: dict, settings: Settings) -> tuple[Comic | None, str]:
+    """The comic described by ``info`` (xkcd's JSON file for it), with its picture, or
+    ``None`` and the reason it can't be shown. Network errors are raised: trying another
+    comic would not help."""
     url = info.get("img")
     if not isinstance(url, str) or not url.startswith("https://"):
         return None, "it has no picture"
@@ -131,7 +141,8 @@ def draw(comic: Comic, context: Context) -> dict:
     if not settings.enlarge:
         box = layout.prepare(context.width, context.height, context.mode).boxes["comic"]
         picture = keep_size(picture, box.width, box.height)
-    values = {"comic": picture, "title": comic.title, "alt": comic.alt}
+    title = f"{comic.number}: {comic.title}" if comic.title else str(comic.number)
+    values = {"comic": picture, "title": title, "alt": comic.alt}
     return {name: value for name, value in values.items() if name in layout.blocks}
 
 

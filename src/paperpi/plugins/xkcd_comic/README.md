@@ -1,12 +1,12 @@
 # xkcd_comic
 
-A random comic from [xkcd.com](https://xkcd.com) by Randall Munroe, with its title and its hover text (the "alt text" that the website shows when the mouse is over the comic).
+A random comic (or the newest one) from [xkcd.com](https://xkcd.com) by Randall Munroe, with its number and title ("1112: Think Logically") and its hover text (the "alt text" that the website shows when the mouse is over the comic).
 
-At each update it picks a random comic, from the first one to the latest. Some comics are too large to read on an e-paper screen, and some are interactive pages without a picture. Those are skipped and another comic is picked, up to `tries` times. If none of them is suitable, the update fails, and PaperPi tries again at the next update.
+At each update it picks a random comic, from the first one to the newest. With `comic = "newest"` it shows the newest comic instead. Some comics are too large to read on an e-paper screen, and some are interactive pages without a picture. Those are skipped and another comic is picked, up to `tries` times. If none of them is suitable (or the newest comic is not), the update fails, and PaperPi tries again at the next update.
 
 Comics smaller than the space on the screen keep their own size, so their lines stay sharp. With `enlarge = true` they are enlarged to fill the space. Comics larger than the space are always made smaller to fit.
 
-The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small file per comic that lists its number, title, hover text and picture). Each update downloads three small files: the latest comic's number, the chosen comic's details, and its picture (more when comics are skipped). It saves nothing in its storage folder.
+The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small file per comic that lists its number, title, hover text and picture). Each update downloads three small files (two for the newest comic): the newest comic's number, the chosen comic's details, and its picture (more when comics are skipped). It saves nothing in its storage folder.
 
 ## Layouts
 
@@ -16,15 +16,16 @@ The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small
 | `comic_title` | the comic and its title, on up to 2 lines |
 | `comic_only` | only the comic |
 
-Long titles and hover texts are drawn smaller; text that still doesn't fit ends with "…".
+The title is in Lato Bold and the hover text in Lato Italic. Long titles and hover texts are drawn smaller; text that still doesn't fit ends with "…". The font is [Lato](https://fonts.google.com/specimen/Lato) by Łukasz Dziedzic, under the SIL Open Font License ([`fonts/Lato-OFL.txt`](../../fonts/Lato-OFL.txt)).
 
 ## Settings
 
 | Setting | Default | Meaning |
 |---|---|---|
+| `comic` | `"random"` | `"random"`: a random comic; `"newest"`: the newest comic |
 | `max_width` | `800` | comics wider than this many pixels are skipped |
 | `max_height` | `600` | comics taller than this many pixels are skipped |
-| `tries` | `10` | how many comics to try (1 to 20) before the update fails, when they are too large |
+| `tries` | `10` | how many random comics to try (1 to 20) before the update fails, when they are too large |
 | `enlarge` | `false` | `true` enlarges comics that are smaller than the space on the screen |
 
 It suggests a refresh every 20 minutes.
@@ -36,6 +37,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 name = "xkcd"
 type = "xkcd_comic"
 layout = "comic_title"   # optional; without it: comic_title_alttext
+comic = "newest"
 max_width = 1000
 ```
 

@@ -96,6 +96,18 @@ hours = 12
 
 Give every text block a `sample`: the widest text it normally shows (`"88:88"` for a clock). The font size is then chosen once, so it doesn't change between updates.
 
+### Fonts
+
+Without a `font`, a text block uses epdlib's DejaVu Sans. PaperPi has more fonts in `src/paperpi/fonts/`, which any plugin may use, each with its licence:
+
+```python
+from ... import fonts
+
+{"name": "title", "type": "text", "font": fonts.LATO_BOLD}  # also fonts.LATO_ITALIC
+```
+
+A font only one plugin uses can stay in the plugin's own folder, with its licence (see `word_clock`).
+
 ### Moving blocks and colours
 
 `draw` may return a `Drawn` instead of a dictionary, to set two more things:
