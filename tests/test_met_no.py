@@ -311,6 +311,11 @@ def test_draw_the_sample(tmp_path):
     assert "icon_6" not in values  # one icon every 2 hours
 
 
+def test_place_name_or_coordinates(tmp_path):
+    assert draw(PLUGIN.sample, context(tmp_path, place=""))["place"] == "52.52, 13.40"
+    assert draw(PLUGIN.sample, context(tmp_path))["place"] == "Berlin"
+
+
 def test_fahrenheit_and_inches(tmp_path):
     values = draw(weather(0, 25.4, 0), context(tmp_path, temperature="F", rain="inch"))
     assert values["summary"] == "Max 54°F · Min 50°F · Rain 1.00 in, 10–11"
@@ -421,6 +426,11 @@ def test_every_block_gets_a_value(tmp_path, layout):
     """draw fills exactly the blocks of the chosen layout, no more, no fewer."""
     blocks = Layout(met_no.LAYOUTS[layout](Settings())).blocks
     assert set(draw(PLUGIN.sample, context(tmp_path, layout))) == set(blocks)
+
+
+@pytest.mark.parametrize("layout", list(met_no.LAYOUTS))
+def test_every_layout_shows_the_place(tmp_path, layout):
+    assert draw(PLUGIN.sample, context(tmp_path, layout))["place"] == "Berlin"
 
 
 @pytest.mark.parametrize("count", [1, 2, 4, 7])

@@ -85,14 +85,15 @@ def _samples(settings) -> tuple[str, str]:
 
 
 def small(settings) -> dict:
-    """For tiny screens: a big icon for the next hour; the temperature now, then max, min
-    and rain for the next 12 hours. No wind barb."""
+    """For tiny screens: a big icon for the current hour; the place, the temperature now,
+    then max, min and rain for the next 12 hours. No wind barb."""
     temperatures, rain = _samples(settings)
     return {
         "row": [
             _image("now_icon", size=2, rgb_support=True),
             {
                 "column": [
+                    _text("place", "Rio de Janeiro", size=0.7, align="left", shrink=True),
                     _text("now_temp", f"-88°{settings.temperature}", size=1.4, align="left"),
                     _text("temperatures", temperatures, align="left"),
                     _text("rain", rain, align="left", shrink=True, max_lines=2),

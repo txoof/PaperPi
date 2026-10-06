@@ -30,7 +30,10 @@ SCREENS = {
 # Settings to draw besides the defaults, per plugin.
 VARIANTS = {
     "basic_clock": {"12h": {"hours": 12}},
-    "met_no": {"berlin-f": {"place": "Berlin", "temperature": "F", "rain": "inch"}},
+    "met_no": {
+        "berlin": {"place": "Berlin"},
+        "berlin-f": {"place": "Berlin", "temperature": "F", "rain": "inch"},
+    },
 }
 # More screens for layouts made for a special shape, per plugin and layout.
 LAYOUT_SCREENS = {

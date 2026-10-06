@@ -38,11 +38,11 @@ The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfSer
 | `hours_12` (default) | place and "Updated" time, the summary line, an icon every 2 hours, then per hour the rain bar and mm, the hour, the temperature and the wind barb |
 | `steps_3h` | the summary, then 4 steps of 3 hours: the hours, an icon (of the wettest hour, or the middle hour when dry), lowest and highest temperature, the rain, and the wind at the middle hour |
 | `now` | the current hour, large: icon, temperature and wind barb, with the summary below |
-| `small` | for tiny screens (2" to 3"): a big icon for the current hour, the temperature now, then max and min, and the rain and its hours for the next 12 hours. No wind barb |
+| `small` | for tiny screens (2" to 3"): a big icon for the current hour, the place, the temperature now, then max and min, and the rain and its hours for the next 12 hours. No wind barb |
 | `portrait_hours` | for screens standing upright: the summary on top, then one row per hour: hour, icon, temperature, rain as a sideways bar with the mm, wind barb |
 | `portrait_now` | for screens standing upright: a large icon for the current hour, its temperature and wind barb, then the summary |
 
-Every layout except `small` shows the place and the "Updated" time at the top. When a saved forecast is used for a long time, fewer than 12 hours may be left; the columns or rows without an hour then stay empty, and the summary covers the hours that are left.
+Every layout shows the place: the `place` setting, or the coordinates when it is empty. All but `small` also show the "Updated" time at the top. When a saved forecast is used for a long time, fewer than 12 hours may be left; the columns or rows without an hour then stay empty, and the summary covers the hours that are left.
 
 ## Settings
 
@@ -51,7 +51,7 @@ Every layout except `small` shows the place and the "Updated" time at the top. W
 | `lat` | none, required | latitude of the place, e.g. `52.52` |
 | `lon` | none, required | longitude of the place, e.g. `13.40` |
 | `email` | none, required | your email address, sent only to met.no. met.no requires contact details from every program, so it can ask before blocking one that misbehaves |
-| `place` | `""` | name shown at the top, e.g. `"Berlin"` |
+| `place` | `""` | name shown at the top, e.g. `"Berlin"`. Without it, the coordinates are shown ("52.52, 13.40") |
 | `temperature` | `"C"` | `"C"` (Celsius) or `"F"` (Fahrenheit) |
 | `rain` | `"mm"` | `"mm"` or `"inch"` |
 
@@ -78,14 +78,14 @@ The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Mete
 
 ## Sample images
 
-The sample data is made up: a day in Berlin from 09:00, with a shower in the afternoon. All sample images are in [`tests/images/`](../../../../tests/images/), named `met_no-<layout>[-berlin-f]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours). `berlin-f` shows the place name, °F and inches.
+The sample data is made up: a day in Berlin from 09:00, with a shower in the afternoon. All sample images are in [`tests/images/`](../../../../tests/images/), named `met_no-<layout>[-berlin|-berlin-f]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours). `berlin` shows the place name; `berlin-f` also °F and inches. The pictures without them show no name, because the sample settings have neither a place nor coordinates.
 
 | `hours_12` | `steps_3h` | `now` |
 |---|---|---|
-| ![hours_12](../../../../tests/images/met_no-hours_12-9in7.png) | ![steps_3h](../../../../tests/images/met_no-steps_3h-9in7.png) | ![now](../../../../tests/images/met_no-now-9in7.png) |
+| ![hours_12](../../../../tests/images/met_no-hours_12-berlin-9in7.png) | ![steps_3h](../../../../tests/images/met_no-steps_3h-berlin-9in7.png) | ![now](../../../../tests/images/met_no-now-berlin-9in7.png) |
 
 | `small`, 2.13" (250x122) | `portrait_hours`, upright (480x800) | `portrait_now`, upright (480x800) | `hours_12`, °F and inches, 7.5" |
 |---|---|---|---|
-| ![small](../../../../tests/images/met_no-small-2in13.png) | ![portrait_hours](../../../../tests/images/met_no-portrait_hours-upright.png) | ![portrait_now](../../../../tests/images/met_no-portrait_now-upright.png) | ![berlin-f](../../../../tests/images/met_no-hours_12-berlin-f-7in5.png) |
+| ![small](../../../../tests/images/met_no-small-berlin-2in13.png) | ![portrait_hours](../../../../tests/images/met_no-portrait_hours-berlin-upright.png) | ![portrait_now](../../../../tests/images/met_no-portrait_now-berlin-upright.png) | ![berlin-f](../../../../tests/images/met_no-hours_12-berlin-f-7in5.png) |
 
 The `portrait_*` and `small` layouts are also drawn on the usual three test screens, where they look squeezed or large; the pictures above are at their own sizes (`-2in13`, `-upright`).
