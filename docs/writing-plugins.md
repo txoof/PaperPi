@@ -71,7 +71,7 @@ For tests and sample images, step 2 is skipped and `sample` is drawn instead. So
 | `storage` | the plugin's own folder for saved files, e.g. downloaded data |
 | `layout` | the name of the layout to draw |
 | `status` | only for the `default` plugin: how many plugins are not working (`failing`, `total`) |
-| `low_disk` | `True` when less than 2 GB is free on the disk: don't save more files (for example, don't download new photos). Replacing a file you already have is fine. |
+| `low_disk` | `True` when less than 2 GB is free on the disk that holds PaperPi's state folder (`/var/lib/paperpi`): don't save more files (for example, don't download new photos). Replacing a file you already have is fine. |
 
 ## Settings
 
@@ -141,11 +141,13 @@ What it does when something goes wrong:
 
 ## Storage
 
-`context.storage` has two limits, which PaperPi applies after every update (and at start):
+`context.storage` has two limits, which PaperPi applies at start and after an update (at most once every 5 minutes):
 - files not changed for `storage_days` days (default 30) are removed; 0 keeps them;
 - when the folder holds more than `storage_mb` megabytes (default 500), the files changed longest ago are removed until it fits.
 
-A plugin that needs more, such as a photo album, suggests its own values in its `Plugin(...)`, for example `storage_mb=20_000, storage_days=0`. The user's `storage_mb` and `storage_days` settings always win. A file written again at every update (such as a saved forecast) never counts as old. Links in the folder are not followed.
+A plugin that needs more, such as a photo album, suggests its own values in its `Plugin(...)`, for example `storage_mb=20_000, storage_days=0`. The user's `storage_mb` and `storage_days` settings always win. A file written again at every update (such as a saved forecast) never counts as old. A file that is only read (such as a login token) does get old: write it again within `storage_days`, or suggest `storage_days=0`. Links in the folder are not followed and not removed.
+
+Any file may have been removed since the last update (over a limit, or by hand): handle a missing file like a first run. When `context.low_disk` is `True` (less than 2 GB free), don't save new files. PaperPi does not stop you, but the disk is shared with the rest of the system.
 
 ## Rules
 

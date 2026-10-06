@@ -328,7 +328,7 @@ def _list(args: argparse.Namespace) -> int:
                 f"{row.refresh:g} s",
                 row.layout,
                 f"{row.storage_mb} MB, "
-                + (f"{row.storage_days} d" if row.storage_days else "kept"),
+                + (f"{row.storage_days} d" if row.storage_days else "no age limit"),
             )
         )
     widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]

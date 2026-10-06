@@ -140,26 +140,28 @@ class PluginEntry(BaseModel):
         description="Alert plugins only: seconds before a dismissed alert comes back, "
         "if the plugin still reports it",
     )
-    storage_mb: int | None = Field(
-        None,
-        ge=1,
-        le=limits.STORAGE_MB_MAX,
-        description="Most megabytes this plugin may keep in its storage folder; the oldest "
-        "files go first. Leave it out to use the plugin's suggestion (shown below)",
-    )
-    storage_days: int | None = Field(
-        None,
-        ge=0,
-        le=limits.STORAGE_DAYS_MAX,
-        description="Days after which the plugin's saved files are removed (0 = keep them). "
-        "Leave it out to use the plugin's suggestion (shown below)",
-    )
     alert_max_time: float = Field(
         limits.ALERT_MAX_TIME,
         gt=0,
         le=limits.LONGEST_SETTING,
         description="Alert plugins only: seconds after which an alert is dismissed by itself, "
         "in case the plugin is stuck",
+    )
+
+    storage_mb: int | None = Field(
+        None,
+        ge=1,
+        le=limits.STORAGE_MB_MAX,
+        description="Most megabytes this plugin may keep in its storage folder; over it, the files "
+        "changed longest ago are removed first. Leave it out to use the plugin's suggestion "
+        "(shown below)",
+    )
+    storage_days: int | None = Field(
+        None,
+        ge=0,
+        le=limits.STORAGE_DAYS_MAX,
+        description="Files the plugin has not changed for this many days are removed (0 = keep "
+        "them). Leave it out to use the plugin's suggestion (shown below)",
     )
 
     @field_validator("name")
@@ -211,7 +213,8 @@ class Context:
     status: PluginsStatus | None = None
     """Only for the ``default`` plugin: how many plugins are not working."""
     low_disk: bool = False
-    """Less than :data:`~paperpi.limits.FREE_DISK_MB` is free on the disk: don't save more
+    """Less than :data:`~paperpi.limits.FREE_DISK_MB` is free on the disk that holds
+    PaperPi's state folder (``/var/lib/paperpi``): don't save more
     files (e.g. don't download new photos). Files can still be replaced."""
 
 
