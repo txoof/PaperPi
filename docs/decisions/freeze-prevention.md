@@ -4,9 +4,9 @@ Milestone M1, issue #185. Docs only, no code.
 
 ## Problem
 
-PaperPi v1 stopped updating the display after 3–6 months but did not crash, so systemd never restarted it. We do not investigate the old code further; we assume the cause was the quality of the v1 code.
+PaperPi v1 stopped updating the display after 3–6 months but did not crash, so systemd never restarted it. We do not investigate the old code further; we first assumed the cause was the quality of the v1 code (see below). The freezes happened on the 9.7" IT8951 setup. A 7.5" Waveshare display on a Pi 3 ran v1 for a very long time without freezing (never with the HiFiBerry).
 
-Added on 2026-10-06 (txoof, M4 issue #222): restarting PaperPi, or the whole Pi, did **not** fix a frozen v1. Only wiping the SD card and installing everything again did. So the cause was something kept on the SD card (a file that kept growing, a damaged file read at every start, or installed packages that changed over time), not something in memory. Restarts are still the right answer to a hang, but v2 must also keep what it stores on the SD card small and replaceable (last row of the checklist). The freezes happened on the 9.7" IT8951 setup. A 7.5" Waveshare display on a Pi 3 ran v1 for a very long time without freezing (never with the HiFiBerry).
+Added on 2026-10-06 (txoof, M4 issue #222): restarting PaperPi, or the whole Pi, did **not** fix a frozen v1. Only wiping the SD card and installing everything again did. So the cause was something kept on the SD card (a file that kept growing, a damaged file read at every start, or installed packages that changed over time), not something in memory. Restarts are still the right answer to a hang, but v2 must also keep what it stores on the SD card small and replaceable (last row of the checklist).
 
 Terms: **SPI** is the data connection to the display board; **GPIO** are the Pi's control pins; a **watchdog** is a timer outside the program that restarts it if it stops reporting "still working"; the **monotonic clock** only counts forward and does not jump when the time is corrected.
 

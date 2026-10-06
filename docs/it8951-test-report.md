@@ -104,4 +104,4 @@ Data: `bench/it8951/results/endurance-new-first-34h.csv` (2026-10-04 21:25 to 20
 
 **What the run shows:** the new driver releases its SPI and GPIO handles every time, also after errors; it never waited past its time limit; and it does not slow down or leak over 2,000 writes and 206 recoveries. That is about 1.5 days of PaperPi use at one write per minute.
 
-**What it cannot show:** that no problem happens over months. With 0 failures in 2,063 writes, a problem could still happen about once in every 700 writes or less often. This is covered by the design (time limits, watchdog, daily helper restart, Docker memory limit) and by the long run on this Pi from M4 on.
+**What it cannot show:** that no problem happens over months. With 0 failures in 2,063 writes, a problem could still happen about once in every 700 writes or less often. This is covered by the design (time limits, the screen watchdog, restarting the helper process when a write hangs or keeps failing, the Docker memory limit) and by the long run on this Pi from M4 on.

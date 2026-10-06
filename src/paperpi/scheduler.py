@@ -35,12 +35,13 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
   fallback_clock``), so an empty screen is never mistaken for a broken one.
 
 One loop (:meth:`Scheduler.run`) makes every decision, in one thread, so two decisions can
-never happen at the same moment. Finished updates, "stop", "reload" and "dismiss" reach it as
-events in one queue. The loop sleeps until the next event or the next moment something is
-due, and at least every :data:`~paperpi.limits.HEALTH_REPORT` seconds it reports "still
-running" (:mod:`paperpi.health`), so a stuck loop is noticed and PaperPi restarted. The clock
-and the executor (what runs the updates) are passed in, so tests can use a
-fake clock and check hours of switching in a fraction of a second.
+never happen at the same moment. Finished updates and screen writes, "stop", "reload" and
+"dismiss" reach it as events in one queue. The loop sleeps until the next event or the next
+moment something is due, and at least every :data:`~paperpi.limits.HEALTH_REPORT` seconds it
+reports "still running" (:mod:`paperpi.health`), so a stuck loop is noticed and PaperPi
+restarted. The clock, the executor (what runs the updates) and the writer (what runs the
+screen writes) are passed in, so tests can use a fake clock and check hours of switching in a
+fraction of a second.
 """
 
 from __future__ import annotations
@@ -464,7 +465,10 @@ class Scheduler:
         if chosen.level == "rotation" and chosen in self._slots:
             self._last_rotation = chosen.name
         self._current = chosen
-        if self._attempted is None or not _same_image(chosen.image, self._attempted):
+        paused = self._retry_at is not None
+        if not paused and (
+            self._attempted is None or not _same_image(chosen.image, self._attempted)
+        ):
             self._write(chosen.image, new_turn)
         elif new_turn:
             self._turn_start = now
@@ -539,11 +543,11 @@ class Scheduler:
 
     @property
     def _screen_state(self) -> str | None:
-        if self._attempted is None and self._last_written is None:
-            return None
         if self._retry_at is not None:
             return "paused"
-        return "failing" if self._write_failures else "ok"
+        if self._write_failures:
+            return "failing"
+        return None if self._last_written is None else "ok"
 
     def _write(self, image: Image.Image, new_turn: bool) -> None:
         self._attempted = image
@@ -566,6 +570,10 @@ class Scheduler:
         self._writing = False
         if isinstance(event.error, ScreenStuck):
             raise event.error  # only a restart of PaperPi can help
+        if event.new_turn:
+            # The turn starts once it is on screen, or once the try has failed: otherwise a
+            # failing screen would hand the turn on again and again without waiting.
+            self._turn_start = now
         if event.error is not None:
             self._write_failures += 1
             if isinstance(event.error, ScreenResting):
@@ -580,8 +588,6 @@ class Scheduler:
         self._retry_at = None
         self._last_written = now
         self.write_seconds = event.seconds
-        if event.new_turn:
-            self._turn_start = now  # the turn starts once it is on screen
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""

@@ -121,7 +121,10 @@ def _parser() -> argparse.ArgumentParser:
         "--state-dir",
         type=Path,
         default=config.STATE_DIR,
-        help=f"folder for plugin files and the last good config ({config.STATE_DIR})",
+        help=(
+            "folder for plugin files, the last good config and the screen-stuck time "
+            f"({config.STATE_DIR})"
+        ),
     )
     run.add_argument(
         "--health-file",
@@ -292,7 +295,12 @@ def _run(args: argparse.Namespace) -> int:
             scheduler.run()
     except ScreenStuck as error:
         print(f"paperpi: {error}; exiting, so PaperPi is started again", file=sys.stderr)
-        return 1
+        reports.stopping()
+        logging.shutdown()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        # A normal exit would wait, without a time limit, for the stuck helper process.
+        os._exit(1)
     except OSError as error:
         print(f"paperpi: {error}", file=sys.stderr)
         return 1

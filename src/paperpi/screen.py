@@ -24,7 +24,9 @@ driver's ``init`` resets the screen (the IT8951 driver pulses its reset pin).
 from __future__ import annotations
 
 import logging
+import math
 import multiprocessing
+import os
 import signal
 import threading
 import time
@@ -44,7 +46,11 @@ log = logging.getLogger(__name__)
 #: ``functools.partial(VirtualDriver, 1200, 825, mode, folder)``.
 MakeDriver = Callable[[], Driver]
 
-_context = multiprocessing.get_context("forkserver")
+# "spawn": the helper process is a direct child of PaperPi, so PaperPi can always stop it.
+# (A process started by the forkserver, as plugin processes are, can't be stopped once the
+# forkserver has ended, e.g. because the system ran out of memory.) Starting takes a second
+# or two, once.
+_context = multiprocessing.get_context("spawn")
 
 
 class ScreenError(RuntimeError):
@@ -78,6 +84,10 @@ class Helper:
         self.make_driver = make_driver
         self._process: multiprocessing.process.BaseProcess | None = None
         self._pipe: Connection | None = None
+        self._stuck: list[multiprocessing.process.BaseProcess] = []
+        """Helper processes that could not be stopped."""
+        self._killed = False
+        """:meth:`kill` was called; a helper process that is starting is stopped too."""
 
     @property
     def running(self) -> bool:
@@ -85,13 +95,25 @@ class Helper:
 
     def start(self, limit: float) -> None:
         """Start the helper process, which makes the driver and calls its ``init``."""
+        self._stuck = [p for p in self._stuck if p.exitcode is None]
+        if self._stuck:
+            # It may still hold the screen's pins; a new one would only add to the pile.
+            raise ScreenError(f"the stuck screen helper process {self._stuck[0].pid} still runs")
         pipe, child = _context.Pipe()
         process = _context.Process(
             target=_child, args=(child, self.make_driver), name="paperpi-screen", daemon=True
         )
-        process.start()
-        child.close()  # the child has its own copy; closing ours lets us notice a crash
+        try:
+            process.start()
+        except Exception as error:  # noqa: BLE001 - e.g. too many open files
+            pipe.close()
+            raise ScreenError(f"can't start the screen helper process: {error}") from error
+        finally:
+            child.close()  # the child has its own copy; closing ours lets us notice a crash
         self._process, self._pipe = process, pipe
+        if self._killed:
+            self.stop()
+            raise ScreenError("the screen was closed while its helper process started")
         self._answer("init", limit)
 
     def call(self, command: str, *args, limit: float) -> float:
@@ -121,11 +143,13 @@ class Helper:
             process.kill()
             process.join(limits.SCREEN_STOP)
         if process.exitcode is None:
+            self._stuck.append(process)
             raise ScreenStuck(f"the screen helper process {process.pid} can't be stopped")
         process.close()
 
     def kill(self) -> None:
         """Kill the helper process now; safe to call from another thread."""
+        self._killed = True
         process = self._process
         if process is not None:
             try:
@@ -155,8 +179,10 @@ class Helper:
 
 def _child(pipe: Connection, make_driver: MakeDriver) -> None:
     """Runs in the helper process: make the driver, then run commands until "close"."""
-    # Ctrl+C in a terminal reaches every process; the main process closes this one.
+    # Ctrl+C in a terminal, and systemd's stop signal, reach every process; the main process
+    # closes this one (and can always kill it).
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
     driver = None
     try:
         start = time.monotonic()
@@ -227,6 +253,7 @@ class Screen:
         self.retry_at: float | None = None
         """While writes are paused: when the next try is allowed (monotonic clock)."""
         self._lock = threading.Lock()
+        self._closed = False
 
     @property
     def time_limit(self) -> float:
@@ -238,7 +265,7 @@ class Screen:
 
     def write(self, image: Image.Image, *, fast: bool = False) -> None:
         """Show ``image``. Raises :class:`ScreenError` when it did not work."""
-        self._run("write", image.mode, image.size, image.tobytes(), fast)
+        self._run("write", image, fast)
 
     def clear(self) -> None:
         """Make the screen blank."""
@@ -246,9 +273,12 @@ class Screen:
 
     def close(self) -> None:
         """Close the screen and end the helper process. Never raises."""
+        self._closed = True
         if not self._lock.acquire(timeout=1):
             self._helper.kill()  # a write is in progress: end it, so closing doesn't wait
-            self._lock.acquire()
+            if not self._lock.acquire(timeout=limits.SCREEN_CLOSE):
+                log.error("the screen could not be closed: a write does not end")
+                return
         try:
             self._helper.stop(close=True)
         except ScreenStuck as error:
@@ -264,10 +294,15 @@ class Screen:
 
     def _run(self, command: str, *args) -> None:
         with self._lock:
+            if self._closed:
+                raise ScreenError("the screen is closed")
             now = self.clock()
             if self.retry_at is not None and now < self.retry_at:
                 wait = self.retry_at - now
                 raise ScreenResting(f"screen not answering; next try in {wait:.0f} s", wait)
+            if command == "write":  # the image travels as plain data
+                image, fast = args
+                args = (image.mode, image.size, image.tobytes(), fast)
             try:
                 if not self._helper.running:
                     self._helper.start(self.time_limit)
@@ -275,8 +310,10 @@ class Screen:
             except ScreenStuck:
                 self._stuck()
                 raise
-            except ScreenError:
+            except ScreenError as error:
                 self._failed()
+                if self.retry_at is not None:  # this failure started (or continues) a pause
+                    raise ScreenResting(f"{error}; writes paused", self.retry_at - now) from error
                 raise
             if command == "write":
                 self.redraw = seconds
@@ -319,24 +356,33 @@ class Screen:
     def _stuck(self) -> None:
         """A helper process can't be stopped: exit PaperPi, unless it did so recently."""
         now = self.wall()
-        last = _read_time(self.stuck_file)
+        last = _read_time(self.stuck_file, now)
         if self.stuck_file is not None and (last is None or now - last >= limits.SCREEN_STUCK_EXIT):
-            log.critical("a screen helper process is stuck; PaperPi exits so it can be restarted")
             try:
                 write_atomic(self.stuck_file, f"{now}\n".encode())
             except OSError as error:
+                # Without the file, the next start would not know: pause instead of exiting,
+                # so this can't become a restart loop.
                 log.error("can't write %s: %s", self.stuck_file, error)
-            return
-        log.error("a screen helper process is stuck; not exiting again so soon")
+            else:
+                log.critical("a screen helper process is stuck; PaperPi exits to be started again")
+                return
+        log.error("a screen helper process is stuck; writes pause (no exit within the hour)")
         self.failures += 1
         self.retry_at = self.clock() + limits.SCREEN_REST
         raise ScreenResting("screen helper process stuck", limits.SCREEN_REST)
 
 
-def _read_time(path: Path | None) -> float | None:
+def _read_time(path: Path | None, now: float) -> float | None:
+    """The time in ``path``; ``None`` when there is none, or it is not a sensible time."""
     if path is None:
         return None
     try:
-        return float(path.read_text()[:50])
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            when = float(os.read(fd, 64))
+        finally:
+            os.close(fd)
     except (OSError, ValueError):
         return None
+    return when if math.isfinite(when) and when <= now else None

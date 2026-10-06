@@ -13,15 +13,16 @@ The reasons are in ``docs/decisions/errors-and-time-limits.md``. In short:
   count, not from plugin processes). Without systemd nothing is sent.
 - Each report also replaces the health file (default :data:`HEALTH_FILE`). Docker's health
   check runs ``paperpi health``, which reads it with :func:`check`. The file holds one line
-  of JSON: the time of the report, the time since the last screen write, memory use and
-  open files of the main process, and free disk. It is replaced, never added to, so it
-  can't grow. The file is written first and systemd told after it, so "ready" means the
+  of JSON: the time of the report, the time since the last screen write, the screen state,
+  memory use and open files of the main process, and free disk. It is replaced, never added
+  to, so it can't grow. The file is written first and systemd told after it, so "ready" means the
   file is there.
 - The same values go to the log at the first report and then every
   :data:`~paperpi.limits.HEALTH_LOG` seconds, so slow growth (memory, open files) can be
   seen over weeks.
 - Healthy means only "the loop still reports". A broken screen does not make PaperPi
-  restart again and again; screen failures are handled by the scheduler itself.
+  restart again and again; screen failures are handled by the screen watchdog
+  (:mod:`paperpi.screen`).
 """
 
 from __future__ import annotations

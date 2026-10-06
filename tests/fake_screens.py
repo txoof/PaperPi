@@ -14,13 +14,15 @@ from epdlib.drivers import DisplayError, DisplayInfo, Driver
 
 class Pretend(Driver):
     """A white image is written; a black one hangs, a gray one crashes the process, a
-    nearly black one (1) raises an error."""
+    nearly black one (1) raises an error. ``init`` fails while ``<folder>/no-screen``
+    exists (or always with ``fail_init``), and hangs with ``hang_init``."""
 
-    def __init__(self, folder, fail_init=False):
+    def __init__(self, folder, fail_init=False, hang_init=False):
         super().__init__()
         self.info = DisplayInfo("pretend", 4, 3, ScreenMode.gray(16))
         self.folder = folder
         self.fail_init = fail_init
+        self.hang_init = hang_init
 
     def _note(self, what):
         with open(self.folder / "log", "a") as file:
@@ -28,7 +30,9 @@ class Pretend(Driver):
 
     def init(self):
         self._note("init")
-        if self.fail_init:
+        if self.hang_init:
+            time.sleep(1000)
+        if self.fail_init or (self.folder / "no-screen").exists():
             raise DisplayError("no screen here")
 
     def write(self, image, *, fast=False):
