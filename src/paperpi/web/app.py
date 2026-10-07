@@ -7,6 +7,10 @@ Address            What it does
 ``/setup``         the first visitor sets the password (only while none is set)
 ``/login``         log in; also says how to reset a forgotten password
 ``/logout``        log out (a button on every page)
+``/plugins``       Active Plugins: the plugins in the config file; switch on or off, move
+                   up or down, remove (``/plugins/<n>/...``, n = place in the file,
+                   counted from 0)
+``/library``       Plugin Library: every plugin type; ``/library/<type>`` adds one
 ``/static/...``    the style sheet and htmx (a small JavaScript file that updates
                    one part of a page without loading the whole page again)
 =================  ==============================================================
@@ -23,9 +27,9 @@ from __future__ import annotations
 import ipaddress
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -33,7 +37,9 @@ from starlette.concurrency import run_in_threadpool
 
 from .. import __version__
 from .auth import COOKIE_SECONDS, Auth, new_cookie
+from .config_file import EditError
 from .password import PasswordError, password_problem
+from .plugins import PluginEditor, library, library_item
 
 COOKIE = "paperpi_login"
 _HERE = Path(__file__).parent
@@ -41,15 +47,18 @@ _HERE = Path(__file__).parent
 _OPEN = ("/setup", "/login")
 
 
-def create_app(auth: Auth) -> FastAPI:
-    """The web interface, using ``auth`` for the password and log-in."""
+def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
+    """The web interface, using ``auth`` for the password and log-in and ``editor`` to
+    change the plugins in the config file."""
+    editor = editor or PluginEditor(auth.config_file)
     app = FastAPI(title="PaperPi", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
     templates.env.globals.update(version=__version__, auth=auth)
+    templates.env.filters["sentence"] = lambda text: text[:1].upper() + text[1:]
 
-    def page(request: Request, name: str, status: int = 200, **values) -> HTMLResponse:
-        return templates.TemplateResponse(request, name, values, status_code=status)
+    def page(request: Request, template: str, status: int = 200, **values) -> HTMLResponse:
+        return templates.TemplateResponse(request, template, values, status_code=status)
 
     def logged_in(request: Request, stored: str) -> RedirectResponse:
         response = RedirectResponse("/", status_code=303)
@@ -136,6 +145,100 @@ def create_app(auth: Auth) -> FastAPI:
         if await run_in_threadpool(auth.check, str(form.get("password", "")), stored):
             return logged_in(request, stored)
         return page(request, "login.html", 401, problem="Wrong password.")
+
+    def plugin_list(request: Request, status: int = 200, problem: str | None = None):
+        try:
+            found = editor.plugin_list()
+        except EditError as error:
+            rows, problems = [], [str(error)]
+            status = 500 if status == 200 else status
+        else:
+            rows, problems = found.rows, found.problems
+        done = request.query_params.get("done")
+        # The name in the address is only shown when it is in the list: a link can't put
+        # other text on the page.
+        name = request.query_params.get("name")
+        return page(
+            request,
+            "plugins.html",
+            status,
+            rows=rows,
+            problems=[p for p in dict.fromkeys(problems) if p != problem],
+            problem=problem,
+            done=done if done in ("saved", "added", "removed") else None,
+            name=name if any(row.name == name for row in rows) else None,
+            hand_edits=request.query_params.get("hand") == "1",
+            config_file=auth.config_file,
+        )
+
+    def saved(done: str, hand_edits: bool, name: str = "") -> RedirectResponse:
+        values = {"done": done} | ({"name": name} if name else {})
+        query = urlencode(values | ({"hand": "1"} if hand_edits else {}))
+        return RedirectResponse(f"/plugins?{query}", status_code=303)
+
+    @app.get("/plugins", response_class=HTMLResponse)
+    def plugins_page(request: Request):
+        return plugin_list(request)
+
+    @app.post("/plugins/{index}/move", response_class=HTMLResponse)
+    def move(request: Request, index: int, name: str = Form(""), step: str = Form("")):
+        if step not in ("up", "down"):
+            return plugin_list(request, 400, "Choose up or down.")
+        try:
+            hand_edits = editor.move(index, name, -1 if step == "up" else 1)
+        except EditError as error:
+            return plugin_list(request, 409, str(error))
+        return saved("saved", hand_edits)
+
+    @app.post("/plugins/{index}/enabled", response_class=HTMLResponse)
+    def switch(request: Request, index: int, name: str = Form(""), on: str = Form("")):
+        try:
+            hand_edits = editor.set_enabled(index, name, on == "1")
+        except EditError as error:
+            return plugin_list(request, 409, str(error))
+        return saved("saved", hand_edits)
+
+    @app.get("/plugins/{index}/remove", response_class=HTMLResponse)
+    def remove_page(request: Request, index: int, name: str = ""):
+        try:
+            row = editor.row(index, name)
+        except EditError as error:
+            return plugin_list(request, 409, str(error))
+        return page(request, "remove.html", row=row)
+
+    @app.post("/plugins/{index}/remove", response_class=HTMLResponse)
+    def remove(request: Request, index: int, name: str = Form("")):
+        try:
+            hand_edits = editor.remove(index, name)
+        except EditError as error:
+            return plugin_list(request, 409, str(error))
+        return saved("removed", hand_edits)
+
+    @app.get("/library", response_class=HTMLResponse)
+    def library_page(request: Request):
+        return page(request, "library.html", items=library())
+
+    def add_page(request: Request, plugin_type: str, status: int = 200, **values):
+        item = library_item(plugin_type)
+        if item is None:
+            return page(request, "library.html", 404, items=library(), problem="No such plugin.")
+        values.setdefault("name", editor.suggested_name(item))
+        return page(request, "add.html", status, item=item, **values)
+
+    @app.get("/library/{plugin_type}", response_class=HTMLResponse)
+    def add_form(request: Request, plugin_type: str):
+        return add_page(request, plugin_type)
+
+    @app.post("/library/{plugin_type}", response_class=HTMLResponse)
+    def add(request: Request, plugin_type: str, name: str = Form("")):
+        item = library_item(plugin_type)
+        if item is None:
+            return add_page(request, plugin_type)
+        try:
+            hand_edits = editor.add(item, name)
+        except EditError as error:
+            return add_page(request, plugin_type, 400, name=name, problem=str(error))
+        return saved("added", hand_edits, name.strip())
 
     @app.post("/logout")
     def logout():

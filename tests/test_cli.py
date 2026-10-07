@@ -538,10 +538,19 @@ def test_run_starts_the_web_interface_unless_asked_not_to(
     from paperpi.web import server
 
     calls = []
-    monkeypatch.setattr(server, "start", lambda *a: calls.append(a))
+    monkeypatch.setattr(server, "start", lambda *a, **kw: calls.append((a, kw)))
+    reloads = []
+    monkeypatch.setattr(cli.Scheduler, "reload", lambda self: reloads.append(1))
     monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)
     cfg = tmp_path / "paperpi.toml"
-    cfg.write_text(f'config_version = 1\n[display]\ntype = "virtual"\n{web}')
+    text = f'config_version = 1\n[display]\ntype = "virtual"\n{web}'
+    cfg.write_text(text)
     run = ["run", *args, "--config", str(cfg), "--state-dir", str(tmp_path)]
     assert main([*run, "--health-file", str(tmp_path / "health")]) == 0
     assert bool(calls) == started
+    if started:
+        # A change in the web interface reloads PaperPi; the web knows the text in use.
+        ((_, kw),) = calls
+        assert kw["text"] == text
+        kw["reload"]()
+        assert reloads == [1]

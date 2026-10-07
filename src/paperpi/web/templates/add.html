@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% block title %}Add {{ item.type }} · PaperPi{% endblock %}
+{% block main %}
+<h1>Add {{ item.type }}</h1>
+<p>{{ item.description }}</p>
+{% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
+{% if item.required %}
+<div class="note">
+  <p>This plugin is not shown until these settings are filled in, so it is added switched off:</p>
+  <ul>
+  {% for key, help in item.required %}<li><code>{{ key }}</code>: {{ help }}</li>{% endfor %}
+  </ul>
+  <p>Until the settings page is ready (a later version), type them into the config file on
+  the Pi (<code>{{ auth.config_file }}</code>), then switch the plugin on in Active Plugins.</p>
+</div>
+{% endif %}
+<form method="post" action="/library/{{ item.type }}">
+  <label>Name (shown in Active Plugins; each plugin needs its own)
+    <input type="text" name="name" value="{{ name }}" maxlength="100" required autofocus></label>
+  <button type="submit">Add</button>
+  <a href="/library">Cancel</a>
+</form>
+{% endblock %}

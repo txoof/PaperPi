@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import socket
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
 import uvicorn
@@ -17,6 +18,7 @@ import uvicorn
 from .. import config
 from .app import create_app
 from .auth import Auth
+from .plugins import PluginEditor
 
 log = logging.getLogger(__name__)
 
@@ -27,8 +29,15 @@ STOP_SECONDS = 5
 class WebServer:
     """The web interface of one ``paperpi run``. Start it with :func:`start`."""
 
-    def __init__(self, auth: Auth, settings: config.WebSettings, sock: socket.socket):
+    def __init__(
+        self,
+        auth: Auth,
+        settings: config.WebSettings,
+        sock: socket.socket,
+        editor: PluginEditor,
+    ):
         self.auth = auth
+        self.editor = editor
         self.settings = settings
         """The settings it was started with; a change of address or port needs a restart."""
         self._socket = sock
@@ -36,7 +45,7 @@ class WebServer:
         """The port it listens on (useful with ``port = 0`` in tests)."""
         self._server = uvicorn.Server(
             uvicorn.Config(
-                create_app(auth),
+                create_app(auth, self.editor),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
                 access_log=False,
@@ -53,10 +62,12 @@ class WebServer:
         except BaseException:  # noqa: BLE001 - also SystemExit, which uvicorn uses for errors
             log.exception("the web interface stopped because of an error")
 
-    def use(self, settings: config.WebSettings) -> None:
-        """Apply reloaded ``[web]`` settings: log-in changes apply at once, the rest at the
-        next start."""
+    def use(self, loaded: config.Config) -> None:
+        """Apply a reloaded config: ``[web]`` log-in changes apply at once, the rest of
+        ``[web]`` at the next start."""
+        settings = loaded.web
         self.auth.use(settings)
+        self.editor.loaded(loaded.text)
         changed = [
             k for k in config.WEB_NEXT_START if getattr(settings, k) != getattr(self.settings, k)
         ]
@@ -75,8 +86,18 @@ class WebServer:
         self._socket.close()
 
 
-def start(config_file: Path, settings: config.WebSettings) -> WebServer | None:
-    """Start the web interface, or log why it can't start and return ``None``."""
+def start(
+    config_file: Path,
+    settings: config.WebSettings,
+    *,
+    reload: Callable[[], None] | None = None,
+    text: str | None = None,
+) -> WebServer | None:
+    """Start the web interface, or log why it can't start and return ``None``.
+
+    ``reload`` makes PaperPi load the config file again (after a change in the web
+    interface); ``text`` is the config file text PaperPi uses now.
+    """
     try:
         sock = _listen(settings.address, settings.port)
     except OSError as error:
@@ -87,7 +108,10 @@ def start(config_file: Path, settings: config.WebSettings) -> WebServer | None:
             error,
         )
         return None
-    server = WebServer(Auth(config_file, settings), settings, sock)
+    editor = PluginEditor(config_file, reload)
+    if text is not None:
+        editor.loaded(text)
+    server = WebServer(Auth(config_file, settings), settings, sock, editor)
     server._thread.start()
     return server
 
