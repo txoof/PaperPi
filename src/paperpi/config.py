@@ -107,7 +107,7 @@ class DisplaySettings(BaseModel):
         ge=0,
         le=3600,
         description="At start, show PaperPi's version and web address this many seconds "
-        "before the plugins (0: not at all). With no plugin switched on, it is shown until "
+        "before the plugins (0: not at all). With no plugin ready to show, it is shown until "
         "one is",
     )
     width: int | None = Field(
@@ -290,6 +290,17 @@ class PluginConfig:
         """The name of this plugin's storage folder, made from its name."""
         return folder_name(self.entry.name)
 
+    @property
+    def missing(self) -> tuple[str, ...]:
+        """Required settings that are not set yet (see :func:`paperpi.plugin.setting`).
+        Until they are, the plugin is not shown."""
+        return self.plugin.missing(self.settings)
+
+    @property
+    def shown(self) -> bool:
+        """Switched on, and every required setting is set."""
+        return self.entry.enabled and not self.missing
+
 
 @dataclass
 class Config:
@@ -332,6 +343,8 @@ class PluginRow:
     """As used: the setting, or the plugin's suggestion."""
     storage_days: int
     """As used: the setting, or the plugin's suggestion (0 = files are kept)."""
+    missing: tuple[str, ...] = ()
+    """Required settings that are not set yet; until they are, the plugin is not shown."""
 
 
 def plugin_rows(config: Config) -> list[PluginRow]:
@@ -349,6 +362,7 @@ def plugin_rows(config: Config) -> list[PluginRow]:
             layout=p.layout,
             storage_mb=p.storage_mb,
             storage_days=p.storage_days,
+            missing=p.missing,
         )
         for p in config.plugins
     ]
@@ -748,6 +762,15 @@ class _Checker:
             return None
 
         checked = PluginConfig(entry, settings, plugin, self.lines.get(section))
+        if entry.enabled and checked.missing:
+            names = ", ".join(checked.missing)
+            self.add(
+                "warning",
+                f"not shown until these required settings are filled in: {names}",
+                section,
+                next((k for k in checked.missing if k in block), None),
+                where,
+            )
         if entry.level == "rotation" and checked.refresh == entry.display_time:
             key = "refresh" if "refresh" in block else "display_time"
             self.add(

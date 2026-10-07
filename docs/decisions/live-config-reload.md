@@ -38,6 +38,7 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 - A changed plugin that is on screen is updated and redrawn right away, so the user sees the result.
 - A plugin that is removed or switched off while on screen: rotation moves on to the next plugin.
 - A new plugin joins the end of the rotation.
+- *(M5 part 2a)* A plugin that is missing a required setting is treated as switched off: filling the setting in and reloading starts it (at its place in the file), and emptying it takes the plugin out of the rotation.
 
 **Update 2026-10-05 (M4, issue #205):** plugins take turns in the order of the config file, so a new plugin takes the place where it is in the file (the end, when it is added at the end). Until reloading screen settings is built (M4 issue #222, part 5b), changed screen settings take effect at the next start, with a warning in the log. *(Built in part 5b; see the table below.)*
 
@@ -48,7 +49,7 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 | `max_refresh` (fast refreshes before a full one), `vcom` | At once. The screen helper process (see `display-driver-interface.md`) starts again with the new values; the next write is full. |
 | Rotation, colour on/off | At once. Every plugin draws again at its new size; the screen keeps its picture until the new images are ready. Colour is only offered for screens that can show colour. There is no mirror setting (yet). |
 | Cleaning interval (`clean_every`), what happens on exit (`on_exit`), the fallback clock | At once. |
-| `splash_time` | Only matters at start: a change during the start splash sets when it ends; a reload never shows the splash again. (With no plugin switched on the splash is shown whatever it says.) |
+| `splash_time` | Only matters at start: a change during the start splash sets when it ends; a reload never shows the splash again. (With no plugin ready to show the splash is shown whatever it says.) |
 | `type`, `model` (virtual screen: `width`, `height`, `mode`) | At the next start of PaperPi. |
 
 *Update (M5 part 1, issue #238):* `[web]` settings. `login` and `password_hash` apply at a reload (so `paperpi reset-password` followed by a reload works without a restart); `enabled`, `address` and `port` apply at the next start, and a reload says so in the log.

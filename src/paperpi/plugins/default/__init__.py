@@ -1,5 +1,5 @@
-"""default: shown when nothing else can be: plugins are failing, or none are switched on
-and the splash screen fails.
+"""default: shown when nothing else can be: plugins are failing, or none is ready to show
+(switched on, with all its required settings filled in) and the splash screen fails.
 
 The scheduler tells it how many plugins are failing (``context.status``). The QR code that
 opens the web interface is added with the web interface (M5).
@@ -20,7 +20,7 @@ def fetch(context: Context):
 
 def message(status: PluginsStatus) -> str:
     if status.total == 0:
-        return "No plugins are switched on."
+        return "No plugins are ready to show."
     noun = "plugin is" if status.total == 1 else "plugins are"
     return f"{status.failing} of {status.total} {noun} not working."
 

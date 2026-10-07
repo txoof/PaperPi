@@ -679,3 +679,50 @@ def test_hint_when_the_fallback_clock_is_switched_off():
     assert len(cfg.plugins) == 1
     [hint] = problems(cfg, "hint")
     assert "fallback_clock = false is not recommended" in hint
+
+
+WEATHER = """\
+config_version = 1
+[display]
+type = "virtual"
+[[plugin]]
+name = "Weather"
+type = "met_no"
+lat = 52.52
+lon = 13.40
+"""
+
+
+def test_plugin_without_its_required_settings_is_not_shown():
+    loaded = parse(WEATHER)
+    weather = loaded.plugin("Weather")
+    assert weather.missing == ("email",)
+    assert weather.entry.enabled and not weather.shown
+    assert [(p.level, p.message, p.line) for p in loaded.problems] == [
+        ("warning", "not shown until these required settings are filled in: email", 4)
+    ]
+    assert config.plugin_rows(loaded)[0].missing == ("email",)
+
+
+def test_required_setting_warning_points_at_the_setting_when_it_is_there():
+    loaded = parse(WEATHER.replace("lat = 52.52\nlon = 13.40\n", 'lat = 52.52\nemail = ""\n'))
+    assert loaded.plugin("Weather").missing == ("lon", "email")
+    assert [(p.message, p.line) for p in loaded.problems] == [
+        ("not shown until these required settings are filled in: lon, email", 8)
+    ]
+    # An empty value for a number is no "not set": it is an error, as before.
+    loaded = parse(WEATHER.replace("lat = 52.52\nlon = 13.40\n", 'lon = 13.40\nlat = ""\n'))
+    assert [(p.level, p.line) for p in loaded.problems] == [("error", 8)]  # "" is no number
+
+
+def test_plugin_with_its_required_settings_is_shown():
+    loaded = parse(WEATHER + 'email = "me@example.com"\n')
+    assert loaded.problems == []
+    assert loaded.plugin("Weather").shown
+
+
+def test_switched_off_plugin_without_required_settings_gives_no_warning():
+    loaded = parse(WEATHER + "enabled = false\n")
+    assert loaded.problems == []
+    weather = loaded.plugin("Weather")
+    assert weather.missing == ("email",) and not weather.shown

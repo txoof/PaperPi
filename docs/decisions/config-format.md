@@ -66,6 +66,8 @@ display_time = 255
 
 The file only holds settings that differ from the default. This keeps it short and easy to fix by hand. When a later version improves a default, you get it automatically. The web interface shows every setting with its default filled in. `paperpi.example.toml` is generated from the program (`paperpi example-config`), so it is always up to date; a test checks the copy in the repository. It is short and works as it is: `[display]` with a virtual screen, a clock, and the weather in Berlin and in Rio (the same plugin type twice). Every setting it doesn't set is a comment with its default, and its help text on the line above. The first `[[plugin]]` block lists all the settings every plugin has; the other blocks list only `refresh` and `layout`, because their defaults depend on the plugin. `storage_mb` and `storage_days` can also differ per plugin, but most plugins keep the defaults, so they are only in the first block; `paperpi list` shows the values used (M4 issue #224). The copy in the repository is not edited by hand: it is made again with `paperpi example-config -o paperpi.example.toml --force`. Agreed with txoof on 2026-10-06: the example does not list every plugin. Adding and removing plugin blocks is the job of a config manager (the web interface, M5), which builds a block the same way (`paperpi.example.plugin_block`). That function refuses unknown settings and values the plugin would not accept, and checks that PaperPi reads the block back as written. Plugin names may not hold control characters (such as tab, new line or the terminal's ESC), because they can't be written back to the file reliably.
 
+*Update 2026-10-07 (M5 part 2a, issue #238):* the example no longer fills in a made-up email address, because met.no's terms of service ask for a real one. It loads without errors, but the weather blocks are not shown, and the check warns, until you fill in `email`.
+
 ### Checking the file
 
 Each part of the config (display, web, each plugin type) is described in code as a list of settings, each with a type, a default and a short help text. The `pydantic` package does this. From the same description we get:
@@ -82,6 +84,7 @@ What happens when something is wrong:
 | File can't be read at all, or the `display` / `web` part is wrong | Runs on the **last good** copy, a copy that is saved each time the config loads correctly. A warning on the screen and in the web interface names the wrong line. |
 | ...and there is no last good copy (first install) | Shows an error screen with a QR code (a square barcode a phone camera can scan) that opens the web interface. |
 | One plugin block is wrong (missing value, text where a number belongs) | Only that plugin is switched off. Everything else runs. The web interface shows which setting is wrong. |
+| A switched-on plugin is missing a required setting (e.g. `email`, see `plugin-interface.md`) | The plugin is not shown and not counted as broken. A warning names the missing settings; `paperpi list` shows "needs …". |
 | Unknown setting name, e.g. `lattitude` | Warning only: "unknown setting, did you mean `latitude`?" |
 
 The web interface only accepts valid values, so most of these mistakes can only happen through hand edits.

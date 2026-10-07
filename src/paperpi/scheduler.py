@@ -40,8 +40,9 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
 - A failed update is skipped and tried again at the next refresh. After
   :data:`~paperpi.limits.FAILURES_BEFORE_LEFT_OUT` failures in a row the plugin is left out
   for :data:`~paperpi.limits.LEFT_OUT` seconds. When nothing can be shown because plugins
-  fail (or no plugin is switched on and the splash screen fails, see below), the
-  ``default`` plugin says so. When no plugin has
+  fail, or no plugin is ready to show (switched on, with all its required settings filled
+  in) and the splash screen fails (see below), the ``default`` plugin says so. When no
+  plugin has
   anything to show and none fail, a small fallback clock is shown (``[display]
   fallback_clock``), so an empty screen is never mistaken for a broken one.
 - At start, the ``splash_screen`` plugin (name, version and web address) is updated first
@@ -49,9 +50,9 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
   background; then the normal choice starts. Alerts and interrupts wait until it ends.
   When its update fails, the normal choice starts at once. A config reload does not show it
   again.
-- When no plugin is switched on (e.g. the first start after installing, with the default
+- When no plugin is ready to show (e.g. the first start after installing, with the default
   config), the splash screen stays on screen until one is, so the web address is there to
-  set PaperPi up. If it fails, the ``default`` plugin says that no plugin is switched on.
+  set PaperPi up. If it fails, the ``default`` plugin says that no plugin is ready to show.
 
 One loop (:meth:`Scheduler.run`) makes every decision, in one thread, so two decisions can
 never happen at the same moment. Finished updates and screen writes, "stop", "reload" and
@@ -252,7 +253,7 @@ class Scheduler:
         self._web_port = config.web.port
         """The web interface's port: it only changes at the next start (WEB_NEXT_START)."""
         self._splash = _Slot(_splash_config(self._web_port))
-        """The splash screen: at start, and while no plugin is switched on."""
+        """The splash screen: at start, and while no plugin is ready to show."""
         self._starting = config.display.splash_time > 0
         """The splash screen is still to be shown (or being shown) at start."""
         self._current: _Slot | None = None
@@ -380,7 +381,7 @@ class Scheduler:
         old = {slot.name: slot for slot in self._slots}
         slots = []
         for found in config.plugins:
-            if not found.entry.enabled or found.plugin.type == "default":
+            if not found.shown or found.plugin.type == "default":
                 continue
             slot = old.get(found.entry.name)
             if slot is None or redraw or not _same_plugin(slot.config, found):
@@ -656,7 +657,7 @@ class Scheduler:
         return self._choose_idle(now), True
 
     def _choose_splash(self, now: float) -> tuple[_Slot | None, bool] | None:
-        """The splash screen at start, or while no plugin is switched on; ``None`` when
+        """The splash screen at start, or while no plugin is ready to show; ``None`` when
         it is not (or no longer) shown."""
         splash = self._splash
         if not splash.running and (not splash.reported or splash.due <= now):
@@ -669,7 +670,7 @@ class Scheduler:
                 return None, False  # back after a while: never show an old address
             return splash, True
         if not self._slots:
-            return splash, False  # until a plugin is switched on
+            return splash, False  # until a plugin is ready to show
         if now - self._turn_start < self.display.splash_time:
             return splash, False
         self._starting = False
@@ -694,7 +695,7 @@ class Scheduler:
     def _choose_idle(self, now: float) -> _Slot | None:
         """No plugin has anything to show.
 
-        When plugins fail, or none are switched on (and the splash screen failed): the
+        When plugins fail, or none is ready to show (and the splash screen failed): the
         ``default`` plugin, which says so.
         Otherwise (e.g. only a music plugin, and no music) the fallback clock, so the screen
         still changes every minute and can be told apart from a broken one.
@@ -878,7 +879,7 @@ def _fallback_config() -> PluginConfig:
 
 
 def _splash_config(web_port: int) -> PluginConfig:
-    """The splash screen shown at start, and while no plugin is switched on. It shows the
+    """The splash screen shown at start, and while no plugin is ready to show. It shows the
     web interface's address, with the port the web interface started with."""
     plugin = plugins.load("splash_screen")
     # Its time on screen comes from [display] splash_time, not from display_time. A short

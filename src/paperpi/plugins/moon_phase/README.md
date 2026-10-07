@@ -29,7 +29,7 @@ met.no gives one answer per place and day. The plugin saves it in its storage fo
 |---|---|---|
 | `lat` | none, required | latitude of the place, e.g. `52.52` |
 | `lon` | none, required | longitude of the place, e.g. `13.40` |
-| `email` | none, required | your email address, sent only to met.no. met.no requires contact details from every program, so it can ask before blocking one that misbehaves |
+| `email` | none, required | your own, real email address, sent only to met.no. met.no's terms of service require contact details from every program, so it can ask before blocking one that misbehaves |
 
 It suggests a refresh every 20 minutes.
 
@@ -41,11 +41,11 @@ name = "Moon"
 type = "moon_phase"
 lat = 52.52
 lon = 13.40
-email = "you@example.com"
+email = "you@example.com"   # put your own, real address here
 layout = "moon_only"   # optional; without it: moon_data
 ```
 
-Try it without a screen: `uv run paperpi render moon_phase` (sample data), or with real data: `uv run paperpi render moon_phase --live --set lat=52.52 --set lon=13.40 --set email=you@example.com`.
+Try it without a screen: `uv run paperpi render moon_phase` (sample data), or with real data: `uv run paperpi render moon_phase --live --set lat=52.52 --set lon=13.40 --set email=you@example.com` (put your own address in place of `you@example.com`). If lat, lon or email is missing, the plugin is not shown; the config check and `paperpi list` say which one.
 
 The moon data is from [MET Norway](https://www.met.no/en), under the [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/) licence (CC BY 4.0): anyone may use the data, as long as they say where it came from. The `moon_data` layout shows "Data: MET Norway", as the licence asks. The moon pictures are by [NASA's Scientific Visualization Studio](https://svs.gsfc.nasa.gov/4955) (credit: NASA's Scientific Visualization Studio). NASA's pictures are generally not protected by copyright in the United States and may be used freely, as long as NASA is credited and the use does not suggest that NASA endorses PaperPi ([NASA's media usage guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)). They are the same files as in PaperPi v1. The font is Anton, under the SIL Open Font License ([`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt)), in PaperPi's shared fonts folder.
 

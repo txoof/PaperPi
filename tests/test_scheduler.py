@@ -536,12 +536,51 @@ def test_screen_keeps_its_picture_when_default_fails(tmp_path, caplog):
     assert "the default plugin failed" in caplog.text
 
 
-def test_default_says_when_no_plugin_is_switched_on_and_the_splash_fails(tmp_path):
+def test_default_says_when_no_plugin_is_ready_and_the_splash_fails(tmp_path):
     sim = Sim(tmp_path, rotation("a") + "\nenabled = false")
     sim.plan(**{"built-in-splash": "fail"})
     sim.run(until=7300)
     assert sim.shown == ["default 0/0"]
     assert sim.updates.times("built-in-splash") == [1, 3602, 7203]  # once an hour
+
+
+def test_plugin_without_its_required_settings_is_not_updated(tmp_path):
+    weather = rotation("w") + '\ntype = "met_no"\nlat = 1\nlon = 2'
+    sim = Sim(tmp_path, rotation("a"), weather)
+    sim.plan(a="A", w="W")
+    sim.run(until=100)
+    assert sim.updates.times("w") == []
+    assert sim.shown == ["A"]
+    # Filling in the email address (a reload) starts it.
+    sim.next_config = make_config(rotation("a"), weather + '\nemail = "me@example.com"')
+    sim.at(100, sim.scheduler.reload)
+    sim.run(until=150)
+    assert sim.updates.times("w")[0] == 101
+
+
+def test_reload_without_a_required_setting_takes_the_plugin_off_screen(tmp_path):
+    weather = rotation("w") + '\ntype = "met_no"\nlat = 1\nlon = 2'
+    sim = Sim(tmp_path, rotation("a"), weather + '\nemail = "me@example.com"')
+    sim.plan(a="A", w="W")
+    sim.run(until=150)  # w is on screen since 101
+    sim.next_config = make_config(rotation("a"), weather)
+    sim.scheduler.reload()
+    sim.run(until=300)
+    assert sim.writes[:3] == [(1, "A"), (101, "W"), (150, "A")]
+    assert [t for t in sim.updates.times("w") if t >= 150] == []
+
+
+def test_a_plugin_waiting_for_its_settings_keeps_the_splash_screen_on(tmp_path):
+    # Switched on, but not ready to show: like no plugin at all, the splash screen (with the
+    # web address to fill in the settings) stays; if it fails, the default plugin says so.
+    waiting = rotation("w") + '\ntype = "met_no"\nlat = 1\nlon = 2'
+    sim = Sim(tmp_path, waiting)
+    sim.run(until=100)
+    assert sim.shown == ["BUILT-IN-SPLASH"]
+    sim = Sim(tmp_path, waiting)
+    sim.plan(**{"built-in-splash": "fail"})
+    sim.run(until=100)
+    assert sim.shown == ["default 0/0"]  # "No plugins are ready to show."
 
 
 def clock_labels(t):
@@ -773,7 +812,7 @@ def test_first_start_shows_the_splash_until_a_plugin_is_switched_on(tmp_path):
     sim.plan(**{SPLASH: lambda t: f"splash {int(t // 3600)}"})
     sim.run(until=7300)
     assert sim.shown == ["splash 0", "splash 1", "splash 2"]  # new picture every hour
-    # ... until a plugin is switched on.
+    # ... until a plugin is ready to show.
     sim.next_config = make_config(rotation("a"))
     sim.at(7400, sim.scheduler.reload)
     sim.run(until=7500)

@@ -1,8 +1,8 @@
 """splash_screen: PaperPi's name, version and web address, shown at start and while no
-plugin is switched on.
+plugin is ready to show.
 
 The scheduler shows this plugin first when PaperPi starts, for ``[display] splash_time``
-seconds (default 60), then the other plugins. With no plugin switched on (e.g. the first
+seconds (default 60), then the other plugins. With no plugin ready to show (e.g. the first
 start after installing), it stays on screen until one is.
 It is a plugin like any other so start-up needs no special drawing code; a ``[[plugin]]``
 block can also put it in the rotation, but that is not what it is meant for.
@@ -171,7 +171,7 @@ def draw(about: About, context: Context) -> dict:
 PLUGIN = Plugin(
     type="splash_screen",
     description="PaperPi's name, version and web address; shown at start, and while no plugin "
-    "is switched on.",
+    "is ready to show.",
     settings=Settings,
     layouts=LAYOUTS,
     fetch=fetch,

@@ -2,7 +2,7 @@
 
 import pytest
 from epdlib import ScreenMode
-from pydantic import Field
+from pydantic import Field, SecretBytes, SecretStr
 
 from paperpi import plugins
 from paperpi.plugin import (
@@ -14,7 +14,10 @@ from paperpi.plugin import (
     PluginSettings,
     State,
     draw_update,
+    is_required,
+    is_set,
     ready,
+    setting,
 )
 
 
@@ -59,6 +62,10 @@ class NotSettings:
     pass
 
 
+class RequiredWithValue(PluginSettings):
+    email: str = setting("me@example.com", required=True)
+
+
 @pytest.mark.parametrize(
     ("changes", "message"),
     [
@@ -66,6 +73,7 @@ class NotSettings:
         ({"settings": NotSettings}, "subclass of PluginSettings"),
         ({"settings": Clash}, "names of shared settings: name, refresh"),
         ({"settings": NoDefault}, "every setting needs a default"),
+        ({"settings": RequiredWithValue}, 'a required setting\'s default must be "not set"'),
         ({"layouts": {}}, "at least one layout"),
         ({"refresh": 0}, "refresh must be between 5 and 604800 seconds"),
         ({"refresh": 4.9}, "refresh must be between 5 and 604800 seconds"),
@@ -177,3 +185,67 @@ def test_loader_unknown_type():
 def test_loader_broken_plugins(plugin_type, message):
     with pytest.raises(PluginDefinitionError, match=message):
         plugins.load(plugin_type, "tests.fake_plugins")
+
+
+class Needs(PluginSettings):
+    place: str = setting("", required=True, max_length=10, description="Where")
+    lat: float | None = setting(None, required=True, ge=-90, le=90)
+    key: SecretStr = setting(SecretStr(""), required=True)
+    word: str = setting("hi")
+
+
+def test_setting_is_a_field_with_paperpis_options():
+    fields = Needs.model_fields
+    assert [k for k, info in fields.items() if is_required(info)] == ["place", "lat", "key"]
+    assert not is_required(fields["word"])
+    assert fields["place"].description == "Where"
+    with pytest.raises(ValueError, match="at most 10 characters"):
+        Needs(place="far too long a place")
+    with pytest.raises(ValueError, match="less than or equal to 90"):
+        Needs(lat=91)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, False), ("", False), ("  ", False), (SecretStr(""), False), (SecretStr(" "), False),
+     (SecretBytes(b""), False), (b"", False), ("x", True), (0, True), (0.0, True),
+     (SecretStr("k"), True), (False, True)],
+)  # fmt: skip
+def test_is_set(value, expected):
+    assert is_set(value) is expected
+
+
+def test_setting_keeps_other_schema_extras():
+    class Extra(PluginSettings):
+        word: str = setting("", required=True, json_schema_extra={"examples": ["hi"]})
+        other: str = setting("", json_schema_extra={"paperpi": "wrong shape"})
+
+    info = Extra.model_fields["word"]
+    assert info.json_schema_extra == {"examples": ["hi"], "paperpi": {"required": True}}
+    assert is_required(info)
+    assert not is_required(Extra.model_fields["other"])  # no crash on a wrong shape
+
+
+def test_setting_needs_a_default():
+    with pytest.raises(TypeError):
+        setting(description="no default")
+
+
+def test_built_in_plugins_need_no_settings():
+    # PaperPi runs these with their defaults (the screen shown when nothing else can be).
+    for plugin_type in ("basic_clock", "default"):
+        assert plugins.load(plugin_type).required == ()
+
+
+def test_missing_lists_the_required_settings_that_are_not_set():
+    plugin = make(settings=Needs)
+    assert plugin.required == ("place", "lat", "key")
+    assert plugin.missing(Needs()) == ("place", "lat", "key")
+    assert plugin.missing(Needs(place="Rio", lat=0, key=SecretStr("k"))) == ()
+    assert make().required == ()
+
+
+@pytest.mark.parametrize("plugin_type", ["met_no", "moon_phase"])
+def test_met_no_plugins_need_a_place_and_an_email_address(plugin_type):
+    # met.no's terms of service ask for a real way to contact the user.
+    assert plugins.load(plugin_type).required == ("lat", "lon", "email")

@@ -2,7 +2,7 @@
 
 Shows PaperPi's name, its version, the address of its web interface and a QR code with that address, plus the address of PaperPi's web page (https://github.com/txoof/PaperPi). Ported from v1.
 
-PaperPi shows it **once at start**, before the other plugins, for `[display] splash_time` seconds (default 60, at most 3600; `0`: not at all). Meanwhile the other plugins get their first pictures. **With no plugin switched on**, for example the first start after installing with the default config, it stays on screen (with a new picture every hour) until a plugin is switched on, so the web address to set PaperPi up is always there. It is a plugin like any other, so start-up needs no drawing code of its own. You can also put it in the rotation with a `[[plugin]]` block, but that is not what it is meant for.
+PaperPi shows it **once at start**, before the other plugins, for `[display] splash_time` seconds (default 60, at most 3600; `0`: not at all). Meanwhile the other plugins get their first pictures. **With no plugin ready to show**, for example the first start after installing with the default config, it stays on screen (with a new picture every hour) until a plugin is ready to show, so the web address to set PaperPi up is always there. It is a plugin like any other, so start-up needs no drawing code of its own. You can also put it in the rotation with a `[[plugin]]` block, but that is not what it is meant for.
 
 What it shows:
 
@@ -26,7 +26,7 @@ The port is the web interface's port, `[web] port` (default 8080); like the web 
 
 ## Settings
 
-One of its own, `port` (default 8080): the port in the addresses, only for a splash you add to the rotation yourself; the splash at start always uses `[web] port`. Plus the settings every plugin has (see the main [README](../../../../README.md)). It suggests a refresh every hour, which matters while no plugin is switched on and in the rotation: it then picks up a new IP address.
+One of its own, `port` (default 8080): the port in the addresses, only for a splash you add to the rotation yourself; the splash at start always uses `[web] port`. Plus the settings every plugin has (see the main [README](../../../../README.md)). It suggests a refresh every hour, which matters while no plugin is ready to show and in the rotation: it then picks up a new IP address.
 
 To put it in the rotation (not needed for the splash at start):
 

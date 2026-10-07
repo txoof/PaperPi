@@ -80,6 +80,15 @@ Each setting is a field of the plugin's `Settings` class, with a type, a default
 - Every setting needs a default.
 - Don't use the names of the shared settings, which every `[[plugin]]` block already has: `name`, `type`, `enabled`, `level`, `display_time`, `refresh`, `time_limit`, `layout`, `alert_reminder`, `alert_max_time`.
 - Use `pydantic.SecretStr` as the type for API keys and passwords. PaperPi then never shows their values in error messages or logs.
+- A setting the user must fill in before the plugin can work (a place, an email address, an API key) is made with `paperpi.plugin.setting(..., required=True)` instead of `Field`. It takes the same arguments as `Field`. Its default must be "not set": `None`, empty text or an empty `SecretStr` (text of only spaces also counts as not set). Until every required setting is filled in, the plugin is not shown and not counted as broken; the config check and `paperpi list` (and from M5 part 2b the web interface) say which settings are missing. The example block marks them "(required)". `setting` is also where later options for a single setting are added, such as a web interface helper that looks up latitude and longitude (M5 part 3c).
+
+  ```python
+  from paperpi.plugin import PluginSettings, setting
+
+
+  class Settings(PluginSettings):
+      lat: float | None = setting(None, required=True, ge=-90, le=90, description="Latitude")
+  ```
 
 In the config file, the plugin's settings go in its `[[plugin]]` block:
 
@@ -133,7 +142,7 @@ data = answer.json()
 ```
 
 `get` takes:
-- `contact`: an email or web address, added to the User-Agent header (the line in every request that names the program), so the service knows whom to ask about problems. Some services, like met.no, require it. Give your plugin a setting for it, as `met_no` does with `email`.
+- `contact`: an email or web address, added to the User-Agent header (the line in every request that names the program), so the service knows whom to ask about problems. Some services, like met.no, require it. Give your plugin a setting for it, as `met_no` does with `email`, and make it required with `setting(..., required=True)`.
 - `headers=`: more headers to send, for example an API key. They are sent only to the server of `url`: if that server redirects to another one, they are left out.
 - `if_modified_since=`: the `last_modified` of an earlier answer. If nothing changed since, `answer.not_modified` is `True` and `answer.body` is empty. Save `last_modified` (it can be `None` when the server didn't send one) and the data in `context.storage`, so the next update can ask.
 - `max_bytes=`: a higher size limit, for example for large images.
