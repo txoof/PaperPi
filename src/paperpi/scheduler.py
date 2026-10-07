@@ -60,20 +60,22 @@ import dataclasses
 import logging
 import math
 import queue
+import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 from PIL import Image, ImageChops
 
 from . import limits, plugins
-from .config import Config, PluginConfig
+from .config import DRIVER_SETTINGS, NEXT_START, Config, DisplaySettings, PluginConfig
 from .plugin import Context, PluginEntry, PluginsStatus, State
 from .runner import UpdateResult, run_update, stop_all
-from .screen import Screen, ScreenResting, ScreenStuck
+from .screen import MakeDriver, Screen, ScreenResting, ScreenStuck
 from .storage import LowDisk, clean
 
 log = logging.getLogger(__name__)
@@ -125,6 +127,8 @@ class _Written:
     """The plugin whose image was written."""
     cleared: bool = False
     """The screen was cleared first (also when the write after it failed)."""
+    generation: int = 0
+    """:attr:`Scheduler._generation` when the write started."""
     check: bool = False
     """The check at start, not a write."""
 
@@ -188,6 +192,8 @@ class Scheduler:
     with :func:`paperpi.runner.stop_all`. ``writer`` runs the screen writes (default: one
     thread of their own). ``health`` (e.g. :meth:`paperpi.health.Health.report`)
     is called by the loop every :data:`~paperpi.limits.HEALTH_REPORT` seconds.
+    ``new_driver`` makes the screen driver for changed ``[display]`` settings, so a reload
+    can change ``vcom`` and ``max_refresh`` (``None``: they apply at the next start).
     """
 
     def __init__(
@@ -204,6 +210,7 @@ class Scheduler:
         stop_updates: Callable[[], None] | None = None,
         health: Report | None = None,
         low_disk: LowDisk | None = None,
+        new_driver: Callable[[DisplaySettings], MakeDriver] | None = None,
     ):
         self.screen = screen
         self.state_dir = Path(state_dir)
@@ -252,6 +259,15 @@ class Scheduler:
         """The plugin whose image is on screen (``None``: unknown, so the next write is full)."""
         self._last_clean = -math.inf
         """When the screen was last cleared (monotonic clock): never, so the first write cleans."""
+        self._new_driver = new_driver
+        self._change: Callable[[], None] | None = None
+        """For the next write: tell the screen the config changed (a new driver, or try a
+        paused screen again); runs in the writer thread, before the write."""
+        self._generation = 0
+        """Goes up when what is on screen must be drawn in full again, so a write that was
+        running at that moment does not count as the screen's picture."""
+        self._reloading: threading.Thread | None = None
+        """The thread reading the config, while it runs."""
         self._checked = False
         self._apply(config)
 
@@ -321,7 +337,7 @@ class Scheduler:
                     log.info("alert %r dismissed", slot.name)
         elif event == _RELOAD and self._reload is not None:
             try:
-                new = self._reload()
+                new = self._load_with_time_limit()
             except Exception as error:  # noqa: BLE001 - a broken file keeps the old settings
                 log.error("config not applied, the old settings keep running: %s", error)
                 return
@@ -341,8 +357,7 @@ class Scheduler:
 
     def _apply(self, config: Config) -> None:
         """Use a new config. Plugins whose settings did not change keep their place and image."""
-        if config.display != self.display:
-            log.warning("screen settings take effect at the next start of PaperPi")
+        redraw = self._apply_display(config.display)
         now = self.clock.monotonic()
         old = {slot.name: slot for slot in self._slots}
         slots = []
@@ -350,7 +365,7 @@ class Scheduler:
             if not found.entry.enabled or found.plugin.type == "default":
                 continue
             slot = old.get(found.entry.name)
-            if slot is None or not _same_plugin(slot.config, found):
+            if slot is None or redraw or not _same_plugin(slot.config, found):
                 changed = _Slot(found, due=now)
                 if slot is not None:
                     # Keep the old image on screen until the new one is ready, and keep
@@ -358,6 +373,10 @@ class Scheduler:
                     changed.state, changed.image = slot.state, slot.image
                     changed.alert_since, changed.dismissed_at = slot.alert_since, slot.dismissed_at
                     changed.expired, changed.reported = slot.expired, slot.reported
+                    if redraw:
+                        # The old image has the wrong size or colours. The screen keeps its
+                        # picture until the new images are ready.
+                        changed.state, changed.image, changed.reported = State.NOTHING, None, False
                     if slot.running:
                         changed.due, changed.waits_for = math.inf, slot
                     if slot is self._current:
@@ -373,8 +392,70 @@ class Scheduler:
             self._last_rotation = next((n for n in before if n in names), None)
         self._slots = slots
         default = _default_config(config)
-        if not _same_plugin(self._default.config, default):
+        if redraw or not _same_plugin(self._default.config, default):
             self._default = _Slot(default)
+        if redraw or (self._fallback is None) == self.display.fallback_clock:
+            self._fallback = _Slot(_fallback_config()) if self.display.fallback_clock else None
+
+    def _apply_display(self, new: DisplaySettings) -> bool:
+        """Use new ``[display]`` settings; True when every plugin must draw again."""
+        old = self.display
+        if self._retry_at is not None:
+            # Writes are paused: the change may be the fix, so try again at once.
+            self._retry_at, self._attempted = None, None
+            self._change = partial(self.screen.retry_now, fresh=new != old)
+        if new == old:
+            return False
+        later = [key for key in NEXT_START if getattr(new, key) != getattr(old, key)]
+        if later:
+            if "type" in later or "model" in later:
+                # The driver settings belong to the screen that keeps running until then.
+                later += [key for key in DRIVER_SETTINGS if getattr(new, key) != getattr(old, key)]
+            log.warning(
+                "[display] %s changed: this applies at the next start of PaperPi",
+                ", ".join(later),
+            )
+            new = new.model_copy(update={key: getattr(old, key) for key in later})
+        if self._new_driver is not None and any(
+            getattr(new, key) != getattr(old, key) for key in DRIVER_SETTINGS
+        ):
+            log.info("[display] changed: the screen starts again with the new settings")
+            self._change = partial(self.screen.change, self._new_driver(new))
+            self._redraw_in_full()
+        self.display = new
+        redraw = new.layout_size != old.layout_size or new.screen_mode != old.screen_mode
+        if redraw or new.rotation != old.rotation:
+            self._redraw_in_full()
+        return redraw
+
+    def _redraw_in_full(self) -> None:
+        """The next write is a full one, also when it shows the same image."""
+        self._attempted = self._shown_by = None
+        self._generation += 1
+
+    def _load_with_time_limit(self) -> Config:
+        """Read the config in a thread of its own: a file that can't be read in time (e.g.
+        on a network drive that does not answer) must not stop the loop. At most one such
+        thread runs; while one is still reading, a new reload is not done."""
+        if self._reloading is not None and self._reloading.is_alive():
+            raise TimeoutError("the last reload is still reading the config")
+        result: list = []
+
+        def run() -> None:
+            try:
+                result.append(("ok", self._reload()))
+            except BaseException as error:  # noqa: BLE001 - handed to the loop
+                result.append(("error", error))
+
+        self._reloading = threading.Thread(target=run, name="paperpi-reload", daemon=True)
+        self._reloading.start()
+        self._reloading.join(limits.CONFIG_RELOAD)
+        if not result:
+            raise TimeoutError(f"reading the config took longer than {limits.CONFIG_RELOAD:g} s")
+        status, value = result[0]
+        if status == "error":
+            raise value
+        return value
 
     def _start_due(self, now: float) -> None:
         for slot in self._slots:
@@ -608,7 +689,8 @@ class Scheduler:
         every = self.display.clean_every
         clean = bool(every) and now - self._last_clean >= every
         fast = not clean and self._shown_by == chosen.name
-        job = (self.clock.monotonic(), new_turn, chosen.name, fast, clean)
+        change, self._change = self._change, None
+        job = (self.clock.monotonic(), new_turn, chosen.name, fast, clean, change, self._generation)
         self.writer.submit(self._write_job, image, *job)
 
     def _write_job(
@@ -619,10 +701,14 @@ class Scheduler:
         name: str,
         fast: bool,
         clean: bool,
+        change: Callable[[], None] | None,
+        generation: int,
     ) -> None:
         """Runs in the writer thread: one screen write, then hand the result to the loop."""
         cleared = False
         try:
+            if change is not None:
+                change()
             if clean:
                 self.screen.clear()
                 cleared = True
@@ -631,7 +717,7 @@ class Scheduler:
         except Exception as failed:  # noqa: BLE001 - handled in the loop
             error = failed
         seconds = self.clock.monotonic() - start
-        self._events.put(_Written(seconds, error, new_turn, name, cleared))
+        self._events.put(_Written(seconds, error, new_turn, name, cleared, generation=generation))
 
     def _check_job(self, start: float) -> None:
         """Runs in the writer thread at start: start the screen, to check that it answers."""
@@ -678,7 +764,8 @@ class Scheduler:
         self._retry_at = None
         self._last_written = now
         self.write_seconds = event.seconds
-        self._shown_by = event.name
+        if event.generation == self._generation:
+            self._shown_by = event.name
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""
