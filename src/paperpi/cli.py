@@ -187,9 +187,11 @@ def _parser() -> argparse.ArgumentParser:
         help="remove the web password, for when it is forgotten",
         description=(
             "Remove the web password (password_hash in [web]) from the config file; the rest "
-            "of the file stays as it is. Then restart PaperPi, or send it the reload signal "
-            "(systemctl reload paperpi), and open the web interface to set a new password. "
-            "Until then, anyone on the home network can set it."
+            "of the file stays as it is. Run it with sudo when the config file belongs to "
+            "root, as in /etc/paperpi. Then restart PaperPi, or send it the reload signal "
+            "(kill -HUP <process id>; sudo systemctl reload paperpi once it runs as a "
+            "service), and open the web interface to set a new password. Until then, anyone "
+            "on the home network can set it."
         ),
     )
     reset.add_argument(
@@ -342,14 +344,16 @@ def _reset_password(args: argparse.Namespace) -> int:
     try:
         removed = save_password_hash(args.config, None)
     except PasswordError as error:
-        print(f"paperpi: {error}", file=sys.stderr)
+        hint = "; run it with sudo" if "Permission denied" in str(error) else ""
+        print(f"paperpi: {error}{hint}", file=sys.stderr)
         return 1
     if not removed:
         print(f"no web password is set in {args.config}")
         return 0
     print(
         f"removed the web password from {args.config}.\n"
-        "Next: restart PaperPi, or apply the change with: sudo systemctl reload paperpi\n"
+        "Next: restart PaperPi, or send it the reload signal: kill -HUP <process id> "
+        "(sudo systemctl reload paperpi once it runs as a service).\n"
         "Then open the web interface and set a new password. Until then, anyone on your "
         "home network can set it."
     )

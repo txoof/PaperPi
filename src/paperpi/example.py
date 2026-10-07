@@ -139,8 +139,15 @@ def display_part(values: Mapping[str, Any]) -> str:
 
 
 def web_part() -> str:
-    """The ``[web]`` part, with every setting as a comment."""
-    return "\n".join(["[web]", *_settings(WebSettings.model_fields, (), {})]) + "\n"
+    """The ``[web]`` part, with every setting as a comment (the password is set in the web
+    interface itself)."""
+    lines = ["[web]", *_settings(WebSettings.model_fields, ("password_hash",), {})]
+    lines += _comment(
+        "The web interface saves the web password here as password_hash. For a new "
+        "password: run sudo paperpi reset-password, restart or reload PaperPi, and open "
+        "the web interface"
+    )
+    return "\n".join(lines) + "\n"
 
 
 def example_config() -> str:

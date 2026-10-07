@@ -199,6 +199,7 @@ class WebSettings(BaseModel):
     address: str = Field(
         "0.0.0.0",
         min_length=1,
+        pattern=r"^\S+$",
         description='The network address the web interface listens on: "0.0.0.0" for every '
         'device on the home network, "127.0.0.1" for this Pi only',
     )
@@ -210,8 +211,8 @@ class WebSettings(BaseModel):
     password_hash: str | None = Field(
         None,
         description="The web password, scrambled so it can't be read back. Written by the "
-        "web interface; to set a new password, remove this line (or run paperpi "
-        "reset-password) and open the web interface",
+        "web interface. For a new password: run sudo paperpi reset-password (or remove this "
+        "line), restart or reload PaperPi, and open the web interface",
     )
 
 
@@ -584,7 +585,16 @@ class _Checker:
         except ValidationError as error:
             self.add_validation(error, WebSettings, section, "[web]", web.keys())
             return None
-        if not settings.login:
+        if settings.password_hash is not None and not _looks_like_hash(settings.password_hash):
+            self.add(
+                "warning",
+                "password_hash: this is not a password saved by PaperPi, so nobody can log "
+                "in; remove the line (sudo paperpi reset-password) and set a new password",
+                section,
+                "password_hash",
+                "[web]",
+            )
+        if settings.enabled and not settings.login:
             self.add(
                 "hint",
                 "login = false: anyone on the home network can change PaperPi's settings",
@@ -738,6 +748,12 @@ class _Checker:
                 where,
             )
         return checked
+
+
+def _looks_like_hash(stored: str) -> bool:
+    from .web.password import looks_like_hash  # here: that module needs this one
+
+    return looks_like_hash(stored)
 
 
 _HEADER = re.compile(r"\s*(\[\[?)\s*([A-Za-z0-9_.-]+)\s*\]\]?\s*(#.*)?")

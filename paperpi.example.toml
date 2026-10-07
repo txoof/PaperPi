@@ -51,9 +51,8 @@ type = "virtual"
 # port = 8080
 # false: no password; anyone on the home network can change the settings
 # login = true
-# The web password, scrambled so it can't be read back. Written by the web interface; to set a new
-# password, remove this line (or run paperpi reset-password) and open the web interface
-# password_hash =
+# The web interface saves the web password here as password_hash. For a new password: run sudo
+# paperpi reset-password, restart or reload PaperPi, and open the web interface
 
 # basic_clock: The time, and optionally the date, in large text.
 # Layouts (values for "layout"): time, time_date, small
