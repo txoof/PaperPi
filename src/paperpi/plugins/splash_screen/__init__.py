@@ -46,6 +46,7 @@ class Settings(PluginSettings):
         8080,
         ge=1,
         le=65535,
+        strict=True,
         description="The web interface's port. The splash at start always uses [web] port",
     )
 

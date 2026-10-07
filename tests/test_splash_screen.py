@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 import segno
 from epdlib import ScreenMode, text
+from pydantic import ValidationError
 
 from paperpi import __version__
 from paperpi.plugin import Context, State, draw_update
@@ -119,6 +120,12 @@ def test_the_default_port_is_the_web_interface_default():
     from paperpi.config import WebSettings
 
     assert Settings().port == WebSettings().port == 8080
+
+
+@pytest.mark.parametrize("port", [0, 65536, "9000"])
+def test_port_must_be_a_real_port_number(port):
+    with pytest.raises(ValidationError):
+        Settings(port=port)
 
 
 def test_addresses_and_qr_code_use_the_port():

@@ -16,7 +16,7 @@ Without a network it says "No network" instead, with no QR code.
 
 An address is never cut off: when it doesn't fit on one line, it is broken after a "/" (or, in a long host name, after a "." or "-"), drawn smaller if needed, and as a last step broken between letters (v1 split the GitHub address over two lines for the same reason). Only a very long host name without any "." or "-" (over about 40 letters) can still be too long for a small screen.
 
-The port is the web interface's port, `[web] port` (default 8080); a config reload that changes it gives the splash the new address at once. In Docker (M6), PaperPi may see the container's address instead of the Pi's; M6 deals with that.
+The port is the web interface's port, `[web] port` (default 8080); like the web interface itself, a change applies at the next start of PaperPi. In Docker (M6), PaperPi may see the container's address instead of the Pi's; M6 deals with that.
 
 ## Layouts
 
