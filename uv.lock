@@ -1,6 +1,10 @@
 version = 1
 revision = 5
 requires-python = ">=3.13"
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
 
 [[package]]
 name = "annotated-types"
@@ -23,9 +27,35 @@ wheels = [
 [[package]]
 name = "epdlib"
 version = "1.0.0.dev0"
-source = { git = "https://github.com/txoof/epdlib?rev=e7b25b771dd3aa3d14ba678036de3c8880d7c279#e7b25b771dd3aa3d14ba678036de3c8880d7c279" }
+source = { git = "https://github.com/txoof/epdlib?rev=b4dd600b35959c26fd235fe1af6be94e49fcc0db#b4dd600b35959c26fd235fe1af6be94e49fcc0db" }
 dependencies = [
     { name = "pillow" },
+]
+
+[package.optional-dependencies]
+it8951 = [
+    { name = "gpiod" },
+    { name = "spidev" },
+]
+
+[[package]]
+name = "gpiod"
+version = "2.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/c2/c7bc26965855f39ae3e1b09b404a1fdc3b172dac371012c316f5b9b6a314/gpiod-2.5.0.tar.gz", hash = "sha256:53ae5a1f14d6388c155b591ca0fc0cfa73b44d4f6d8d117e8a9e68f5902d187a", size = 75527, upload-time = "2026-06-17T07:46:25.985Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/6b/43f99cb8c3929463e2a75cc24516b20cb96f1aa8342ad77a42bdf838a45f/gpiod-2.5.0-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c6b51959d24461d55fbafc1a6d1accd0904bb1de76182f7479b2bc473d86cfc8", size = 115036, upload-time = "2026-06-17T07:46:11.455Z" },
+    { url = "https://files.pythonhosted.org/packages/75/3b/78f62278cae19ad43b4df89ba534d470d3c05a6852c0352c604ac0169cef/gpiod-2.5.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2122147b7946af80753ca25c23cf3a4dc8f0ef808f8c0bfdfacdfd523e8c385e", size = 114558, upload-time = "2026-06-17T07:46:12.581Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/ef/455114c0fe94bee96272af68c1ab02d59ee934509cfe583876c116d9443f/gpiod-2.5.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:4ddf72333749924f29d341d9c36ab09b6de4a31d7e6106fdfcd995ad07d8296b", size = 113450, upload-time = "2026-06-17T07:46:13.895Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/b2/0218a8253319216ccf40b7649af08acb709f0d27b0d11436f09c649ac54d/gpiod-2.5.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:960a16c48471440eb72d8f0c45894936e14ad329a9347748a82811c0bdfff6f2", size = 113282, upload-time = "2026-06-17T07:46:15.392Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/77/c713b1ef7c033081c564b9c4c9947d5e6e66f887dd8d2ec4c9db37f6c867/gpiod-2.5.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c23e246249f78628bcda026349e58e5414fa33c46ec30d214f51ac911c9e557e", size = 115749, upload-time = "2026-06-17T07:46:16.653Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/2f/12fc27a96f41cd0faa92db82732de6761c922da454543bcab826e690c761/gpiod-2.5.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8faf1337e74871980377ba19283d5f6cddec14d15b3741dca0981e98bf37f07b", size = 115267, upload-time = "2026-06-17T07:46:17.698Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/bb/66266c13df04cc6467809dd099f3c30f3ef98a19a5d6e7b2445e56fbb56d/gpiod-2.5.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:087a7a81f3875c70a11691cc705321f7764358f6fb320e7e801b2c16b4e01d98", size = 113773, upload-time = "2026-06-17T07:46:18.819Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/cf/bf30830aecba9eb146d7bf1054ed08dacf1468891ef375689174e351b564/gpiod-2.5.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:36810ddf5ad35d30eef75c8c317339b1da8e8faf799953406925fa6777f82de2", size = 113611, upload-time = "2026-06-17T07:46:19.988Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/e3/c22faee30bd2341be94f8426b1829e141e1da4f24113aeeed77bcd0134c1/gpiod-2.5.0-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:30331f030422aa400670a9c004a64e3e2f715a2c03b61ee349fe94730b75d2f9", size = 122174, upload-time = "2026-06-17T07:46:21.323Z" },
+    { url = "https://files.pythonhosted.org/packages/25/5c/0245ab49b43d57d93fcf57504b728429f92a083d876bfcc1b42167417682/gpiod-2.5.0-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:34db3048b6e293ec387e7687e4027c9add8d55441bbaeb2d92cbcb528238dfc3", size = 120230, upload-time = "2026-06-17T07:46:22.45Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/40/9d1786c5b1e0f8664f6d2e56de95cd43dceb430514e95c47137bda564133/gpiod-2.5.0-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:48e41ba6883fcf136bfae411440b3b05b211e84a751b4733a139ce9d90f920e1", size = 119723, upload-time = "2026-06-17T07:46:23.541Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/ee/4f634d271e24138fe8bbc3aa890aa768efc03e98ee2bac8ded9ba0a27715/gpiod-2.5.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:72b768c1f847a5c75f301920d690e408120f4b0ceafe91304cadcd571f9c3e04", size = 118557, upload-time = "2026-06-17T07:46:24.744Z" },
 ]
 
 [[package]]
@@ -162,6 +192,7 @@ version = "2.0.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "epdlib" },
+    { name = "epdlib", extra = ["it8951"], marker = "sys_platform == 'linux'" },
     { name = "pydantic" },
     { name = "tomlkit" },
 ]
@@ -175,7 +206,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=e7b25b771dd3aa3d14ba678036de3c8880d7c279" },
+    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=b4dd600b35959c26fd235fe1af6be94e49fcc0db" },
+    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=b4dd600b35959c26fd235fe1af6be94e49fcc0db" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "tomlkit", specifier = ">=0.13" },
 ]
@@ -404,6 +436,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/99/29/cfb0df9448d4d4ad48c2de029ada9ebd71baa6da983a6c77ee6c6cd0fe82/ruff-0.16.10-py3-none-win_amd64.whl", hash = "sha256:97f2015c92aa97105b0eab19eb5d224884399281cfc5da86a92db4ab5e7fb2ca", size = 10584734, upload-time = "2026-10-01T18:03:16.006Z" },
     { url = "https://files.pythonhosted.org/packages/fc/05/c16957eb287c3fc062e032619a25868d93d408a844b725bcf514f7a378ff/ruff-0.16.10-py3-none-win_arm64.whl", hash = "sha256:25a65fe998c4e6861ec079ada5826a2fc605e6cbccbe9dcd7fac1f54e791621b", size = 10366440, upload-time = "2026-10-01T18:03:19.04Z" },
 ]
+
+[[package]]
+name = "spidev"
+version = "3.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/87/039b6eeea781598015b538691bc174cc0bf77df9d4d2d3b8bf9245c0de8c/spidev-3.8.tar.gz", hash = "sha256:2bc02fb8c6312d519ebf1f4331067427c0921d3f77b8bcaf05189a2e8b8382c0", size = 13893, upload-time = "2025-09-15T18:56:20.672Z" }
 
 [[package]]
 name = "tomlkit"

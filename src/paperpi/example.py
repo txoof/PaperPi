@@ -55,7 +55,14 @@ _HEADER = """\
 """
 
 #: Settings whose default is "empty", but that mean a known value; shown with that value.
-_DISPLAY_SHOWN = {"width": VIRTUAL_WIDTH, "height": VIRTUAL_HEIGHT, "mode": VIRTUAL_MODE}
+_DISPLAY_SHOWN = {
+    "width": VIRTUAL_WIDTH,
+    "height": VIRTUAL_HEIGHT,
+    "mode": VIRTUAL_MODE,
+    # Examples for a real screen: the 9.7" IT8951 and the vcom printed on its cable.
+    "model": "9.7",
+    "vcom": -1.90,
+}
 
 
 def plugin_block(

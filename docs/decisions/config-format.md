@@ -43,6 +43,8 @@ config_version = 1
 
 [display]
 type = "it8951"
+model = "9.7"
+vcom = -1.90
 rotation = 0
 
 [[plugin]]

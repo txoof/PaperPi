@@ -143,7 +143,7 @@ def test_unknown_display_type_suggests_a_name():
     (message,) = errors_of('config_version = 1\n[display]\ntype = "virtul"\n')
     assert message == (
         "paperpi.toml line 3 [display]: unknown screen type 'virtul' "
-        "(did you mean 'virtual'?); known: virtual"
+        "(did you mean 'virtual'?); known: virtual, it8951"
     )
 
 
@@ -159,15 +159,98 @@ def test_wrong_display_value_names_line_and_setting():
     )
 
 
-def test_size_is_only_for_a_virtual_screen(monkeypatch):
-    monkeypatch.setattr(config, "DISPLAY_TYPES", ("virtual", "it8951"))
+def test_size_is_only_for_a_virtual_screen():
     (message,) = errors_of("""
         config_version = 1
         [display]
         type = "it8951"
         width = 800
+        model = "9.7"
+        vcom = -1.90
         """)
     assert message.startswith("paperpi.toml line 4 [display]: width is only for type")
+
+
+IT8951 = 'config_version = 1\n[display]\ntype = "it8951"\n'
+
+
+def test_it8951_screen_with_its_settings():
+    cfg = parse(IT8951 + 'model = "9.7"\nvcom = -1.90\nmax_refresh = 0\non_exit = "keep"\n')
+    display = cfg.display
+    assert (display.model, display.vcom, display.max_refresh, display.on_exit) == (
+        "9.7",
+        -1.90,
+        0,
+        "keep",
+    )
+    assert display.size == (1200, 825) and display.clean_every == 3600
+    assert display.screen_mode == ScreenMode.gray(16)
+    assert not cfg.problems
+
+
+def test_it8951_size_comes_from_the_model():
+    cfg = parse(IT8951 + 'model = "6"\nvcom = -2\nrotation = 90\n')
+    assert cfg.display.size == (800, 600) and cfg.display.layout_size == (600, 800)
+
+
+@pytest.mark.parametrize("model", ["9.7", "10.3", "6"])
+def test_it8951_model_may_be_written_as_a_number(model):
+    assert parse(IT8951 + f"model = {model}\nvcom = -2\n").display.model == model
+
+
+def test_it8951_needs_model_and_vcom():
+    assert errors_of(IT8951) == [
+        "paperpi.toml line 3 [display]: model: required setting is missing; the screen size "
+        'in inches: "6", "7.8", "9.7", "10.3"',
+        "paperpi.toml line 3 [display]: vcom: required setting is missing; use the value "
+        "printed on the screen's ribbon cable, e.g. -1.90",
+    ]
+
+
+def test_it8951_unknown_model():
+    (message,) = errors_of(IT8951 + 'model = "9.8"\nvcom = -2\n')
+    assert message == (
+        "paperpi.toml line 4 [display]: model: unknown it8951 model '9.8' (did you mean "
+        '\'9.7\'?); known: "6", "7.8", "9.7", "10.3"'
+    )
+
+
+@pytest.mark.parametrize(
+    "line, wrong",
+    [
+        ("vcom = -3.5", "vcom: Input should be greater than or equal to -3"),
+        ("vcom = 1.9", "vcom: Input should be less than or equal to -0.5"),
+        ("vcom = nan", "vcom: Input should be a finite number"),
+        ("max_refresh = -1", "max_refresh: Input should be greater than or equal to 0"),
+        ("max_refresh = true", "max_refresh: Input should be a valid integer"),
+        ("max_refresh = 2.5", "max_refresh: Input should be a valid integer"),
+        ("clean_every = 300", "clean_every: Value error, must be 0 (never) or at least 600"),
+        ("clean_every = -1", "clean_every: Input should be greater than or equal to 0"),
+        ('on_exit = "blank"', "on_exit: Input should be 'clear' or 'keep'"),
+    ],
+)
+def test_wrong_screen_settings(line, wrong):
+    text = IT8951 + 'model = "9.7"\n' + ("" if line.startswith("vcom") else "vcom = -2\n")
+    messages = errors_of(text + line + "\n")
+    assert len(messages) == 1 and wrong in messages[0], messages
+
+
+def test_hint_when_the_screen_is_never_fully_refreshed():
+    cfg = parse(GOOD.replace('"virtual"', '"virtual"\nmax_refresh = 0\nclean_every = 0'))
+    assert problems(cfg, "hint") == [
+        "config line 6 [display]: max_refresh = 0 and clean_every = 0: the screen is never "
+        "fully refreshed, so faint leftovers of earlier images build up"
+    ]
+
+
+def test_clean_every_0_means_never():
+    assert parse(GOOD.replace('"virtual"', '"virtual"\nclean_every = 0')).display.clean_every == 0
+
+
+def test_a_virtual_screen_ignores_model_and_vcom():
+    # So type can be switched to "virtual" for a test without removing them.
+    cfg = parse('config_version = 1\n[display]\ntype = "virtual"\nmodel = "6"\nvcom = -2\n')
+    assert not cfg.problems and cfg.display.size == (1200, 825)
 
 
 def test_plugin_problems_are_not_checked_while_the_file_is_wrong():

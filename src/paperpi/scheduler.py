@@ -24,6 +24,13 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
 - Before each update the plugin is told whether the disk is low (``low_disk``,
   :mod:`paperpi.storage`). After each update, also a failed one, its storage folder is
   cleaned up in the worker thread, before the result reaches the loop.
+- A write is a fast one (only the changed part, no flash) when the plugin on screen shows a
+  new image, and a full one when another plugin comes on screen. The screen driver makes
+  every ``max_refresh``-th fast write in a row a full one. Every ``[display] clean_every``
+  seconds, at the next write (and at the first write after a start), the screen is first
+  cleared, which removes all leftovers of earlier images, and the image is drawn in full.
+- At start, a check in the writer thread starts the screen (the driver's ``init``) to see
+  that it answers; when it does not, the error is logged and PaperPi keeps running.
 - Screen writes run in their own thread (and, with :class:`paperpi.screen.Screen`, in a
   helper process with a time limit), so the loop keeps reporting "still running" during a
   slow write. Nothing new is chosen until the write has finished. A failed write is tried
@@ -114,6 +121,12 @@ class _Written:
     seconds: float
     error: Exception | None
     new_turn: bool
+    name: str | None = None
+    """The plugin whose image was written."""
+    cleared: bool = False
+    """The screen was cleared first (also when the write after it failed)."""
+    check: bool = False
+    """The check at start, not a write."""
 
 
 @dataclass(frozen=True)
@@ -235,6 +248,11 @@ class Scheduler:
         """A screen write is running."""
         self._retry_at: float | None = None
         """While the screen watchdog pauses writes: when to try again."""
+        self._shown_by: str | None = None
+        """The plugin whose image is on screen (``None``: unknown, so the next write is full)."""
+        self._last_clean = -math.inf
+        """When the screen was last cleared (monotonic clock): never, so the first write cleans."""
+        self._checked = False
         self._apply(config)
 
     # Called from other threads or signal handlers: they only put an event in the queue.
@@ -260,6 +278,10 @@ class Scheduler:
     def run(self) -> None:
         """Show plugins until :meth:`stop` is called."""
         self._stopping = False
+        if not self._checked:
+            self._checked = True
+            self._writing = True
+            self.writer.submit(self._check_job, self.clock.monotonic())
         try:
             while True:
                 now = self.clock.monotonic()
@@ -496,7 +518,7 @@ class Scheduler:
         if not paused and (
             self._attempted is None or not _same_image(chosen.image, self._attempted)
         ):
-            self._write(chosen.image, new_turn)
+            self._write(chosen, new_turn, now)
         elif new_turn:
             self._turn_start = now
 
@@ -576,33 +598,74 @@ class Scheduler:
             return "failing"
         return None if self._last_written is None else "ok"
 
-    def _write(self, image: Image.Image, new_turn: bool) -> None:
+    def _write(self, chosen: _Slot, new_turn: bool, now: float) -> None:
+        image = chosen.image
         self._attempted = image
         self._writing = True
         rotation = self.display.rotation
         # Rotation turns the picture clockwise.
         image = image.rotate(-rotation, expand=True) if rotation else image
-        self.writer.submit(self._write_job, image, self.clock.monotonic(), new_turn)
+        every = self.display.clean_every
+        clean = bool(every) and now - self._last_clean >= every
+        fast = not clean and self._shown_by == chosen.name
+        job = (self.clock.monotonic(), new_turn, chosen.name, fast, clean)
+        self.writer.submit(self._write_job, image, *job)
 
-    def _write_job(self, image: Image.Image, start: float, new_turn: bool) -> None:
+    def _write_job(
+        self,
+        image: Image.Image,
+        start: float,
+        new_turn: bool,
+        name: str,
+        fast: bool,
+        clean: bool,
+    ) -> None:
         """Runs in the writer thread: one screen write, then hand the result to the loop."""
+        cleared = False
         try:
-            self.screen.write(image)
+            if clean:
+                self.screen.clear()
+                cleared = True
+            self.screen.write(image, fast=fast)
             error = None
         except Exception as failed:  # noqa: BLE001 - handled in the loop
             error = failed
-        self._events.put(_Written(self.clock.monotonic() - start, error, new_turn))
+        seconds = self.clock.monotonic() - start
+        self._events.put(_Written(seconds, error, new_turn, name, cleared))
+
+    def _check_job(self, start: float) -> None:
+        """Runs in the writer thread at start: start the screen, to check that it answers."""
+        try:
+            self.screen.check()
+            error = None
+        except Exception as failed:  # noqa: BLE001 - handled in the loop
+            error = failed
+        self._events.put(_Written(self.clock.monotonic() - start, error, False, check=True))
 
     def _written(self, event: _Written, now: float) -> None:
         self._writing = False
         if isinstance(event.error, ScreenStuck):
             raise event.error  # only a restart of PaperPi can help
+        if event.check:
+            if event.error is None:
+                log.info("the screen answers")
+                return
+            log.error("the screen does not answer at start: %s; PaperPi keeps running", event.error)
+            self._write_failures += 1
+            if isinstance(event.error, ScreenResting):
+                self._retry_at = now + event.error.wait
+            return
         if event.new_turn:
             # The turn starts once it is on screen, or once the try has failed: otherwise a
             # failing screen would hand the turn on again and again without waiting.
             self._turn_start = now
+        if event.cleared:
+            self._last_clean = now
         if event.error is not None:
             self._write_failures += 1
+            self._shown_by = None  # what is on screen is not known now
+            if event.cleared:
+                self._attempted = None  # the screen is blank now: try again soon
             if isinstance(event.error, ScreenResting):
                 self._retry_at = now + event.error.wait
             # Logged once; the same failure again and again would fill the log.
@@ -615,6 +678,7 @@ class Scheduler:
         self._retry_at = None
         self._last_written = now
         self.write_seconds = event.seconds
+        self._shown_by = event.name
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""

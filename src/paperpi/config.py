@@ -33,7 +33,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 from epdlib import ScreenMode
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from epdlib.drivers.it8951 import MODELS as IT8951_MODELS
+from epdlib.drivers.it8951 import VCOM_RANGE
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from . import limits, plugins
 from .files import write_atomic
@@ -48,8 +50,9 @@ LAST_GOOD_NAME = "paperpi.last-good.toml"
 #: The config file layout this PaperPi reads (``config_version`` in the file).
 CONFIG_VERSION = 1
 
-#: Screen types PaperPi knows. Real screens are added with their drivers (M4 part 2).
-DISPLAY_TYPES = ("virtual",)
+#: Screen types PaperPi knows: ``virtual`` writes PNG files, ``it8951`` is Waveshare's
+#: IT8951 board with one of the screens in :data:`IT8951_MODELS` (by size in inches).
+DISPLAY_TYPES = ("virtual", "it8951")
 
 #: Colour modes a virtual screen can have, and what they mean in epdlib.
 MODES = {
@@ -81,7 +84,10 @@ class DisplaySettings(BaseModel):
 
     model_config = ConfigDict(extra="ignore", frozen=True)
 
-    type: str = Field(description='The screen model, or "virtual" (writes PNG files)')
+    type: str = Field(
+        description='The kind of screen: "virtual" (writes PNG files) or "it8951" (Waveshare\'s '
+        "IT8951 board)"
+    )
     rotation: Literal[0, 90, 180, 270] = Field(0, description="Turn the picture, in degrees")
     color: bool = Field(True, description="false: draw in gray, even on a color screen")
     fallback_clock: bool = Field(
@@ -98,10 +104,64 @@ class DisplaySettings(BaseModel):
     mode: Literal["bw", "gray4", "gray16", "7color", "rgb"] | None = Field(
         None, description="Virtual screen only: what it can show"
     )
+    model: str | None = Field(
+        None,
+        description="Real screens (required for it8951): the screen model. For it8951 its "
+        'size in inches: "6", "7.8", "9.7" or "10.3"',
+    )
+    vcom: float | None = Field(
+        None,
+        ge=VCOM_RANGE[0],
+        le=VCOM_RANGE[1],
+        allow_inf_nan=False,
+        description="it8951 only, and required: the voltage printed on the screen's ribbon "
+        "cable, e.g. -1.9 (between -3.0 and -0.5). Each screen has its own; a wrong value "
+        "gives poor contrast",
+    )
+    max_refresh: int = Field(
+        4,
+        ge=0,
+        le=1000,
+        strict=True,
+        description="After this many fast refreshes in a row, the next one is a full refresh, "
+        "which removes most leftovers of earlier images (0 = never force one)",
+    )
+    clean_every: float = Field(
+        60 * 60.0,
+        ge=0,
+        le=limits.LONGEST_SETTING,
+        description="Seconds between cleaning refreshes, which flash the screen white to "
+        "remove all leftovers of earlier images; also at the first write after a start (0 = "
+        "never; else at least 600)",
+    )
+    on_exit: Literal["clear", "keep"] = Field(
+        "clear",
+        description="When PaperPi is stopped on purpose (Ctrl+C, systemctl stop, shutdown): "
+        "make the screen blank, or keep the last picture. After a crash the picture stays",
+    )
+
+    @field_validator("model", mode="before")
+    @classmethod
+    def _model_as_text(cls, model: Any) -> Any:
+        # model = 9.7 without quotes is a number in TOML; it means the same.
+        if isinstance(model, int | float) and not isinstance(model, bool):
+            return f"{model:g}"
+        return model
+
+    @field_validator("clean_every")
+    @classmethod
+    def _not_too_often(cls, seconds: float) -> float:
+        # Each one flashes the whole screen; Waveshare advises few full refreshes.
+        if 0 < seconds < 600:
+            raise ValueError("must be 0 (never) or at least 600 seconds")
+        return seconds
 
     @property
     def size(self) -> tuple[int, int]:
         """The screen's width and height in pixels, before rotation."""
+        if self.type == "it8951" and self.model in IT8951_MODELS:
+            info = IT8951_MODELS[self.model]
+            return (info.width, info.height)
         return (self.width or VIRTUAL_WIDTH, self.height or VIRTUAL_HEIGHT)
 
     @property
@@ -113,6 +173,8 @@ class DisplaySettings(BaseModel):
     @property
     def screen_mode(self) -> ScreenMode:
         """What plugins draw in, with ``color = false`` applied."""
+        if self.type == "it8951":
+            return IT8951_MODELS[self.model or "9.7"].mode
         mode = MODES[self.mode or VIRTUAL_MODE]
         if not self.color and mode.kind == "palette":
             return ScreenMode.bw()
@@ -451,6 +513,17 @@ class _Checker:
                         key,
                         "[display]",
                     )
+        if settings.type == "it8951":
+            self.check_it8951(settings, section)
+        if settings.max_refresh == 0 and settings.clean_every == 0:
+            self.add(
+                "hint",
+                "max_refresh = 0 and clean_every = 0: the screen is never fully refreshed, so "
+                "faint leftovers of earlier images build up",
+                section,
+                "clean_every",
+                "[display]",
+            )
         if not settings.fallback_clock:
             self.add(
                 "hint",
@@ -464,6 +537,35 @@ class _Checker:
         if "web" in data and not isinstance(data["web"], dict):
             self.add("error", "web must be a [web] part", key="web")
         return settings
+
+    def check_it8951(self, settings: DisplaySettings, section: tuple) -> None:
+        known = ", ".join(f'"{name}"' for name in IT8951_MODELS)
+        if settings.model is None:
+            self.add(
+                "error",
+                f"model: required setting is missing; the screen size in inches: {known}",
+                section,
+                "type",
+                "[display]",
+            )
+        elif settings.model not in IT8951_MODELS:
+            hint = _did_you_mean(settings.model, IT8951_MODELS)
+            self.add(
+                "error",
+                f"model: unknown it8951 model {settings.model!r}{hint}; known: {known}",
+                section,
+                "model",
+                "[display]",
+            )
+        if settings.vcom is None:
+            self.add(
+                "error",
+                "vcom: required setting is missing; use the value printed on the screen's "
+                "ribbon cable, e.g. -1.90",
+                section,
+                "type",
+                "[display]",
+            )
 
     def check_plugins(self, blocks: Any) -> list[PluginConfig]:
         if not isinstance(blocks, list):

@@ -65,6 +65,65 @@ def test_crashed_helper_is_noticed_at_once(tmp_path, short_limit):
     assert [what for _, what in notes(tmp_path)][:4] == ["init", "write 128", "init", "write 255"]
 
 
+def test_screen_sleeps_after_every_operation_without_a_new_init(tmp_path):
+    with Screen(partial(Pretend, tmp_path)) as screen:
+        screen.write(image(WHITE))
+        with pytest.raises(ScreenError):
+            screen.write(image(ERROR))  # also after a failed write
+        screen.write(image(0x44), fast=True)
+        screen.clear()
+    assert [what for _, what in notes(tmp_path, sleeps=True)] == [
+        "init",
+        "sleep",  # until the first write
+        "write 255",
+        "sleep",
+        "write 1",
+        "sleep",
+        "write 68",
+        "sleep",
+        "clear",
+        "sleep",
+        "sleep",  # before closing (the driver does nothing when it already sleeps)
+        "close",
+    ]
+
+
+def test_clear_before_exit(tmp_path):
+    with Screen(partial(Pretend, tmp_path)) as screen:
+        screen.clear_before_exit()  # no helper process yet: the screen is not touched
+        screen.write(image(WHITE))
+        screen.clear_before_exit()
+    assert [what for _, what in notes(tmp_path)] == ["init", "write 255", "clear", "close"]
+
+
+def test_clear_before_exit_is_skipped_while_a_write_runs(caplog):
+    screen, helper, _ = make_screen()
+    screen.write(image(WHITE))
+    screen._lock.acquire()  # a write in the writer thread
+    try:
+        screen.clear_before_exit()
+    finally:
+        screen._lock.release()
+    assert "not cleared before exit: a write is still running" in caplog.text
+    assert helper.calls == ["write"]
+
+
+def test_clear_before_exit_has_a_short_time_limit():
+    screen, helper, _ = make_screen()
+    helper.seconds = 100.0
+    screen.write(image(WHITE))  # measured: 100 s, so writes may take 300 s
+    screen.clear_before_exit()
+    assert helper.limit == limits.SCREEN_EXIT_CLEAR
+
+
+def test_clear_before_exit_raises_when_the_helper_is_stuck():
+    screen, helper, _ = make_screen()
+    screen.write(image(WHITE))
+    helper.fail = ScreenStuck("stuck")
+    with pytest.raises(ScreenStuck):
+        screen.clear_before_exit()
+
+
 def test_driver_error_keeps_the_helper(tmp_path):
     with Screen(partial(Pretend, tmp_path)) as screen:
         with pytest.raises(ScreenError, match="write failed: DisplayError: pretend failure"):
@@ -192,6 +251,8 @@ class FakeHelper:
         self.seconds = 2.0
         self.starts = 0
         self.stops = 0
+        self.make_driver = None
+        self.calls = []
 
     def start(self, limit):
         self.running = True
@@ -199,6 +260,7 @@ class FakeHelper:
 
     def call(self, command, *args, limit):
         self.limit = limit
+        self.calls.append(command)
         if isinstance(self.fail, Exception):
             raise self.fail
         if self.fail:
@@ -266,14 +328,14 @@ def test_every_third_failure_resets_the_screen(tmp_path, caplog):
     assert (helper.starts, screen.resets) == (3, 3)
 
 
-def test_writes_pause_when_three_resets_did_not_help_and_are_tried_every_10_minutes(caplog):
+def test_writes_pause_when_three_resets_did_not_help_and_the_wait_doubles(caplog):
     screen, helper, clock = make_screen()
     helper.fail = True
     fail(screen, 9)
     with pytest.raises(ScreenResting) as paused:
         screen.write(image(WHITE))  # the write that starts the pause says so
     assert paused.value.wait == 600
-    assert "does not answer after 3 resets; trying again every 10 minutes" in caplog.text
+    assert "does not answer after 3 resets: pretend failure; next try in 10 minutes" in caplog.text
     assert not helper.running  # the pins are free during the pause
     starts = helper.starts
     clock.t = 599
@@ -281,13 +343,60 @@ def test_writes_pause_when_three_resets_did_not_help_and_are_tried_every_10_minu
         screen.write(image(WHITE))
     assert paused.value.wait == pytest.approx(1)
     assert helper.starts == starts  # not tried
-    clock.t = 600
-    fail(screen)  # one try, which fails: pause again
-    assert screen.retry_at == 1200
-    clock.t, helper.fail = 1200, False
+    # Each failed try doubles the wait: 20, 40, 80, 160, 320 minutes, then at most 6 hours.
+    waits = []
+    for _ in range(7):
+        clock.t = screen.retry_at
+        fail(screen)  # one try, which fails: pause again
+        waits.append(screen.retry_at - clock.t)
+    assert waits == [1200, 2400, 4800, 9600, 19200, 21600, 21600]
+    assert "screen still not answering (since " in caplog.text
+    assert "next try in 6 hours" in caplog.text
+    assert caplog.text.count("pretend failure") == 1  # the full message once
+    clock.t, helper.fail = screen.retry_at, False
     screen.write(image(WHITE))
-    assert (screen.failures, screen.resets, screen.retry_at) == (0, 0, None)
-    assert "the screen answers again, after 11 failures" in caplog.text
+    assert (screen.failures, screen.resets, screen.retry_at, screen.rests) == (0, 0, None, 0)
+    assert "the screen answers again, after 17 failures" in caplog.text
+
+
+def pause(screen, clock, tries=1):
+    """Fail until writes pause, then ``tries`` more failed tries; returns the last wait."""
+    fail(screen, 10)
+    for _ in range(tries):
+        clock.t = screen.retry_at
+        fail(screen)
+    return screen.retry_at - clock.t
+
+
+def test_a_stuck_helper_within_the_hour_pauses_with_growing_waits(tmp_path):
+    screen, helper, clock = make_screen(tmp_path)
+    (tmp_path / "screen-stuck").write_text(f"{1e9}\n")  # PaperPi exited for this just now
+    helper.fail, helper.stuck = True, True
+    waits = []
+    while len(waits) < 2:
+        try:
+            screen.write(image(WHITE))
+        except ScreenResting as paused:
+            waits.append(paused.wait)
+            clock.t = screen.retry_at
+        except ScreenError:
+            pass  # a failed write; every 3rd one resets, and the stuck helper pauses
+    assert waits == [600, 1200]
+
+
+def test_backoff_stops_growing():
+    screen, helper, clock = make_screen()
+    helper.fail = True
+    assert pause(screen, clock, tries=2000) == limits.SCREEN_REST_LONGEST
+    assert screen.rests == 7
+
+
+def test_check_starts_the_screen_only_once():
+    screen, helper, _ = make_screen()
+    screen.check()
+    screen.check()
+    screen.write(image(WHITE))
+    assert helper.starts == 1
 
 
 def test_one_good_write_resets_the_counts():
