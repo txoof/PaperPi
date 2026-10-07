@@ -8,6 +8,8 @@
   to the real screen.
 - ``paperpi list`` shows the plugins of a config file; ``paperpi example-config`` prints an
   example config file.
+- ``paperpi reset-password`` removes the web password, so a new one can be set in the web
+  interface.
 - ``paperpi health`` says whether ``paperpi run`` still reports "healthy"; Docker's health
   check uses it.
 
@@ -35,6 +37,7 @@ from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
 from .screen import Screen, ScreenStuck, driver_for
+from .web.password import PasswordError, save_password_hash
 
 log = logging.getLogger("paperpi")
 
@@ -178,6 +181,21 @@ def _parser() -> argparse.ArgumentParser:
         help=f"the health report to check (default: {health.HEALTH_FILE})",
     )
     check.set_defaults(command=_health)
+
+    reset = commands.add_parser(
+        "reset-password",
+        help="remove the web password, for when it is forgotten",
+        description=(
+            "Remove the web password (password_hash in [web]) from the config file; the rest "
+            "of the file stays as it is. Then restart PaperPi, or send it the reload signal "
+            "(systemctl reload paperpi), and open the web interface to set a new password. "
+            "Until then, anyone on the home network can set it."
+        ),
+    )
+    reset.add_argument(
+        "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    reset.set_defaults(command=_reset_password)
     return parser
 
 
@@ -317,6 +335,24 @@ def _run(args: argparse.Namespace) -> int:
         return 1
     finally:
         reports.stopping()
+    return 0
+
+
+def _reset_password(args: argparse.Namespace) -> int:
+    try:
+        removed = save_password_hash(args.config, None)
+    except PasswordError as error:
+        print(f"paperpi: {error}", file=sys.stderr)
+        return 1
+    if not removed:
+        print(f"no web password is set in {args.config}")
+        return 0
+    print(
+        f"removed the web password from {args.config}.\n"
+        "Next: restart PaperPi, or apply the change with: sudo systemctl reload paperpi\n"
+        "Then open the web interface and set a new password. Until then, anyone on your "
+        "home network can set it."
+    )
     return 0
 
 
