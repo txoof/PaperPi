@@ -81,6 +81,7 @@ Each setting is a field of the plugin's `Settings` class, with a type, a default
 - Don't use the names of the shared settings, which every `[[plugin]]` block already has: `name`, `type`, `enabled`, `level`, `display_time`, `refresh`, `time_limit`, `layout`, `alert_reminder`, `alert_max_time`.
 - Use `pydantic.SecretStr` as the type for API keys and passwords. PaperPi then never shows their values in error messages or logs.
 - A setting the user must fill in before the plugin can work (a place, an email address, an API key) is made with `paperpi.plugin.setting(..., required=True)` instead of `Field`. It takes the same arguments as `Field`. Its default must be "not set": `None`, empty text or an empty `SecretStr` (text of only spaces also counts as not set). Until every required setting is filled in, the plugin is not shown and not counted as broken; the config check, `paperpi list` and the web interface's Active Plugins page say which settings are missing. The example block marks them "(required)". `setting` is also where later options for a single setting are added, such as a web interface helper that looks up latitude and longitude (M5 part 3c).
+- The web interface shows the plugin's `description` in its Plugin Library, and the help text of each required setting on the page that adds the plugin. Write both for someone at home who is not a programmer.
 
   ```python
   from paperpi.plugin import PluginSettings, setting

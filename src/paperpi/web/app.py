@@ -8,7 +8,8 @@ Address            What it does
 ``/login``         log in; also says how to reset a forgotten password
 ``/logout``        log out (a button on every page)
 ``/plugins``       Active Plugins: the plugins in the config file; switch on or off, move
-                   up or down, remove (``/plugins/<n>/...``, n = place in the file)
+                   up or down, remove (``/plugins/<n>/...``, n = place in the file,
+                   counted from 0)
 ``/library``       Plugin Library: every plugin type; ``/library/<type>`` adds one
 ``/static/...``    the style sheet and htmx (a small JavaScript file that updates
                    one part of a page without loading the whole page again)
@@ -149,25 +150,30 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         try:
             found = editor.plugin_list()
         except EditError as error:
-            problems = [str(error)] if str(error) != problem else []
+            rows, problems = [], [str(error)]
             status = 500 if status == 200 else status
-            return page(
-                request, "plugins.html", status, rows=[], problems=problems, problem=problem
-            )
+        else:
+            rows, problems = found.rows, found.problems
+        done = request.query_params.get("done")
+        # The name in the address is only shown when it is in the list: a link can't put
+        # other text on the page.
+        name = request.query_params.get("name")
         return page(
             request,
             "plugins.html",
             status,
-            rows=found.rows,
-            problems=found.problems,
+            rows=rows,
+            problems=[p for p in dict.fromkeys(problems) if p != problem],
             problem=problem,
-            done=request.query_params.get("done"),
-            name=request.query_params.get("name"),
+            done=done if done in ("saved", "added", "removed") else None,
+            name=name if any(row.name == name for row in rows) else None,
             hand_edits=request.query_params.get("hand") == "1",
+            config_file=auth.config_file,
         )
 
     def saved(done: str, hand_edits: bool, name: str = "") -> RedirectResponse:
-        query = urlencode({"done": done, "name": name} | ({"hand": "1"} if hand_edits else {}))
+        values = {"done": done} | ({"name": name} if name else {})
+        query = urlencode(values | ({"hand": "1"} if hand_edits else {}))
         return RedirectResponse(f"/plugins?{query}", status_code=303)
 
     @app.get("/plugins", response_class=HTMLResponse)
@@ -176,6 +182,8 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
 
     @app.post("/plugins/{index}/move", response_class=HTMLResponse)
     def move(request: Request, index: int, name: str = Form(""), step: str = Form("")):
+        if step not in ("up", "down"):
+            return plugin_list(request, 400, "Choose up or down.")
         try:
             hand_edits = editor.move(index, name, -1 if step == "up" else 1)
         except EditError as error:
@@ -204,7 +212,7 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
             hand_edits = editor.remove(index, name)
         except EditError as error:
             return plugin_list(request, 409, str(error))
-        return saved("removed", hand_edits, name)
+        return saved("removed", hand_edits)
 
     @app.get("/library", response_class=HTMLResponse)
     def library_page(request: Request):

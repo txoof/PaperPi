@@ -325,7 +325,12 @@ def _run(args: argparse.Namespace) -> int:
         # Imported here: the web packages take a moment to load, and no other command needs them.
         from .web import server
 
-        web = server.start(args.config, loaded.web, reload=scheduler.reload, text=loaded.text)
+        web = server.start(
+            args.config,
+            loaded.web,
+            reload=scheduler.reload,
+            text=None if loaded.from_last_good else loaded.text,
+        )
         if web is not None:
             print(f"web interface on port {web.port}")
     try:

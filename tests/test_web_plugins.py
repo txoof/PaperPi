@@ -4,8 +4,10 @@ import urllib.request
 import pytest
 from fastapi.testclient import TestClient
 
-from paperpi import config
+from paperpi import config, plugins
+from paperpi.plugin import PluginDefinitionError
 from paperpi.web import auth
+from paperpi.web import password as web_password
 from paperpi.web.app import create_app
 from paperpi.web.plugins import PluginEditor
 
@@ -106,7 +108,7 @@ def test_switching_off_and_on(client, cfg):
 def test_a_plugin_with_missing_settings_cant_be_switched_on(client, cfg, reloads):
     response = client.post("/plugins/1/enabled", data={"name": "Weather", "on": "1"})
     assert response.status_code == 409
-    assert "fill in these settings first: email" in response.text
+    assert "Fill in these settings first: email." in response.text
     assert cfg.read_text() == CONFIG and not reloads
 
 
@@ -114,17 +116,17 @@ def test_removing_asks_first(client, cfg):
     page = client.get("/plugins/0/remove", params={"name": "Clock"})
     assert "Remove Clock?" in page.text and cfg.read_text() == CONFIG
     response = client.post("/plugins/0/remove", data={"name": "Clock"})
-    assert response.headers["location"] == "/plugins?done=removed&name=Clock"
+    assert response.headers["location"] == "/plugins?done=removed"
     assert names(cfg) == ["Weather", "Broken"]
     assert "kitchen" not in cfg.read_text()
-    assert "Removed Clock." in client.get(response.headers["location"]).text
+    assert "Plugin removed." in client.get(response.headers["location"]).text
 
 
 def test_a_list_changed_by_hand_meanwhile_is_not_changed(client, cfg, reloads):
     # The page showed Clock first, but it was removed by hand since then.
     cfg.write_text(CONFIG.replace('name = "Clock"', 'name = "Kitchen"'))
     response = client.post("/plugins/0/remove", data={"name": "Clock"})
-    assert response.status_code == 409 and "changed meanwhile" in response.text
+    assert response.status_code == 409 and "changed after this page was opened" in response.text
     assert names(cfg) == ["Kitchen", "Weather", "Broken"] and not reloads
 
 
@@ -173,7 +175,7 @@ def test_a_plugin_with_required_settings_is_added_switched_off(client, cfg):
         ("", "Give the plugin a name."),
         ("x" * 101, "at most 100 characters"),
         ("a\tb", "must not hold control characters"),
-        ("clock!", "already used by another plugin"),
+        ("clock!", "Another plugin already has this name"),
     ],
 )
 def test_names_that_cant_be_used(client, cfg, name, problem):
@@ -224,3 +226,111 @@ def test_a_change_in_the_running_web_interface_reloads_paperpi(cfg, reloads):
     finally:
         web.stop()
     assert reloads == [1] and blocks(cfg)[0]["enabled"] is False
+
+
+def test_a_reload_tells_the_web_interface_which_text_is_in_use(cfg, reloads):
+    from paperpi.web import server
+
+    settings = config.WebSettings.model_construct(
+        **(config.WebSettings().model_dump() | {"address": "127.0.0.1", "port": 0})
+    )
+    web = server.start(cfg, settings)
+    try:
+        edited = CONFIG + "# a hand edit\n"
+        cfg.write_text(edited)
+        web.use(config.parse(edited))  # PaperPi reloaded the hand edit
+        assert not web.editor.move(0, "Clock", 1)
+    finally:
+        web.stop()
+
+
+def test_which_changes_count_as_hand_edits(cfg, editor):
+    # Applied by a reload: not a hand edit any more.
+    edited = CONFIG + "# a hand edit\n"
+    cfg.write_text(edited)
+    editor.loaded(edited)
+    assert not editor.move(0, "Clock", 1)
+    # After the web's own change was applied, a new hand edit is one.
+    editor.loaded(cfg.read_text())
+    cfg.write_text(cfg.read_text() + "# another one\n")
+    assert editor.move(1, "Clock", -1)
+    # A password saved by the web interface is not a hand edit.
+    editor.loaded(cfg.read_text())
+    web_password.save_password_hash(cfg, "scrypt:16:1:1:c2FsdA:" + "A" * 43)
+    assert not editor.move(0, "Clock", 1)
+    # An editor that doesn't know what PaperPi uses never says so.
+    cfg.write_text(cfg.read_text() + "# and one more\n")
+    assert not PluginEditor(cfg).move(1, "Clock", -1)
+
+
+def test_a_broken_plugin_is_shown_but_cant_be_added(client, cfg, monkeypatch):
+    real = plugins.load
+
+    def load(plugin_type, *args):
+        if plugin_type == "word_clock":
+            raise PluginDefinitionError("plugin 'word_clock': needs at least one layout")
+        return real(plugin_type, *args)
+
+    monkeypatch.setattr(plugins, "load", load)
+    assert "This plugin is broken: plugin &#39;word_clock&#39;" in client.get("/library").text
+    assert client.get("/library/word_clock").status_code == 200
+    response = client.post("/library/word_clock", data={"name": "Words"})
+    assert response.status_code == 400 and "can&#39;t be added" in response.text
+    assert cfg.read_text() == CONFIG
+
+
+def test_a_repeated_name_shows_the_second_block_as_not_used(client, cfg):
+    cfg.write_text(CONFIG + '\n[[plugin]]\nname = "Clock"\ntype = "word_clock"\n')
+    page = client.get("/plugins").text
+    assert page.count("Not used: has errors") == 2  # Broken and the second Clock
+    assert "is already used by the plugin block" in page
+
+
+def test_a_change_is_refused_while_paperpi_cant_use_the_file(client, cfg, reloads):
+    broken = CONFIG.replace('type = "virtual"', 'type = "nothing"')
+    cfg.write_text(broken)
+    page = client.get("/plugins")
+    assert "unknown screen type" in page.text and "Unknown" in page.text
+    response = client.post("/plugins/0/move", data={"name": "Clock", "step": "down"})
+    assert response.status_code == 409 and "must be fixed first" in response.text
+    assert cfg.read_text() == broken and not reloads
+
+
+def test_every_change_needs_a_log_in_and_a_form_from_paperpi(cfg):
+    forms = {
+        "/plugins/0/move": {"name": "Clock", "step": "down"},
+        "/plugins/0/enabled": {"name": "Clock", "on": "0"},
+        "/plugins/0/remove": {"name": "Clock"},
+        "/library/word_clock": {"name": "Words"},
+    }
+    stored = web_password.hash_password("correct horse")
+    paperpi_auth = auth.Auth(cfg, config.WebSettings(password_hash=stored))
+    client = TestClient(create_app(paperpi_auth), follow_redirects=False, base_url=PI)
+    for path, form in forms.items():
+        assert client.post(path, data=form).headers["location"] == "/login"
+    open_client = TestClient(
+        create_app(auth.Auth(cfg, config.WebSettings(login=False))),
+        follow_redirects=False,
+        base_url=PI,
+    )
+    for path, form in forms.items():
+        other_site = {"origin": "http://evil.example", "sec-fetch-site": "cross-site"}
+        assert open_client.post(path, data=form, headers=other_site).status_code == 403
+    assert cfg.read_text() == CONFIG
+
+
+def test_odd_requests(client, cfg):
+    response = client.post("/plugins/0/move", data={"name": "Clock", "step": "sideways"})
+    assert response.status_code == 400 and cfg.read_text() == CONFIG
+    assert client.get("/plugins/0/remove", params={"name": "Kitchen"}).status_code == 409
+    # Text in the address is only shown when it names a plugin in the list.
+    page = client.get("/plugins", params={"done": "added", "name": "Your password was reset"})
+    assert "Your password was reset" not in page.text and "Plugin added." in page.text
+    page = client.get("/plugins", params={"done": "added", "name": "Clock"})
+    assert "Added Clock." in page.text
+
+
+def test_the_file_keeps_its_permissions(client, cfg):
+    cfg.chmod(0o640)
+    client.post("/plugins/0/move", data={"name": "Clock", "step": "down"})
+    assert cfg.stat().st_mode & 0o777 == 0o640

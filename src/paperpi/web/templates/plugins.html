@@ -5,7 +5,8 @@
 <h1>Active Plugins</h1>
 {% if done %}
 <p class="saved">
-  {%- if done == "added" %}Added {{ name }}.{% elif done == "removed" %}Removed {{ name }}.
+  {%- if done == "added" %}{% if name %}Added {{ name }}.{% else %}Plugin added.{% endif %}
+  {%- elif done == "removed" %}Plugin removed.
   {%- else %}Saved.{% endif %} PaperPi applies the change now.
   {%- if hand_edits %} Your hand edits to the config file were applied too.{% endif %}</p>
 {% endif %}
@@ -13,17 +14,18 @@
 {% for found in problems %}<p class="problem">{{ found|sentence }}</p>{% endfor %}
 <p>The plugins that are switched on take turns on the screen, in this order.
 <a href="/library">Add a plugin</a> from the Plugin Library.</p>
-{% if not rows %}<p>No plugins yet.</p>{% endif %}
+{% if rows | selectattr("missing") | list %}
+<p class="note">Some plugins need settings before they are shown. Until the settings page is
+ready (a later version), type them into the config file on the Pi:
+<code>{{ config_file }}</code>.</p>
+{% endif %}
+{% if not rows and not problems %}<p>No plugins yet.</p>{% endif %}
 <ol class="plugins">
 {% for row in rows %}
   <li>
     <div><strong>{{ row.name or "(no name)" }}</strong> <span class="type">{{ row.type }}</span></div>
     <div class="status">{{ row.status }}</div>
     {% for error in row.errors %}<div class="problem">{{ error }}</div>{% endfor %}
-    {% if row.missing %}
-    <div class="hint">Until the settings page is ready (a later version), fill these in in the
-      config file.</div>
-    {% endif %}
     <div class="buttons">
       <form method="post" action="/plugins/{{ row.index }}/enabled">
         <input type="hidden" name="name" value="{{ row.name }}">

@@ -34,10 +34,10 @@ class WebServer:
         auth: Auth,
         settings: config.WebSettings,
         sock: socket.socket,
-        editor: PluginEditor | None = None,
+        editor: PluginEditor,
     ):
         self.auth = auth
-        self.editor = editor or PluginEditor(auth.config_file)
+        self.editor = editor
         self.settings = settings
         """The settings it was started with; a change of address or port needs a restart."""
         self._socket = sock

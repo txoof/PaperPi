@@ -414,7 +414,7 @@ def files(tmp_path):
 
 def test_good_load_saves_last_good_copy(files):
     path, state, last_good = files
-    load(path, state_dir=state)
+    assert load(path, state_dir=state).text == GOOD
     assert last_good.read_text() == GOOD
     assert last_good.stat().st_mode & 0o777 == 0o600  # it may hold passwords
     assert list(state.iterdir()) == [last_good]  # no temporary files left
@@ -444,6 +444,7 @@ def test_broken_file_uses_last_good_copy(files):
     path.write_text("config_version = 1\n[display\n")
     cfg = load(path, state_dir=state)
     assert cfg.from_last_good
+    assert cfg.text == GOOD  # the text in use: the last good copy's
     assert [p.entry.name for p in cfg.plugins] == ["Clock"]
     assert problems(cfg) == [
         "paperpi.toml line 2: not valid TOML: Expected ']' at the end of a table declaration "

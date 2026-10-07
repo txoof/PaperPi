@@ -6,11 +6,13 @@
 - A change is made to the file as it is on disk now, so hand edits that were not applied
   yet stay in it and apply together with the change (agreed with txoof, M5 part 2b). The
   page then says so.
+- A change is refused while the file has a problem that stops PaperPi from using it (such
+  as a wrong ``[display]``): PaperPi would keep running on the last good copy, so the change
+  would not apply.
 """
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,7 +33,7 @@ class Row:
     """One ``[[plugin]]`` block, as the Active Plugins page shows it."""
 
     index: int
-    """Its place in the file, from 0."""
+    """Its place in the file, counted from 0."""
     name: str
     """``""`` when the block has no proper name."""
     type: str
@@ -40,9 +42,13 @@ class Row:
     """Required settings that are not set yet; the plugin can't be switched on until they are."""
     errors: tuple[str, ...] = ()
     """What is wrong with the block; PaperPi leaves it out until it is fixed."""
+    known: bool = True
+    """False when the file can't be checked, so whether PaperPi uses the block is not known."""
 
     @property
     def status(self) -> str:
+        if not self.known:
+            return "Unknown"
         if self.errors:
             return "Not used: has errors"
         if self.missing:
@@ -54,7 +60,7 @@ class Row:
 class PluginList:
     rows: list[Row]
     problems: list[str] = field(default_factory=list)
-    """Problems with the whole file (no plugin can be used until they are fixed)."""
+    """Problems with the whole file (no change can be made until they are fixed)."""
 
 
 @dataclass(frozen=True)
@@ -81,11 +87,8 @@ class PluginEditor:
     def __init__(self, path: Path, reload: Callable[[], None] | None = None):
         self.path = Path(path)
         self._reload = reload
-        self._lock = threading.Lock()
         self._applied: str | None = None
         """The file text PaperPi uses now (``None``: not known)."""
-        self._written: str | None = None
-        """The text the web interface saved last (it may not be applied yet)."""
 
     def loaded(self, text: str) -> None:
         """PaperPi loaded the config file ``text`` (at the start or a reload)."""
@@ -95,47 +98,7 @@ class PluginEditor:
         """The plugin blocks in the file now. Raises :class:`config_file.EditError` when the
         file can't be read at all."""
         path, text = config_file.read(self.path)
-        data = config_file.load(text)
-        found = config_file.blocks(text)
-        problems: list[config.Problem] = []
-        checked: dict[str, config.PluginConfig] = {}
-        file_problems = []
-        try:
-            loaded = config.parse(text, path.name)
-        except config.ConfigError as error:
-            problems = error.problems
-            file_problems = [str(p) for p in error.problems if p.level == "error"]
-        else:
-            problems = loaded.problems
-            checked = {p.entry.name: p for p in loaded.plugins}
-        rows = []
-        for index, block in enumerate(config_file.plugin_blocks(data)):
-            block = block if isinstance(block, dict) else {}
-            name = config_file.name_of(block)
-            plugin_type = block.get("type")
-            enabled = block.get("enabled", True)
-            errors = ()
-            if index < len(found) and not file_problems:
-                place = found[index]
-                errors = tuple(
-                    _without_place(p)
-                    for p in problems
-                    if p.level == "error" and p.line and place.start < p.line <= place.end
-                )
-            good = checked.get(name)
-            rows.append(
-                Row(
-                    index=index,
-                    name=name,
-                    type=plugin_type if isinstance(plugin_type, str) else "",
-                    enabled=enabled if isinstance(enabled, bool) else True,
-                    missing=good.missing if good is not None else (),
-                    errors=errors if good is None else (),
-                )
-            )
-        if len(found) != len(rows):
-            file_problems.append(config_file._UNKNOWN_FORM)
-        return PluginList(rows, file_problems)
+        return _plugin_list(text, path.name)
 
     def change(self, edit: Callable[[str], str]) -> bool:
         """Change the file with ``edit`` (old text -> new text), save it and apply it.
@@ -143,12 +106,23 @@ class PluginEditor:
         Returns True when the file had hand edits that were not applied yet; they apply
         too. Raises :class:`config_file.EditError` when the change can't be made.
         """
-        with self._lock:
+        with config_file.LOCK:
             path, text = config_file.read(self.path)
-            hand_edits = self._applied is not None and text not in (self._applied, self._written)
+            hand_edits = (
+                self._applied is not None
+                and text != self._applied
+                and not config_file.saved_here(path, text)
+            )
             new = edit(text)
+            try:
+                config.parse(new, path.name)
+            except config.ConfigError as error:
+                found = "; ".join(str(p) for p in error.problems if p.level == "error")
+                raise config_file.EditError(
+                    "The config file has a problem that must be fixed first, in the file "
+                    f"itself: {found}"
+                ) from None
             config_file.write(path, new)
-            self._written = new
         if self._reload is not None:
             self._reload()
         return hand_edits
@@ -157,31 +131,30 @@ class PluginEditor:
         return self.change(lambda text: config_file.move(text, index, name, step))
 
     def set_enabled(self, index: int, name: str, enabled: bool) -> bool:
-        if enabled:
-            row = self.row(index, name)
-            if row.missing:
-                missing = ", ".join(row.missing)
+        def switch(text: str) -> str:
+            row = _row(_plugin_list(text), index, name)
+            if enabled and row.missing:
                 raise config_file.EditError(
-                    f"{name} can't be switched on yet: fill in these settings first: {missing}"
+                    f"{name} can't be switched on yet. Fill in these settings first: "
+                    f"{', '.join(row.missing)}."
                 )
-        return self.change(lambda text: config_file.set_enabled(text, index, name, enabled))
+            return config_file.set_enabled(text, index, name, enabled)
+
+        return self.change(switch)
 
     def remove(self, index: int, name: str) -> bool:
         return self.change(lambda text: config_file.remove(text, index, name))
 
     def row(self, index: int, name: str) -> Row:
         """The block at ``index``, if it is still called ``name``."""
-        rows = self.plugin_list().rows
-        if not 0 <= index < len(rows) or rows[index].name != name:
-            raise config_file.ChangedMeanwhile(config_file._MEANWHILE)
-        return rows[index]
+        return _row(self.plugin_list(), index, name)
 
     def add(self, item: LibraryItem, name: str) -> bool:
         """Add a block for ``item`` called ``name`` at the end of the plugin list. A plugin
         with required settings is added switched off. Raises
         :class:`config_file.EditError` for a name that can't be used."""
         if item.plugin is None:
-            raise config_file.EditError(f"{item.type} can't be added: {item.description}")
+            raise config_file.EditError(f"{item.type} can't be added. {item.description}")
         name = name.strip()
         problem = name_problem(name)
         if problem:
@@ -190,11 +163,10 @@ class PluginEditor:
         block = example.plugin_block(item.plugin, name, values)
 
         def add(text: str) -> str:
-            used = _used_names(text)
-            if config.folder_name(name) in used:
+            if config.folder_name(name) in _used_names(text):
                 raise config_file.EditError(
-                    f"the name {name!r} is already used by another plugin (also ignoring "
-                    "capitals and punctuation); choose another one"
+                    "Another plugin already has this name (capitals and punctuation don't "
+                    "count). Choose another name."
                 )
             return config_file.add(text, block)
 
@@ -213,6 +185,58 @@ class PluginEditor:
             number += 1
             name = f"{base} {number}"
         return name
+
+
+def _plugin_list(text: str, source: str = "config") -> PluginList:
+    data = config_file.load(text)
+    found = config_file.blocks(text)
+    raw = config_file.plugin_blocks(data)
+    file_problems: list[str] = []
+    problems: list[config.Problem] = []
+    checked: dict[int, config.PluginConfig] = {}
+    try:
+        loaded = config.parse(text, source)
+    except config.ConfigError as error:
+        file_problems = [str(p) for p in error.problems if p.level == "error"]
+    else:
+        problems = loaded.problems
+        # By the line of its [[plugin]] line: two blocks may have the same name (then
+        # PaperPi uses only the first).
+        checked = {p.line: p for p in loaded.plugins if p.line is not None}
+    known = len(found) == len(raw) and not file_problems
+    if len(found) != len(raw):
+        file_problems.append(str(config_file.UnknownForm()))
+    rows = []
+    for index, block in enumerate(raw):
+        block = block if isinstance(block, dict) else {}
+        plugin_type, enabled = block.get("type"), block.get("enabled", True)
+        good = errors = None
+        if known:
+            place = found[index]
+            good = checked.get(place.header + 1)
+            errors = tuple(
+                _without_place(p)
+                for p in problems
+                if p.level == "error" and p.line and place.start < p.line <= place.end
+            )
+        rows.append(
+            Row(
+                index=index,
+                name=config_file.name_of(block),
+                type=plugin_type if isinstance(plugin_type, str) else "",
+                enabled=enabled if isinstance(enabled, bool) else True,
+                missing=good.missing if good is not None else (),
+                errors=() if good is not None or not known else (errors or ("can't be used",)),
+                known=known,
+            )
+        )
+    return PluginList(rows, file_problems)
+
+
+def _row(found: PluginList, index: int, name: str) -> Row:
+    if not 0 <= index < len(found.rows) or found.rows[index].name != name:
+        raise config_file.ChangedMeanwhile()
+    return found.rows[index]
 
 
 def library() -> list[LibraryItem]:
