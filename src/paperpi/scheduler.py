@@ -41,9 +41,18 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
   :data:`~paperpi.limits.FAILURES_BEFORE_LEFT_OUT` failures in a row the plugin is left out
   for :data:`~paperpi.limits.LEFT_OUT` seconds. When nothing can be shown because plugins
   fail, or no plugin is ready to show (switched on, with all its required settings filled
-  in), the ``default`` plugin says so. When no plugin has
+  in) and the splash screen fails (see below), the ``default`` plugin says so. When no
+  plugin has
   anything to show and none fail, a small fallback clock is shown (``[display]
   fallback_clock``), so an empty screen is never mistaken for a broken one.
+- At start, the ``splash_screen`` plugin (name, version and web address) is updated first
+  and shown for ``[display] splash_time`` seconds, while the other plugins update in the
+  background; then the normal choice starts. Alerts and interrupts wait until it ends.
+  When its update fails, the normal choice starts at once. A config reload does not show it
+  again.
+- When no plugin is ready to show (e.g. the first start after installing, with the default
+  config), the splash screen stays on screen until one is, so the web address is there to
+  set PaperPi up. If it fails, the ``default`` plugin says that no plugin is ready to show.
 
 One loop (:meth:`Scheduler.run`) makes every decision, in one thread, so two decisions can
 never happen at the same moment. Finished updates and screen writes, "stop", "reload" and
@@ -241,6 +250,10 @@ class Scheduler:
         self._default = _Slot(_default_config(config))
         self._fallback = _Slot(_fallback_config()) if config.display.fallback_clock else None
         """The fallback clock, shown when no plugin has anything to show."""
+        self._splash = _Slot(_splash_config())
+        """The splash screen: at start, and while no plugin is ready to show."""
+        self._starting = config.display.splash_time > 0
+        """The splash screen is still to be shown (or being shown) at start."""
         self._current: _Slot | None = None
         """The plugin on screen."""
         self._turn_start = 0.0
@@ -299,6 +312,9 @@ class Scheduler:
             self._checked = True
             self._writing = True
             self.writer.submit(self._check_job, self.clock.monotonic())
+            if self._starting or not self._slots:
+                # Before the other plugins, so it is not kept waiting for a free worker.
+                self._start(self._splash, None)
         try:
             while True:
                 now = self.clock.monotonic()
@@ -395,6 +411,11 @@ class Scheduler:
         default = _default_config(config)
         if redraw or not _same_plugin(self._default.config, default):
             self._default = _Slot(default)
+        if redraw:
+            new_splash = _Slot(self._splash.config)
+            if self._current is self._splash:
+                self._current = new_splash  # the same turn goes on with the new picture
+            self._splash = new_splash
         if redraw or (self._fallback is None) == self.display.fallback_clock:
             self._fallback = _Slot(_fallback_config()) if self.display.fallback_clock else None
 
@@ -510,6 +531,14 @@ class Scheduler:
             else:
                 slot.state, slot.image = event.result.state, event.result.image
             return
+        if slot is self._splash:
+            slot.due, slot.reported = now + slot.config.refresh, True
+            if event.error is not None:
+                log.error("the splash screen failed: %s; showing the plugins", event.error)
+                slot.state, slot.image, self._starting = State.NOTHING, None, False
+            else:
+                slot.state, slot.image = event.result.state, event.result.image
+            return
         if slot is self._fallback:
             if event.error is not None:
                 log.error("the fallback clock failed: %s", event.error)
@@ -606,6 +635,10 @@ class Scheduler:
 
     def _choose(self, now: float) -> tuple[_Slot | None, bool]:
         """The plugin to show, and whether a new turn starts."""
+        if self._starting or not self._slots:
+            chosen = self._choose_splash(now)
+            if chosen is not None:
+                return chosen
         alerts = [s for s in self._slots if s.level == "alert" and self._alert_active(s, now)]
         if alerts:
             return self._take_turns(alerts, now)
@@ -620,6 +653,26 @@ class Scheduler:
                 return self._next(rotation, self._last_rotation), True
             return self._take_turns(rotation, now)
         return self._choose_idle(now), True
+
+    def _choose_splash(self, now: float) -> tuple[_Slot | None, bool] | None:
+        """The splash screen at start, or while no plugin is ready to show; ``None`` when
+        it is not (or no longer) shown."""
+        splash = self._splash
+        if not splash.running and (not splash.reported or splash.due <= now):
+            self._start(splash, None)  # its first image, or a new one every hour
+        if not splash.has_image:
+            # Its first image comes first; after a failure, on with the plugins.
+            return (None, False) if splash.running and not splash.reported else None
+        if self._current is not splash:
+            if splash.running:
+                return None, False  # back after a while: never show an old address
+            return splash, True
+        if not self._slots:
+            return splash, False  # until a plugin is ready to show
+        if now - self._turn_start < self.display.splash_time:
+            return splash, False
+        self._starting = False
+        return None
 
     def _take_turns(self, group: list[_Slot], now: float) -> tuple[_Slot, bool]:
         """Keep the plugin on screen until its turn is over, then the next one in ``group``."""
@@ -640,7 +693,8 @@ class Scheduler:
     def _choose_idle(self, now: float) -> _Slot | None:
         """No plugin has anything to show.
 
-        When plugins fail, or none is ready to show: the ``default`` plugin, which says so.
+        When plugins fail, or none is ready to show (and the splash screen failed): the
+        ``default`` plugin, which says so.
         Otherwise (e.g. only a music plugin, and no music) the fallback clock, so the screen
         still changes every minute and can be told apart from a broken one.
         """
@@ -785,6 +839,10 @@ class Scheduler:
             times.append(self._turn_start + self._current.config.entry.display_time)
             if self._current is self._fallback and not self._fallback.running:
                 times.append(self._fallback.due)
+            if self._current is self._splash and self._starting:
+                times.append(self._turn_start + self.display.splash_time)
+        if (self._current is self._splash or not self._slots) and not self._splash.running:
+            times.append(self._splash.due)  # a new picture, or a new try after a failure
         for slot in self._slots:
             if slot.alert_since is not None and not slot.expired:
                 times.append(slot.alert_since + slot.config.entry.alert_max_time)
@@ -815,6 +873,15 @@ def _fallback_config() -> PluginConfig:
     """The fallback clock: basic_clock with one small line of time and date."""
     plugin = plugins.load("basic_clock")
     entry = PluginEntry(name="built-in clock", type="basic_clock", layout="small")
+    return PluginConfig(entry, plugin.settings(), plugin)
+
+
+def _splash_config() -> PluginConfig:
+    """The splash screen shown at start, and while no plugin is ready to show."""
+    plugin = plugins.load("splash_screen")
+    # Its time on screen comes from [display] splash_time, not from display_time. A short
+    # time limit: while its first picture is drawn, the screen waits for it.
+    entry = PluginEntry(name="built-in splash", type="splash_screen", time_limit=30)
     return PluginConfig(entry, plugin.settings(), plugin)
 
 

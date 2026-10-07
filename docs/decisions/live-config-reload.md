@@ -49,6 +49,7 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 | `max_refresh` (fast refreshes before a full one), `vcom` | At once. The screen helper process (see `display-driver-interface.md`) starts again with the new values; the next write is full. |
 | Rotation, colour on/off | At once. Every plugin draws again at its new size; the screen keeps its picture until the new images are ready. Colour is only offered for screens that can show colour. There is no mirror setting (yet). |
 | Cleaning interval (`clean_every`), what happens on exit (`on_exit`), the fallback clock | At once. |
+| `splash_time` | Only matters at start: a change during the start splash sets when it ends; a reload never shows the splash again. (With no plugin ready to show the splash is shown whatever it says.) |
 | `type`, `model` (virtual screen: `width`, `height`, `mode`) | At the next start of PaperPi. |
 
 *Update (M5 part 1, issue #238):* `[web]` settings. `login` and `password_hash` apply at a reload (so `paperpi reset-password` followed by a reload works without a restart); `enabled`, `address` and `port` apply at the next start, and a reload says so in the log.
