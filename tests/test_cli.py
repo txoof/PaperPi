@@ -200,10 +200,15 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
     import signal
     import socket
     import time
+    import urllib.request
 
+    with socket.socket() as free:
+        free.bind(("127.0.0.1", 0))
+        port = free.getsockname()[1]
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(
         'config_version = 1\n[display]\ntype = "virtual"\nwidth = 200\nheight = 100\n'
+        f'[web]\naddress = "127.0.0.1"\nport = {port}\n'
         '[[plugin]]\nname = "Test"\ntype = "debugging"\nrefresh = 5\n'
     )
     state = tmp_path / "state"
@@ -227,6 +232,9 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
         assert systemd.recv(100) == b"READY=1"
         assert systemd.recv(100) == b"WATCHDOG=1"
         assert main(["health", "--health-file", str(health)]) == 0
+        # The web interface runs too; with no password yet, it asks for one.
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=30) as page:
+            assert page.url.endswith("/setup")
         # The first write cleans the screen (0001.png, white), then draws (0002.png).
         deadline = time.monotonic() + 30
         while not (out / "0002.png").exists() and time.monotonic() < deadline:
@@ -235,13 +243,17 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
         # (0001.png is complete once 0002.png exists; latest.png may be half written.)
         assert Image.open(out / "0001.png").getextrema() == (255, 255)
         assert Image.open(out / "0001.png").size == (200, 100)
-        # A changed setting is applied on SIGHUP and redraws the screen.
-        cfg.write_text(cfg.read_text() + 'text = "changed"\n')
+        # A changed setting is applied on SIGHUP and redraws the screen; the web interface
+        # gets its new settings too.
+        text = cfg.read_text().replace("[web]\n", "[web]\nlogin = false\n")
+        cfg.write_text(text + 'text = "changed"\n')
         process.send_signal(signal.SIGHUP)
         deadline = time.monotonic() + 30
         while not (out / "0003.png").exists() and time.monotonic() < deadline:
             time.sleep(0.2)
         assert (out / "0003.png").exists()
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=30) as page:
+            assert page.url == f"http://127.0.0.1:{port}/"  # log-in is off now
         process.send_signal(getattr(signal, stop))
         stdout, stderr = process.communicate(timeout=30)
         # More "WATCHDOG=1" reports may come first, every 30 seconds.
@@ -255,6 +267,7 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
     assert not health.exists()  # removed when stopping on purpose
     assert "INFO: health: since_screen" in stderr  # the health values, in the log
     assert "showing 1 plugin;" in stdout
+    assert f"web interface on port {port}" in stdout
     assert f"process id {process.pid}" in stdout
     assert not (out / "0007.png").exists()  # files of an earlier run are removed
     assert (state / "paperpi.last-good.toml").is_file()
@@ -300,7 +313,7 @@ def test_run_with_an_it8951_screen(tmp_path, monkeypatch, capsys, on_exit, clear
     monkeypatch.setattr(cli.Scheduler, "run", lambda self: self.screen.check())
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(IT8951_CONFIG.format(extra=f'on_exit = "{on_exit}"\n'))
-    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
     assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
     assert [(d.type, d.model, d.vcom) for d in made] == [("it8951", "9.7", -1.90)]
     assert "screen it8951" in capsys.readouterr().out
@@ -322,7 +335,7 @@ def test_run_exits_at_once_when_the_helper_is_stuck_while_clearing(tmp_path, mon
     monkeypatch.setattr(cli.os, "_exit", exit_now)
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(GOOD)
-    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
     with pytest.raises(SystemExit) as ended:
         main([*args, "--health-file", str(tmp_path / "health")])
     assert ended.value.code == 1
@@ -349,7 +362,7 @@ def test_run_reloads_vcom_and_on_exit(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "driver_for", pretend_driver)
     monkeypatch.setattr(cli.Scheduler, "run", run)
     cfg.write_text(IT8951_CONFIG.format(extra=""))
-    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
     assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
     assert made == [-1.90, -2.10]  # a new driver for the new vcom
     assert "clear" not in [what for _, what in notes(tmp_path)]  # on_exit = "keep" now
@@ -368,7 +381,7 @@ def test_run_does_not_clear_the_screen_after_an_error(tmp_path, monkeypatch):
     monkeypatch.setattr(cli.Scheduler, "run", broken)
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(IT8951_CONFIG.format(extra=""))
-    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
     with pytest.raises(RuntimeError, match="a bug"):
         main([*args, "--health-file", str(tmp_path / "health")])
     assert [what for _, what in notes(tmp_path)] == ["init", "close"]
@@ -383,7 +396,7 @@ def test_health_command(tmp_path, capsys):
 def test_run_with_broken_config(tmp_path, capsys):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text("not toml [")
-    assert main(["run", "--config", str(cfg), "--state-dir", str(tmp_path)]) == 1
+    assert main(["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]) == 1
     assert "can't be used" in capsys.readouterr().err
 
 
@@ -401,7 +414,7 @@ def test_run_exits_at_once_when_a_screen_helper_is_stuck(tmp_path, monkeypatch, 
     monkeypatch.setattr(cli.os, "_exit", exit_now)
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(GOOD)
-    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
     with pytest.raises(SystemExit) as ended:
         main([*args, "--health-file", str(tmp_path / "health")])
     assert ended.value.code == 1
@@ -425,7 +438,7 @@ def test_run_cleans_every_plugin_folder_at_start(tmp_path, monkeypatch):
     old.write_text("{}")
     when = clock.time() - 400 * 24 * 60 * 60
     os.utime(old, (when, when))
-    args = ["run", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
     assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
     assert not old.exists()
 
@@ -477,3 +490,22 @@ def test_example_config_prints_or_saves_the_example(tmp_path, capsys):
     out = tmp_path / "example.toml"
     assert main(["example-config", "-o", str(out)]) == 0
     assert out.read_text() == example_config()
+
+
+@pytest.mark.parametrize(
+    ("web", "args", "started"),
+    [("", [], True), ("[web]\nenabled = false\n", [], False), ("", ["--no-web"], False)],
+)
+def test_run_starts_the_web_interface_unless_asked_not_to(
+    tmp_path, monkeypatch, web, args, started
+):
+    from paperpi.web import server
+
+    calls = []
+    monkeypatch.setattr(server, "start", lambda *a: calls.append(a))
+    monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(f'config_version = 1\n[display]\ntype = "virtual"\n{web}')
+    run = ["run", *args, "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*run, "--health-file", str(tmp_path / "health")]) == 0
+    assert bool(calls) == started

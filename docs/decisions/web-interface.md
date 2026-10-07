@@ -32,6 +32,14 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
 - After logging in, the browser stays logged in for 1 year, using a cookie (a small token the browser keeps). There is a **Log out** button.
 - No limit on wrong password attempts.
 
+*Update (M5, issue #238, agreed with txoof on 2026-10-07):*
+- The web server runs **inside `paperpi run`**, in its own thread, not as a separate program. It can tell the scheduler directly to apply a change, it needs one Python process fewer (about 40 MB), and there is one program to install. Previews will draw in a separate process with a time limit, like normal updates, so a slow or broken plugin can't stop the web pages or the screen. If the web interface can't start (port taken), the log says why and the screen keeps running.
+- The password is stored as a **scrypt** hash, which is built into Python (about 0.1 s and 16 MB of memory per check on a Pi; checks run one at a time; no limit on wrong tries, agreed again on 2026-10-07). The log-in cookie is signed with that hash, so a new password logs out every browser.
+- Packages: FastAPI, uvicorn (the web server that runs FastAPI), jinja2 (page templates) and python-multipart (reads forms).
+- **Log-in can be switched off:** `login = false` in `[web]`. Then anyone on the home network can change the settings; the config check gives a hint and the home page says so.
+- **Forgotten password:** `sudo paperpi reset-password` removes the `password_hash` line and leaves the rest of the file as it is. After a restart or reload, the first visitor sets a new password. The log-in page shows these steps.
+- Forms are only accepted from the web interface's own pages, and its pages can't be shown inside another website. Without this, a web page on the internet could make the visitor's browser send a form to PaperPi in their name. For the same reason the web interface only answers when it is opened by an IP address (e.g. `http://192.168.1.20:8080`) or `localhost`: a web page could otherwise point a name of its own at the Pi (called DNS rebinding) and set the first password itself. Names such as `paperpi.local` may be allowed later. Agreed with txoof on 2026-10-07: setup is done by IP address.
+
 ### No HTTPS
 
 - The web interface uses plain HTTP, e.g. `http://paperpi.local:8080`. HTTPS (an encrypted connection) needs a certificate, and without a public one browsers show a warning page, which only gets in the way at home.

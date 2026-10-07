@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Set a password · PaperPi{% endblock %}
+{% block main %}
+<h1>Set a password</h1>
+<p>No web password is set yet. Choose one now: it protects PaperPi's settings. You will
+stay logged in on this device for a year.</p>
+{% if problem %}<p class="problem">{{ problem }}</p>{% endif %}
+<form method="post" action="/setup">
+  <label>Password <input type="password" name="password" autocomplete="new-password"
+    minlength="8" required autofocus></label>
+  <label>Password again <input type="password" name="again" autocomplete="new-password"
+    minlength="8" required></label>
+  <button type="submit">Save password</button>
+</form>
+{% endblock %}

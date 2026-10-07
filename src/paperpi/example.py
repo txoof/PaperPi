@@ -24,7 +24,14 @@ from pydantic.fields import FieldInfo
 from pydantic_core import to_jsonable_python
 
 from . import plugins
-from .config import CONFIG_VERSION, VIRTUAL_HEIGHT, VIRTUAL_MODE, VIRTUAL_WIDTH, DisplaySettings
+from .config import (
+    CONFIG_VERSION,
+    VIRTUAL_HEIGHT,
+    VIRTUAL_MODE,
+    VIRTUAL_WIDTH,
+    DisplaySettings,
+    WebSettings,
+)
 from .plugin import Plugin, PluginEntry
 
 #: The blocks of the example file: name, plugin type and the settings that are set.
@@ -131,9 +138,26 @@ def display_part(values: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def web_part() -> str:
+    """The ``[web]`` part, with every setting as a comment (the password is set in the web
+    interface itself)."""
+    lines = ["[web]", *_settings(WebSettings.model_fields, ("password_hash",), {})]
+    lines += _comment(
+        "The web interface saves the web password here as password_hash. For a new "
+        "password: run sudo paperpi reset-password, restart or reload PaperPi, and open "
+        "the web interface"
+    )
+    return "\n".join(lines) + "\n"
+
+
 def example_config() -> str:
     """The text of ``paperpi.example.toml``."""
-    parts = [_HEADER, f"config_version = {CONFIG_VERSION}\n", display_part({"type": "virtual"})]
+    parts = [
+        _HEADER,
+        f"config_version = {CONFIG_VERSION}\n",
+        display_part({"type": "virtual"}),
+        web_part(),
+    ]
     for index, (name, plugin_type, values) in enumerate(EXAMPLE_PLUGINS):
         plugin = plugins.load(plugin_type)
         parts.append(plugin_block(plugin, name, values, shared=index == 0))

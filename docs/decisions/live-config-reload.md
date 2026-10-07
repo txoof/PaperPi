@@ -50,6 +50,8 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 | Cleaning interval (`clean_every`), what happens on exit (`on_exit`), the fallback clock | At once. |
 | `type`, `model` (virtual screen: `width`, `height`, `mode`) | At the next start of PaperPi. |
 
+*Update (M5 part 1, issue #238):* `[web]` settings. `login` and `password_hash` apply at a reload (so `paperpi reset-password` followed by a reload works without a restart); `enabled`, `address` and `port` apply at the next start, and a reload says so in the log.
+
 *Update (M4 part 5b, agreed with txoof on 2026-10-06):* this table first said vcom applies at the next start.
 - Everything about the screen itself (`type`, `model`, and for the virtual screen `width`, `height` and `mode`) applies **only at the next start**. On a reload the log says "[display] model changed: this applies at the next start of PaperPi", and the old values keep running.
 - `vcom` applies **at once**: the new helper process's `init` sends the new value to the screen. This makes fixing a typo possible without a restart. The driver only accepts values from −3.0 to −0.5 V and checks that the screen took it; a wrong value in that range gives weaker contrast, nothing worse.
