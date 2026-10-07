@@ -201,7 +201,7 @@ def read_caption(page: str) -> tuple[str, str]:
 
 
 def fallback(entry: Entry) -> Texts:
-    """ "Monday, October 5th · Chris Gural", from the feed, when the page has no caption."""
+    """ "Monday, October 5th · Chris Gural", from the feed, when the page can't be read."""
     title = re.sub(r"^Daily Cartoon:\s*", "", entry.title)
     return Texts(" · ".join(filter(None, (title, entry.creator))), "", entry.date)
 
@@ -217,8 +217,9 @@ def texts_for(entry: Entry) -> tuple[Texts, bool]:
         log.info("can't get the cartoon's caption, showing its title: %s", error)
         return fallback(entry), False
     caption, credit = read_caption(page)
-    if not caption:
-        return fallback(entry), True
+    if not caption and not credit:
+        return fallback(entry), True  # the page has changed
+    # A cartoon with its words in the picture has only a credit: the caption stays empty.
     if not credit and entry.creator:
         credit = f"Cartoon by {entry.creator}"
     return Texts(caption, credit, entry.date), True

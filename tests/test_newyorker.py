@@ -207,11 +207,19 @@ def test_saved_cartoon_is_used_again(tmp_path, monkeypatch, pick):
     assert again.texts == first.texts and again.image.suffix == ".picture"
 
 
-def test_page_without_a_caption_shows_title_and_cartoonist(tmp_path, monkeypatch, pick):
+def test_cartoon_without_a_caption_shows_only_the_credit(tmp_path, monkeypatch, pick):
+    # Words inside the picture: the page has only "Cartoon by ...".
     site(monkeypatch, 1, **{link(1): page(caption=None)})
     texts = fetch(context(tmp_path)).data.texts
-    assert texts == Texts("Monday, October 1th · Artist 1", "", "Monday, October 5")
+    assert texts == Texts("", "Cartoon by Page Artist", "Monday, October 5")
     assert list(tmp_path.glob("*.json"))  # saved: the page is not asked again
+
+
+def test_changed_page_shows_title_and_cartoonist(tmp_path, monkeypatch, pick):
+    site(monkeypatch, 1, **{link(1): b"<html><p>a new page design</p></html>"})
+    texts = fetch(context(tmp_path)).data.texts
+    assert texts == Texts("Monday, October 1th · Artist 1", "", "Monday, October 5")
+    assert list(tmp_path.glob("*.json"))
 
 
 def test_page_that_cant_be_downloaded_is_tried_again(tmp_path, monkeypatch, pick):
