@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
+  <title>{% block title %}PaperPi{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+</head>
+<body>
+  <header>
+    <a class="name" href="/">PaperPi</a>
+    {% if auth.login and logged_in %}
+    <form method="post" action="/logout"><button type="submit">Log out</button></form>
+    {% endif %}
+  </header>
+  <main>
+    {% block main %}{% endblock %}
+  </main>
+  <footer>PaperPi {{ version }}</footer>
+</body>
+</html>

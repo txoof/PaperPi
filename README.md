@@ -97,6 +97,21 @@ uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/ --heal
 - While it runs, it says "still running" every 30 seconds: to systemd, when it runs as a service, and in the file `/run/paperpi/health`. Only root or the service can make `/run/paperpi`, so the example above uses `--health-file` to put the file in your own folder in `/run/user/`, which is also kept in memory (a file that can't be written is only a warning). `paperpi health` (with the same `--health-file`) prints the last report and ends with an error when there is no report or the last one is more than 2 minutes old. Once an hour the same values (time since the last screen write, whether screen writes work, memory use, open files, free disk) also go to the log, starting with a `health:` line at the start. If PaperPi gets stuck, systemd (or Docker, from M6) uses this to restart it: [docs/decisions/errors-and-time-limits.md](docs/decisions/errors-and-time-limits.md).
 - `--state-dir` holds the plugins' own folders, the last good copy of the config and the time PaperPi last exited because of a stuck screen (default `/var/lib/paperpi`). The PNG files go to `screen/` in it, unless `--out` names another folder.
 
+### The web interface
+
+`paperpi run` also starts the web interface, on port 8080: open `http://<the Pi's name or address>:8080` (for example `http://paperpi.local:8080`) on a phone or computer on the same home network. For now it has the log-in and an empty home page; the pages for plugins and settings follow (issue #238).
+
+- **First visit:** the first person to open it sets the web password (at least 8 characters). The browser then stays logged in for a year, until **Log out**.
+- **Forgotten password:** you need access to the Pi itself (a keyboard and screen, or SSH).
+  1. Run `sudo paperpi reset-password` (add `--config <file>` for another config file). It removes the `password_hash` line from `[web]` in the config file and leaves the rest of the file as it is. Removing the line by hand does the same.
+  2. Restart PaperPi, or send it the reload signal (`kill -HUP <process id>`, or `sudo systemctl reload paperpi` once it is a service).
+  3. Open the web interface and set a new password. Until then, anyone on your home network can set it.
+  A new password logs out every browser.
+- **No password at all:** `login = false` in `[web]`. Then anyone on your home network can change PaperPi's settings; the home page says so.
+- **Other `[web]` settings:** `enabled = false` (no web interface; `paperpi run --no-web` does the same for one run), `port`, and `address = "127.0.0.1"` to reach it from the Pi only. These three apply at the next start; `login` and the password apply at a reload.
+- It uses plain HTTP, not HTTPS: it is for the home network only. Do not open it to the internet.
+- If the port is taken by another program, the log says so and PaperPi runs without the web interface.
+
 ### Run PaperPi on the 9.7" IT8951 screen
 
 Turn on SPI first: `sudo raspi-config nonint do_spi 0` (the same as raspi-config's menu Interface Options, SPI; `0` means on), then reboot. See epdlib's `docs/it8951.md`. Then set the screen in `[display]`. `vcom` is printed on the screen's ribbon cable; each screen has its own:

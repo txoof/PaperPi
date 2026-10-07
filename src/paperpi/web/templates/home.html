@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% block main %}
+<h1>PaperPi</h1>
+<p>PaperPi is running. The pages for plugins and settings are coming in the next versions.</p>
+{% if not auth.login %}
+<p class="note">Log-in is switched off (<code>login = false</code> in <code>[web]</code> of the
+config file): anyone on your home network can change PaperPi's settings.</p>
+{% endif %}
+{% endblock %}
