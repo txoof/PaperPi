@@ -102,34 +102,41 @@ class PluginSettings(BaseModel):
 _OPTIONS = "paperpi"
 
 
-def setting(default: Any = None, *, required: bool = False, **field: Any) -> Any:
+def setting(default: Any, *, required: bool = False, **field: Any) -> Any:
     """A plugin setting: pydantic's ``Field`` (with the same ``description``, ``ge``,
     ``max_length``, ...) plus what PaperPi needs to know about it. This is the one place a
-    setting asks PaperPi for help; later options (such as a helper that looks up a place's
-    latitude and longitude in the web interface) are added here too::
+    setting gets PaperPi's own options; later ones (such as a web interface helper that
+    looks up a place's latitude and longitude, M5 part 3c) are added here too::
 
         lat: float | None = setting(None, required=True, description="Latitude")
 
     ``required``: the plugin can't work until the user fills it in (a place, an email
-    address, an API key). Its default must be "not set": ``None`` or ``""``. A plugin
-    with a required setting that is not set is not shown; the config check and the web
-    interface say which settings it needs.
+    address, an API key). Its default must be "not set" (see :func:`is_set`). A plugin
+    with a required setting that is not set is not shown; the config check and
+    ``paperpi list`` (and from M5 part 2b the web interface) say which settings it needs.
     """
-    options = {"required": True} if required else {}
-    return Field(default, json_schema_extra={_OPTIONS: options} if options else None, **field)
+    extra = field.pop("json_schema_extra", None) or {}
+    if not isinstance(extra, dict):
+        raise TypeError("setting() takes json_schema_extra only as a dictionary")
+    if required:
+        extra = extra | {_OPTIONS: {"required": True}}
+    return Field(default, json_schema_extra=extra or None, **field)
 
 
 def is_required(info: FieldInfo) -> bool:
     """True for a setting made with ``setting(required=True)``."""
     extra = info.json_schema_extra
-    return isinstance(extra, dict) and bool(extra.get(_OPTIONS, {}).get("required"))
+    options = extra.get(_OPTIONS) if isinstance(extra, dict) else None
+    return isinstance(options, dict) and bool(options.get("required"))
 
 
 def is_set(value: Any) -> bool:
-    """False for "not set": ``None``, ``""`` or an empty secret."""
+    """False for "not set": ``None``, empty text (also only spaces) or an empty secret."""
     if hasattr(value, "get_secret_value"):
         value = value.get_secret_value()
-    return value is not None and value != ""
+    if isinstance(value, str | bytes):
+        return bool(value.strip())
+    return value is not None
 
 
 class PluginEntry(BaseModel):
@@ -227,7 +234,7 @@ class PluginsStatus:
     failing: int
     """Plugins that failed their last update, or are left out after failing again and again."""
     total: int
-    """Plugins that are switched on."""
+    """Plugins that are ready to show: switched on, with all their required settings."""
 
 
 @dataclass(frozen=True)
@@ -301,7 +308,10 @@ class Plugin:
                 problems.append("every setting needs a default")
             else:
                 if self.missing(defaults) != self.required:
-                    problems.append('a required setting\'s default must be "not set" (None or "")')
+                    problems.append(
+                        'a required setting\'s default must be "not set" (None, "" or an empty '
+                        "secret)"
+                    )
         if not self.layouts:
             problems.append("needs at least one layout")
         if not limits.SHORTEST_REFRESH <= self.refresh <= limits.LONGEST_SETTING:

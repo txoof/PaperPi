@@ -38,6 +38,7 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 - A changed plugin that is on screen is updated and redrawn right away, so the user sees the result.
 - A plugin that is removed or switched off while on screen: rotation moves on to the next plugin.
 - A new plugin joins the end of the rotation.
+- *(M5 part 2a)* A plugin that is missing a required setting is treated as switched off: filling the setting in and reloading starts it (at its place in the file), and emptying it takes the plugin out of the rotation.
 
 **Update 2026-10-05 (M4, issue #205):** plugins take turns in the order of the config file, so a new plugin takes the place where it is in the file (the end, when it is added at the end). Until reloading screen settings is built (M4 issue #222, part 5b), changed screen settings take effect at the next start, with a warning in the log. *(Built in part 5b; see the table below.)*
 

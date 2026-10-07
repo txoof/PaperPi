@@ -554,6 +554,24 @@ def test_plugin_without_its_required_settings_is_not_updated(tmp_path):
     assert sim.updates.times("w")[0] == 101
 
 
+def test_reload_without_a_required_setting_takes_the_plugin_off_screen(tmp_path):
+    weather = rotation("w") + '\ntype = "met_no"\nlat = 1\nlon = 2'
+    sim = Sim(tmp_path, rotation("a"), weather + '\nemail = "me@example.com"')
+    sim.plan(a="A", w="W")
+    sim.run(until=150)  # w is on screen since 101
+    sim.next_config = make_config(rotation("a"), weather)
+    sim.scheduler.reload()
+    sim.run(until=300)
+    assert sim.writes[:3] == [(1, "A"), (101, "W"), (150, "A")]
+    assert [t for t in sim.updates.times("w") if t >= 150] == []
+
+
+def test_default_says_so_when_every_plugin_waits_for_its_settings(tmp_path):
+    sim = Sim(tmp_path, rotation("w") + '\ntype = "met_no"\nlat = 1\nlon = 2')
+    sim.run(until=100)
+    assert sim.shown == ["default 0/0"]  # "No plugins are ready to show."
+
+
 def clock_labels(t):
     """A plan for the fallback clock: a new picture every minute."""
     return f"clock {int(t // 60)}"

@@ -710,6 +710,7 @@ def test_required_setting_warning_points_at_the_setting_when_it_is_there():
     assert [(p.message, p.line) for p in loaded.problems] == [
         ("not shown until these required settings are filled in: lon, email", 8)
     ]
+    # An empty value for a number is no "not set": it is an error, as before.
     loaded = parse(WEATHER.replace("lat = 52.52\nlon = 13.40\n", 'lon = 13.40\nlat = ""\n'))
     assert [(p.level, p.line) for p in loaded.problems] == [("error", 8)]  # "" is no number
 

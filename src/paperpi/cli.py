@@ -146,7 +146,9 @@ def _parser() -> argparse.ArgumentParser:
             "Show the plugins of a config file, one line each, in the order of the file. "
             "Anything wrong with the file is shown first; a block with an error is not in the "
             "list. Refresh and layout are the ones used: the setting, or else the plugin's "
-            "suggested refresh and its first layout."
+            'suggested refresh and its first layout. The "on" column says "needs '
+            '<settings>" for a plugin that is switched on but not shown, because a required '
+            "setting is missing."
         ),
     )
     listing.add_argument(
@@ -237,6 +239,10 @@ def _render(args: argparse.Namespace) -> int:
     if layout not in job.plugin.layouts:
         known = ", ".join(job.plugin.layouts)
         raise UsageError(f"unknown layout {layout!r}; choose from: {known}")
+    missing = job.plugin.missing(job.settings)
+    if args.live and missing:
+        sets = " ".join(f"--set {k}=..." for k in missing)
+        raise UsageError(f"{job.plugin.type} needs these required settings: {sets}")
     time_limit = job.time_limit if args.time_limit is None else args.time_limit
     if not 0 < time_limit <= limits.PLUGIN_UPDATE_MAX:
         raise UsageError(f"--time-limit must be above 0 and at most {limits.PLUGIN_UPDATE_MAX:g}")
@@ -389,7 +395,7 @@ def _list(args: argparse.Namespace) -> int:
             (
                 row.name,
                 row.type,
-                _on(row),
+                _on_column(row),
                 row.level,
                 f"{row.display_time:g} s",
                 f"{row.refresh:g} s",
@@ -411,7 +417,7 @@ def _list(args: argparse.Namespace) -> int:
     return 0
 
 
-def _on(row: config.PluginRow) -> str:
+def _on_column(row: config.PluginRow) -> str:
     """The "on" column of ``paperpi list``."""
     if not row.enabled:
         return "no"

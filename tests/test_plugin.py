@@ -2,7 +2,7 @@
 
 import pytest
 from epdlib import ScreenMode
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretBytes, SecretStr
 
 from paperpi import plugins
 from paperpi.plugin import (
@@ -197,7 +197,7 @@ class Needs(PluginSettings):
 def test_setting_is_a_field_with_paperpis_options():
     fields = Needs.model_fields
     assert [k for k, info in fields.items() if is_required(info)] == ["place", "lat", "key"]
-    assert not is_required(Settings.model_fields["word"])
+    assert not is_required(fields["word"])
     assert fields["place"].description == "Where"
     with pytest.raises(ValueError, match="at most 10 characters"):
         Needs(place="far too long a place")
@@ -207,11 +207,34 @@ def test_setting_is_a_field_with_paperpis_options():
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [(None, False), ("", False), (SecretStr(""), False), ("x", True), (0, True), (0.0, True),
+    [(None, False), ("", False), ("  ", False), (SecretStr(""), False), (SecretStr(" "), False),
+     (SecretBytes(b""), False), (b"", False), ("x", True), (0, True), (0.0, True),
      (SecretStr("k"), True), (False, True)],
 )  # fmt: skip
 def test_is_set(value, expected):
     assert is_set(value) is expected
+
+
+def test_setting_keeps_other_schema_extras():
+    class Extra(PluginSettings):
+        word: str = setting("", required=True, json_schema_extra={"examples": ["hi"]})
+        other: str = setting("", json_schema_extra={"paperpi": "wrong shape"})
+
+    info = Extra.model_fields["word"]
+    assert info.json_schema_extra == {"examples": ["hi"], "paperpi": {"required": True}}
+    assert is_required(info)
+    assert not is_required(Extra.model_fields["other"])  # no crash on a wrong shape
+
+
+def test_setting_needs_a_default():
+    with pytest.raises(TypeError):
+        setting(description="no default")
+
+
+def test_built_in_plugins_need_no_settings():
+    # PaperPi runs these with their defaults (the screen shown when nothing else can be).
+    for plugin_type in ("basic_clock", "default"):
+        assert plugins.load(plugin_type).required == ()
 
 
 def test_missing_lists_the_required_settings_that_are_not_set():

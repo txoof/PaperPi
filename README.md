@@ -68,14 +68,14 @@ Run `uv run paperpi render --help` for all options. How to write a plugin: [docs
 
 ### A config file
 
-`paperpi example-config` prints an example config file that works as it is: a virtual screen, a clock, and the weather in Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text. The weather blocks are not shown until you put your own, real email address in `email`: met.no's terms of service ask for it, so the example leaves it empty. `paperpi list` shows them as "needs email" until then. `-o` doesn't replace a file that is already there, unless you add `--force`.
+`paperpi example-config` prints an example config file that loads without errors: a virtual screen, a clock, and weather blocks for Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text. The weather blocks are not shown until you remove the `#` in front of `email` and fill in your own, real email address: met.no's terms of service ask for it, so the example leaves it empty. Until then `paperpi list` shows them as "needs email". `-o` doesn't replace a file that is already there, unless you add `--force`.
 
 ```bash
 uv run paperpi example-config -o paperpi.toml
 uv run paperpi list --config paperpi.toml
 ```
 
-`paperpi list` shows the plugins of a config file, one line each, in the order of the file: name, type, on or off, level, display time, refresh, layout and storage (the ones used: the setting, or else the plugin's suggestion or first layout; storage is the size limit and the age limit, for example `500 MB, 30 d`, or `500 MB, no age limit`). Anything wrong with the file is shown first; a block with an error is left out of the list.
+`paperpi list` shows the plugins of a config file, one line each, in the order of the file: name, type, on (`yes`, `no`, or `needs <settings>` when a required setting is missing), level, display time, refresh, layout and storage (the ones used: the setting, or else the plugin's suggestion or first layout; storage is the size limit and the age limit, for example `500 MB, 30 d`, or `500 MB, no age limit`). Anything wrong with the file is shown first; a block with an error is left out of the list.
 
 ```
 name            type         on   level     display  refresh  layout

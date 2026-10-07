@@ -57,9 +57,10 @@ _HEADER = """\
 # The file only needs the settings that differ from the default. Every other setting is
 # shown as a comment with its default: remove the # in front of it to change it.
 # Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
-# more than once, with a different name. The weather blocks are not shown until you fill
-# in your own, real email address in "email": met.no asks every program for a way to
-# contact its user. Settings marked "(required)" must be filled in before a plugin is shown.
+# more than once, with a different name. The weather blocks are not shown until you remove
+# the # in front of "email" and fill in your own, real email address: met.no asks every
+# program for a way to contact its user. Settings marked "(required)" must be filled in
+# before a plugin is shown.
 """
 
 #: Settings whose default is "empty", but that mean a known value; shown with that value.

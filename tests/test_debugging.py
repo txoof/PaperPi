@@ -59,7 +59,7 @@ def test_delay(tmp_path):
     [
         (3, 4, "3 of 4 plugins are not working."),
         (1, 1, "1 of 1 plugin is not working."),
-        (0, 0, "No plugins are switched on."),
+        (0, 0, "No plugins are ready to show."),
     ],
 )
 def test_default_message(failing, total, text):

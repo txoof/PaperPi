@@ -443,6 +443,39 @@ def test_run_cleans_every_plugin_folder_at_start(tmp_path, monkeypatch):
     assert not old.exists()
 
 
+def test_run_counts_only_the_plugins_that_are_shown(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(
+        'config_version = 1\n[display]\ntype = "virtual"\n'
+        '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n'
+        '[[plugin]]\nname = "Weather"\ntype = "met_no"\nlat = 1\nlon = 2\n'
+    )
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
+    assert "showing 1 plugin;" in capsys.readouterr().out
+
+
+def test_list_says_which_required_settings_are_missing(tmp_path, capsys):
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(
+        'config_version = 1\n[display]\ntype = "virtual"\n'
+        '[[plugin]]\nname = "Weather"\ntype = "met_no"\n'
+        '[[plugin]]\nname = "Off"\ntype = "met_no"\nenabled = false\n'
+    )
+    assert main(["list", "--config", str(cfg)]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1].split()[:6] == ["Weather", "met_no", "needs", "lat,", "lon,", "email"]
+    assert lines[2].split()[:3] == ["Off", "met_no", "no"]  # switched off: no "needs"
+
+
+def test_render_live_says_which_required_settings_are_missing(capsys):
+    assert main(["render", "met_no", "--live", "--set", "lat=1"]) == 2
+    assert "met_no needs these required settings: --set lon=... --set email=..." in (
+        capsys.readouterr().err
+    )
+
+
 def test_list_shows_no_age_limit(tmp_path, capsys):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(

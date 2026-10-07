@@ -49,8 +49,8 @@ class Settings(PluginSettings):
         required=True,
         max_length=200,
         pattern=r"^$|^[^@\s]+@[^@\s]+$",
-        description="Your own, real email address, sent only to met.no: their terms of "
-        "service ask every program for a way to contact its user",
+        description="Your own, real email address, sent only to met.no (their terms of "
+        "service ask for one)",
     )
     temperature: Literal["C", "F"] = Field("C", description="Degrees Celsius or Fahrenheit")
     rain: Literal["mm", "inch"] = Field("mm", description="Rain in millimetres or inches")

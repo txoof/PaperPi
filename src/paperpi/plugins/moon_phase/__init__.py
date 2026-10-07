@@ -52,8 +52,8 @@ class Settings(PluginSettings):
         required=True,
         max_length=200,
         pattern=r"^$|^[^@\s]+@[^@\s]+$",
-        description="Your own, real email address, sent only to met.no: their terms of "
-        "service ask every program for a way to contact its user",
+        description="Your own, real email address, sent only to met.no (their terms of "
+        "service ask for one)",
     )
 
 

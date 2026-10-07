@@ -196,5 +196,5 @@ def test_plugin_rows():
 def test_block_marks_the_required_settings():
     block = plugin_block(plugins.load("met_no"), "Weather", {"lat": 1, "lon": 2})
     assert "# Latitude of the place, e.g. 52.52 (required)\nlat = 1\n" in block
-    assert 'way to contact its user (required)\n# email = ""\n' in block
+    assert 'terms of service ask for one) (required)\n# email = ""\n' in block
     assert "Berlin (else lat, lon)\n# place" in block  # not required

@@ -72,7 +72,7 @@ email = "you@example.com"   # put your own, real address here
 layout = "steps_3h"   # optional; without it: hours_12
 ```
 
-Try it without a screen: `uv run paperpi render met_no --set place=Berlin` (sample data), or with real data: `uv run paperpi render met_no --live --set lat=52.52 --set lon=13.40 --set email=<your own address>`. Without lat, lon and email the plugin is not shown, and the config check says which of them is missing.
+Try it without a screen: `uv run paperpi render met_no --set place=Berlin` (sample data), or with real data: `uv run paperpi render met_no --live --set lat=52.52 --set lon=13.40 --set email=you@example.com` (put your own address in place of `you@example.com`). If lat, lon or email is missing, the plugin is not shown; the config check and `paperpi list` say which one.
 
 The screen shows "Data: MET Norway" next to the "Updated" time, as met.no's data licence asks. The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Meteorological Institute), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) licence. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT licence ([`icons/LICENSE`](icons/LICENSE)).
 

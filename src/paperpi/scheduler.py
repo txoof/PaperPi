@@ -40,7 +40,8 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
 - A failed update is skipped and tried again at the next refresh. After
   :data:`~paperpi.limits.FAILURES_BEFORE_LEFT_OUT` failures in a row the plugin is left out
   for :data:`~paperpi.limits.LEFT_OUT` seconds. When nothing can be shown because plugins
-  fail, or no plugin is switched on, the ``default`` plugin says so. When no plugin has
+  fail, or no plugin is ready to show (switched on, with all its required settings filled
+  in), the ``default`` plugin says so. When no plugin has
   anything to show and none fail, a small fallback clock is shown (``[display]
   fallback_clock``), so an empty screen is never mistaken for a broken one.
 
@@ -639,7 +640,7 @@ class Scheduler:
     def _choose_idle(self, now: float) -> _Slot | None:
         """No plugin has anything to show.
 
-        When plugins fail, or none are switched on: the ``default`` plugin, which says so.
+        When plugins fail, or none is ready to show: the ``default`` plugin, which says so.
         Otherwise (e.g. only a music plugin, and no music) the fallback clock, so the screen
         still changes every minute and can be told apart from a broken one.
         """
