@@ -13,9 +13,10 @@
   <p>You need access to the Pi itself (a keyboard and screen, or SSH):</p>
   <ol>
     <li>Run <code>sudo paperpi reset-password</code> on the Pi. (Or remove the
-      <code>password_hash</code> line in <code>[web]</code> of
-      <code>/etc/paperpi/paperpi.toml</code> by hand.)</li>
-    <li>Restart PaperPi, or apply the change with <code>sudo systemctl reload paperpi</code>.</li>
+      <code>password_hash</code> line in <code>[web]</code> of the config file, normally
+      <code>/etc/paperpi/paperpi.toml</code>, by hand.)</li>
+    <li>Restart PaperPi, or send it the reload signal: <code>kill -HUP &lt;process id&gt;</code>
+      (<code>sudo systemctl reload paperpi</code> once it runs as a service).</li>
     <li>Open this page again and set a new password.</li>
   </ol>
   <p>Until the new password is set, anyone on your home network can set it.</p>

@@ -32,6 +32,8 @@ class WebServer:
         self.settings = settings
         """The settings it was started with; a change of address or port needs a restart."""
         self._socket = sock
+        self.port: int = sock.getsockname()[1]
+        """The port it listens on (useful with ``port = 0`` in tests)."""
         self._server = uvicorn.Server(
             uvicorn.Config(
                 create_app(auth),
@@ -39,16 +41,17 @@ class WebServer:
                 log_level="warning",
                 access_log=False,
                 lifespan="off",
+                # Connections still open at a stop (e.g. a slow phone) are closed after this.
+                timeout_graceful_shutdown=STOP_SECONDS - 1,
             )
         )
-        self._thread = threading.Thread(
-            target=self._server.run, kwargs={"sockets": [sock]}, name="paperpi-web", daemon=True
-        )
+        self._thread = threading.Thread(target=self._serve, name="paperpi-web", daemon=True)
 
-    @property
-    def port(self) -> int:
-        """The port it listens on (useful with ``port = 0`` in tests)."""
-        return self._socket.getsockname()[1]
+    def _serve(self) -> None:
+        try:
+            self._server.run(sockets=[self._socket])
+        except BaseException:  # noqa: BLE001 - also SystemExit, which uvicorn uses for errors
+            log.exception("the web interface stopped because of an error")
 
     def use(self, settings: config.WebSettings) -> None:
         """Apply reloaded ``[web]`` settings: log-in changes apply at once, the rest at the
@@ -60,9 +63,15 @@ class WebServer:
         if changed:
             log.warning("[web] %s: changes apply at the next start of PaperPi", ", ".join(changed))
 
+    @property
+    def running(self) -> bool:
+        return self._thread.is_alive()
+
     def stop(self) -> None:
         self._server.should_exit = True
         self._thread.join(STOP_SECONDS)
+        if self._thread.is_alive():
+            log.warning("the web interface did not stop within %s s", STOP_SECONDS)
         self._socket.close()
 
 

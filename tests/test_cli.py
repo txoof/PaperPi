@@ -243,13 +243,17 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
         # (0001.png is complete once 0002.png exists; latest.png may be half written.)
         assert Image.open(out / "0001.png").getextrema() == (255, 255)
         assert Image.open(out / "0001.png").size == (200, 100)
-        # A changed setting is applied on SIGHUP and redraws the screen.
-        cfg.write_text(cfg.read_text() + 'text = "changed"\n')
+        # A changed setting is applied on SIGHUP and redraws the screen; the web interface
+        # gets its new settings too.
+        text = cfg.read_text().replace("[web]\n", "[web]\nlogin = false\n")
+        cfg.write_text(text + 'text = "changed"\n')
         process.send_signal(signal.SIGHUP)
         deadline = time.monotonic() + 30
         while not (out / "0003.png").exists() and time.monotonic() < deadline:
             time.sleep(0.2)
         assert (out / "0003.png").exists()
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=30) as page:
+            assert page.url == f"http://127.0.0.1:{port}/"  # log-in is off now
         process.send_signal(getattr(signal, stop))
         stdout, stderr = process.communicate(timeout=30)
         # More "WATCHDOG=1" reports may come first, every 30 seconds.
@@ -486,3 +490,22 @@ def test_example_config_prints_or_saves_the_example(tmp_path, capsys):
     out = tmp_path / "example.toml"
     assert main(["example-config", "-o", str(out)]) == 0
     assert out.read_text() == example_config()
+
+
+@pytest.mark.parametrize(
+    ("web", "args", "started"),
+    [("", [], True), ("[web]\nenabled = false\n", [], False), ("", ["--no-web"], False)],
+)
+def test_run_starts_the_web_interface_unless_asked_not_to(
+    tmp_path, monkeypatch, web, args, started
+):
+    from paperpi.web import server
+
+    calls = []
+    monkeypatch.setattr(server, "start", lambda *a: calls.append(a))
+    monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(f'config_version = 1\n[display]\ntype = "virtual"\n{web}')
+    run = ["run", *args, "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*run, "--health-file", str(tmp_path / "health")]) == 0
+    assert bool(calls) == started

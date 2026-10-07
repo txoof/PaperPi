@@ -13,11 +13,14 @@ Address            What it does
 
 Every other page needs a log-in, unless ``login = false`` in ``[web]``. Forms are only
 accepted when they are sent from a page of the web interface itself, so another website
-can't send them in the visitor's name.
+can't send them in the visitor's name. And PaperPi only answers when it is opened by an IP
+address or ``localhost``: a website could otherwise point a name of its own at the Pi
+("DNS rebinding") and then use the pages as if they were its own.
 """
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -59,8 +62,11 @@ def create_app(auth: Auth) -> FastAPI:
         )
         return response
 
-    @app.middleware("http")
-    async def check(request: Request, call_next: Callable[[Request], Awaitable[Response]]):
+    async def refused_or_page(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if not _known_host(request.headers.get("host", "")):
+            return page(request, "by_address.html", 400, address=_own_address(request))
         if request.method not in ("GET", "HEAD") and not _same_site(request):
             return Response("Forms are only accepted from PaperPi's own pages.", 403)
         path = request.url.path
@@ -69,10 +75,15 @@ def create_app(auth: Auth) -> FastAPI:
                 return RedirectResponse("/setup", status_code=303)
             if not auth.cookie_ok(request.cookies.get(COOKIE)):
                 return RedirectResponse("/login", status_code=303)
-        response = await call_next(request)
+        return await call_next(request)
+
+    @app.middleware("http")
+    async def check(request: Request, call_next: Callable[[Request], Awaitable[Response]]):
+        response = await refused_or_page(request, call_next)
+        path = request.url.path
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; frame-ancestors 'none'; form-action 'self'"
+            "default-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
         )
         response.headers["Referrer-Policy"] = "same-origin"
         if not path.startswith("/static/"):
@@ -122,7 +133,7 @@ def create_app(auth: Auth) -> FastAPI:
         stored = auth.password_hash
         if stored is None:
             return RedirectResponse("/setup", status_code=303)
-        if await run_in_threadpool(auth.check, str(form.get("password", ""))):
+        if await run_in_threadpool(auth.check, str(form.get("password", "")), stored):
             return logged_in(request, stored)
         return page(request, "login.html", 401, problem="Wrong password.")
 
@@ -133,6 +144,30 @@ def create_app(auth: Auth) -> FastAPI:
         return response
 
     return app
+
+
+def _known_host(host: str) -> bool:
+    """True for an IP address or ``localhost``, with or without a port (see the top)."""
+    if host.startswith("["):  # an IPv6 address: [::1]:8080
+        name = host[1:].partition("]")[0]
+    elif host.count(":") == 1:
+        name = host.partition(":")[0]
+    else:
+        name = host
+    if name.casefold() == "localhost":
+        return True
+    try:
+        ipaddress.ip_address(name)
+    except ValueError:
+        return False
+    return True
+
+
+def _own_address(request: Request) -> str:
+    """The address to show on the "open PaperPi by its IP address" page."""
+    host, port = request.scope.get("server") or ("192.168.1.20", 8080)
+    host = f"[{host}]" if ":" in str(host) else host
+    return f"http://{host}:{port}"
 
 
 def _same_site(request: Request) -> bool:

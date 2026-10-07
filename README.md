@@ -99,14 +99,13 @@ uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/ --heal
 
 ### The web interface
 
-`paperpi run` also starts the web interface, on port 8080: open `http://<the Pi's name or address>:8080` (for example `http://paperpi.local:8080`) on a phone or computer on the same home network. For now it has the log-in and an empty home page; the pages for plugins and settings follow (issue #238).
+`paperpi run` also starts the web interface, on port 8080. Open it by the Pi's IP address on a phone or computer on the same home network, for example `http://192.168.1.20:8080` (your router's list of devices shows the Pi's address; on the Pi, `hostname -I` prints it). Names such as `paperpi.local` are refused for now, for safety (see [docs/decisions/web-interface.md](docs/decisions/web-interface.md)). For now it has the log-in and an empty home page; the pages for plugins and settings follow (issue #238).
 
-- **First visit:** the first person to open it sets the web password (at least 8 characters). The browser then stays logged in for a year, until **Log out**.
+- **First visit:** the first person to open it sets the web password (at least 8 characters). The browser then stays logged in for a year, until **Log out**. Log out only logs out that browser; a new password logs out every browser.
 - **Forgotten password:** you need access to the Pi itself (a keyboard and screen, or SSH).
-  1. Run `sudo paperpi reset-password` (add `--config <file>` for another config file). It removes the `password_hash` line from `[web]` in the config file and leaves the rest of the file as it is. Removing the line by hand does the same.
-  2. Restart PaperPi, or send it the reload signal (`kill -HUP <process id>`, or `sudo systemctl reload paperpi` once it is a service).
+  1. Run `sudo paperpi reset-password` (with this development copy: `uv run paperpi reset-password --config paperpi.toml`). It removes the `password_hash` line from `[web]` in the config file and leaves the rest of the file as it is. Removing the line by hand does the same.
+  2. Restart PaperPi (Ctrl+C, then start `paperpi run` again), or send it the reload signal: `kill -HUP <process id>` (`sudo systemctl reload paperpi` once it runs as a service).
   3. Open the web interface and set a new password. Until then, anyone on your home network can set it.
-  A new password logs out every browser.
 - **No password at all:** `login = false` in `[web]`. Then anyone on your home network can change PaperPi's settings; the home page says so.
 - **Other `[web]` settings:** `enabled = false` (no web interface; `paperpi run --no-web` does the same for one run), `port`, and `address = "127.0.0.1"` to reach it from the Pi only. These three apply at the next start; `login` and the password apply at a reload.
 - It uses plain HTTP, not HTTPS: it is for the home network only. Do not open it to the internet.

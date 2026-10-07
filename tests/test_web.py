@@ -21,6 +21,10 @@ CONFIG = (
 )
 
 
+# The test client opens the pages as a phone on the home network would: by IP address.
+PI = "http://192.168.1.20:8080"
+
+
 @pytest.fixture(autouse=True)
 def cheap_scrypt(monkeypatch):
     # The real cost (2**14) takes a moment on a Pi 3.
@@ -38,7 +42,7 @@ def cfg(tmp_path):
 
 def make_client(cfg, **web):
     settings = config.WebSettings(**web)
-    return TestClient(create_app(auth.Auth(cfg, settings)), follow_redirects=False)
+    return TestClient(create_app(auth.Auth(cfg, settings)), follow_redirects=False, base_url=PI)
 
 
 def set_up(client, password="correct horse"):
@@ -54,14 +58,26 @@ def test_cookie_lasts_a_year_and_belongs_to_one_password():
     assert not auth.cookie_ok(cookie, stored, now=1_000_000_000 - 3600)  # made in the future
     # A new password logs out every browser.
     assert not auth.cookie_ok(cookie, hash_password("correct horse"), now=1_000_000_000)
-    for broken in ["", "1000000000", "1000000000.", "x.y", cookie[:-1] + "0", "9" * 20 + ".a"]:
+    issued, signature = cookie.split(".")
+    other_end = "1" if signature.endswith("0") else "0"
+    for broken in [
+        "",
+        "1000000000",
+        "1000000000.",
+        "x.y",
+        f"{issued}.{signature[:-1]}{other_end}",
+        f"{issued}.{signature[:-1]}é",  # not plain text: no error, just "no"
+        f"{issued}.{signature}0",
+        "\u0661" * 10 + f".{signature}",  # digits, but not 0-9
+        "9" * 20 + ".a",
+    ]:
         assert not auth.cookie_ok(broken, stored, now=1_000_000_000)
     assert not auth.cookie_ok(cookie, None, now=1_000_000_000)
 
 
 def test_first_visitor_sets_the_password(cfg):
     paperpi_auth = auth.Auth(cfg, config.WebSettings())
-    client = TestClient(create_app(paperpi_auth), follow_redirects=False)
+    client = TestClient(create_app(paperpi_auth), follow_redirects=False, base_url=PI)
     for page in ["/", "/login"]:
         assert client.get(page).headers["location"] == "/setup"
     assert "Set a password" in client.get("/setup").text
@@ -76,7 +92,7 @@ def test_first_visitor_sets_the_password(cfg):
     assert page.status_code == 200 and "Log out" in page.text
     # Once set, the set-up page is gone, also for a second visitor.
     assert client.get("/setup").headers["location"] == "/"
-    other = TestClient(client.app, follow_redirects=False)  # a second browser
+    other = TestClient(client.app, follow_redirects=False, base_url=PI)  # a second browser
     assert other.get("/setup").headers["location"] == "/"
     assert other.get("/").headers["location"] == "/login"
     response = set_up(other, "another password")
@@ -122,7 +138,7 @@ def test_a_cookie_made_up_by_hand_is_refused(cfg):
 def test_reset_password_and_reload(cfg, capsys):
     """The steps on the log-in page: paperpi reset-password, reload, set a new password."""
     paperpi_auth = auth.Auth(cfg, config.WebSettings())
-    client = TestClient(create_app(paperpi_auth), follow_redirects=False)
+    client = TestClient(create_app(paperpi_auth), follow_redirects=False, base_url=PI)
     set_up(client)
     assert main(["reset-password", "--config", str(cfg)]) == 0
     assert "removed the web password" in capsys.readouterr().out
@@ -202,3 +218,107 @@ def test_server_that_cant_start_is_logged(cfg, caplog):
         with caplog.at_level(logging.ERROR):
             assert server.start(cfg, settings) is None
     assert f"the web interface can't start on 127.0.0.1 port {port}" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["192.168.1.20:8080", "192.168.1.20", "10.0.0.5:80", "[::1]:8080", "localhost:8080"],
+)
+def test_pages_open_by_ip_address(cfg, host):
+    response = make_client(cfg).get("/setup", headers={"host": host})
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "host", ["evil.example:8080", "paperpi.local:8080", "192.168.1.20.evil.example", ""]
+)
+def test_pages_opened_by_a_name_are_refused(cfg, host):
+    """A website could point a name of its own at the Pi (DNS rebinding) and set the
+    first password itself."""
+    client = make_client(cfg)
+    headers = {"host": host, "origin": f"http://{host}", "sec-fetch-site": "same-origin"}
+    response = client.post("/setup", data={"password": "x" * 8, "again": "x" * 8}, headers=headers)
+    assert response.status_code == 400
+    assert "Open PaperPi by its IP address" in response.text
+    assert response.headers["x-frame-options"] == "DENY"
+    assert cfg.read_text() == CONFIG
+    assert client.get("/", headers={"host": host}).status_code == 400
+
+
+@pytest.mark.parametrize("path", ["/setup2", "/login/", "/static", "/staticx/htmx.min.js"])
+def test_only_the_log_in_pages_are_open(cfg, path):
+    client = make_client(cfg, password_hash=hash_password("correct horse"))
+    assert client.get(path).headers["location"] == "/login"
+
+
+def test_security_headers_also_on_redirects(cfg):
+    client = make_client(cfg, password_hash=hash_password("correct horse"))
+    response = client.get("/")
+    assert response.status_code == 303
+    policy = response.headers["content-security-policy"]
+    assert "form-action 'self'" in policy and "base-uri 'none'" in policy
+    assert response.headers["referrer-policy"] == "same-origin"
+    assert response.headers["cache-control"] == "no-store"
+    # The style sheet and htmx may be kept by the browser.
+    assert "cache-control" not in client.get("/static/style.css").headers
+
+
+def test_log_in_cookie_is_strict(cfg):
+    response = set_up(make_client(cfg))
+    assert "SameSite=strict" in response.headers["set-cookie"]
+
+
+def test_a_reload_just_before_the_first_password_does_not_forget_it(cfg):
+    paperpi_auth = auth.Auth(cfg, config.WebSettings())
+    old = config.parse(cfg.read_text()).web  # read by a reload, just before the save
+    client = TestClient(create_app(paperpi_auth), follow_redirects=False, base_url=PI)
+    set_up(client)
+    paperpi_auth.use(old)
+    assert paperpi_auth.password_hash is not None
+    response = set_up(client, "another password")
+    assert response.status_code == 400 and "set already" in response.text
+
+
+def test_server_listens_on_its_address_only(cfg):
+    settings = config.WebSettings.model_construct(
+        **(config.WebSettings().model_dump() | {"address": "127.0.0.1", "port": 0})
+    )
+    web = server.start(cfg, settings)
+    try:
+        assert web._socket.getsockname()[0] == "127.0.0.1"
+    finally:
+        web.stop()
+
+
+def test_a_slow_browser_does_not_hold_up_the_stop(cfg):
+    import time
+
+    settings = config.WebSettings.model_construct(
+        **(config.WebSettings().model_dump() | {"address": "127.0.0.1", "port": 0})
+    )
+    web = server.start(cfg, settings)
+    with socket.create_connection(("127.0.0.1", web.port)) as slow:
+        # Says 100 bytes follow, sends 4, and waits.
+        slow.sendall(b"POST /setup HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 100\r\n\r\nabcd")
+        time.sleep(0.5)
+        start = time.monotonic()
+        web.stop()
+        assert time.monotonic() - start < server.STOP_SECONDS
+    assert not web.running
+
+
+def test_a_web_interface_that_crashes_is_logged(cfg, caplog, monkeypatch):
+    settings = config.WebSettings.model_construct(
+        **(config.WebSettings().model_dump() | {"address": "127.0.0.1", "port": 0})
+    )
+
+    def broken(self, sockets=None):
+        raise RuntimeError("broken on purpose")
+
+    monkeypatch.setattr(server.uvicorn.Server, "run", broken)
+    with caplog.at_level(logging.ERROR):
+        web = server.start(cfg, settings)
+        web._thread.join(5)
+    assert not web.running
+    assert "the web interface stopped because of an error" in caplog.text
+    web.stop()
