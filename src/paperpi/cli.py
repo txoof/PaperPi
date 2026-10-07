@@ -134,6 +134,9 @@ def _parser() -> argparse.ArgumentParser:
         default=health.HEALTH_FILE,
         help=f"where to write the health report (default: {health.HEALTH_FILE})",
     )
+    run.add_argument(
+        "--no-web", action="store_true", help="don't start the web interface (see [web])"
+    )
     run.set_defaults(command=_run)
 
     listing = commands.add_parser(
@@ -269,8 +272,13 @@ def _run(args: argparse.Namespace) -> int:
     # A reload signal during start-up would otherwise end the program.
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
+    web = None
+
     def load() -> config.Config:
-        return config.load(args.config, state_dir=args.state_dir)
+        loaded = config.load(args.config, state_dir=args.state_dir)
+        if web is not None and not loaded.from_last_good:
+            web.use(loaded.web)
+        return loaded
 
     try:
         loaded = load()
@@ -307,6 +315,13 @@ def _run(args: argparse.Namespace) -> int:
     signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
     signal.signal(signal.SIGINT, lambda *_: scheduler.stop())
     signal.signal(signal.SIGHUP, lambda *_: scheduler.reload())
+    if loaded.web.enabled and not args.no_web:
+        # Imported here: the web packages take a moment to load, and no other command needs them.
+        from .web import server
+
+        web = server.start(args.config, loaded.web)
+        if web is not None:
+            print(f"web interface on port {web.port}")
     try:
         with screen:
             count = sum(1 for p in loaded.plugins if p.entry.enabled and p.plugin.type != "default")
@@ -337,6 +352,8 @@ def _run(args: argparse.Namespace) -> int:
         return 1
     finally:
         reports.stopping()
+        if web is not None:
+            web.stop()
     return 0
 
 

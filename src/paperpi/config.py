@@ -216,6 +216,10 @@ class WebSettings(BaseModel):
     )
 
 
+#: ``[web]`` settings that apply only at the next start of PaperPi.
+WEB_NEXT_START = ("enabled", "address", "port")
+
+
 @dataclass(frozen=True)
 class Problem:
     """One thing wrong with the config file."""

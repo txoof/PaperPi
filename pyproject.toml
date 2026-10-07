@@ -10,8 +10,12 @@ dependencies = [
     "epdlib",
     # The pin and SPI libraries for the IT8951 screen; they build only on Linux.
     "epdlib[it8951]; sys_platform == 'linux'",
+    "fastapi>=0.115",
+    "jinja2>=3.1",
     "pydantic>=2.9",
+    "python-multipart>=0.0.9",
     "tomlkit>=0.13",
+    "uvicorn>=0.30",
 ]
 
 [project.scripts]
@@ -19,6 +23,7 @@ paperpi = "paperpi.cli:main"
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.13.1",
     "pytest>=8",
     "pytest-html>=4",
     "ruff>=0.6",
