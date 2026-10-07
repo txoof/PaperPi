@@ -207,6 +207,8 @@ class FakeHealth:
 def make_config(*blocks, display=""):
     text = f'config_version = 1\n[display]\ntype = "virtual"\nwidth = {SIZE[0]}\n'
     text += f"height = {SIZE[1]}\n{display}\n"
+    if "splash" not in display:
+        text = text.replace("[display]\n", "[display]\nsplash = false\n")  # tests below
     for block in blocks:
         plugin_type = "" if "type =" in block else 'type = "debugging"\n'
         text += f"[[plugin]]\n{plugin_type}{block}\n"
@@ -663,6 +665,49 @@ def test_stuck_screen_ends_the_run(tmp_path):
     sim.screen.fail = ScreenStuck("stuck")
     with pytest.raises(ScreenStuck):
         sim.run(until=100)
+
+
+# Splash screen at start
+
+SPLASH = "built-in-splash"
+
+
+def test_splash_is_shown_first_for_a_minute_while_the_plugins_update(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), rotation("b"), display="splash = true")
+    sim.run(until=200)
+    assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A"), (161, "B")]
+    assert sim.updates.times("a")[:2] == [1, 32]  # not kept waiting by the splash
+    assert sim.updates.times(SPLASH) == [1]  # shown once, not updated again
+
+
+def test_no_splash_when_it_is_switched_off(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), display="splash = false")
+    sim.run(until=50)
+    assert sim.writes == [(1, "A")]
+    assert sim.updates.times(SPLASH) == []
+
+
+def test_failing_splash_starts_the_plugins_at_once(tmp_path, caplog):
+    sim = Sim(tmp_path, rotation("a"), display="splash = true")
+    sim.plan(**{SPLASH: "fail"})
+    sim.run(until=50)
+    assert sim.writes == [(1, "A")]
+    assert "the splash screen failed" in caplog.text
+
+
+def test_alert_waits_until_the_splash_has_been_shown(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), alert("x"), display="splash = true")
+    sim.plan(x=between(10, 500, "X"))
+    sim.run(until=100)
+    assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "X")]
+
+
+def test_reload_does_not_show_the_splash_again(tmp_path):
+    sim = Sim(tmp_path, rotation("a", display_time=1000), display="splash = true")
+    sim.next_config = make_config(rotation("a", display_time=1000), display="splash = true")
+    sim.at(100, sim.scheduler.reload)
+    sim.run(until=200)
+    assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A")]
 
 
 # On the minute

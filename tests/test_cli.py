@@ -204,6 +204,7 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(
         'config_version = 1\n[display]\ntype = "virtual"\nwidth = 200\nheight = 100\n'
+        "splash = false\n"  # no minute-long splash screen first
         '[[plugin]]\nname = "Test"\ntype = "debugging"\nrefresh = 5\n'
     )
     state = tmp_path / "state"

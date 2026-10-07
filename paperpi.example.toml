@@ -19,6 +19,8 @@ type = "virtual"
 # Show a small clock when no plugin has anything to show (strongly recommended: without it, an empty
 # screen looks like a broken one)
 # fallback_clock = true
+# At start, show PaperPi's version and web address for a minute, before the plugins
+# splash = true
 # Virtual screen only: width in pixels
 # width = 1200
 # Virtual screen only: height in pixels

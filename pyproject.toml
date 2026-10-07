@@ -11,6 +11,7 @@ dependencies = [
     # The pin and SPI libraries for the IT8951 screen; they build only on Linux.
     "epdlib[it8951]; sys_platform == 'linux'",
     "pydantic>=2.9",
+    "segno>=1.6",
     "tomlkit>=0.13",
 ]
 
