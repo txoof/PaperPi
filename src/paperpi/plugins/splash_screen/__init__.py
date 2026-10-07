@@ -1,4 +1,5 @@
-"""splash_screen: PaperPi's name, version and web address, shown once at start.
+"""splash_screen: PaperPi's name, version and web address, shown at start and while no
+plugin is switched on.
 
 The scheduler shows this plugin first when PaperPi starts, for ``[display] splash_time``
 seconds (default 60), then the other plugins. With no plugin switched on (e.g. the first
@@ -39,6 +40,7 @@ class About:
     ip: str | None
     """This Pi's address on the network; ``None`` without a network."""
     hostname: str | None
+    """This Pi's name on the network (without ``.local``); ``None`` when unknown."""
 
 
 class Settings(PluginSettings):
@@ -61,6 +63,7 @@ def ip_address() -> str | None:
 
 
 def hostname() -> str | None:
+    """This Pi's name, e.g. ``paperpi``; ``None`` when the system doesn't say."""
     try:
         return socket.gethostname() or None
     except OSError:
@@ -83,36 +86,56 @@ def web_addresses(about: About) -> tuple[str, str] | None:
 
 
 def line_breaks(address: str) -> list[str]:
-    """Ways to write ``address``: on one line, then on two lines broken after a "/".
+    """Ways to write ``address``: on one line, then broken after a "/", then (for a long
+    host name) also after a ".", "-" or ":".
 
     epdlib only breaks lines at spaces (or, in a word that is too long, between letters),
-    so the breaks after a "/" are put in here. The most even split comes first, e.g.
+    so these breaks are put in here. Within each kind the most even split comes first, e.g.
     "https://github.com/" and "txoof/PaperPi", as v1 showed it.
     """
-    breaks = [
-        i + 1
-        for i, char in enumerate(address)
-        if char == "/" and address[i + 1 : i + 2] not in ("/", "")
-    ]
-    breaks.sort(key=lambda i: max(i, len(address) - i))
-    return [address] + [f"{address[:i]}\n{address[i:]}" for i in breaks]
+
+    def after(chars: str) -> list[int]:
+        return [
+            i + 1
+            for i, char in enumerate(address)
+            if char in chars and address[i + 1 : i + 2] not in ("/", "")
+        ]
+
+    def split(points: tuple[int, ...]) -> str:
+        edges = (0, *points, len(address))
+        return "\n".join(address[a:b] for a, b in zip(edges, edges[1:], strict=False))
+
+    def longest(points: tuple[int, ...]) -> int:
+        edges = (0, *points, len(address))
+        return max(b - a for a, b in zip(edges, edges[1:], strict=False))
+
+    slashes, others = after("/"), after(".-:")
+    two = sorted(((i,) for i in slashes), key=longest)
+    two += sorted(((i,) for i in others), key=longest)
+    points = sorted(slashes + others)
+    # Only the most even three-line splits: a long name has hundreds, each one tried.
+    three = sorted(((a, b) for a in points for b in points if a < b), key=longest)[:10]
+    return [address] + [split(p) for p in two + three]
 
 
-def fit_address(address: str, font: str, size: int, width: int, height: int) -> str:
-    """The way of writing ``address`` that fits whole at the largest font size.
-
-    Tries every way at the block's own size, then at the smaller sizes its ``shrink``
-    allows (epdlib picks the same size again when it draws). When none fits: the one-line
-    form, which epdlib breaks between letters, so the address is still never cut off.
+def fit_address(
+    address: str, font: str, size: int, width: int, height: int, max_lines: int, ellipsis: str
+) -> str:
+    """The first way of writing ``address`` that epdlib draws exactly as given: whole, and
+    with no other line breaks (checked the way epdlib will draw the block, with its
+    ``shrink`` sizes). When none does: the one-line form, which epdlib breaks between
+    letters.
     """
-    options = line_breaks(address)
-    for step in text.SHRINK_STEPS:
-        step_size = max(1, round(size * step))
-        for option in options:
-            lines = option.count("\n") + 1
-            fit = text.fit_text(font, step_size, option, width, height, lines, False, "…")
-            if fit.complete and len(fit.lines) == lines:
-                return option
+    smallest = text.load_font(font, max(1, round(size * text.SHRINK_STEPS[-1])))
+    for option in line_breaks(address):
+        lines = option.split("\n")
+        # Quick check first: exact measuring is slow, and a line that is too wide even at
+        # the smallest size can never be drawn as given.
+        if any(smallest.getlength(line) > width for line in lines):
+            continue
+        fit = text.fit_text(font, size, option, width, height, max_lines, True, ellipsis)
+        if fit.complete and fit.lines == lines:
+            return option
     return address
 
 
@@ -149,17 +172,21 @@ def draw(about: About, context: Context) -> dict:
     for name in ADDRESS_BLOCKS:
         value = texts.get(name, "")
         box = prepared.boxes[name]
-        font = layout.blocks[name].options["font"]
+        o = layout.blocks[name].options
         width, height = box.width - 2 * edge, box.height - 2 * edge
         if value and width > 0 and height > 0:
-            value = fit_address(value, font, prepared.font_sizes[name], width, height)
+            size = prepared.font_sizes[name]
+            value = fit_address(
+                value, o["font"], size, width, height, o["max_lines"], o["ellipsis"]
+            )
         values[name] = value
     return values
 
 
 PLUGIN = Plugin(
     type="splash_screen",
-    description="PaperPi's name, version and web address; shown once at start.",
+    description="PaperPi's name, version and web address; shown at start, and while no plugin "
+    "is switched on.",
     settings=Settings,
     layouts=LAYOUTS,
     fetch=fetch,

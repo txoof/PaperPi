@@ -48,6 +48,7 @@ What is on screen only lasts until the next cycle anyway, so this is kept simple
 | `max_refresh` (fast refreshes before a full one), `vcom` | At once. The screen helper process (see `display-driver-interface.md`) starts again with the new values; the next write is full. |
 | Rotation, colour on/off | At once. Every plugin draws again at its new size; the screen keeps its picture until the new images are ready. Colour is only offered for screens that can show colour. There is no mirror setting (yet). |
 | Cleaning interval (`clean_every`), what happens on exit (`on_exit`), the fallback clock | At once. |
+| `splash_time` | Only matters at start: a change during the start splash sets when it ends; a reload never shows the splash again. (With no plugin switched on the splash is shown whatever it says.) |
 | `type`, `model` (virtual screen: `width`, `height`, `mode`) | At the next start of PaperPi. |
 
 *Update (M4 part 5b, agreed with txoof on 2026-10-06):* this table first said vcom applies at the next start.

@@ -17,8 +17,8 @@ FOLDER = Path(__file__).parent
 #: Anton by The Anton Project Authors, under the SIL Open Font License 1.1, from Google Fonts.
 ANTON = str(FOLDER / "Anton-Regular.ttf")
 
-#: Dosis SemiBold by Edgar Tolentino, Pablo Impallari and Igino Marini, under the SIL Open Font
-#: License 1.1, from Google Fonts.
+#: Dosis SemiBold by Edgar Tolentino, Pablo Impallari and Igino Marini, under the SIL Open
+#: Font License 1.1, from Google Fonts: the static SemiBold file that PaperPi v1 shipped.
 DOSIS_SEMIBOLD = str(FOLDER / "Dosis-SemiBold.ttf")
 
 #: Lato Bold and Lato Italic by Łukasz Dziedzic, under the SIL Open Font License 1.1, from

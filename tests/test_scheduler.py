@@ -539,8 +539,9 @@ def test_screen_keeps_its_picture_when_default_fails(tmp_path, caplog):
 def test_default_says_when_no_plugin_is_switched_on_and_the_splash_fails(tmp_path):
     sim = Sim(tmp_path, rotation("a") + "\nenabled = false")
     sim.plan(**{"built-in-splash": "fail"})
-    sim.run(until=100)
+    sim.run(until=7300)
     assert sim.shown == ["default 0/0"]
+    assert sim.updates.times("built-in-splash") == [1, 3602, 7203]  # once an hour
 
 
 def clock_labels(t):
@@ -678,6 +679,7 @@ def test_splash_is_shown_first_for_a_minute_while_the_plugins_update(tmp_path):
     sim.run(until=200)
     assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A"), (161, "B")]
     assert sim.updates.times("a")[:2] == [1, 32]  # not kept waiting by the splash
+    assert sim.updates.calls[0][1] == SPLASH  # started first, so it gets a worker first
     assert sim.updates.times(SPLASH) == [1]  # shown once, not updated again
 
 
@@ -697,8 +699,9 @@ def test_no_splash_with_splash_time_0(tmp_path):
 def test_failing_splash_starts_the_plugins_at_once(tmp_path, caplog):
     sim = Sim(tmp_path, rotation("a"), display="splash_time = 60")
     sim.plan(**{SPLASH: "fail"})
-    sim.run(until=50)
-    assert sim.writes == [(1, "A")]
+    sim.run(until=4000)
+    assert set(sim.shown) == {"A"}  # never comes back in the rotation
+    assert sim.updates.times(SPLASH) == [1]  # and is not tried again
     assert "the splash screen failed" in caplog.text
 
 
@@ -715,6 +718,34 @@ def test_reload_does_not_show_the_splash_again(tmp_path):
     sim.at(100, sim.scheduler.reload)
     sim.run(until=200)
     assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A")]
+
+
+def test_reload_changing_splash_time_during_the_splash_applies(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=5000), display="splash_time = 60")
+    sim.next_config = make_config(rotation("a", refresh=5000), display="splash_time = 300")
+    sim.at(10, sim.scheduler.reload)
+    sim.run(until=400)
+    assert sim.writes == [(1, "BUILT-IN-SPLASH"), (301, "A")]
+
+
+def test_reload_that_redraws_during_the_splash_keeps_its_end(tmp_path):
+    sim = Sim(tmp_path, rotation("a", display_time=1000), display="splash_time = 60")
+    turned = make_config(
+        rotation("a", display_time=1000), display="splash_time = 60\nrotation = 90"
+    )
+    sim.next_config = turned
+    sim.at(30, sim.scheduler.reload)
+    sim.run(until=200)
+    assert [t for t, label in sim.writes if label == "A"] == [61]
+
+
+def test_splash_that_comes_back_shows_a_new_picture_only(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), display="splash_time = 60")
+    sim.plan(**{SPLASH: lambda t: f"splash {int(t)}"})
+    sim.next_config = make_config(rotation("a") + "\nenabled = false", display="splash_time = 60")
+    sim.at(20000, sim.scheduler.reload)
+    sim.run(until=20100)
+    assert sim.shown == ["splash 1", "A", "splash 20001"]
 
 
 def test_first_start_shows_the_splash_until_a_plugin_is_switched_on(tmp_path):

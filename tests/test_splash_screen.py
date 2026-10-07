@@ -43,6 +43,55 @@ def test_fetch_shows_this_paperpi(monkeypatch):
     assert fetched.data == About(NAME, __version__, URL, "192.0.2.20", "kitchen")
 
 
+class FakeSocket:
+    def __init__(self, address=None, error=None):
+        self.address, self.error = address, error
+
+    def __call__(self, *args):
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def connect(self, target):
+        if self.error:
+            raise self.error
+
+    def getsockname(self):
+        return (self.address, 50000)
+
+
+@pytest.mark.parametrize(
+    ("fake", "expected"),
+    [
+        (FakeSocket("192.0.2.30"), "192.0.2.30"),
+        (FakeSocket(error=OSError("Network is unreachable")), None),
+        (FakeSocket("0.0.0.0"), None),
+        (FakeSocket("127.0.1.1"), None),  # only this Pi itself
+    ],
+)
+def test_ip_address(monkeypatch, fake, expected):
+    monkeypatch.setattr(splash_screen.socket, "socket", fake)
+    assert splash_screen.ip_address() == expected
+
+
+@pytest.mark.parametrize(("name", "expected"), [("kitchen", "kitchen"), ("", None)])
+def test_hostname(monkeypatch, name, expected):
+    monkeypatch.setattr(splash_screen.socket, "gethostname", lambda: name)
+    assert splash_screen.hostname() == expected
+
+
+def test_hostname_error(monkeypatch):
+    def broken():
+        raise OSError("no name")
+
+    monkeypatch.setattr(splash_screen.socket, "gethostname", broken)
+    assert splash_screen.hostname() is None
+
+
 def test_sample_is_fixed_and_made_up():
     # A fixed version keeps the sample images the same from one release to the next, and
     # 192.0.2.x is set aside for examples, so no real Pi's address is ever shown.
@@ -71,45 +120,69 @@ def test_the_port_is_the_web_interface_port():
     assert splash_screen.WEB_PORT == 8080
 
 
-@pytest.mark.parametrize(
-    ("address", "options"),
-    [
-        (
-            "https://github.com/txoof/PaperPi",
-            [
-                "https://github.com/txoof/PaperPi",
-                "https://github.com/\ntxoof/PaperPi",  # the most even split first, as v1
-                "https://\ngithub.com/txoof/PaperPi",
-                "https://github.com/txoof/\nPaperPi",
-            ],
-        ),
-        ("http://192.0.2.10:8080", ["http://192.0.2.10:8080", "http://\n192.0.2.10:8080"]),
-        # Never between the two slashes of "//", never after a "/" at the end.
-        ("https://paperpi.example/", ["https://paperpi.example/", "https://\npaperpi.example/"]),
-        ("paperpi", ["paperpi"]),
-    ],
-)
-def test_line_breaks(address, options):
-    assert line_breaks(address) == options
+def test_line_breaks_after_a_slash_come_first_most_even_first():
+    options = line_breaks("https://github.com/txoof/PaperPi")
+    assert options[:4] == [
+        "https://github.com/txoof/PaperPi",
+        "https://github.com/\ntxoof/PaperPi",  # as v1
+        "https://\ngithub.com/txoof/PaperPi",
+        "https://github.com/txoof/\nPaperPi",
+    ]
+    # Then after a "." (or "-" or ":"), then on three lines.
+    assert options[4] == "https://github.\ncom/txoof/PaperPi"
+    assert options[-1].count("\n") == 2
+
+
+def test_line_breaks_never_inside_the_double_slash_or_at_the_end():
+    for option in line_breaks("https://paperpi.example/"):
+        assert ":/\n/" not in option and not option.endswith("\n")
+    assert line_breaks("paperpi") == ["paperpi"]
+
+
+def test_line_breaks_tries_few_three_line_splits():
+    # A long name has hundreds; each one is measured, which is slow.
+    options = line_breaks("http://" + "pi-" * 20 + "x.local:8080")
+    assert sum(1 for o in options if o.count("\n") == 2) == 10
 
 
 FONT = splash_screen.layouts.fonts.DOSIS_SEMIBOLD
 
 
+def fit(address, size, width, height):
+    return fit_address(address, FONT, size, width, height, 2, "…")
+
+
 def test_fit_address_keeps_one_line_when_it_fits():
-    assert fit_address("http://192.0.2.10:8080", FONT, 20, 1000, 100) == "http://192.0.2.10:8080"
+    assert fit("http://192.0.2.10:8080", 20, 1000, 100) == "http://192.0.2.10:8080"
 
 
 def test_fit_address_breaks_after_a_slash_when_needed():
     size = 40
     one_line = text.load_font(FONT, size).getlength("http://192.0.2.10:8080")
-    fitted = fit_address("http://192.0.2.10:8080", FONT, size, int(one_line) - 10, 400)
+    fitted = fit("http://192.0.2.10:8080", size, int(one_line) - 10, 400)
+    assert fitted == "http://\n192.0.2.10:8080"
+
+
+def test_fit_address_uses_a_smaller_size_for_the_broken_form():
+    # Two lines are too wide at the block's own size, but fit at a smaller one; one line
+    # would need breaks between letters at every size.
+    size = 40
+    longest = text.load_font(FONT, size).getlength("192.0.2.10:8080")
+    fitted = fit("http://192.0.2.10:8080", size, int(0.9 * longest), 200)
     assert fitted == "http://\n192.0.2.10:8080"
 
 
 def test_fit_address_falls_back_to_one_line():
     # Too narrow for any way of writing it: epdlib then breaks it between letters.
-    assert fit_address("http://192.0.2.10:8080", FONT, 40, 30, 40) == "http://192.0.2.10:8080"
+    assert fit("http://192.0.2.10:8080", 40, 30, 40) == "http://192.0.2.10:8080"
+
+
+def test_long_host_name_is_broken_after_a_dash_not_inside_a_word():
+    values = draw(replace(SAMPLE, hostname="paperpi-living-room-kitchen-shelf"), context(480, 800))
+    host = values["host"]
+    assert host.replace("\n", "") == "http://paperpi-living-room-kitchen-shelf.local:8080"
+    assert "\n" in host
+    assert all(line[-1] in "/.-:" for line in host.split("\n")[:-1])
 
 
 def test_qr_code_holds_the_address_with_whole_pixels_per_square():
@@ -133,7 +206,10 @@ def test_draw_fills_every_block_of_the_layout():
     assert values["ip"].replace("\n", "") == "http://192.0.2.10:8080"
     assert values["host"].replace("\n", "") == "http://paperpi.local:8080"
     assert values["github"].replace("\n", "") == URL
-    assert values["qr"].size[0] > 0
+    box = PLUGIN.layout("splash", Settings()).prepare(800, 480, ScreenMode.bw()).boxes["qr"]
+    # The QR code holds the IP address, never the host name (some phones can't open it).
+    expected = qr_code("http://192.0.2.10:8080", box.width, box.height)
+    assert values["qr"].tobytes() == expected.tobytes()
 
 
 def test_draw_without_a_network():
@@ -161,7 +237,8 @@ def _complete(values, width, height):
             o["shrink"],
             o["ellipsis"],
         )
-        if not fit.complete:
+        # Whole, and drawn with exactly the line breaks draw() chose (none inside a word).
+        if not fit.complete or fit.lines != values[name].split("\n"):
             return False
     return True
 
@@ -172,8 +249,9 @@ def _complete(values, width, height):
     [
         SAMPLE,
         replace(SAMPLE, ip="255.255.255.255", hostname="paperpi-living-room"),
+        replace(SAMPLE, hostname="paperpi-living-room-kitchen"),
     ],
-    ids=["sample", "long-names"],
+    ids=["sample", "long-names", "longer-name"],
 )
 def test_addresses_always_appear_whole(about, width, height):
     values = draw(about, context(width, height))
