@@ -27,7 +27,7 @@ wheels = [
 [[package]]
 name = "epdlib"
 version = "1.0.0.dev0"
-source = { git = "https://github.com/txoof/epdlib?rev=f3092caf840d8136030b0a7739a01fb2db0d7bdf#f3092caf840d8136030b0a7739a01fb2db0d7bdf" }
+source = { git = "https://github.com/txoof/epdlib?rev=b4dd600b35959c26fd235fe1af6be94e49fcc0db#b4dd600b35959c26fd235fe1af6be94e49fcc0db" }
 dependencies = [
     { name = "pillow" },
 ]
@@ -206,8 +206,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=f3092caf840d8136030b0a7739a01fb2db0d7bdf" },
-    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=f3092caf840d8136030b0a7739a01fb2db0d7bdf" },
+    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=b4dd600b35959c26fd235fe1af6be94e49fcc0db" },
+    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=b4dd600b35959c26fd235fe1af6be94e49fcc0db" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "tomlkit", specifier = ">=0.13" },
 ]

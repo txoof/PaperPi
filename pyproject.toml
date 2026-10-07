@@ -45,4 +45,4 @@ select = ["E", "F", "W", "I", "B", "UP"]
 # epdlib is not on PyPI yet, so it comes from GitHub at one fixed commit (see CLAUDE.md).
 # Move `rev` forward when PaperPi needs a newer epdlib.
 [tool.uv.sources]
-epdlib = { git = "https://github.com/txoof/epdlib", rev = "f3092caf840d8136030b0a7739a01fb2db0d7bdf" }
+epdlib = { git = "https://github.com/txoof/epdlib", rev = "b4dd600b35959c26fd235fe1af6be94e49fcc0db" }
