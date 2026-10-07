@@ -118,6 +118,18 @@ from ... import fonts
 
 To add a shared font, put the font file and its licence in `src/paperpi/fonts/`, and add a name for its path in `src/paperpi/fonts/__init__.py`. A font only one plugin uses can also stay in the plugin's own folder, with its licence.
 
+### Pictures the plugin draws itself
+
+Draw pictures such as bars, dots or icons at the exact size they are shown, never larger: resizing blurs their edges, and blurred edges show as dots on black-and-white screens. epdlib gives that size, inside the block's border and padding:
+
+```python
+layout = PLUGIN.layout(context.layout, context.settings)
+prepared = layout.prepare(context.width, context.height, context.mode)
+width, height = prepared.content_size("bar")
+```
+
+A picture of this size is shown pixel for pixel, whatever the block's `fit`. See `system_info` and `dec_binary_clock`.
+
 ### Moving blocks and colours
 
 `draw` may return a `Drawn` instead of a dictionary, to set two more things:

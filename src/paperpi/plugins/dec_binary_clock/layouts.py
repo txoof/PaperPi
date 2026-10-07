@@ -5,8 +5,8 @@ from ... import fonts
 FONT = fonts.ANTON
 PADDING = 0.01
 
-#: The picture of the dots. It must keep padding 0 and no border: ``draw`` makes the picture
-#: exactly the size of the whole block, so epdlib doesn't scale it.
+#: The picture of the dots. ``draw`` makes the picture exactly the size of the block's
+#: drawing area, so epdlib doesn't scale it.
 DOTS = {"name": "dots", "type": "image", "size": 8, "fit": "contain", "padding": 0}
 
 LAYOUTS = {

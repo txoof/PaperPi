@@ -1,8 +1,8 @@
 """Layouts for xkcd_comic. The first one is the default.
 
-Blocks: ``comic`` (the picture), ``title`` and ``alt`` (the comic's hover text). The comic
-block has no padding: the plugin needs its exact size to leave small comics at their own
-size (see ``enlarge`` in ``__init__.py``). The text samples are a long title and a long
+Blocks: ``comic`` (the picture), ``title`` and ``alt`` (the comic's hover text). The plugin
+reads the comic block's exact size to leave small comics at their own size (see
+``enlarge`` in ``__init__.py``). The text samples are a long title and a long
 hover text, so the font size stays the same for most comics; longer texts get smaller
 (``shrink``). The title is in Lato Bold and the hover text in Lato Italic, as in v1.
 """

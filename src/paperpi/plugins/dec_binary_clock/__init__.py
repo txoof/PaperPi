@@ -17,13 +17,12 @@ def fetch(context: Context):
 def draw(now: datetime, context: Context) -> Drawn:
     from . import dots
 
-    # Draw the dots at the exact size of their block, so epdlib doesn't scale them. The
-    # whole box is the drawing area only because the block has no padding and no border
-    # (see DOTS in layouts.py); a test checks that the screen shows the picture unscaled.
+    # Draw the dots at the exact size of their block, so epdlib doesn't scale them; a test
+    # checks that the screen shows the picture unscaled.
     layout = PLUGIN.layout(context.layout, context.settings)
     prepared = layout.prepare(context.width, context.height, context.mode)
-    box = prepared.boxes["dots"]
-    values = {"dots": dots.picture(now.hour, now.minute, box.width, box.height)}
+    width, height = prepared.content_size("dots")
+    values = {"dots": dots.picture(now.hour, now.minute, width, height)}
     if "time" in prepared.boxes:
         values["time"] = f"{now:%H:%M}"
     # The time text moves at every update; the same minute gives the same place.
