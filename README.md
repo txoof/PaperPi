@@ -124,6 +124,8 @@ vcom = -1.90
 
 Then start `paperpi run` as above, as a user in the `spi` and `gpio` groups (the first user on Raspberry Pi OS already is; otherwise `sudo usermod -aG spi,gpio $USER`, then log in again). A new image from the plugin already on screen is a fast refresh of only the changed area. Another plugin gets a full refresh, and so does every 5th fast refresh in a row (`max_refresh = 4`). If the screen does not answer at start, the error is in the log and PaperPi keeps running and tries again.
 
+At start, PaperPi first shows its name, version and the address of its web interface (with a QR code to open it on a phone) for a minute, while the plugins get their first pictures. `splash_time` in `[display]` sets how long, in seconds (`0`: not at all). With no plugin ready to show, for example right after installing, it stays on screen until one is, so the address to set PaperPi up is always there.
+
 When no plugin has anything to show (e.g. no music is playing), a small clock is shown at the bottom of the screen, so you can tell the screen still works. `fallback_clock = false` in `[display]` switches it off, which is not recommended.
 
 Which plugin is shown and when: [docs/decisions/plugin-scheduling.md](docs/decisions/plugin-scheduling.md). The `debugging` plugin can crash, hang and switch states on purpose, to try this out.

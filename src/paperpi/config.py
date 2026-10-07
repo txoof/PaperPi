@@ -102,6 +102,14 @@ class DisplaySettings(BaseModel):
         description="Show a small clock when no plugin has anything to show (strongly "
         "recommended: without it, an empty screen looks like a broken one)",
     )
+    splash_time: float = Field(
+        60,
+        ge=0,
+        le=3600,
+        description="At start, show PaperPi's version and web address this many seconds "
+        "before the plugins (0: not at all). With no plugin ready to show, it is shown until "
+        "one is",
+    )
     width: int | None = Field(
         None, gt=0, le=10_000, description="Virtual screen only: width in pixels"
     )
