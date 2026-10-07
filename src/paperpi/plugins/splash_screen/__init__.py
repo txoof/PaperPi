@@ -16,7 +16,7 @@ import socket
 from dataclasses import dataclass
 
 import segno
-from epdlib import text
+from epdlib import PreparedLayout, text
 from PIL import Image
 from pydantic import Field
 
@@ -107,23 +107,24 @@ def line_breaks(address: str) -> list[str]:
     return [address] + [split(p) for p in two + three]
 
 
-def fit_address(
-    address: str, font: str, size: int, width: int, height: int, max_lines: int, ellipsis: str
-) -> str:
-    """The first way of writing ``address`` that epdlib draws exactly as given: whole, and
-    with no other line breaks (checked the way epdlib will draw the block, with its
-    ``shrink`` sizes). When none does: the one-line form, which epdlib breaks between
-    letters.
+def fit_address(prepared: PreparedLayout, name: str, address: str) -> str:
+    """The first way of writing ``address`` that epdlib draws in text block ``name``
+    exactly as given: whole, and with no other line breaks (epdlib's ``text_fit`` checks
+    it with the block's own settings). When none does: the one-line form, which epdlib
+    breaks between letters.
     """
+    font = prepared.layout.blocks[name].options["font"]
+    size = prepared.font_sizes[name]
     smallest = text.load_font(font, max(1, round(size * text.SHRINK_STEPS[-1])))
+    width = prepared.content_size(name)[0]
     for option in line_breaks(address):
         lines = option.split("\n")
         # Quick check first: exact measuring is slow, and a line that is too wide even at
         # the smallest size can never be drawn as given.
         if any(smallest.getlength(line) > width for line in lines):
             continue
-        fit = text.fit_text(font, size, option, width, height, max_lines, True, ellipsis)
-        if fit.complete and fit.lines == lines:
+        report = prepared.text_fit(name, option)
+        if report.complete and list(report.lines) == lines:
             return option
     return address
 
@@ -154,13 +155,9 @@ def draw(about: About, context: Context) -> dict:
         values["qr"] = qr_code(address, width, height)
     for name in ADDRESS_BLOCKS:
         value = texts.get(name, "")
-        o = layout.blocks[name].options
         width, height = prepared.content_size(name)
         if value and width > 0 and height > 0:
-            size = prepared.font_sizes[name]
-            value = fit_address(
-                value, o["font"], size, width, height, o["max_lines"], o["ellipsis"]
-            )
+            value = fit_address(prepared, name, value)
         values[name] = value
     return values
 

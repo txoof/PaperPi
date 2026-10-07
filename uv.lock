@@ -58,7 +58,7 @@ wheels = [
 [[package]]
 name = "epdlib"
 version = "1.0.0.dev0"
-source = { git = "https://github.com/txoof/epdlib?rev=4633fcad64cf5b99a6ea7a513fa6bcf497c28a79#4633fcad64cf5b99a6ea7a513fa6bcf497c28a79" }
+source = { git = "https://github.com/txoof/epdlib?rev=8789b4d03f5e27d79d53a2f4460f16c1c432f63d#8789b4d03f5e27d79d53a2f4460f16c1c432f63d" }
 dependencies = [
     { name = "pillow" },
 ]
@@ -328,8 +328,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=4633fcad64cf5b99a6ea7a513fa6bcf497c28a79" },
-    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=4633fcad64cf5b99a6ea7a513fa6bcf497c28a79" },
+    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=8789b4d03f5e27d79d53a2f4460f16c1c432f63d" },
+    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=8789b4d03f5e27d79d53a2f4460f16c1c432f63d" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "pydantic", specifier = ">=2.9" },
