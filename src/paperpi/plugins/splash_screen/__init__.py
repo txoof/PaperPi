@@ -7,8 +7,9 @@ start after installing), it stays on screen until one is.
 It is a plugin like any other so start-up needs no special drawing code; a ``[[plugin]]``
 block can also put it in the rotation, but that is not what it is meant for.
 
-It shows the address of PaperPi's web interface, as an IP address and as a host name, and
-a QR code with the IP address, so a phone can open the web interface at once.
+It shows the address of PaperPi's web interface by IP address, and a QR code with that
+address, so a phone can open the web interface at once. (Not by host name: the web
+interface only accepts IP addresses, see docs/decisions/web-interface.md.)
 """
 
 import socket
@@ -37,8 +38,6 @@ class About:
     url: str
     ip: str | None
     """This Pi's address on the network; ``None`` without a network."""
-    hostname: str | None
-    """This Pi's name on the network (without ``.local``); ``None`` when unknown."""
 
 
 class Settings(PluginSettings):
@@ -66,32 +65,18 @@ def ip_address() -> str | None:
     return None if address.startswith(("0.", "127.")) else address
 
 
-def hostname() -> str | None:
-    """This Pi's name, e.g. ``paperpi``; ``None`` when the system doesn't say."""
-    try:
-        return socket.gethostname() or None
-    except OSError:
-        return None
-
-
 def fetch(context: Context):
-    return ready(About(NAME, __version__, URL, ip_address(), hostname()))
+    return ready(About(NAME, __version__, URL, ip_address()))
 
 
-def web_addresses(about: About, port: int) -> tuple[str, str] | None:
-    """The web interface's address by IP and by host name; ``None`` without a network."""
-    if about.ip is None:
-        return None
-    host = about.hostname or ""
-    if host and "." not in host:
-        host += ".local"  # the name the Pi announces on the home network
-    by_name = f"http://{host}:{port}" if host else ""
-    return f"http://{about.ip}:{port}", by_name
+def web_address(about: About, port: int) -> str | None:
+    """The web interface's address; ``None`` without a network."""
+    return None if about.ip is None else f"http://{about.ip}:{port}"
 
 
 def line_breaks(address: str) -> list[str]:
-    """Ways to write ``address``: on one line, then broken after a "/", then (for a long
-    host name) also after a ".", "-" or ":".
+    """Ways to write ``address``: on one line, then broken after a "/", then also after a
+    ".", "-" or ":".
 
     epdlib only breaks lines at spaces (or, in a word that is too long, between letters),
     so these breaks are put in here. Within each kind the most even split comes first, e.g.
@@ -163,15 +148,11 @@ def draw(about: About, context: Context) -> dict:
     prepared = layout.prepare(context.width, context.height, context.mode)
     short_side = min(context.width, context.height)
     values = {"name": about.name, "version": about.version}
-    addresses = web_addresses(about, context.settings.port)
-    texts = {"github": about.url}
-    if addresses is None:
-        texts["ip"] = NO_NETWORK
-    else:
-        texts["ip"], texts["host"] = addresses
-        box = prepared.boxes["qr"]
-        if box.width > 0 and box.height > 0:
-            values["qr"] = qr_code(addresses[0], box.width, box.height)
+    address = web_address(about, context.settings.port)
+    texts = {"github": about.url, "ip": address or NO_NETWORK}
+    box = prepared.boxes["qr"]
+    if address and box.width > 0 and box.height > 0:
+        values["qr"] = qr_code(address, box.width, box.height)
     edge = round(PADDING * short_side)
     for name in ADDRESS_BLOCKS:
         value = texts.get(name, "")
@@ -197,7 +178,7 @@ PLUGIN = Plugin(
     draw=draw,
     # A fixed version and made-up addresses, so the sample images never change by
     # themselves and never show a real Pi's address.
-    sample=About(NAME, "2.0.0", URL, "192.0.2.10", "paperpi"),
+    sample=About(NAME, "2.0.0", URL, "192.0.2.10"),
     # Nothing changes while PaperPi runs, except perhaps the IP address.
     refresh=3600,
 )

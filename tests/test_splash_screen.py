@@ -23,7 +23,7 @@ from paperpi.plugins.splash_screen import (
     fit_address,
     line_breaks,
     qr_code,
-    web_addresses,
+    web_address,
 )
 from paperpi.plugins.splash_screen.layouts import ADDRESS_BLOCKS, PADDING
 
@@ -38,10 +38,9 @@ def context(width=800, height=480, mode=None):
 
 def test_fetch_shows_this_paperpi(monkeypatch):
     monkeypatch.setattr(splash_screen, "ip_address", lambda: "192.0.2.20")
-    monkeypatch.setattr(splash_screen, "hostname", lambda: "kitchen")
     fetched = fetch(context())
     assert fetched.state is State.READY
-    assert fetched.data == About(NAME, __version__, URL, "192.0.2.20", "kitchen")
+    assert fetched.data == About(NAME, __version__, URL, "192.0.2.20")
 
 
 class FakeSocket:
@@ -79,41 +78,18 @@ def test_ip_address(monkeypatch, fake, expected):
     assert splash_screen.ip_address() == expected
 
 
-@pytest.mark.parametrize(("name", "expected"), [("kitchen", "kitchen"), ("", None)])
-def test_hostname(monkeypatch, name, expected):
-    monkeypatch.setattr(splash_screen.socket, "gethostname", lambda: name)
-    assert splash_screen.hostname() == expected
-
-
-def test_hostname_error(monkeypatch):
-    def broken():
-        raise OSError("no name")
-
-    monkeypatch.setattr(splash_screen.socket, "gethostname", broken)
-    assert splash_screen.hostname() is None
-
-
 def test_sample_is_fixed_and_made_up():
     # A fixed version keeps the sample images the same from one release to the next, and
     # 192.0.2.x is set aside for examples, so no real Pi's address is ever shown.
-    assert SAMPLE == About(NAME, "2.0.0", URL, "192.0.2.10", "paperpi")
+    assert SAMPLE == About(NAME, "2.0.0", URL, "192.0.2.10")
 
 
-@pytest.mark.parametrize(
-    ("hostname", "by_name"),
-    [
-        ("paperpi", "http://paperpi.local:8080"),
-        ("pi.example.org", "http://pi.example.org:8080"),  # a name with a dot stays as it is
-        (None, ""),
-    ],
-)
-def test_web_addresses(hostname, by_name):
-    about = replace(SAMPLE, hostname=hostname)
-    assert web_addresses(about, 8080) == ("http://192.0.2.10:8080", by_name)
+def test_web_address():
+    assert web_address(SAMPLE, 8080) == "http://192.0.2.10:8080"
 
 
 def test_no_web_address_without_a_network():
-    assert web_addresses(replace(SAMPLE, ip=None), 8080) is None
+    assert web_address(replace(SAMPLE, ip=None), 8080) is None
 
 
 def test_the_default_port_is_the_web_interface_default():
@@ -132,7 +108,6 @@ def test_addresses_and_qr_code_use_the_port():
     ctx = replace(context(), settings=Settings(port=9000))
     values = draw(SAMPLE, ctx)
     assert values["ip"].replace("\n", "") == "http://192.0.2.10:9000"
-    assert values["host"].replace("\n", "") == "http://paperpi.local:9000"
     box = PLUGIN.layout("splash", Settings()).prepare(800, 480, ScreenMode.bw()).boxes["qr"]
     expected = qr_code("http://192.0.2.10:9000", box.width, box.height)
     assert values["qr"].tobytes() == expected.tobytes()
@@ -195,14 +170,6 @@ def test_fit_address_falls_back_to_one_line():
     assert fit("http://192.0.2.10:8080", 40, 30, 40) == "http://192.0.2.10:8080"
 
 
-def test_long_host_name_is_broken_after_a_dash_not_inside_a_word():
-    values = draw(replace(SAMPLE, hostname="paperpi-living-room-kitchen-shelf"), context(480, 800))
-    host = values["host"]
-    assert host.replace("\n", "") == "http://paperpi-living-room-kitchen-shelf.local:8080"
-    assert "\n" in host
-    assert all(line[-1] in "/.-:" for line in host.split("\n")[:-1])
-
-
 def test_qr_code_holds_the_address_with_whole_pixels_per_square():
     image = qr_code("http://192.0.2.10:8080", 200, 150)
     side = segno.make("http://192.0.2.10:8080", error="m").symbol_size(border=2)[0]
@@ -222,10 +189,9 @@ def test_draw_fills_every_block_of_the_layout():
     assert values["name"] == "PaperPi"
     assert values["version"] == "2.0.0"
     assert values["ip"].replace("\n", "") == "http://192.0.2.10:8080"
-    assert values["host"].replace("\n", "") == "http://paperpi.local:8080"
     assert values["github"].replace("\n", "") == URL
     box = PLUGIN.layout("splash", Settings()).prepare(800, 480, ScreenMode.bw()).boxes["qr"]
-    # The QR code holds the IP address, never the host name (some phones can't open it).
+    # The QR code holds the same address as the text.
     expected = qr_code("http://192.0.2.10:8080", box.width, box.height)
     assert values["qr"].tobytes() == expected.tobytes()
 
@@ -233,7 +199,6 @@ def test_draw_fills_every_block_of_the_layout():
 def test_draw_without_a_network():
     values = draw(replace(SAMPLE, ip=None), context())
     assert values["ip"] == NO_NETWORK
-    assert values["host"] == ""
     assert "qr" not in values
 
 
@@ -266,10 +231,9 @@ def _complete(values, width, height):
     "about",
     [
         SAMPLE,
-        replace(SAMPLE, ip="255.255.255.255", hostname="paperpi-living-room"),
-        replace(SAMPLE, hostname="paperpi-living-room-kitchen"),
+        replace(SAMPLE, ip="255.255.255.255"),
     ],
-    ids=["sample", "long-names", "longer-name"],
+    ids=["sample", "longest-ip"],
 )
 def test_addresses_always_appear_whole(about, width, height):
     values = draw(about, context(width, height))
