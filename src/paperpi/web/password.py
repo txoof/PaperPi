@@ -13,17 +13,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import os
 import secrets
-import stat
 import tomllib
 from pathlib import Path
 
 import tomlkit
 from tomlkit.exceptions import TOMLKitError
 
-from .. import config
-from ..files import write_atomic
+from . import config_file
 
 #: Shortest and longest password the web interface accepts.
 PASSWORD_LENGTH = (8, 1000)
@@ -99,11 +96,14 @@ def save_password_hash(path: Path, stored: str | None) -> bool:
     permissions. Returns False when there was nothing to change. Raises
     :class:`PasswordError` when the file can't be read, changed or written.
     """
-    # A config file that is a link to another file: change the file it points to.
-    path = Path(os.path.realpath(path))
+    with config_file.LOCK:
+        return _save_password_hash(path, stored)
+
+
+def _save_password_hash(path: Path, stored: str | None) -> bool:
     try:
-        text = config.read_text(path)
-    except config.ConfigError as error:
+        path, text = config_file.read(path)
+    except config_file.EditError as error:
         raise PasswordError(str(error)) from None
     try:
         document = tomlkit.parse(text)
@@ -131,13 +131,9 @@ def save_password_hash(path: Path, stored: str | None) -> bool:
     ):
         raise PasswordError(f"{path} can't be written back with the new password")
     try:
-        # The new file keeps the old one's permissions and, when run with sudo, its owner,
-        # so the PaperPi service can still read it.
-        info = os.stat(path)
-        owner = (info.st_uid, info.st_gid) if os.geteuid() == 0 else None
-        write_atomic(path, new_text.encode("utf-8"), mode=stat.S_IMODE(info.st_mode), owner=owner)
-    except OSError as error:
-        raise PasswordError(f"can't save {path}: {error}") from None
+        config_file.write(path, new_text)
+    except config_file.EditError as error:
+        raise PasswordError(str(error)) from None
     return True
 
 
