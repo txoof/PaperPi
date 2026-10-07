@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from epdlib import ScreenMode
+from PIL import Image
 
 from paperpi.plugin import Context, draw_update
 from paperpi.plugins.system_info import (
@@ -115,12 +116,41 @@ def test_memory_without_available(root):
     ],
 )
 def test_bars(share, upright, dark_at):
-    image = pictures.bar(share, "black", "white", upright=upright).convert("L")
+    width, height = (400, 1600) if upright else (1600, 400)
+    image = pictures.bar(share, width, height, "black", "white", upright=upright).convert("L")
     middle_top = image.getpixel((image.width // 2, image.height // 4))
     if dark_at:
         assert image.getpixel(dark_at) == 0
     if share is None:
         assert middle_top == 255  # an empty outline
+
+
+@pytest.mark.parametrize("layout", ["full", "portrait"])
+def test_pictures_have_their_blocks_exact_size(layout):
+    """Bars and icons are drawn at their block's size, so the layout never resizes them."""
+    ctx = context(layout)
+    prepared = PLUGIN.layout(layout, ctx.settings).prepare(ctx.width, ctx.height, ctx.mode)
+    pictures_drawn = {
+        name: value
+        for name, value in draw(PLUGIN.sample, ctx).values.items()
+        if isinstance(value, Image.Image)
+    }
+    assert pictures_drawn
+    for name, picture in pictures_drawn.items():
+        width, height = prepared.content_size(name)
+        if name.endswith("_icon"):
+            assert picture.size == (min(width, height),) * 2
+        else:
+            assert picture.size == (width, height)
+
+
+@pytest.mark.parametrize("draw_icon", [pictures.disk_icon, pictures.chip_icon])
+@pytest.mark.parametrize("side", [1, 7, 240])
+def test_icons_at_any_size(draw_icon, side):
+    icon = draw_icon(side, "black", "white")
+    assert icon.size == (side, side)
+    if side > 1:
+        assert icon.convert("L").getextrema() == (0, 255)
 
 
 def test_disk_used_and_free_add_up(tmp_path):

@@ -165,8 +165,8 @@ def draw(comic: Comic, context: Context) -> dict:
     layout = PLUGIN.layout(context.layout, settings)
     picture = _open(comic.image)
     if not settings.enlarge:
-        box = layout.prepare(context.width, context.height, context.mode).boxes["comic"]
-        picture = keep_size(picture, box.width, box.height)
+        prepared = layout.prepare(context.width, context.height, context.mode)
+        picture = keep_size(picture, *prepared.content_size("comic"))
     title = f"{comic.number}: {comic.title}" if comic.title else str(comic.number)
     values = {"comic": picture, "title": title, "alt": comic.alt}
     return {name: value for name, value in values.items() if name in layout.blocks}

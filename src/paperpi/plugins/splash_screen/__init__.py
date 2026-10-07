@@ -22,7 +22,7 @@ from pydantic import Field
 
 from ... import __version__
 from ...plugin import Context, Plugin, PluginSettings, ready
-from .layouts import ADDRESS_BLOCKS, LAYOUTS, PADDING
+from .layouts import ADDRESS_BLOCKS, LAYOUTS
 
 NAME = "PaperPi"
 URL = "https://github.com/txoof/PaperPi"
@@ -146,19 +146,16 @@ def qr_code(address: str, width: int, height: int) -> Image.Image:
 def draw(about: About, context: Context) -> dict:
     layout = PLUGIN.layout(context.layout, context.settings)
     prepared = layout.prepare(context.width, context.height, context.mode)
-    short_side = min(context.width, context.height)
     values = {"name": about.name, "version": about.version}
     address = web_address(about, context.settings.port)
     texts = {"github": about.url, "ip": address or NO_NETWORK}
-    box = prepared.boxes["qr"]
-    if address and box.width > 0 and box.height > 0:
-        values["qr"] = qr_code(address, box.width, box.height)
-    edge = round(PADDING * short_side)
+    width, height = prepared.content_size("qr")
+    if address and width > 0 and height > 0:
+        values["qr"] = qr_code(address, width, height)
     for name in ADDRESS_BLOCKS:
         value = texts.get(name, "")
-        box = prepared.boxes[name]
         o = layout.blocks[name].options
-        width, height = box.width - 2 * edge, box.height - 2 * edge
+        width, height = prepared.content_size(name)
         if value and width > 0 and height > 0:
             size = prepared.font_sizes[name]
             value = fit_address(

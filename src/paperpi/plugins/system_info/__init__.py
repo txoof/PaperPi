@@ -92,6 +92,20 @@ def draw(info: Info, context: Context) -> Drawn:
     if info.disk_used is not None and info.disk_total:
         disk_share = info.disk_used / info.disk_total
     load_now = info.load[0] if info.load else None
+    # Pictures are drawn at the exact size of their block, so the layout doesn't resize them.
+    layout = PLUGIN.layout(context.layout, settings)
+    prepared = layout.prepare(context.width, context.height, context.mode)
+
+    def bar(name: str, part: float | None, *, upright: bool):
+        width, height = prepared.content_size(name)
+        if width and height:
+            return pictures.bar(part, width, height, ink, paper, upright=upright)
+        return None
+
+    def icon(name: str, draw_icon):
+        side = min(prepared.content_size(name))
+        return draw_icon(side, ink, paper) if side else None
+
     if context.layout == "small":
         values = {"hostname": hostname, "ip": ip, "temp": degrees(info.temperature)}
     elif context.layout == "portrait":
@@ -108,7 +122,7 @@ def draw(info: Info, context: Context) -> Drawn:
             "temp": (share(info.temperature, HOT), degrees(info.temperature)),
         }
         for name, (part, text) in gauges.items():
-            values[f"{name}_bar"] = pictures.bar(part, ink, paper, upright=True)
+            values[f"{name}_bar"] = bar(f"{name}_bar", part, upright=True)
             values[f"{name}_label"] = name
             values[f"{name}_value"] = text
     else:
@@ -117,10 +131,10 @@ def draw(info: Info, context: Context) -> Drawn:
             "hostname": hostname,
             "ip": ip,
             "wifi": wifi,
-            "disk_icon": pictures.disk_icon(ink, paper),
+            "disk_icon": icon("disk_icon", pictures.disk_icon),
             "disk": disk_text(info.disk_used, info.disk_total),
-            "disk_bar": pictures.bar(disk_share, ink, paper, upright=False),
-            "cpu_icon": pictures.chip_icon(ink, paper),
+            "disk_bar": bar("disk_bar", disk_share, upright=False),
+            "cpu_icon": icon("cpu_icon", pictures.chip_icon),
             "cpu": f"{degrees(info.temperature)} · memory {percent(info.memory)}",
             "load": f"load {load}",
             "about": f"{uptime_text(info.uptime)} · PaperPi {info.version}",
