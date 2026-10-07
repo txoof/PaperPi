@@ -68,7 +68,7 @@ Run `uv run paperpi render --help` for all options. How to write a plugin: [docs
 
 ### A config file
 
-`paperpi example-config` prints an example config file that works as it is: a virtual screen, a clock, and the weather in Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text. Before you use the weather blocks, put your own email address in `email` (met.no asks for it). `-o` doesn't replace a file that is already there, unless you add `--force`.
+`paperpi example-config` prints an example config file that works as it is: a virtual screen, a clock, and the weather in Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text. The weather blocks are not shown until you put your own, real email address in `email`: met.no's terms of service ask for it, so the example leaves it empty. `paperpi list` shows them as "needs email" until then. `-o` doesn't replace a file that is already there, unless you add `--force`.
 
 ```bash
 uv run paperpi example-config -o paperpi.toml

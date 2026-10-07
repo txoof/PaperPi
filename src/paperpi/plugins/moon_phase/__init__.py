@@ -10,11 +10,10 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from PIL import Image
-from pydantic import Field
 
 from ... import webrequest
 from ...files import write_atomic
-from ...plugin import Context, Plugin, PluginSettings, ready
+from ...plugin import Context, Plugin, PluginSettings, ready, setting
 from .layouts import LAYOUTS
 
 log = logging.getLogger(__name__)
@@ -42,17 +41,19 @@ NAMES = (
 
 
 class Settings(PluginSettings):
-    lat: float | None = Field(
-        None, ge=-90, le=90, description="Latitude of the place, e.g. 52.52 (required)"
+    lat: float | None = setting(
+        None, required=True, ge=-90, le=90, description="Latitude of the place, e.g. 52.52"
     )
-    lon: float | None = Field(
-        None, ge=-180, le=180, description="Longitude of the place, e.g. 13.40 (required)"
+    lon: float | None = setting(
+        None, required=True, ge=-180, le=180, description="Longitude of the place, e.g. 13.40"
     )
-    email: str = Field(
+    email: str = setting(
         "",
+        required=True,
         max_length=200,
         pattern=r"^$|^[^@\s]+@[^@\s]+$",
-        description="Your email address, sent only to met.no (required: met.no asks for it)",
+        description="Your own, real email address, sent only to met.no: their terms of "
+        "service ask every program for a way to contact its user",
     )
 
 

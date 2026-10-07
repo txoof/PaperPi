@@ -4,8 +4,9 @@
 # The file only needs the settings that differ from the default. Every other setting is
 # shown as a comment with its default: remove the # in front of it to change it.
 # Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
-# more than once, with a different name. The weather blocks need your own email address
-# in "email": met.no asks every program for a way to contact its user.
+# more than once, with a different name. The weather blocks are not shown until you fill
+# in your own, real email address in "email": met.no asks every program for a way to
+# contact its user. Settings marked "(required)" must be filled in before a plugin is shown.
 
 config_version = 1
 
@@ -97,8 +98,9 @@ lat = 52.52
 lon = 13.4
 # Name shown on the screen, e.g. Berlin (else lat, lon)
 place = "Berlin"
-# Your email address, sent only to met.no (required: met.no asks for it)
-email = "you@example.com"
+# Your own, real email address, sent only to met.no: their terms of service ask every program for a
+# way to contact its user (required)
+# email = ""
 # Degrees Celsius or Fahrenheit. One of: "C", "F"
 # temperature = "C"
 # Rain in millimetres or inches. One of: "mm", "inch"
@@ -120,8 +122,9 @@ lat = -22.91
 lon = -43.17
 # Name shown on the screen, e.g. Berlin (else lat, lon)
 place = "Rio"
-# Your email address, sent only to met.no (required: met.no asks for it)
-email = "you@example.com"
+# Your own, real email address, sent only to met.no: their terms of service ask every program for a
+# way to contact its user (required)
+# email = ""
 # Degrees Celsius or Fahrenheit. One of: "C", "F"
 # temperature = "C"
 # Rain in millimetres or inches. One of: "mm", "inch"

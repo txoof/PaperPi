@@ -25,7 +25,12 @@ def test_example_file_is_up_to_date():
 
 def test_example_file_works_as_it_is():
     loaded = config.parse(EXAMPLE_FILE.read_text())
-    assert loaded.problems == []
+    # The weather blocks wait for the user's own email address (met.no's terms).
+    assert [(p.level, p.message, p.where) for p in loaded.problems] == [
+        ("warning", "not shown until these required settings are filled in: email", where)
+        for where in ("[[plugin]] 'Weather Berlin'", "[[plugin]] 'Weather Rio'")
+    ]
+    assert [p.entry.name for p in loaded.plugins if p.shown] == ["Clock"]
     assert [(p.entry.name, p.plugin.type) for p in loaded.plugins] == [
         ("Clock", "basic_clock"),
         ("Weather Berlin", "met_no"),
@@ -46,7 +51,10 @@ def test_every_default_shown_is_a_valid_setting(plugin_type):
     plugin = plugins.load(plugin_type)
     block = plugin_block(plugin, "Test", shared=True)
     loaded = config.parse(HEAD + uncomment(block))
-    assert [p.level for p in loaded.problems if p.level != "hint"] == []
+    waits = [f"not shown until these required settings are filled in: {', '.join(plugin.required)}"]
+    assert [p.message for p in loaded.problems if p.level != "hint"] == (
+        waits if plugin.required else []
+    )
     found = loaded.plugin("Test")
     assert found.settings == plugin.settings()
     assert found.refresh == plugin.refresh
@@ -60,7 +68,8 @@ def test_every_default_shown_is_a_valid_setting(plugin_type):
 def test_every_default_in_the_example_is_valid():
     # Also the [display] part.
     loaded = config.parse(uncomment(example_config()))
-    assert [p for p in loaded.problems if p.level != "hint"] == []
+    waiting = "not shown until these required settings are filled in: email"
+    assert [p.message for p in loaded.problems if p.level != "hint"] == [waiting, waiting]
     assert loaded.display.size == config.DisplaySettings(type="virtual").size
 
 
@@ -182,3 +191,10 @@ def test_plugin_rows():
         config.PluginRow("Clock", "basic_clock", True, "rotation", 120, 60, "time", 500, 30),
         config.PluginRow("Big", "basic_clock", False, "interrupt", 90, 300, "time_date", 20000, 0),
     ]
+
+
+def test_block_marks_the_required_settings():
+    block = plugin_block(plugins.load("met_no"), "Weather", {"lat": 1, "lon": 2})
+    assert "# Latitude of the place, e.g. 52.52 (required)\nlat = 1\n" in block
+    assert 'way to contact its user (required)\n# email = ""\n' in block
+    assert "Berlin (else lat, lon)\n# place" in block  # not required

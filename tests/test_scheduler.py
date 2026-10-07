@@ -540,6 +540,20 @@ def test_default_says_when_no_plugin_is_switched_on(tmp_path):
     assert sim.shown == ["default 0/0"]
 
 
+def test_plugin_without_its_required_settings_is_not_updated(tmp_path):
+    weather = rotation("w") + '\ntype = "met_no"\nlat = 1\nlon = 2'
+    sim = Sim(tmp_path, rotation("a"), weather)
+    sim.plan(a="A", w="W")
+    sim.run(until=100)
+    assert sim.updates.times("w") == []
+    assert sim.shown == ["A"]
+    # Filling in the email address (a reload) starts it.
+    sim.next_config = make_config(rotation("a"), weather + '\nemail = "me@example.com"')
+    sim.at(100, sim.scheduler.reload)
+    sim.run(until=150)
+    assert sim.updates.times("w")[0] == 101
+
+
 def clock_labels(t):
     """A plan for the fallback clock: a new picture every minute."""
     return f"clock {int(t // 60)}"

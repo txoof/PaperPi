@@ -324,7 +324,7 @@ def _run(args: argparse.Namespace) -> int:
             print(f"web interface on port {web.port}")
     try:
         with screen:
-            count = sum(1 for p in loaded.plugins if p.entry.enabled and p.plugin.type != "default")
+            count = sum(1 for p in loaded.plugins if p.shown and p.plugin.type != "default")
             where = f"images in {out}" if display.type == "virtual" else f"screen {display.type}"
             print(
                 f"showing {count} plugin{'' if count == 1 else 's'}; {where}; "
@@ -389,7 +389,7 @@ def _list(args: argparse.Namespace) -> int:
             (
                 row.name,
                 row.type,
-                "yes" if row.enabled else "no",
+                _on(row),
                 row.level,
                 f"{row.display_time:g} s",
                 f"{row.refresh:g} s",
@@ -409,6 +409,13 @@ def _list(args: argparse.Namespace) -> int:
         count = len(loaded.problems)
         print(f"{count} problem{'' if count == 1 else 's'} in the file, shown above")
     return 0
+
+
+def _on(row: config.PluginRow) -> str:
+    """The "on" column of ``paperpi list``."""
+    if not row.enabled:
+        return "no"
+    return f"needs {', '.join(row.missing)}" if row.missing else "yes"
 
 
 def _example_config(args: argparse.Namespace) -> int:

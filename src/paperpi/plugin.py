@@ -29,6 +29,7 @@ from typing import Any, Literal
 from epdlib import Layout, ScreenMode
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic.fields import FieldInfo
 
 from . import limits
 
@@ -90,10 +91,45 @@ class PluginSettings(BaseModel):
 
     The same description checks the config file, builds the web interface's forms (M5)
     and the docs. A plugin may not use the names of the shared settings
-    (:data:`SHARED_SETTINGS`) for its own.
+    (:data:`SHARED_SETTINGS`) for its own. Use :func:`setting` instead of ``Field`` for a
+    setting PaperPi must know more about, such as one the user has to fill in.
     """
 
     model_config = ConfigDict(extra="ignore", frozen=True)
+
+
+#: The key under which :func:`setting` keeps PaperPi's own options in a pydantic field.
+_OPTIONS = "paperpi"
+
+
+def setting(default: Any = None, *, required: bool = False, **field: Any) -> Any:
+    """A plugin setting: pydantic's ``Field`` (with the same ``description``, ``ge``,
+    ``max_length``, ...) plus what PaperPi needs to know about it. This is the one place a
+    setting asks PaperPi for help; later options (such as a helper that looks up a place's
+    latitude and longitude in the web interface) are added here too::
+
+        lat: float | None = setting(None, required=True, description="Latitude")
+
+    ``required``: the plugin can't work until the user fills it in (a place, an email
+    address, an API key). Its default must be "not set": ``None`` or ``""``. A plugin
+    with a required setting that is not set is not shown; the config check and the web
+    interface say which settings it needs.
+    """
+    options = {"required": True} if required else {}
+    return Field(default, json_schema_extra={_OPTIONS: options} if options else None, **field)
+
+
+def is_required(info: FieldInfo) -> bool:
+    """True for a setting made with ``setting(required=True)``."""
+    extra = info.json_schema_extra
+    return isinstance(extra, dict) and bool(extra.get(_OPTIONS, {}).get("required"))
+
+
+def is_set(value: Any) -> bool:
+    """False for "not set": ``None``, ``""`` or an empty secret."""
+    if hasattr(value, "get_secret_value"):
+        value = value.get_secret_value()
+    return value is not None and value != ""
 
 
 class PluginEntry(BaseModel):
@@ -260,9 +296,12 @@ class Plugin:
             if clash:
                 problems.append(f"settings use the names of shared settings: {', '.join(clash)}")
             try:
-                self.settings()
+                defaults = self.settings()
             except ValueError:
                 problems.append("every setting needs a default")
+            else:
+                if self.missing(defaults) != self.required:
+                    problems.append('a required setting\'s default must be "not set" (None or "")')
         if not self.layouts:
             problems.append("needs at least one layout")
         if not limits.SHORTEST_REFRESH <= self.refresh <= limits.LONGEST_SETTING:
@@ -280,6 +319,15 @@ class Plugin:
     @property
     def default_layout(self) -> str:
         return next(iter(self.layouts))
+
+    @property
+    def required(self) -> tuple[str, ...]:
+        """The settings the user has to fill in (see :func:`setting`)."""
+        return tuple(k for k, info in self.settings.model_fields.items() if is_required(info))
+
+    def missing(self, settings: PluginSettings) -> tuple[str, ...]:
+        """The required settings that are not set in ``settings``."""
+        return tuple(k for k in self.required if not is_set(getattr(settings, k)))
 
     def layout(
         self, name: str, settings: PluginSettings, colors: tuple[str, str] | None = None

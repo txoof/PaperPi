@@ -461,6 +461,8 @@ def test_list_shows_the_plugins_as_used(capsys):
     assert lines[0].split() == header
     assert lines[1].split() == "Clock basic_clock yes rotation 120 s 60 s time 500 MB, 30 d".split()
     assert lines[3].startswith("Weather Rio ")
+    # Not shown until the user fills in their email address.
+    assert lines[2].split()[:5] == ["Weather", "Berlin", "met_no", "needs", "email"]
 
 
 def test_list_says_how_many_problems(tmp_path, capsys):

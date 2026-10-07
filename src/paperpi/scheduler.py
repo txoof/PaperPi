@@ -362,7 +362,7 @@ class Scheduler:
         old = {slot.name: slot for slot in self._slots}
         slots = []
         for found in config.plugins:
-            if not found.entry.enabled or found.plugin.type == "default":
+            if not found.shown or found.plugin.type == "default":
                 continue
             slot = old.get(found.entry.name)
             if slot is None or redraw or not _same_plugin(slot.config, found):

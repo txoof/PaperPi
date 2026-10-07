@@ -50,7 +50,7 @@ Every layout shows the place: the `place` setting, or the coordinates when it is
 |---|---|---|
 | `lat` | none, required | latitude of the place, e.g. `52.52` |
 | `lon` | none, required | longitude of the place, e.g. `13.40` |
-| `email` | none, required | your email address, sent only to met.no. met.no requires contact details from every program, so it can ask before blocking one that misbehaves |
+| `email` | none, required | your own, real email address, sent only to met.no. met.no's terms of service require contact details from every program, so it can ask before blocking one that misbehaves |
 | `place` | `""` | name shown at the top, e.g. `"Berlin"`. Without it, the coordinates are shown ("52.52, 13.40") |
 | `temperature` | `"C"` | `"C"` (Celsius) or `"F"` (Fahrenheit) |
 | `rain` | `"mm"` | `"mm"` or `"inch"` |
@@ -68,11 +68,11 @@ type = "met_no"
 lat = 52.52
 lon = 13.40
 place = "Berlin"
-email = "you@example.com"
+email = "you@example.com"   # put your own, real address here
 layout = "steps_3h"   # optional; without it: hours_12
 ```
 
-Try it without a screen: `uv run paperpi render met_no --set place=Berlin` (sample data), or with real data: `uv run paperpi render met_no --live --set lat=52.52 --set lon=13.40 --set email=you@example.com`.
+Try it without a screen: `uv run paperpi render met_no --set place=Berlin` (sample data), or with real data: `uv run paperpi render met_no --live --set lat=52.52 --set lon=13.40 --set email=<your own address>`. Without lat, lon and email the plugin is not shown, and the config check says which of them is missing.
 
 The screen shows "Data: MET Norway" next to the "Updated" time, as met.no's data licence asks. The weather data is from [MET Norway](https://www.met.no/en) (the Norwegian Meteorological Institute), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) licence. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT licence ([`icons/LICENSE`](icons/LICENSE)).
 

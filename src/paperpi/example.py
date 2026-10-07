@@ -32,7 +32,7 @@ from .config import (
     DisplaySettings,
     WebSettings,
 )
-from .plugin import Plugin, PluginEntry
+from .plugin import Plugin, PluginEntry, is_required
 
 #: The blocks of the example file: name, plugin type and the settings that are set.
 #: Weather twice, to show that one plugin type can be used more than once.
@@ -41,12 +41,12 @@ EXAMPLE_PLUGINS = (
     (
         "Weather Berlin",
         "met_no",
-        {"lat": 52.52, "lon": 13.40, "place": "Berlin", "email": "you@example.com"},
+        {"lat": 52.52, "lon": 13.40, "place": "Berlin"},
     ),
     (
         "Weather Rio",
         "met_no",
-        {"lat": -22.91, "lon": -43.17, "place": "Rio", "email": "you@example.com"},
+        {"lat": -22.91, "lon": -43.17, "place": "Rio"},
     ),
 )
 
@@ -57,8 +57,9 @@ _HEADER = """\
 # The file only needs the settings that differ from the default. Every other setting is
 # shown as a comment with its default: remove the # in front of it to change it.
 # Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
-# more than once, with a different name. The weather blocks need your own email address
-# in "email": met.no asks every program for a way to contact its user.
+# more than once, with a different name. The weather blocks are not shown until you fill
+# in your own, real email address in "email": met.no asks every program for a way to
+# contact its user. Settings marked "(required)" must be filled in before a plugin is shown.
 """
 
 #: Settings whose default is "empty", but that mean a known value; shown with that value.
@@ -181,6 +182,8 @@ def _settings(
 def _setting(key: str, info: FieldInfo, value: Any, *, comment: bool = False) -> list[str]:
     """The help line and the ``key = value`` line of one setting."""
     help_text = info.description or key
+    if is_required(info):
+        help_text += " (required)"
     choices = _choices(info.annotation)
     named = all(re.search(rf"\b{re.escape(str(c))}\b", help_text) for c in choices)
     if choices and not named:

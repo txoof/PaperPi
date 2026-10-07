@@ -16,7 +16,7 @@ from pydantic import Field
 
 from ... import webrequest
 from ...files import write_atomic
-from ...plugin import Context, Plugin, PluginSettings, ready
+from ...plugin import Context, Plugin, PluginSettings, ready, setting
 from . import barbs, forecast
 from .forecast import Forecast, Hour
 from .layouts import HOURS, LAYOUTS
@@ -35,20 +35,22 @@ CREDIT = "Data: MET Norway"
 
 
 class Settings(PluginSettings):
-    lat: float | None = Field(
-        None, ge=-90, le=90, description="Latitude of the place, e.g. 52.52 (required)"
+    lat: float | None = setting(
+        None, required=True, ge=-90, le=90, description="Latitude of the place, e.g. 52.52"
     )
-    lon: float | None = Field(
-        None, ge=-180, le=180, description="Longitude of the place, e.g. 13.40 (required)"
+    lon: float | None = setting(
+        None, required=True, ge=-180, le=180, description="Longitude of the place, e.g. 13.40"
     )
     place: str = Field(
         "", max_length=60, description="Name shown on the screen, e.g. Berlin (else lat, lon)"
     )
-    email: str = Field(
+    email: str = setting(
         "",
+        required=True,
         max_length=200,
         pattern=r"^$|^[^@\s]+@[^@\s]+$",
-        description="Your email address, sent only to met.no (required: met.no asks for it)",
+        description="Your own, real email address, sent only to met.no: their terms of "
+        "service ask every program for a way to contact its user",
     )
     temperature: Literal["C", "F"] = Field("C", description="Degrees Celsius or Fahrenheit")
     rain: Literal["mm", "inch"] = Field("mm", description="Rain in millimetres or inches")
