@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% block title %}Active Plugins · PaperPi{% endblock %}
+{% block main %}
+<h1>Active Plugins</h1>
+{% if done %}
+<p class="saved">
+  {%- if done == "added" %}Added {{ name }}.{% elif done == "removed" %}Removed {{ name }}.
+  {%- else %}Saved.{% endif %} PaperPi applies the change now.
+  {%- if hand_edits %} Your hand edits to the config file were applied too.{% endif %}</p>
+{% endif %}
+{% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
+{% for found in problems %}<p class="problem">{{ found|sentence }}</p>{% endfor %}
+<p>The plugins that are switched on take turns on the screen, in this order.
+<a href="/library">Add a plugin</a> from the Plugin Library.</p>
+{% if not rows %}<p>No plugins yet.</p>{% endif %}
+<ol class="plugins">
+{% for row in rows %}
+  <li>
+    <div><strong>{{ row.name or "(no name)" }}</strong> <span class="type">{{ row.type }}</span></div>
+    <div class="status">{{ row.status }}</div>
+    {% for error in row.errors %}<div class="problem">{{ error }}</div>{% endfor %}
+    {% if row.missing %}
+    <div class="hint">Until the settings page is ready (a later version), fill these in in the
+      config file.</div>
+    {% endif %}
+    <div class="buttons">
+      <form method="post" action="/plugins/{{ row.index }}/enabled">
+        <input type="hidden" name="name" value="{{ row.name }}">
+        {% if row.enabled %}
+        <input type="hidden" name="on" value="0"><button type="submit">Switch off</button>
+        {% else %}
+        <input type="hidden" name="on" value="1">
+        <button type="submit"{% if row.missing %} disabled{% endif %}>Switch on</button>
+        {% endif %}
+      </form>
+      <form method="post" action="/plugins/{{ row.index }}/move">
+        <input type="hidden" name="name" value="{{ row.name }}">
+        <button type="submit" name="step" value="up"{% if loop.first %} disabled{% endif %}>Up</button>
+        <button type="submit" name="step" value="down"{% if loop.last %} disabled{% endif %}>Down</button>
+      </form>
+      <a href="/plugins/{{ row.index }}/remove?name={{ row.name|urlencode }}">Remove</a>
+    </div>
+  </li>
+{% endfor %}
+</ol>
+{% endblock %}

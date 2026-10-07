@@ -283,7 +283,7 @@ def _run(args: argparse.Namespace) -> int:
     def load() -> config.Config:
         loaded = config.load(args.config, state_dir=args.state_dir)
         if web is not None and not loaded.from_last_good:
-            web.use(loaded.web)
+            web.use(loaded)
         return loaded
 
     try:
@@ -325,7 +325,7 @@ def _run(args: argparse.Namespace) -> int:
         # Imported here: the web packages take a moment to load, and no other command needs them.
         from .web import server
 
-        web = server.start(args.config, loaded.web)
+        web = server.start(args.config, loaded.web, reload=scheduler.reload, text=loaded.text)
         if web is not None:
             print(f"web interface on port {web.port}")
     try:

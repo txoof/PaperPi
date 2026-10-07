@@ -1,6 +1,7 @@
 import logging
 import socket
 import urllib.request
+from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -202,7 +203,8 @@ def test_server_runs_in_a_thread(cfg, caplog):
             assert page.url.endswith("/setup")
         # A reload with a new port: it applies at the next start.
         with caplog.at_level(logging.WARNING):
-            web.use(config.WebSettings(port=9000, login=False))
+            loaded = config.parse(cfg.read_text())
+            web.use(replace(loaded, web=config.WebSettings(port=9000, login=False)))
         assert "[web] address, port: changes apply at the next start" in caplog.text
         assert not web.auth.login  # log-in changes apply at once
     finally:

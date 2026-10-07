@@ -537,7 +537,7 @@ def test_run_starts_the_web_interface_unless_asked_not_to(
     from paperpi.web import server
 
     calls = []
-    monkeypatch.setattr(server, "start", lambda *a: calls.append(a))
+    monkeypatch.setattr(server, "start", lambda *a, **kw: calls.append(a))
     monkeypatch.setattr(cli.Scheduler, "run", lambda self: None)
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(f'config_version = 1\n[display]\ntype = "virtual"\n{web}')

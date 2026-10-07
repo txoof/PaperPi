@@ -305,6 +305,8 @@ class Config:
     from_last_good: bool = False
     """True when the file was wrong and the last good copy is used instead."""
     web: WebSettings = field(default_factory=WebSettings)
+    text: str = ""
+    """The file text it was read from (with ``from_last_good``: the last good copy's)."""
 
     @property
     def errors(self) -> list[Problem]:
@@ -431,7 +433,9 @@ def parse(text: str, source: str = "config") -> Config:
         # E.g. lists nested thousands deep, or a number with thousands of digits.
         problem = f"not valid TOML: {type(error).__name__}: {str(error)[:200]}"
         raise ConfigError([Problem("error", problem, source)]) from None
-    return _Checker(text, source).check(data)
+    config = _Checker(text, source).check(data)
+    config.text = text
+    return config
 
 
 def _log_problems(problems: list[Problem]) -> None:

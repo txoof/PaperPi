@@ -15,3 +15,10 @@ button { padding: 0.4rem 0.9rem; font-size: 1rem; }
 .note { padding: 0.5rem; border-left: 4px solid #a60; background: #fff6e5; }
 details { margin-top: 2rem; }
 code { background: #eee; padding: 0 0.2rem; }
+.saved { padding: 0.5rem; border-left: 4px solid #060; background: #eef8ee; }
+.plugins { padding-left: 1.5rem; }
+.plugins li { margin: 0.75rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid #ddd; }
+.plugins .type, .plugins .hint { color: #555; font-size: 0.9rem; }
+.buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
+.buttons form { margin: 0; display: flex; gap: 0.5rem; }
+.library li { margin: 0.5rem 0; }

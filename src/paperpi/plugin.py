@@ -113,7 +113,7 @@ def setting(default: Any, *, required: bool = False, **field: Any) -> Any:
     ``required``: the plugin can't work until the user fills it in (a place, an email
     address, an API key). Its default must be "not set" (see :func:`is_set`). A plugin
     with a required setting that is not set is not shown; the config check and
-    ``paperpi list`` (and from M5 part 2b the web interface) say which settings it needs.
+    ``paperpi list`` and the web interface's Active Plugins page say which settings it needs.
     """
     extra = field.pop("json_schema_extra", None) or {}
     if not isinstance(extra, dict):

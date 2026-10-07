@@ -19,6 +19,16 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
 - Pages are built on the Pi. htmx updates parts of a page, such as the screen preview and the list of warnings.
 - A page that needs dragging or resizing gets a small JavaScript library made for that, loaded as a plain file with no build step. The first case will be the dashboard editor (see "Later").
 
+### Plugin list pages
+
+*Added in M5 part 2b (issue #238), agreed with txoof on 2026-10-07.*
+- **Active Plugins** lists every `[[plugin]]` block in the config file, in file order (the order the plugins take turns), also blocks with errors. Each has: Switch on / Switch off, **Up** and **Down** buttons (no dragging, so no extra JavaScript library; works the same on a phone), and Remove, which asks first.
+- **Plugin Library** lists every plugin type that comes with PaperPi, with its one-line description, except `default` (PaperPi's own "nothing to show" message) and `debugging` (for testing PaperPi). Choosing one asks for a name (a free one is suggested, e.g. "Basic clock 2") and adds the block at the end of Active Plugins. Sample pictures follow in part 3b.
+- A plugin with required settings (see `plugin-interface.md`) is added **switched off**, and the add page lists those settings with their help text (for `met_no`: a real email address, as met.no's terms ask). Active Plugins shows "Needs settings: ..." and can't switch it on until they are filled in.
+- Each change is saved at once (the config file then holds the change and nothing else changed: comments stay, and the comments just above a `[[plugin]]` line move with its block) and PaperPi reloads the file, so it applies at once.
+- **Hand edits not applied yet:** a change from the web interface is made to the file as it is on disk, so hand edits stay and apply together with it. The page then says "Your hand edits to the config file were applied too." (The other choice, refusing to save until the hand edits are applied, needs an extra step every time.)
+- A change names its block by place and name. If the block was moved or renamed by hand since the page was shown, nothing is changed and the page says the file changed meanwhile. A file the web interface can't change safely (for example a `[[plugin]]` line written in an unusual way) is never saved wrongly: every change is read back and compared before saving.
+
 ### Plugin settings forms
 
 - One page handles every plugin. It reads the plugin's settings description (see `plugin-interface.md`) and builds the form from it: number field, dropdown, password field for API keys, and so on.
