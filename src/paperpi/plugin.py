@@ -212,7 +212,8 @@ class PluginEntry(BaseModel):
     def _no_control_characters(cls, name: str) -> str:
         # They can't be written back to the file reliably, and would change the terminal's
         # output in ``paperpi list``.
-        if re.search(r"[\x00-\x1f\x7f]", name):
+        # Also the characters Python counts as line breaks (U+0085, U+2028, U+2029).
+        if re.search(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]", name):
             raise ValueError("must not hold control characters (such as tab or new line)")
         return name
 

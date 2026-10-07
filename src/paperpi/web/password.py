@@ -96,6 +96,11 @@ def save_password_hash(path: Path, stored: str | None) -> bool:
     permissions. Returns False when there was nothing to change. Raises
     :class:`PasswordError` when the file can't be read, changed or written.
     """
+    with config_file.LOCK:
+        return _save_password_hash(path, stored)
+
+
+def _save_password_hash(path: Path, stored: str | None) -> bool:
     try:
         path, text = config_file.read(path)
     except config_file.EditError as error:

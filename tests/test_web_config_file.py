@@ -111,7 +111,7 @@ def test_files_it_doesnt_understand_are_not_changed():
     assert names(config_file.remove(text, 0, "Clock")) == ["Words"]
     # ... and a header written in another way is not found, so nothing is changed.
     quoted = CONFIG.replace('[[plugin]]\nname = "Words"', '[["plugin"]]\nname = "Words"')
-    with pytest.raises(EditError, match="change it by hand"):
+    with pytest.raises(EditError, match="config file itself"):
         config_file.move(quoted, 0, "Clock", 1)
     with pytest.raises(EditError, match="not valid TOML"):
         config_file.move("[[plugin]\n", 0, "Clock", 1)
@@ -127,3 +127,84 @@ def test_saving_keeps_the_permissions(tmp_path):
     assert path.stat().st_mode & 0o777 == 0o640
     with pytest.raises(EditError, match="file not found"):
         config_file.read(tmp_path / "nothing.toml")
+
+
+def test_comments_right_after_a_setting_stay_with_the_block_above():
+    text = (
+        '[[plugin]]\nname = "A"\ntype = "x"\n# refresh = 60\n[[plugin]]\nname = "B"\ntype = "y"\n'
+    )
+    assert (
+        config_file.remove(text, 1, "B") == '[[plugin]]\nname = "A"\ntype = "x"\n# refresh = 60\n'
+    )
+
+
+def test_windows_line_endings_are_kept():
+    text = CONFIG.replace("\n", "\r\n")
+    block = example.plugin_block(plugins.load("dec_binary_clock"), "Dots", {})
+    for changed in [
+        config_file.move(text, 1, "Words", -1),
+        config_file.set_enabled(text, 0, "Clock", False),
+        config_file.set_enabled(text, 1, "Words", True),
+        config_file.remove(text, 0, "Clock"),
+        config_file.add(text, block),
+    ]:
+        assert "\n" not in changed.replace("\r\n", "")
+
+
+def test_a_file_without_a_last_line_break():
+    text = CONFIG.removesuffix("\n")
+    assert tomllib.loads(config_file.move(text, 1, "Words", -1))["web"] == {"port": 8081}
+    last = '[[plugin]]\nname = "A"\ntype = "x"'
+    off = config_file.set_enabled(last, 0, "A", False)
+    assert tomllib.loads(off)["plugin"][0]["enabled"] is False
+
+
+def test_other_parts_between_blocks_stay_where_they_are():
+    text = CONFIG.replace("[web]\nport = 8081\n", "").replace(
+        "# words\n", "[web]\nport = 8081\n\n# words\n"
+    )
+    moved = config_file.move(text, 1, "Words", -1)
+    assert names(moved) == ["Words", "Clock"]
+    # The blocks swap places; [web] stays between them.
+    assert moved.index('name = "Words"') < moved.index("[web]") < moved.index('name = "Clock"')
+    assert tomllib.loads(moved)["web"] == {"port": 8081}
+
+
+def test_enabled_in_a_part_or_a_string_is_not_the_switch():
+    text = (
+        '[[plugin]]\nname = "A"\nnote = """\nenabled = true\n"""\ntype = "x"\n'
+        "[plugin.extra]\nenabled = true\n"
+    )
+    off = config_file.set_enabled(text, 0, "A", False)
+    data = tomllib.loads(off)["plugin"][0]
+    assert data["enabled"] is False and data["extra"] == {"enabled": True}
+    assert data["note"] == "enabled = true\n"
+    assert config_file.set_enabled(off, 0, "A", True) == text
+    # Only a "type" inside a string: the new line goes right below [[plugin]].
+    hidden = '[[plugin]]\nnote = """\ntype = "y"\n"""\nname = "B"\n'
+    assert tomllib.loads(config_file.set_enabled(hidden, 0, "B", False))["plugin"][0] == {
+        "note": 'type = "y"\n',
+        "name": "B",
+        "enabled": False,
+    }
+
+
+def test_unicode_line_breaks_inside_a_value_are_not_line_breaks():
+    text = CONFIG.replace('name = "Words"', 'name = "Words"\nplace = "a b\x85c"')
+    assert names(config_file.remove(text, 0, "Clock")) == ["Words"]
+    off = config_file.set_enabled(text, 1, "Words", False)
+    assert tomllib.loads(off)["plugin"][1]["place"] == "a b\x85c"
+
+
+def test_a_file_too_large_for_paperpi_is_not_saved(tmp_path, monkeypatch):
+    from paperpi import limits
+
+    path = tmp_path / "paperpi.toml"
+    path.write_text(CONFIG)
+    monkeypatch.setattr(limits, "CONFIG_FILE_BYTES", len(CONFIG))
+    with pytest.raises(EditError, match="larger than"):
+        config_file.write(path, CONFIG + "#\n")
+    assert path.read_text() == CONFIG
+    config_file.write(path, CONFIG)
+    assert config_file.saved_here(path, CONFIG)
+    assert not config_file.saved_here(path, CONFIG + "#\n")

@@ -1,13 +1,19 @@
 """Changing the config file from the web interface, keeping everything else in it as it is.
 
 - :func:`read` and :func:`write` read the file and save a changed copy that keeps the old
-  file's permissions (and owner, when run as root).
+  file's permissions (and owner, when run as root). Hold :data:`LOCK` from reading to
+  saving, so two changes at the same moment (a plugin and the password) can't undo each
+  other. :func:`saved_here` tells whether a text is the one the web interface saved last.
 - The plugin changes (:func:`move`, :func:`remove`, :func:`set_enabled`, :func:`add`) work on
   the file's text, one ``[[plugin]]`` block at a time. The comment lines just above a
-  ``[[plugin]]`` line belong to that block and move with it.
+  ``[[plugin]]`` line (with a blank line above them) belong to that block: they move with it
+  and are removed with it. A comment on the same line as ``enabled =`` is lost when the
+  plugin is switched on or off.
 - Every change is checked before it is saved: PaperPi must read the new text back as exactly
   the old settings plus the change. A file written in a way these functions don't
-  understand is never saved wrongly; :class:`EditError` says so instead.
+  understand (for example a ``[[plugin]]`` line written differently, or a value line
+  that looks like a ``[part]`` line) is never saved wrongly: :class:`UnknownForm` says to
+  change it by hand instead.
 - Each change names its block by place and name, so a block that was moved or removed by
   hand a moment ago is not changed by mistake (:class:`ChangedMeanwhile`).
 """
@@ -17,13 +23,18 @@ from __future__ import annotations
 import os
 import re
 import stat
+import threading
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .. import config
+from .. import config, limits
 from ..files import write_atomic
+
+#: Held from reading the config file to saving the changed copy.
+LOCK = threading.Lock()
+_saved: dict[Path, str] = {}
 
 
 class EditError(ValueError):
@@ -32,6 +43,21 @@ class EditError(ValueError):
 
 class ChangedMeanwhile(EditError):
     """The block to change is not where the page showed it: the file changed meanwhile."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "The config file changed after this page was opened. Check the list and try again."
+        )
+
+
+class UnknownForm(EditError):
+    """The file is written in a way these functions can't change safely."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "The plugin list in the config file is written in a way the web interface can't "
+            "change safely. Make this change in the config file itself."
+        )
 
 
 def read(path: Path) -> tuple[Path, str]:
@@ -46,14 +72,26 @@ def read(path: Path) -> tuple[Path, str]:
 
 def write(path: Path, text: str) -> None:
     """Save ``text`` as the config file at ``path`` (a real path, from :func:`read`)."""
+    data = text.encode("utf-8")
+    if len(data) > limits.CONFIG_FILE_BYTES:
+        raise EditError(
+            f"The config file would be larger than {limits.CONFIG_FILE_BYTES} bytes, which "
+            "PaperPi can't read. Remove a plugin first."
+        )
     try:
         # The new file keeps the old one's permissions and, when run with sudo, its owner,
         # so the PaperPi service can still read it.
         info = os.stat(path)
         owner = (info.st_uid, info.st_gid) if os.geteuid() == 0 else None
-        write_atomic(path, text.encode("utf-8"), mode=stat.S_IMODE(info.st_mode), owner=owner)
+        write_atomic(path, data, mode=stat.S_IMODE(info.st_mode), owner=owner)
     except OSError as error:
         raise EditError(f"can't save {path}: {error}") from None
+    _saved[path] = text
+
+
+def saved_here(path: Path, text: str) -> bool:
+    """True when ``text`` is what the web interface saved last as the config file ``path``."""
+    return _saved.get(Path(os.path.realpath(path))) == text
 
 
 def load(text: str) -> dict[str, Any]:
@@ -79,15 +117,28 @@ class Block:
 
 
 _HEADER = re.compile(r"\s*(\[\[?)\s*([A-Za-z0-9_.-]+)\s*\]\]?\s*(#.*)?")
-_ENABLED = re.compile(r"\s*enabled\s*=")
 
 
-def blocks(text: str) -> list[Block]:
-    """The ``[[plugin]]`` blocks in ``text``, in file order."""
-    lines = text.splitlines()
+@dataclass(frozen=True)
+class _Scan:
+    lines: list[str]
+    """The lines, each with its line break (TOML only breaks lines at ``\\n``)."""
+    in_string: frozenset[int]
+    """Lines that start inside a multi-line string."""
+    blocks: list[Block]
+
+
+def _scan(text: str) -> _Scan:
+    lines = re.split(r"(?<=\n)", text)
+    if lines and lines[-1] == "":
+        lines.pop()
+    plain = [line.rstrip("\r\n") for line in lines]
     starts: list[tuple[int, str]] = []  # (line, "plugin" / "part of plugin" / "other")
+    in_string = set()
     quote = None  # inside a multi-line string: the quotes it started with
-    for number, line in enumerate(lines):
+    for number, line in enumerate(plain):
+        if quote is not None:
+            in_string.add(number)
         inside = quote is not None
         for found in re.finditer(r'"""|\'\'\'', line):
             if quote is None:
@@ -110,16 +161,25 @@ def blocks(text: str) -> list[Block]:
         later = starts[index + 1 :]
         own_end = later[0][0] if later else len(lines)
         after = next((n for n, k in later if k != "part of plugin"), len(lines))
-        end = _comments_above(lines, after, header + 1) if after < len(lines) else after
+        end = _comments_above(plain, after, header + 1) if after < len(lines) else after
         lowest = max((n + 1 for n, _ in starts[:index]), default=0)
-        found.append(Block(_comments_above(lines, header, lowest), header, own_end, end))
-    return found
+        found.append(Block(_comments_above(plain, header, lowest), header, own_end, end))
+    return _Scan(lines, frozenset(in_string), found)
+
+
+def blocks(text: str) -> list[Block]:
+    """The ``[[plugin]]`` blocks in ``text``, in file order."""
+    return _scan(text).blocks
 
 
 def _comments_above(lines: list[str], line: int, lowest: int) -> int:
-    """The first of the comment lines just above ``line`` (or ``line`` itself)."""
-    while line > lowest and lines[line - 1].lstrip().startswith("#"):
-        line -= 1
+    """The first of the comment lines just above ``line``, when a blank line (or the start
+    of the file) is above them; else ``line`` itself: then they belong to what is above."""
+    start = line
+    while start > lowest and lines[start - 1].lstrip().startswith("#"):
+        start -= 1
+    if start == line or start == 0 or not lines[start - 1].strip():
+        return start
     return line
 
 
@@ -137,16 +197,16 @@ def name_of(block: Any) -> str:
 
 def move(text: str, index: int, name: str, step: int) -> str:
     """``text`` with plugin block ``index`` moved one place up (``step=-1``) or down (``1``)."""
-    data, found = _check(text, index, name)
+    data, scan = _check(text, index, name)
     other = index + step
-    if step not in (-1, 1) or not 0 <= other < len(found):
-        raise EditError("this plugin can't move further")
+    if step not in (-1, 1) or not 0 <= other < len(scan.blocks):
+        raise EditError("This plugin can't move further.")
     first, second = sorted((index, other))
-    a, b = found[first], found[second]
-    lines = _lines(text)
+    a, b = scan.blocks[first], scan.blocks[second]
+    lines = _ended(scan.lines)
     new = [
         *lines[: a.start],
-        *_spaced(lines[b.start : b.end]),
+        *_spaced(lines[b.start : b.end], _newline(lines)),
         *lines[a.end : b.start],
         *lines[a.start : a.end],
         *lines[b.end :],
@@ -157,11 +217,10 @@ def move(text: str, index: int, name: str, step: int) -> str:
 
 
 def remove(text: str, index: int, name: str) -> str:
-    """``text`` without plugin block ``index``."""
-    data, found = _check(text, index, name)
-    block = found[index]
-    lines = _lines(text)
-    new = "".join([*lines[: block.start], *lines[block.end :]])
+    """``text`` without plugin block ``index`` (and the comments just above it)."""
+    data, scan = _check(text, index, name)
+    block = scan.blocks[index]
+    new = "".join([*scan.lines[: block.start], *scan.lines[block.end :]])
     expected = plugin_blocks(data)
     del expected[index]
     data = {k: v for k, v in data.items() if k != "plugin"}
@@ -174,20 +233,21 @@ def set_enabled(text: str, index: int, name: str, enabled: bool) -> str:
     Off writes ``enabled = false``; on removes that line, because the file only holds
     settings that differ from the default.
     """
-    data, found = _check(text, index, name)
-    block = found[index]
-    lines = _lines(text)
-    own = range(block.header + 1, block.own_end)
-    at = [n for n in own if _ENABLED.match(lines[n]) and not _in_string(text, n)]
+    data, scan = _check(text, index, name)
+    block = scan.blocks[index]
+    lines = _ended(scan.lines)
+    own = [n for n in range(block.header + 1, block.own_end) if n not in scan.in_string]
+    at = [n for n in own if re.match(r"\s*enabled\s*=", lines[n])]
+    line = "enabled = false" + _newline(lines)
     if enabled:
-        new = [line for n, line in enumerate(lines) if n not in at]
+        new = [kept for n, kept in enumerate(lines) if n not in at]
     else:
         new = list(lines)
         if at:
-            new[at[0]] = "enabled = false\n"
+            new[at[0]] = line
         else:
             after = _setting_line(lines, own, "type") or _setting_line(lines, own, "name")
-            new.insert((after or block.header) + 1, "enabled = false\n")
+            new.insert((after or block.header) + 1, line)
     expected = plugin_blocks(data)
     changed = {k: v for k, v in expected[index].items() if k != "enabled"}
     expected[index] = changed if enabled else changed | {"enabled": False}
@@ -198,39 +258,29 @@ def add(text: str, block_text: str) -> str:
     """``text`` with ``block_text`` (one ``[[plugin]]`` block, as written by
     :func:`paperpi.example.plugin_block`) added after the last plugin block."""
     data = load(text)
-    found = blocks(text)
-    if len(found) != len(plugin_blocks(data)):
-        raise EditError(_UNKNOWN_FORM)
+    scan = _scan(text)
+    if len(scan.blocks) != len(plugin_blocks(data)):
+        raise UnknownForm()
     new_block = plugin_blocks(load(block_text))
-    lines = _lines(text)
-    at = found[-1].end if found else len(lines)
-    before = "".join(lines[:at])
-    after = "".join(lines[at:])
-    gap = "" if not before or before.endswith("\n\n") else "\n"
-    new = before + gap + block_text + ("\n" + after if after else "")
+    lines = _ended(scan.lines)
+    newline = _newline(lines)
+    at = scan.blocks[-1].end if scan.blocks else len(lines)
+    before, after = "".join(lines[:at]), "".join(lines[at:])
+    gap = "" if not before or before.endswith(newline * 2) else newline
+    block_text = block_text.replace("\n", newline)
+    new = before + gap + block_text + (newline + after if after else "")
     return _checked(new, data | {"plugin": [*plugin_blocks(data), *new_block]})
 
 
-_UNKNOWN_FORM = (
-    "the plugin blocks in the config file are written in a way the web interface can't "
-    "change safely; change it by hand"
-)
-
-
-def _check(text: str, index: int, name: str) -> tuple[dict[str, Any], list[Block]]:
+def _check(text: str, index: int, name: str) -> tuple[dict[str, Any], _Scan]:
     data = load(text)
-    found = blocks(text)
+    scan = _scan(text)
     raw = plugin_blocks(data)
-    if len(found) != len(raw):
-        raise EditError(_UNKNOWN_FORM)
-    if not 0 <= index < len(raw):
-        raise ChangedMeanwhile(_MEANWHILE)
-    if name_of(raw[index]) != name:
-        raise ChangedMeanwhile(_MEANWHILE)
-    return data, found
-
-
-_MEANWHILE = "the config file was changed meanwhile; look at the list again and retry"
+    if len(scan.blocks) != len(raw):
+        raise UnknownForm()
+    if not 0 <= index < len(raw) or name_of(raw[index]) != name:
+        raise ChangedMeanwhile()
+    return data, scan
 
 
 def _checked(new: str, expected: dict[str, Any]) -> str:
@@ -240,32 +290,27 @@ def _checked(new: str, expected: dict[str, Any]) -> str:
     except tomllib.TOMLDecodeError:
         read_back = None
     if read_back != expected:
-        raise EditError(_UNKNOWN_FORM)
+        raise UnknownForm()
     return new
 
 
-def _lines(text: str) -> list[str]:
-    """The lines of ``text``, each ending with a line break."""
-    return [line if line.endswith("\n") else line + "\n" for line in text.splitlines(True)]
+def _ended(lines: list[str]) -> list[str]:
+    """``lines``, the last one with a line break too."""
+    if lines and not lines[-1].endswith("\n"):
+        return [*lines[:-1], lines[-1] + _newline(lines)]
+    return lines
 
 
-def _spaced(chunk: list[str]) -> list[str]:
+def _newline(lines: list[str]) -> str:
+    """The file's line break: ``\\r\\n`` (Windows) or ``\\n``."""
+    return "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
+
+
+def _spaced(chunk: list[str], newline: str) -> list[str]:
     """``chunk`` ending with a blank line, so it stays apart from the block after it."""
-    return chunk if chunk and not chunk[-1].strip() else [*chunk, "\n"]
+    return chunk if chunk and not chunk[-1].strip() else [*chunk, newline]
 
 
-def _setting_line(lines: list[str], within: range, key: str) -> int | None:
+def _setting_line(lines: list[str], within: list[int], key: str) -> int | None:
     pattern = re.compile(rf"\s*{key}\s*=")
     return next((n for n in within if pattern.match(lines[n])), None)
-
-
-def _in_string(text: str, line: int) -> bool:
-    """True when line ``line`` starts inside a multi-line string."""
-    before = "\n".join(text.splitlines()[:line])
-    quote = None
-    for found in re.finditer(r'"""|\'\'\'', before):
-        if quote is None:
-            quote = found.group()
-        elif found.group() == quote:
-            quote = None
-    return quote is not None

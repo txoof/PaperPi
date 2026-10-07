@@ -800,7 +800,9 @@ def _key_lines(text: str) -> dict[tuple, int]:
     counts: dict[str, int] = {}
     section: tuple = ()
     quote = None  # inside a multi-line string: the quotes it started with (""" or ''')
-    for number, line in enumerate(text.splitlines(), start=1):
+    # Split at \n only, like TOML: splitlines() also splits at U+2028 and others, which TOML
+    # allows inside strings and comments.
+    for number, line in enumerate(text.split("\n"), start=1):
         starts_inside = quote is not None
         for found in re.finditer(r'"""|\'\'\'', line):
             if quote is None:

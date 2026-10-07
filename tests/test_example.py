@@ -117,6 +117,10 @@ def test_block_refuses_what_paperpi_could_not_read_back():
     # tomlkit writes the control character ESC in a form Python's TOML reader doesn't know.
     with pytest.raises(ValueError, match="control characters"):
         plugin_block(plugins.load("basic_clock"), "B\x1bad")
+    # Characters Python counts as line breaks, which the web interface's line counting skips.
+    for name in ["a\u2028b", "a\u2029b", "a\x85b"]:
+        with pytest.raises(ValueError, match="control characters"):
+            plugin_block(plugins.load("basic_clock"), name)
     with pytest.raises(ValueError, match="reads it back"):
         plugin_block(plugins.load("met_no"), "Weather", {"place": "B\x1bad"})
 
