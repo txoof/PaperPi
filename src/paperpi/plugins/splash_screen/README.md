@@ -8,15 +8,15 @@ What it shows:
 
 - the name, in large letters;
 - the version of the PaperPi that is running, for example `2.0.0`;
-- the web interface's address in two forms, each on its own line (or two, see below): by IP address (`http://192.0.2.10:8080`) and by host name (`http://paperpi.local:8080`). Some phones can't open `.local` names; the IP address always works, but can change when the router gives the Pi a new one;
-- a QR code with the IP address, to open the web interface on a phone;
+- the web interface's address by IP address, e.g. `http://192.0.2.10:8080`. Not by name (`paperpi.local`): the web interface only accepts IP addresses (see the main README). The address can change when the router gives the Pi a new one;
+- a QR code with the same address, to open the web interface on a phone;
 - PaperPi's GitHub address.
 
 Without a network it says "No network" instead, with no QR code.
 
-An address is never cut off: when it doesn't fit on one line, it is broken after a "/" (or, in a long host name, after a "." or "-"), drawn smaller if needed, and as a last step broken between letters (v1 split the GitHub address over two lines for the same reason). Only a very long host name without any "." or "-" (over about 40 letters) can still be too long for a small screen.
+An address is never cut off: when it doesn't fit on one line, it is broken after a "/" (or after a "." or ":"), drawn smaller if needed, and as a last step broken between letters (v1 split the GitHub address over two lines for the same reason).
 
-The web interface comes in milestone M5; until then the port is fixed at 8080, the port it will use. In Docker (M6), PaperPi may see the container's address instead of the Pi's; M6 deals with that.
+The port is the web interface's port, `[web] port` (default 8080); like the web interface itself, a change applies at the next start of PaperPi. In Docker (M6), PaperPi may see the container's address instead of the Pi's; M6 deals with that.
 
 ## Layouts
 
@@ -26,7 +26,7 @@ The web interface comes in milestone M5; until then the port is fixed at 8080, t
 
 ## Settings
 
-None of its own, only the settings every plugin has (see the main [README](../../../../README.md)). It suggests a refresh every hour, which matters while no plugin is switched on and in the rotation: it then picks up a new IP address.
+One of its own, `port` (default 8080): the port in the addresses, only for a splash you add to the rotation yourself; the splash at start always uses `[web] port`. Plus the settings every plugin has (see the main [README](../../../../README.md)). It suggests a refresh every hour, which matters while no plugin is switched on and in the rotation: it then picks up a new IP address.
 
 To put it in the rotation (not needed for the splash at start):
 
@@ -42,7 +42,7 @@ The name is in [Anton](https://fonts.google.com/specimen/Anton) by The Anton Pro
 
 ## Sample images
 
-The sample images show version 2.0.0, the made-up address 192.0.2.10 and the host name `paperpi`. All sample images are in [`tests/images/`](../../../../tests/images/), named `splash_screen-splash-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours).
+The sample images show version 2.0.0, and the made-up address 192.0.2.10. All sample images are in [`tests/images/`](../../../../tests/images/), named `splash_screen-splash-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours).
 
 | 9.7" | 7.5" black and white | 5.65" 7 colours |
 |---|---|---|
