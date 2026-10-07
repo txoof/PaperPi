@@ -2,7 +2,7 @@
 
 Shows PaperPi's name, its version, the address of its web interface and a QR code with that address, plus the address of PaperPi's web page (https://github.com/txoof/PaperPi). Ported from v1.
 
-PaperPi shows it **once at start**, for 60 seconds, before the other plugins (`[display] splash = true`, the default, as in v1). Meanwhile the other plugins get their first pictures. `splash = false` goes straight to the plugins. It is a plugin like any other, so start-up needs no drawing code of its own. You can also put it in the rotation with a `[[plugin]]` block, but that is not what it is meant for.
+PaperPi shows it **once at start**, before the other plugins, for `[display] splash_time` seconds (default 60; `0`: not at all). Meanwhile the other plugins get their first pictures. **With no plugin switched on**, for example the first start after installing with the default config, it stays on screen (with a new picture every hour) until a plugin is switched on, so the web address to set PaperPi up is always there. It is a plugin like any other, so start-up needs no drawing code of its own. You can also put it in the rotation with a `[[plugin]]` block, but that is not what it is meant for.
 
 What it shows:
 

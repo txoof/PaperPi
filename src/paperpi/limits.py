@@ -39,9 +39,6 @@ ALERT_REMINDER = 60 * 60.0
 #: Default longest time an alert is held; then it is dismissed in case the plugin is stuck.
 ALERT_MAX_TIME = 24 * 60 * 60.0
 
-#: At start, the splash screen (``[display] splash``) is shown at least this long.
-SPLASH_TIME = 60.0
-
 #: Plugins that refresh "on the minute" start this many seconds after the minute changes.
 ON_THE_MINUTE_DELAY = 1.0
 

@@ -207,8 +207,8 @@ class FakeHealth:
 def make_config(*blocks, display=""):
     text = f'config_version = 1\n[display]\ntype = "virtual"\nwidth = {SIZE[0]}\n'
     text += f"height = {SIZE[1]}\n{display}\n"
-    if "splash" not in display:
-        text = text.replace("[display]\n", "[display]\nsplash = false\n")  # tests below
+    if "splash_time" not in display:
+        text = text.replace("[display]\n", "[display]\nsplash_time = 0\n")  # tests below
     for block in blocks:
         plugin_type = "" if "type =" in block else 'type = "debugging"\n'
         text += f"[[plugin]]\n{plugin_type}{block}\n"
@@ -536,8 +536,9 @@ def test_screen_keeps_its_picture_when_default_fails(tmp_path, caplog):
     assert "the default plugin failed" in caplog.text
 
 
-def test_default_says_when_no_plugin_is_switched_on(tmp_path):
+def test_default_says_when_no_plugin_is_switched_on_and_the_splash_fails(tmp_path):
     sim = Sim(tmp_path, rotation("a") + "\nenabled = false")
+    sim.plan(**{"built-in-splash": "fail"})
     sim.run(until=100)
     assert sim.shown == ["default 0/0"]
 
@@ -673,22 +674,28 @@ SPLASH = "built-in-splash"
 
 
 def test_splash_is_shown_first_for_a_minute_while_the_plugins_update(tmp_path):
-    sim = Sim(tmp_path, rotation("a"), rotation("b"), display="splash = true")
+    sim = Sim(tmp_path, rotation("a"), rotation("b"), display="splash_time = 60")
     sim.run(until=200)
     assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A"), (161, "B")]
     assert sim.updates.times("a")[:2] == [1, 32]  # not kept waiting by the splash
     assert sim.updates.times(SPLASH) == [1]  # shown once, not updated again
 
 
-def test_no_splash_when_it_is_switched_off(tmp_path):
-    sim = Sim(tmp_path, rotation("a"), display="splash = false")
+def test_splash_time_sets_how_long(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), display="splash_time = 20")
+    sim.run(until=50)
+    assert sim.writes == [(1, "BUILT-IN-SPLASH"), (21, "A")]
+
+
+def test_no_splash_with_splash_time_0(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), display="splash_time = 0")
     sim.run(until=50)
     assert sim.writes == [(1, "A")]
     assert sim.updates.times(SPLASH) == []
 
 
 def test_failing_splash_starts_the_plugins_at_once(tmp_path, caplog):
-    sim = Sim(tmp_path, rotation("a"), display="splash = true")
+    sim = Sim(tmp_path, rotation("a"), display="splash_time = 60")
     sim.plan(**{SPLASH: "fail"})
     sim.run(until=50)
     assert sim.writes == [(1, "A")]
@@ -696,18 +703,41 @@ def test_failing_splash_starts_the_plugins_at_once(tmp_path, caplog):
 
 
 def test_alert_waits_until_the_splash_has_been_shown(tmp_path):
-    sim = Sim(tmp_path, rotation("a"), alert("x"), display="splash = true")
+    sim = Sim(tmp_path, rotation("a"), alert("x"), display="splash_time = 60")
     sim.plan(x=between(10, 500, "X"))
     sim.run(until=100)
     assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "X")]
 
 
 def test_reload_does_not_show_the_splash_again(tmp_path):
-    sim = Sim(tmp_path, rotation("a", display_time=1000), display="splash = true")
-    sim.next_config = make_config(rotation("a", display_time=1000), display="splash = true")
+    sim = Sim(tmp_path, rotation("a", display_time=1000), display="splash_time = 60")
+    sim.next_config = make_config(rotation("a", display_time=1000), display="splash_time = 60")
     sim.at(100, sim.scheduler.reload)
     sim.run(until=200)
     assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A")]
+
+
+def test_first_start_shows_the_splash_until_a_plugin_is_switched_on(tmp_path):
+    # Right after installing, the config has no plugins: the splash, with the web address
+    # to set PaperPi up, stays on screen (also with splash_time = 0)...
+    sim = Sim(tmp_path)
+    sim.plan(**{SPLASH: lambda t: f"splash {int(t // 3600)}"})
+    sim.run(until=7300)
+    assert sim.shown == ["splash 0", "splash 1", "splash 2"]  # new picture every hour
+    # ... until a plugin is switched on.
+    sim.next_config = make_config(rotation("a"))
+    sim.at(7400, sim.scheduler.reload)
+    sim.run(until=7500)
+    assert sim.shown[-1] == "A"
+    assert sim.writes[-1][0] == 7401
+
+
+def test_splash_comes_back_when_every_plugin_is_switched_off(tmp_path):
+    sim = Sim(tmp_path, rotation("a"))
+    sim.next_config = make_config(rotation("a") + "\nenabled = false")
+    sim.at(50, sim.scheduler.reload)
+    sim.run(until=100)
+    assert sim.shown == ["A", "BUILT-IN-SPLASH"]
 
 
 # On the minute
