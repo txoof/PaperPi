@@ -4,11 +4,11 @@ A random cartoon from [The New Yorker](https://www.newyorker.com)'s Daily Cartoo
 
 At each update the plugin downloads the Daily Cartoon feed (an RSS file: a small list of the newest cartoons, about 10, each with a title, date, cartoonist, picture and page), `https://www.newyorker.com/feed/cartoons/daily-cartoon`. It picks a random cartoon from the newest `day_range` ones, so with `day_range = 1` it always shows the newest. The feed has a cartoon for most weekdays, so `day_range = 5` is about the last week.
 
-The feed doesn't have the captions, so for each new cartoon the plugin also downloads the cartoon's page on newyorker.com (about 800 kB) and reads the caption and "Cartoon by ..." from it. Some cartoons have their words inside the picture and no caption on the page: then only "Cartoon by ..." is shown, and the caption line stays empty. When the page has changed and neither can be found, the cartoon's title and cartoonist from the feed are shown instead ("Monday, October 5th · Chris Gural"). When the page can't be downloaded, the title is shown and the page is tried again at the next update.
+The feed doesn't have the captions, so for each new cartoon the plugin also downloads the cartoon's page on newyorker.com (about 800 kB) and reads the caption and "Cartoon by ..." from it. Some cartoons have their words inside the picture and no caption on the page: then only "Cartoon by ..." is shown, and the caption line stays empty. When the page has changed (neither can be found, or the "caption" is longer than 400 characters, so it can't be one), the cartoon's title and cartoonist from the feed are shown instead ("Monday, October 5th · Chris Gural"). When the page can't be downloaded, the title and cartoonist are shown and the page is tried again at the next update.
 
 The picture (a JPEG file of about 400 kB) and the texts are saved in the plugin's storage folder, so each cartoon is downloaded only once. The saved files of cartoons that are no longer among the newest `day_range` are removed, so the folder holds at most `day_range` cartoons. When the disk is nearly full, new cartoons are shown without being saved.
 
-When no new cartoon can be had (the feed or the picture can't be downloaded or read), a random saved cartoon is shown. If none is saved, the update fails, and PaperPi tries again at the next update.
+When no new cartoon can be had (the feed or the picture can't be downloaded or read), a random saved cartoon is shown. If none is saved, the update fails, and PaperPi tries again at the next update. To leave time for this within the update's time limit (60 s unless you change it), the downloads have shorter time limits than usual: 20 s for the feed, 15 s for the picture and 10 s for the page. Pictures and pages larger than 2 MB, and pictures larger than 4000 x 4000 pixels, are refused.
 
 Everything is downloaded only from newyorker.com and its servers (such as `media.newyorker.com`), over https, also after a redirect. Only JPEG and PNG pictures are used.
 
@@ -44,7 +44,7 @@ Try it without a screen: `uv run paperpi render newyorker` (sample cartoon), or 
 
 ## The cartoons
 
-The cartoons and captions belong to The New Yorker and their cartoonists (© Condé Nast). PaperPi only downloads them to show on your own screen and does not share them. The sample cartoon, [`sample/island.png`](sample/island.png), its caption and its cartoonist ("Rosa Paperwhite") are made up: the drawing was made for PaperPi and is under PaperPi's licence.
+The cartoons and captions belong to The New Yorker and their cartoonists (© Condé Nast). PaperPi only downloads them to show on your own screen and does not share them. The sample cartoon, [`sample/island.png`](sample/island.png), its caption and its cartoonist ("Rosa Paperwhite") are made up: the drawing was made for this plugin with a short Pillow script (Pillow is the picture library PaperPi uses) and is under PaperPi's licence.
 
 ## Sample images
 

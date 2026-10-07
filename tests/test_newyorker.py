@@ -155,6 +155,7 @@ def test_parse_feed_without_a_guid_uses_the_picture_address():
     [
         ("Wed, 07 Oct 2026 14:09:24 +0000", "Wednesday, October 7"),
         ("Thu, 01 Oct 2026 23:30:00 -0400", "Thursday, October 1"),
+        ("Thu, 08 Oct 2026 02:30:00 +0000", "Wednesday, October 7"),  # still the 7th in New York
         ("", ""),
         ("someday", ""),
         (None, ""),
@@ -176,8 +177,30 @@ def test_read_caption_finds_caption_and_credit():
 
 def test_read_caption_without_one():
     assert read_caption(page(caption=None).decode()) == ("", "Cartoon by Page Artist")
-    assert read_caption("<html><p>changed page</p>") == ("", "")
-    assert read_caption(page(caption="word " * 100).decode())[0] == ""  # too long: not a caption
+    assert read_caption("<html><p>changed page</p>") is None
+
+
+def test_read_caption_longest():
+    assert read_caption(page(caption="x" * 400).decode())[0] == "x" * 400
+    assert read_caption(page(caption="x" * 401).decode()) is None  # not a caption: page changed
+
+
+def test_read_caption_first_of_two_is_the_caption():
+    html = page(caption="First").decode() + page(caption="Second", credit=None).decode()
+    assert read_caption(html) == ("First", "Cartoon by Page Artist")
+
+
+@pytest.mark.parametrize(
+    ("inside", "caption"),
+    [
+        ("line one<br>line two", "line one line two"),
+        ("<p>open paragraph <li>open item", "open paragraph open item"),
+        ("<img src='a.jpg'>after <br/>a picture", "after a picture"),
+    ],
+)
+def test_read_caption_void_and_unclosed_tags(inside, caption):
+    html = f'<div data-testid="caption-wrapper">{inside}</div><div>outside</div>'
+    assert read_caption(html) == (caption, "")
 
 
 def test_read_caption_nested_tags_and_entities():
@@ -204,7 +227,7 @@ def test_saved_cartoon_is_used_again(tmp_path, monkeypatch, pick):
     first = fetch(context(tmp_path)).data
     again = fetch(context(tmp_path)).data
     assert fake.urls == [FEED, url(1), link(1), FEED]
-    assert again.texts == first.texts and again.image.suffix == ".picture"
+    assert again == first and again.image == jpeg()  # bytes: the file may go before draw
 
 
 def test_cartoon_without_a_caption_shows_only_the_credit(tmp_path, monkeypatch, pick):
@@ -323,9 +346,23 @@ def test_saved_cartoon_is_shown_when_downloads_fail(tmp_path, monkeypatch, pick,
     else:
         fake.pages[FEED] = feed(item(2))  # a new cartoon whose picture answers 404
     shown = fetch(context(tmp_path)).data
-    assert shown.texts == first.texts and shown.image.suffix == ".picture"
+    assert shown == first
     assert "showing a saved one" in caplog.text
     assert len(list(tmp_path.glob("*.picture"))) == 1  # nothing removed
+
+
+def test_a_random_saved_cartoon_is_shown(tmp_path, monkeypatch):
+    pages = {link(1): page(caption="One"), link(2): page(caption="Two")}
+    fake = site(monkeypatch, 1, 2, **pages)
+    for n in (0, 1):  # saves cartoon 1, then cartoon 2
+        monkeypatch.setattr(newyorker.random, "choice", lambda entries, n=n: entries[n])
+        fetch(context(tmp_path))
+    del fake.pages[FEED]
+    shown = set()
+    for reverse in (False, True):
+        monkeypatch.setattr(newyorker.random, "shuffle", lambda s, r=reverse: s.sort(reverse=r))
+        shown.add(fetch(context(tmp_path)).data.texts.caption)
+    assert shown == {"One", "Two"}
 
 
 def test_broken_saved_files_are_not_shown(tmp_path, monkeypatch):
@@ -335,6 +372,60 @@ def test_broken_saved_files_are_not_shown(tmp_path, monkeypatch):
     FakeSite(monkeypatch, {})
     with pytest.raises(webrequest.WebError):
         fetch(context(tmp_path))
+
+
+def test_settings_refresh_and_default_layout():
+    assert PLUGIN.refresh == 3600 and Settings().day_range == 5
+    assert next(iter(PLUGIN.layouts)) == "comic_caption_date"
+    for wrong in (0, 21):
+        with pytest.raises(ValueError):
+            Settings(day_range=wrong)
+    assert Settings(day_range=20).day_range == 20
+
+
+def picture(format, size=(30, 20)) -> bytes:
+    buffer = io.BytesIO()
+    Image.new("L", size, 0).save(buffer, format)
+    return buffer.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("body", "usable"),
+    [
+        (picture("PNG"), True),
+        (picture("JPEG"), True),
+        (picture("GIF"), False),  # a format the feed doesn't use
+        (picture("PNG", (4000, 10)), True),
+        (picture("PNG", (4001, 10)), False),  # too large: refused before decoding
+    ],
+)
+def test_usable_pictures(body, usable):
+    assert newyorker._usable(body) is usable
+
+
+def test_downloads_have_size_and_time_limits(tmp_path, monkeypatch, pick):
+    fake = site(monkeypatch, 1)
+    options = []
+    monkeypatch.setattr(newyorker.webrequest, "get", lambda u, **o: options.append(o) or fake(u))
+    fetch(context(tmp_path))
+    feed_options, picture_options, page_options = options
+    assert feed_options["total"] + picture_options["total"] + page_options["total"] <= 50
+    assert picture_options["max_bytes"] == page_options["max_bytes"] == 2_000_000
+
+
+def test_item_without_an_allowed_link_shows_title_and_cartoonist(tmp_path, monkeypatch, pick):
+    FakeSite(monkeypatch, {FEED: feed(item(1, page="https://example.com/1")), url(1): jpeg()})
+    assert fetch(context(tmp_path)).data.texts.caption == "Monday, October 1th · Artist 1"
+
+
+def test_hostile_id_keeps_files_in_storage(tmp_path, monkeypatch, pick):
+    body = feed(item(1).replace('<guid isPermaLink="false">id1</guid>', "<guid>../../x</guid>"))
+    storage = tmp_path / "storage"
+    storage.mkdir()
+    FakeSite(monkeypatch, {FEED: body, url(1): jpeg(), link(1): page()})
+    fetch(context(storage))
+    assert {path.parent for path in tmp_path.rglob("*.*")} == {storage}
+    assert len(list(storage.iterdir())) == 2
 
 
 # --- Drawing ---------------------------------------------------------------------------------

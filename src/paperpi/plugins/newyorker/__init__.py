@@ -13,6 +13,7 @@ from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 from PIL import Image, UnidentifiedImageError
 from pydantic import Field
@@ -35,6 +36,14 @@ FORMATS = ("JPEG", "PNG")
 PICTURE, TEXTS = ".picture", ".json"
 #: Longer "captions" are not a caption: the page has changed.
 MAX_CAPTION = 400
+#: Larger pictures are refused: a 4000x4000 picture needs about 50 MB of memory.
+MAX_SIDE = 4000
+#: Size limits for the downloads (the real page is about 800 kB, a picture about 400 kB),
+#: and time limits, so feed + picture + page fit in the 60 s update with time to spare
+#: for showing a saved cartoon.
+PAGE_BYTES = PICTURE_BYTES = 2_000_000
+FEED_SECONDS, PICTURE_SECONDS, PAGE_SECONDS = 20, 15, 10
+NEW_YORK = "America/New_York"
 SAMPLE = Path(__file__).parent / "sample" / "island.png"
 
 
@@ -43,8 +52,8 @@ class Settings(PluginSettings):
         5,
         ge=1,
         le=20,
-        description="Pick a random cartoon from this many of the newest ones (1: always the "
-        "newest)",
+        description="Pick a random cartoon from this many of the newest ones, 1 to 20 (1: "
+        "always the newest)",
     )
 
 
@@ -71,7 +80,8 @@ class Texts:
 
 @dataclass(frozen=True)
 class Cartoon:
-    """What ``draw`` gets. ``image`` is the picture file's content, or a path to it."""
+    """What ``draw`` gets. ``image`` is the picture file's content (a path only for the
+    sample: a saved file may be removed by the storage clean-up before ``draw``)."""
 
     texts: Texts
     image: bytes | Path
@@ -87,7 +97,7 @@ def fetch(context: Context):
     no longer among the newest ``day_range`` are removed. When no new cartoon can be had,
     a saved one is shown; without one, the error is raised."""
     try:
-        entries = parse_feed(get(FEED).body)
+        entries = parse_feed(get(FEED, total=FEED_SECONDS).body)
         if not entries:
             raise FeedError("The New Yorker's cartoon feed has no cartoons with a picture")
         newest = entries[: context.settings.day_range]
@@ -109,11 +119,11 @@ def allowed(url: str) -> bool:
     return parts.scheme == "https" and (host == "newyorker.com" or host.endswith(".newyorker.com"))
 
 
-def get(url: str) -> webrequest.Answer:
+def get(url: str, **options) -> webrequest.Answer:
     """``webrequest.get``, only from newyorker.com, also after redirects."""
     if not allowed(url):
         raise FeedError("refusing an address that is not on newyorker.com over https")
-    answer = webrequest.get(url)
+    answer = webrequest.get(url, **options)
     if not allowed(answer.url):
         raise FeedError("newyorker.com sent the plugin to another server")
     return answer
@@ -149,9 +159,10 @@ def parse_feed(body: bytes) -> list[Entry]:
 
 
 def day(published: str | None) -> str:
-    """ "Monday, October 5" from the feed's date, in its own time zone (New York's day)."""
+    """ "Monday, October 5": the day in New York (as in the cartoon's title) at the feed's
+    date, which is in UTC."""
     try:
-        when = parsedate_to_datetime(published or "")
+        when = parsedate_to_datetime(published or "").astimezone(ZoneInfo(NEW_YORK))
     except (TypeError, ValueError):
         return ""
     return f"{when:%A, %B} {when.day}"
@@ -159,45 +170,50 @@ def day(published: str | None) -> str:
 
 class _CaptionReader(HTMLParser):
     """Collects the text of every element with ``data-testid="caption-wrapper"``: on a
-    cartoon's page, the caption (when it has one) and "Cartoon by ..."."""
+    cartoon's page, the caption (when it has one) and "Cartoon by ...". Keeps the open tags
+    inside a wrapper, so a tag left open (``<p>`` without ``</p>``) is closed by its parent's
+    end tag; void tags (``<br>``) have no end tag and count as a space."""
 
     VOID = {"area", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "wbr"}
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.depth = 0
+        self.open: list[str] = []  # the wrapper's tag and the tags open inside it
         self.parts: list[str] = []
         self.texts: list[str] = []
 
     def handle_starttag(self, tag, attrs):
         if tag in self.VOID:
-            return
-        if self.depth:
-            self.depth += 1
+            self.handle_data(" ")
+        elif self.open:
+            self.open.append(tag)
         elif ("data-testid", "caption-wrapper") in attrs:
-            self.depth, self.parts = 1, []
+            self.open, self.parts = [tag], []
 
     def handle_endtag(self, tag):
-        if self.depth and tag not in self.VOID:
-            self.depth -= 1
-            if not self.depth:
+        if tag in self.open:
+            del self.open[len(self.open) - 1 - self.open[::-1].index(tag) :]
+            if not self.open:
                 self.texts.append(" ".join("".join(self.parts).split()))
 
     def handle_data(self, data):
-        if self.depth:
+        if self.open:
             self.parts.append(data)
 
 
-def read_caption(page: str) -> tuple[str, str]:
-    """The caption and the credit ("Cartoon by ...") on a cartoon's page; "" for each
-    that isn't found."""
+def read_caption(page: str) -> tuple[str, str] | None:
+    """The caption ("" when there is none) and the credit ("Cartoon by ...", or "") on a
+    cartoon's page. ``None`` when the page has changed: neither is found, or the caption is
+    longer than :data:`MAX_CAPTION`."""
     reader = _CaptionReader()
     reader.feed(page)
     reader.close()
     credits = [text for text in reader.texts if text.startswith("Cartoon by ")]
     captions = [text for text in reader.texts if text and text not in credits]
-    caption = captions[0] if captions and len(captions[0]) <= MAX_CAPTION else ""
-    return caption, credits[0] if credits else ""
+    caption, credit = captions[0] if captions else "", credits[0] if credits else ""
+    if not (caption or credit) or len(caption) > MAX_CAPTION:
+        return None
+    return caption, credit
 
 
 def fallback(entry: Entry) -> Texts:
@@ -212,13 +228,15 @@ def texts_for(entry: Entry) -> tuple[Texts, bool]:
     if not entry.link:
         return fallback(entry), True
     try:
-        page = get(entry.link).body.decode("utf-8", "replace")
+        answer = get(entry.link, max_bytes=PAGE_BYTES, total=PAGE_SECONDS)
+        page = answer.body.decode("utf-8", "replace")
     except (webrequest.WebError, FeedError) as error:
         log.info("can't get the cartoon's caption, showing its title: %s", error)
         return fallback(entry), False
-    caption, credit = read_caption(page)
-    if not caption and not credit:
+    found = read_caption(page)
+    if found is None:
         return fallback(entry), True  # the page has changed
+    caption, credit = found
     # A cartoon with its words in the picture has only a credit: the caption stays empty.
     if not credit and entry.creator:
         credit = f"Cartoon by {entry.creator}"
@@ -228,11 +246,11 @@ def texts_for(entry: Entry) -> tuple[Texts, bool]:
 def cartoon_for(entry: Entry, context: Context) -> Cartoon:
     """The cartoon, from storage or downloaded (and then saved, unless the disk is nearly
     full). Raises :class:`FeedError` when the picture is not usable."""
-    stem = context.storage / hashlib.sha256(entry.id.encode()).hexdigest()[:24]
+    stem = context.storage / _stem(entry)
     picture_path, texts_path = stem.with_suffix(PICTURE), stem.with_suffix(TEXTS)
-    image: bytes | Path | None = picture_path if _usable(picture_path) else None
-    if image is None:
-        image = get(entry.url).body
+    image = _read(picture_path)
+    if not _usable(image):
+        image = get(entry.url, max_bytes=PICTURE_BYTES, total=PICTURE_SECONDS).body
         if not _usable(image):
             raise FeedError("the cartoon's picture is not a JPEG or PNG file, or is damaged")
         _save(picture_path, image, context)
@@ -253,10 +271,25 @@ def _save(path: Path, data: bytes, context: Context) -> None:
         log.warning("can't save the cartoon, showing it anyway: %s", error)
 
 
-def _usable(image: bytes | Path) -> bool:
+def _stem(entry: Entry) -> str:
+    """The name of the cartoon's saved files, made from its id so the feed can't choose a
+    path."""
+    return hashlib.sha256(entry.id.encode()).hexdigest()[:24]
+
+
+def _read(path: Path) -> bytes:
     try:
-        source = io.BytesIO(image) if isinstance(image, bytes) else image
-        with Image.open(source, formats=FORMATS) as picture:
+        return path.read_bytes()
+    except OSError:
+        return b""
+
+
+def _usable(image: bytes) -> bool:
+    """True for a JPEG or PNG picture of at most MAX_SIDE x MAX_SIDE pixels that decodes."""
+    try:
+        with Image.open(io.BytesIO(image), formats=FORMATS) as picture:
+            if max(picture.size) > MAX_SIDE:  # read from the header, before decoding
+                return False
             picture.load()  # decodes it all, so a damaged file is found here, not in draw
         return True
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError, Image.DecompressionBombError):
@@ -277,14 +310,15 @@ def saved_cartoon(storage: Path) -> Cartoon | None:
     random.shuffle(stems)
     for stem in stems:
         texts = _load_texts(stem.with_suffix(TEXTS))
-        if texts and _usable(stem.with_suffix(PICTURE)):
-            return Cartoon(texts, stem.with_suffix(PICTURE))
+        image = _read(stem.with_suffix(PICTURE)) if texts else b""
+        if texts and _usable(image):
+            return Cartoon(texts, image)
     return None
 
 
 def forget_old(storage: Path, keep: list[Entry]) -> None:
     """Removes the saved files of cartoons that are not in ``keep``."""
-    wanted = {hashlib.sha256(entry.id.encode()).hexdigest()[:24] for entry in keep}
+    wanted = {_stem(entry) for entry in keep}
     for path in [*storage.glob(f"*{PICTURE}"), *storage.glob(f"*{TEXTS}")]:
         if path.stem not in wanted:
             try:
@@ -297,8 +331,10 @@ def forget_old(storage: Path, keep: list[Entry]) -> None:
 
 
 def draw(cartoon: Cartoon, context: Context) -> dict:
+    """The values for the blocks of the chosen layout."""
     image = cartoon.image
-    with Image.open(io.BytesIO(image) if isinstance(image, bytes) else image) as picture:
+    source = io.BytesIO(image) if isinstance(image, bytes) else image
+    with Image.open(source, formats=FORMATS) as picture:
         picture.load()
     texts = cartoon.texts
     values = {

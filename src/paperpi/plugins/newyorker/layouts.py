@@ -11,7 +11,7 @@ credit in Lato Italic.
 from ... import fonts
 
 PAD = 0.006  # about v1's 5 pixels on a 1200x825 screen
-CAPTION = (
+CAPTION_SAMPLE = (
     "“Finally, a place where the news arrives only once a week, and the weather is "
     "always the same as yesterday.”"
 )
@@ -31,7 +31,7 @@ def _text(name: str, font: str, sample: str, align: str, size: float = 1, **more
 
 
 COMIC = {"name": "comic", "type": "image", "size": 15, "fit": "contain", "padding": PAD}
-CAPTION_BLOCK = _text("caption", fonts.LIBRE_CASLON_TEXT, CAPTION, "center", 4, max_lines=3)
+CAPTION_BLOCK = _text("caption", fonts.LIBRE_CASLON_TEXT, CAPTION_SAMPLE, "center", 4, max_lines=3)
 CREDIT = _text("credit", fonts.LATO_ITALIC, "Cartoon by Firstname Longername", "right")
 DATE = _text("date", fonts.ANTON, "Wednesday, September 30", "left")
 
