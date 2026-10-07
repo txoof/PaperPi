@@ -7,7 +7,7 @@ Each name here is the full path of a font file in this folder, for example::
     {"name": "title", "type": "text", "font": fonts.LATO_BOLD}
 
 Without a ``font``, epdlib uses its own DejaVu Sans. Licences: ``Anton-OFL.txt``,
-``Dosis-OFL.txt``, ``Lato-OFL.txt``.
+``Dosis-OFL.txt``, ``Lato-OFL.txt``, ``LibreCaslonText-OFL.txt``.
 """
 
 from pathlib import Path
@@ -25,3 +25,8 @@ DOSIS_SEMIBOLD = str(FOLDER / "Dosis-SemiBold.ttf")
 #: Google Fonts (github.com/google/fonts, folder ofl/lato).
 LATO_BOLD = str(FOLDER / "Lato-Bold.ttf")
 LATO_ITALIC = str(FOLDER / "Lato-Italic.ttf")
+
+#: Libre Caslon Text Regular (version 1.100) by The Libre Caslon Text Project Authors, under
+#: the SIL Open Font License 1.1, from Google Fonts (github.com/google/fonts, folder
+#: ofl/librecaslontext, commit 9bbee71).
+LIBRE_CASLON_TEXT = str(FOLDER / "LibreCaslonText-Regular.ttf")
