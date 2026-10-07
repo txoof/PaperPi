@@ -28,10 +28,12 @@ from ..files import write_atomic
 #: Shortest and longest password the web interface accepts.
 PASSWORD_LENGTH = (8, 1000)
 
-# scrypt cost: 2**14 rounds, about 16 MB of memory and 0.1-0.3 s on a Pi 3 per check.
+# scrypt's cost numbers: with these, one check takes about 16 MB of memory and 0.1 s on a Pi.
 _N, _R, _P = 2**14, 8, 1
-# Larger numbers in a hand-edited hash would let one log-in use all memory.
-_MOST_N = 2**17
+# Limits for the numbers in a hash, so a hand-edited hash can't make one log-in use all
+# memory (scrypt needs 128 * N * r bytes) or take minutes.
+_MOST_MEMORY = 64 * 1024 * 1024
+_MOST_WORK = 2**20  # N * r * p; the default is 2**17
 
 
 class PasswordError(ValueError):
@@ -51,13 +53,27 @@ def check_password(password: str, stored: str) -> bool:
     try:
         kind, n, r, p, salt, digest = stored.split(":")
         n, r, p = int(n), int(r), int(p)
-        if kind != "scrypt" or not (2 <= n <= _MOST_N and 1 <= r <= 32 and 1 <= p <= 4):
+        if kind != "scrypt" or not _cost_ok(n, r, p):
             return False
         salt_bytes, digest_bytes = _unb64(salt), _unb64(digest)
+        if not salt_bytes or not 16 <= len(digest_bytes) <= 64:
+            return False
         found = _scrypt(password, salt_bytes, n, r, p, len(digest_bytes))
-    except ValueError:
+    except (ValueError, UnicodeEncodeError):
         return False
     return hmac.compare_digest(found, digest_bytes)
+
+
+def looks_like_hash(stored: str) -> bool:
+    """True when ``stored`` has the form :func:`hash_password` writes, with usable costs."""
+    parts = stored.split(":")
+    if len(parts) != 6 or parts[0] != "scrypt" or not all(x.isdigit() for x in parts[1:4]):
+        return False
+    try:
+        salt, digest = _unb64(parts[4]), _unb64(parts[5])
+    except ValueError:
+        return False
+    return _cost_ok(*(int(x) for x in parts[1:4])) and bool(salt) and 16 <= len(digest) <= 64
 
 
 def password_problem(password: str, again: str) -> str | None:
@@ -69,6 +85,10 @@ def password_problem(password: str, again: str) -> str | None:
         return f"The password needs at least {shortest} characters."
     if len(password) > longest:
         return f"The password can have at most {longest} characters."
+    try:
+        password.encode("utf-8")
+    except UnicodeEncodeError:
+        return "The password has a character that can't be saved."
     return None
 
 
@@ -79,7 +99,8 @@ def save_password_hash(path: Path, stored: str | None) -> bool:
     permissions. Returns False when there was nothing to change. Raises
     :class:`PasswordError` when the file can't be read, changed or written.
     """
-    path = Path(path)
+    # A config file that is a link to another file: change the file it points to.
+    path = Path(os.path.realpath(path))
     try:
         text = config.read_text(path)
     except config.ConfigError as error:
@@ -102,22 +123,48 @@ def save_password_hash(path: Path, stored: str | None) -> bool:
         web["password_hash"] = stored
     new_text = tomlkit.dumps(document)
     try:
-        written = tomllib.loads(new_text).get("web", {}).get("password_hash")
+        old, new = tomllib.loads(text), tomllib.loads(new_text)
     except tomllib.TOMLDecodeError as error:
         raise PasswordError(f"{path} can't be written back: {error}") from None
-    if written != stored:
+    if new.get("web", {}).get("password_hash") != stored or _without_hash(old) != _without_hash(
+        new
+    ):
         raise PasswordError(f"{path} can't be written back with the new password")
     try:
-        mode = stat.S_IMODE(os.stat(path).st_mode)
-        write_atomic(path, new_text.encode("utf-8"), mode=mode)
+        # The new file keeps the old one's permissions and, when run with sudo, its owner,
+        # so the PaperPi service can still read it.
+        info = os.stat(path)
+        owner = (info.st_uid, info.st_gid) if os.geteuid() == 0 else None
+        write_atomic(path, new_text.encode("utf-8"), mode=stat.S_IMODE(info.st_mode), owner=owner)
     except OSError as error:
         raise PasswordError(f"can't save {path}: {error}") from None
     return True
 
 
+def _cost_ok(n: int, r: int, p: int) -> bool:
+    return (
+        n >= 2
+        and n & (n - 1) == 0  # a power of 2
+        and 1 <= r
+        and 1 <= p
+        and n < 2 ** (16 * r)  # scrypt's own rule
+        and 128 * n * r <= _MOST_MEMORY
+        and n * r * p <= _MOST_WORK
+    )
+
+
+def _without_hash(data: dict) -> dict:
+    web = data.get("web")
+    if not isinstance(web, dict):
+        return data
+    web = {k: v for k, v in web.items() if k != "password_hash"}
+    rest = {k: v for k, v in data.items() if k != "web"}
+    return rest | {"web": web} if web else rest
+
+
 def _scrypt(password: str, salt: bytes, n: int, r: int, p: int, length: int = 32) -> bytes:
     return hashlib.scrypt(
-        password.encode("utf-8"), salt=salt, n=n, r=r, p=p, maxmem=256 * n * r * p, dklen=length
+        password.encode("utf-8"), salt=salt, n=n, r=r, p=p, maxmem=_MOST_MEMORY * 2, dklen=length
     )
 
 

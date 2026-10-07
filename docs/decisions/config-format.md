@@ -95,7 +95,7 @@ The web interface only accepts valid values, so most of these mistakes can only 
 
 The web password and plugin API keys are in the same file, so there is still only one file to look at.
 - Only root and the PaperPi service can read the file.
-- The web password is stored as a hash, a scrambled form that can be checked but not turned back into the password. To reset a forgotten password: run `paperpi reset-password` (or delete that line by hand), restart or reload, and set a new one in the web interface. *(Command added in M5 part 1, issue #238.)*
+- The web password is stored as a hash, a scrambled form that can be checked but not turned back into the password. To reset a forgotten password: run `sudo paperpi reset-password` (or delete that line by hand), restart or reload, and set a new one in the web interface. *(Command added in M5 part 1, issue #238.)*
 - The web interface never shows a saved API key again. It shows `••••` with a "replace" button.
 
 ### New versions of the file layout
