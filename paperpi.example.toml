@@ -44,6 +44,19 @@ type = "virtual"
 # keep the last picture. After a crash the picture stays. One of: "clear", "keep"
 # on_exit = "clear"
 
+[web]
+# false: no web interface
+# enabled = true
+# The network address the web interface listens on: "0.0.0.0" for every device on the home network,
+# "127.0.0.1" for this Pi only
+# address = "0.0.0.0"
+# The web interface's port
+# port = 8080
+# false: no password; anyone on the home network can change the settings
+# login = true
+# The web interface saves the web password here as password_hash. For a new password: run sudo
+# paperpi reset-password, restart or reload PaperPi, and open the web interface
+
 # basic_clock: The time, and optionally the date, in large text.
 # Layouts (values for "layout"): time, time_date, small
 [[plugin]]

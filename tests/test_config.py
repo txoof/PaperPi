@@ -87,8 +87,10 @@ def test_settings_are_read():
     assert clock.settings.hours == 12
 
 
-def test_web_part_is_accepted_for_later():
-    assert parse(GOOD + '\n[web]\npassword_hash = "x"\n').problems == []
+def test_web_part_with_a_password():
+    stored = "scrypt:16384:8:1:c2FsdA:" + "A" * 43
+    loaded = parse(GOOD + f'\n[web]\npassword_hash = "{stored}"\n')
+    assert loaded.problems == [] and loaded.web.password_hash == stored
 
 
 def test_same_plugin_type_twice_with_different_names():

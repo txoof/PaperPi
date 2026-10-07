@@ -8,6 +8,8 @@
   to the real screen.
 - ``paperpi list`` shows the plugins of a config file; ``paperpi example-config`` prints an
   example config file.
+- ``paperpi reset-password`` removes the web password, so a new one can be set in the web
+  interface.
 - ``paperpi health`` says whether ``paperpi run`` still reports "healthy"; Docker's health
   check uses it.
 
@@ -35,6 +37,7 @@ from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
 from .screen import Screen, ScreenStuck, driver_for
+from .web.password import PasswordError, save_password_hash
 
 log = logging.getLogger("paperpi")
 
@@ -131,6 +134,9 @@ def _parser() -> argparse.ArgumentParser:
         default=health.HEALTH_FILE,
         help=f"where to write the health report (default: {health.HEALTH_FILE})",
     )
+    run.add_argument(
+        "--no-web", action="store_true", help="don't start the web interface (see [web])"
+    )
     run.set_defaults(command=_run)
 
     listing = commands.add_parser(
@@ -178,6 +184,23 @@ def _parser() -> argparse.ArgumentParser:
         help=f"the health report to check (default: {health.HEALTH_FILE})",
     )
     check.set_defaults(command=_health)
+
+    reset = commands.add_parser(
+        "reset-password",
+        help="remove the web password, for when it is forgotten",
+        description=(
+            "Remove the web password (password_hash in [web]) from the config file; the rest "
+            "of the file stays as it is. Run it with sudo when the config file belongs to "
+            "root, as in /etc/paperpi. Then restart PaperPi, or send it the reload signal "
+            "(kill -HUP <process id>; sudo systemctl reload paperpi once it runs as a "
+            "service), and open the web interface to set a new password. Until then, anyone "
+            "on the home network can set it."
+        ),
+    )
+    reset.add_argument(
+        "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    reset.set_defaults(command=_reset_password)
     return parser
 
 
@@ -249,8 +272,13 @@ def _run(args: argparse.Namespace) -> int:
     # A reload signal during start-up would otherwise end the program.
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
+    web = None
+
     def load() -> config.Config:
-        return config.load(args.config, state_dir=args.state_dir)
+        loaded = config.load(args.config, state_dir=args.state_dir)
+        if web is not None and not loaded.from_last_good:
+            web.use(loaded.web)
+        return loaded
 
     try:
         loaded = load()
@@ -287,6 +315,13 @@ def _run(args: argparse.Namespace) -> int:
     signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
     signal.signal(signal.SIGINT, lambda *_: scheduler.stop())
     signal.signal(signal.SIGHUP, lambda *_: scheduler.reload())
+    if loaded.web.enabled and not args.no_web:
+        # Imported here: the web packages take a moment to load, and no other command needs them.
+        from .web import server
+
+        web = server.start(args.config, loaded.web)
+        if web is not None:
+            print(f"web interface on port {web.port}")
     try:
         with screen:
             count = sum(1 for p in loaded.plugins if p.entry.enabled and p.plugin.type != "default")
@@ -317,6 +352,28 @@ def _run(args: argparse.Namespace) -> int:
         return 1
     finally:
         reports.stopping()
+        if web is not None:
+            web.stop()
+    return 0
+
+
+def _reset_password(args: argparse.Namespace) -> int:
+    try:
+        removed = save_password_hash(args.config, None)
+    except PasswordError as error:
+        hint = "; run it with sudo" if "Permission denied" in str(error) else ""
+        print(f"paperpi: {error}{hint}", file=sys.stderr)
+        return 1
+    if not removed:
+        print(f"no web password is set in {args.config}")
+        return 0
+    print(
+        f"removed the web password from {args.config}.\n"
+        "Next: restart PaperPi, or send it the reload signal: kill -HUP <process id> "
+        "(sudo systemctl reload paperpi once it runs as a service).\n"
+        "Then open the web interface and set a new password. Until then, anyone on your "
+        "home network can set it."
+    )
     return 0
 
 

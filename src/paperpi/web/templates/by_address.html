@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Open PaperPi by its address · PaperPi{% endblock %}
+{% block main %}
+<h1>Open PaperPi by its IP address</h1>
+<p>For safety, PaperPi's web interface only works when it is opened by the Pi's IP address,
+for example <a href="{{ address }}/">{{ address }}</a>.</p>
+<p>Names such as <code>paperpi.local</code> are not supported yet.</p>
+{% endblock %}

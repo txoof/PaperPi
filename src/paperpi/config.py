@@ -198,6 +198,36 @@ class DisplaySettings(BaseModel):
         return mode
 
 
+class WebSettings(BaseModel):
+    """The ``[web]`` part of the config file: the web interface (``paperpi.web``)."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    enabled: bool = Field(True, description="false: no web interface")
+    address: str = Field(
+        "0.0.0.0",
+        min_length=1,
+        pattern=r"^\S+$",
+        description='The network address the web interface listens on: "0.0.0.0" for every '
+        'device on the home network, "127.0.0.1" for this Pi only',
+    )
+    port: int = Field(8080, ge=1, le=65535, strict=True, description="The web interface's port")
+    login: bool = Field(
+        True,
+        description="false: no password; anyone on the home network can change the settings",
+    )
+    password_hash: str | None = Field(
+        None,
+        description="The web password, scrambled so it can't be read back. Written by the "
+        "web interface. For a new password: run sudo paperpi reset-password (or remove this "
+        "line), restart or reload PaperPi, and open the web interface",
+    )
+
+
+#: ``[web]`` settings that apply only at the next start of PaperPi.
+WEB_NEXT_START = ("enabled", "address", "port")
+
+
 @dataclass(frozen=True)
 class Problem:
     """One thing wrong with the config file."""
@@ -271,6 +301,7 @@ class Config:
     problems: list[Problem] = field(default_factory=list)
     from_last_good: bool = False
     """True when the file was wrong and the last good copy is used instead."""
+    web: WebSettings = field(default_factory=WebSettings)
 
     @property
     def errors(self) -> list[Problem]:
@@ -470,10 +501,11 @@ class _Checker:
                     "warning", f"unknown setting {key!r}{_did_you_mean(key, _TOP_LEVEL)}", key=key
                 )
         display = self.check_file_level(data)
+        web = self.check_web(data.get("web", {}))
         if any(p.level == "error" for p in self.problems):
             raise ConfigError(self.problems)
         found = self.check_plugins(data.get("plugin", []))
-        return Config(display, found, self.problems)
+        return Config(display, found, self.problems, web=web)
 
     def check_file_level(self, data: dict[str, Any]) -> DisplaySettings | None:
         version = data.get("config_version")
@@ -549,8 +581,39 @@ class _Checker:
                 "fallback_clock",
                 "[display]",
             )
-        if "web" in data and not isinstance(data["web"], dict):
+        return settings
+
+    def check_web(self, web: Any) -> WebSettings | None:
+        if not isinstance(web, dict):
             self.add("error", "web must be a [web] part", key="web")
+            return None
+        section = ("web",)
+        for key in web:
+            if key not in WebSettings.model_fields:
+                hint = _did_you_mean(key, WebSettings.model_fields)
+                self.add("warning", f"unknown setting {key!r}{hint}", section, key, "[web]")
+        try:
+            settings = WebSettings.model_validate(web)
+        except ValidationError as error:
+            self.add_validation(error, WebSettings, section, "[web]", web.keys())
+            return None
+        if settings.password_hash is not None and not _looks_like_hash(settings.password_hash):
+            self.add(
+                "warning",
+                "password_hash: this is not a password saved by PaperPi, so nobody can log "
+                "in; remove the line (sudo paperpi reset-password) and set a new password",
+                section,
+                "password_hash",
+                "[web]",
+            )
+        if settings.enabled and not settings.login:
+            self.add(
+                "hint",
+                "login = false: anyone on the home network can change PaperPi's settings",
+                section,
+                "login",
+                "[web]",
+            )
         return settings
 
     def check_it8951(self, settings: DisplaySettings, section: tuple) -> None:
@@ -697,6 +760,12 @@ class _Checker:
                 where,
             )
         return checked
+
+
+def _looks_like_hash(stored: str) -> bool:
+    from .web.password import looks_like_hash  # here: that module needs this one
+
+    return looks_like_hash(stored)
 
 
 _HEADER = re.compile(r"\s*(\[\[?)\s*([A-Za-z0-9_.-]+)\s*\]\]?\s*(#.*)?")
