@@ -759,6 +759,24 @@ def test_reload_does_not_show_the_splash_again(tmp_path):
     assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A")]
 
 
+def test_splash_keeps_the_web_port_until_the_next_start(tmp_path):
+    def ports():
+        return [c.settings.port for c in sim.updates.contexts if c.storage.name == SPLASH]
+
+    sim = Sim(tmp_path, display="splash_time = 60\n[web]\nport = 9000")  # no plugins
+    sim.run(until=10)
+    assert ports() == [9000]
+    sim.next_config = make_config(display="splash_time = 60\n[web]\nport = 9100")
+    sim.at(20, sim.scheduler.reload)
+    sim.run(until=40)
+    # The web interface keeps its port until the next start, so the splash does too.
+    sim.plan(**{SPLASH: lambda t: f"splash {int(t)}"})
+    sim.next_config = make_config(display="splash_time = 60\nrotation = 90\n[web]\nport = 9100")
+    sim.at(50, sim.scheduler.reload)
+    sim.run(until=70)
+    assert ports() == [9000, 9000]  # drawn again (turned), still with the old port
+
+
 def test_reload_changing_splash_time_during_the_splash_applies(tmp_path):
     sim = Sim(tmp_path, rotation("a", refresh=5000), display="splash_time = 60")
     sim.next_config = make_config(rotation("a", refresh=5000), display="splash_time = 300")

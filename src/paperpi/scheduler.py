@@ -250,7 +250,9 @@ class Scheduler:
         self._default = _Slot(_default_config(config))
         self._fallback = _Slot(_fallback_config()) if config.display.fallback_clock else None
         """The fallback clock, shown when no plugin has anything to show."""
-        self._splash = _Slot(_splash_config())
+        self._web_port = config.web.port
+        """The web interface's port: it only changes at the next start (WEB_NEXT_START)."""
+        self._splash = _Slot(_splash_config(self._web_port))
         """The splash screen: at start, and while no plugin is ready to show."""
         self._starting = config.display.splash_time > 0
         """The splash screen is still to be shown (or being shown) at start."""
@@ -876,13 +878,14 @@ def _fallback_config() -> PluginConfig:
     return PluginConfig(entry, plugin.settings(), plugin)
 
 
-def _splash_config() -> PluginConfig:
-    """The splash screen shown at start, and while no plugin is ready to show."""
+def _splash_config(web_port: int) -> PluginConfig:
+    """The splash screen shown at start, and while no plugin is ready to show. It shows the
+    web interface's address, with the port the web interface started with."""
     plugin = plugins.load("splash_screen")
     # Its time on screen comes from [display] splash_time, not from display_time. A short
     # time limit: while its first picture is drawn, the screen waits for it.
     entry = PluginEntry(name="built-in splash", type="splash_screen", time_limit=30)
-    return PluginConfig(entry, plugin.settings(), plugin)
+    return PluginConfig(entry, plugin.settings(port=web_port), plugin)
 
 
 def _same_plugin(a: PluginConfig, b: PluginConfig) -> bool:
