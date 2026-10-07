@@ -249,7 +249,7 @@ class Scheduler:
         self._default = _Slot(_default_config(config))
         self._fallback = _Slot(_fallback_config()) if config.display.fallback_clock else None
         """The fallback clock, shown when no plugin has anything to show."""
-        self._splash = _Slot(_splash_config())
+        self._splash = _Slot(_splash_config(config))
         """The splash screen: at start, and while no plugin is switched on."""
         self._starting = config.display.splash_time > 0
         """The splash screen is still to be shown (or being shown) at start."""
@@ -410,8 +410,9 @@ class Scheduler:
         default = _default_config(config)
         if redraw or not _same_plugin(self._default.config, default):
             self._default = _Slot(default)
-        if redraw:
-            new_splash = _Slot(self._splash.config)
+        splash = _splash_config(config)
+        if redraw or not _same_plugin(self._splash.config, splash):  # e.g. a new [web] port
+            new_splash = _Slot(splash)
             if self._current is self._splash:
                 self._current = new_splash  # the same turn goes on with the new picture
             self._splash = new_splash
@@ -875,13 +876,14 @@ def _fallback_config() -> PluginConfig:
     return PluginConfig(entry, plugin.settings(), plugin)
 
 
-def _splash_config() -> PluginConfig:
-    """The splash screen shown at start, and while no plugin is switched on."""
+def _splash_config(config: Config) -> PluginConfig:
+    """The splash screen shown at start, and while no plugin is switched on. It shows the
+    web interface's address, with its port from ``[web] port``."""
     plugin = plugins.load("splash_screen")
     # Its time on screen comes from [display] splash_time, not from display_time. A short
     # time limit: while its first picture is drawn, the screen waits for it.
     entry = PluginEntry(name="built-in splash", type="splash_screen", time_limit=30)
-    return PluginConfig(entry, plugin.settings(), plugin)
+    return PluginConfig(entry, plugin.settings(port=config.web.port), plugin)
 
 
 def _same_plugin(a: PluginConfig, b: PluginConfig) -> bool:

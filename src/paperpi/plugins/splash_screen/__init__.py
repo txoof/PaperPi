@@ -17,6 +17,7 @@ from dataclasses import dataclass
 import segno
 from epdlib import text
 from PIL import Image
+from pydantic import Field
 
 from ... import __version__
 from ...plugin import Context, Plugin, PluginSettings, ready
@@ -24,9 +25,6 @@ from .layouts import ADDRESS_BLOCKS, LAYOUTS, PADDING
 
 NAME = "PaperPi"
 URL = "https://github.com/txoof/PaperPi"
-#: The port of the web interface (docs/decisions/web-interface.md). M5 replaces this with
-#: the port setting of the web interface.
-WEB_PORT = 8080
 NO_NETWORK = "No network"
 
 
@@ -44,7 +42,12 @@ class About:
 
 
 class Settings(PluginSettings):
-    pass
+    port: int = Field(
+        8080,
+        ge=1,
+        le=65535,
+        description="The web interface's port. The splash at start always uses [web] port",
+    )
 
 
 def ip_address() -> str | None:
@@ -74,15 +77,15 @@ def fetch(context: Context):
     return ready(About(NAME, __version__, URL, ip_address(), hostname()))
 
 
-def web_addresses(about: About) -> tuple[str, str] | None:
+def web_addresses(about: About, port: int) -> tuple[str, str] | None:
     """The web interface's address by IP and by host name; ``None`` without a network."""
     if about.ip is None:
         return None
     host = about.hostname or ""
     if host and "." not in host:
         host += ".local"  # the name the Pi announces on the home network
-    by_name = f"http://{host}:{WEB_PORT}" if host else ""
-    return f"http://{about.ip}:{WEB_PORT}", by_name
+    by_name = f"http://{host}:{port}" if host else ""
+    return f"http://{about.ip}:{port}", by_name
 
 
 def line_breaks(address: str) -> list[str]:
@@ -159,7 +162,7 @@ def draw(about: About, context: Context) -> dict:
     prepared = layout.prepare(context.width, context.height, context.mode)
     short_side = min(context.width, context.height)
     values = {"name": about.name, "version": about.version}
-    addresses = web_addresses(about)
+    addresses = web_addresses(about, context.settings.port)
     texts = {"github": about.url}
     if addresses is None:
         texts["ip"] = NO_NETWORK

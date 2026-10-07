@@ -16,7 +16,7 @@ Without a network it says "No network" instead, with no QR code.
 
 An address is never cut off: when it doesn't fit on one line, it is broken after a "/" (or, in a long host name, after a "." or "-"), drawn smaller if needed, and as a last step broken between letters (v1 split the GitHub address over two lines for the same reason). Only a very long host name without any "." or "-" (over about 40 letters) can still be too long for a small screen.
 
-The web interface comes in milestone M5; until then the port is fixed at 8080, the port it will use. In Docker (M6), PaperPi may see the container's address instead of the Pi's; M6 deals with that.
+The port is the web interface's port, `[web] port` (default 8080); a config reload that changes it gives the splash the new address at once. In Docker (M6), PaperPi may see the container's address instead of the Pi's; M6 deals with that.
 
 ## Layouts
 
@@ -26,7 +26,7 @@ The web interface comes in milestone M5; until then the port is fixed at 8080, t
 
 ## Settings
 
-None of its own, only the settings every plugin has (see the main [README](../../../../README.md)). It suggests a refresh every hour, which matters while no plugin is switched on and in the rotation: it then picks up a new IP address.
+One of its own, `port` (default 8080): the port in the addresses, only for a splash you add to the rotation yourself; the splash at start always uses `[web] port`. Plus the settings every plugin has (see the main [README](../../../../README.md)). It suggests a refresh every hour, which matters while no plugin is switched on and in the rotation: it then picks up a new IP address.
 
 To put it in the rotation (not needed for the splash at start):
 

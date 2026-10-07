@@ -108,16 +108,27 @@ def test_sample_is_fixed_and_made_up():
 )
 def test_web_addresses(hostname, by_name):
     about = replace(SAMPLE, hostname=hostname)
-    assert web_addresses(about) == ("http://192.0.2.10:8080", by_name)
+    assert web_addresses(about, 8080) == ("http://192.0.2.10:8080", by_name)
 
 
 def test_no_web_address_without_a_network():
-    assert web_addresses(replace(SAMPLE, ip=None)) is None
+    assert web_addresses(replace(SAMPLE, ip=None), 8080) is None
 
 
-def test_the_port_is_the_web_interface_port():
-    # docs/decisions/web-interface.md: plain HTTP on port 8080.
-    assert splash_screen.WEB_PORT == 8080
+def test_the_default_port_is_the_web_interface_default():
+    from paperpi.config import WebSettings
+
+    assert Settings().port == WebSettings().port == 8080
+
+
+def test_addresses_and_qr_code_use_the_port():
+    ctx = replace(context(), settings=Settings(port=9000))
+    values = draw(SAMPLE, ctx)
+    assert values["ip"].replace("\n", "") == "http://192.0.2.10:9000"
+    assert values["host"].replace("\n", "") == "http://paperpi.local:9000"
+    box = PLUGIN.layout("splash", Settings()).prepare(800, 480, ScreenMode.bw()).boxes["qr"]
+    expected = qr_code("http://192.0.2.10:9000", box.width, box.height)
+    assert values["qr"].tobytes() == expected.tobytes()
 
 
 def test_line_breaks_after_a_slash_come_first_most_even_first():
