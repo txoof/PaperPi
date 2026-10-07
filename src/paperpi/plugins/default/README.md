@@ -1,6 +1,6 @@
 # default
 
-Shown when nothing else can be shown because plugins are failing, or because no plugin is switched on. The scheduler tells it how many plugins are not working, and it shows e.g. "3 of 4 plugins are not working. See the web interface for more information." It needs no network.
+Shown when nothing else can be shown because plugins are failing, or because no plugin is switched on and the splash screen (which normally shows then, see `splash_screen`) fails. The scheduler tells it how many plugins are not working, and it shows e.g. "3 of 4 plugins are not working. See the web interface for more information." It needs no network.
 
 PaperPi always has this plugin, also when the config file has no block for it. A `[[plugin]]` block with `type = "default"` changes its settings; it never takes part in the rotation. The QR code that opens the web interface comes with the web interface (M5).
 
