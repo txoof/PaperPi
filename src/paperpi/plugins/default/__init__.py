@@ -1,5 +1,5 @@
 """default: shown when nothing else can be: plugins are failing, or none is ready to show
-(none is switched on with all its required settings filled in).
+(switched on, with all its required settings filled in) and the splash screen fails.
 
 The scheduler tells it how many plugins are failing (``context.status``). The QR code that
 opens the web interface is added with the web interface (M5).
