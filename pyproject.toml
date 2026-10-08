@@ -27,6 +27,7 @@ dev = [
     "httpx2>=2.13.1",
     "pytest>=8",
     "pytest-html>=4",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.6",
 ]
 

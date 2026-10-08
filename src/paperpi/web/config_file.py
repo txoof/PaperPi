@@ -4,11 +4,11 @@
   file's permissions (and owner, when run as root). Hold :data:`LOCK` from reading to
   saving, so two changes at the same moment (a plugin and the password) can't undo each
   other. :func:`saved_here` tells whether a text is the one the web interface saved last.
-- The plugin changes (:func:`move`, :func:`remove`, :func:`set_enabled`, :func:`add`) work on
-  the file's text, one ``[[plugin]]`` block at a time. The comment lines just above a
-  ``[[plugin]]`` line (with a blank line above them) belong to that block: they move with it
-  and are removed with it. A comment on the same line as ``enabled =`` is lost when the
-  plugin is switched on or off.
+- The plugin changes (:func:`move`, :func:`remove`, :func:`set_enabled`, :func:`set_settings`,
+  :func:`add`) work on the file's text, one ``[[plugin]]`` block at a time. The comment lines
+  just above a ``[[plugin]]`` line (with a blank line above them) belong to that block: they
+  move with it and are removed with it. A comment at the end of a setting's line (such as
+  ``enabled =``) is lost when that setting is changed.
 - Every change is checked before it is saved: PaperPi must read the new text back as exactly
   the old settings plus the change. A file written in a way these functions don't
   understand (for example a ``[[plugin]]`` line written differently, or a value line
@@ -25,11 +25,14 @@ import re
 import stat
 import threading
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .. import config, limits
+import tomlkit
+
+from .. import config, example, limits
 from ..files import write_atomic
 
 #: Held from reading the config file to saving the changed copy.
@@ -252,6 +255,98 @@ def set_enabled(text: str, index: int, plugin_id: str, enabled: bool) -> str:
     changed = {k: v for k, v in expected[index].items() if k != "enabled"}
     expected[index] = changed if enabled else changed | {"enabled": False}
     return _checked("".join(new), data | {"plugin": expected})
+
+
+def set_settings(
+    text: str,
+    index: int,
+    plugin_id: str,
+    values: Mapping[str, Any],
+    defaults: Mapping[str, Any] | None = None,
+) -> str:
+    """``text`` with settings of plugin block ``index`` changed: ``values`` maps a setting
+    to its new value, or to ``None`` to remove it (back to its default).
+
+    - A setting that is in the block gets its new value on the same line (a comment at the
+      end of that line is lost).
+    - A new one replaces a ``# key = ...`` comment line, so the help text above it stays.
+      Without one, ``name`` goes below ``id`` and the others below the block's last setting.
+    - A removed setting with a value in ``defaults`` becomes the comment ``# key = default``
+      (``# key =`` for ``None``), as in the example config; others are taken out.
+    - A setting written over several lines can't be changed: :class:`UnknownForm`.
+    """
+    defaults = defaults or {}
+    data, scan = _check(text, index, plugin_id)
+    block = scan.blocks[index]
+    lines = _ended(scan.lines)
+    newline = _newline(lines)
+    own = [n for n in range(block.header + 1, block.own_end) if n not in scan.in_string]
+    expected = plugin_blocks(data)
+    changed = dict(expected[index])
+    new: dict[int, str | None] = {}  # line -> its new text (None: taken out)
+    added: list[tuple[str, str]] = []  # (setting, line) with no place in the block yet
+    for key, value in values.items():
+        at = _setting_line(lines, own, re.escape(key))
+        if at is not None and not _one_line(lines[at]):
+            raise UnknownForm()
+        if value is None:
+            changed.pop(key, None)
+            if at is not None:
+                new[at] = _default_line(key, defaults, newline)
+            continue
+        changed[key] = example.plain(value)
+        line = f"{_key(key)} = {example.toml_value(value)}{newline}"
+        if at is None:
+            at = _setting_line(lines, own, rf"#\s*{re.escape(key)}")
+            at = None if at in new else at
+        if at is None:
+            added.append((key, line))
+        else:
+            new[at] = line
+
+    def setting_after(number: int) -> bool:
+        line = new.get(number, lines[number])
+        return line is not None and bool(line.strip()) and not line.lstrip().startswith("#")
+
+    last = max((n for n in own if setting_after(n)), default=block.header)
+    below: dict[int, list[str]] = {}  # line -> new lines to put below it
+    for key, line in added:
+        at = _setting_line(lines, own, "id") if key == "name" else None
+        at = last if at is None else at
+        while at + 1 in scan.in_string:  # below the whole of a value over several lines
+            at += 1
+        below.setdefault(at, []).append(line)
+    result = []
+    for number, line in enumerate(lines):
+        replaced = new.get(number, line)
+        if replaced is not None:
+            result.append(replaced)
+        result += below.get(number, [])
+    expected[index] = changed
+    return _checked("".join(result), data | {"plugin": expected})
+
+
+def _key(key: str) -> str:
+    """``key`` as written in a TOML file (in quotes when it needs them)."""
+    return tomlkit.key(key).as_string()
+
+
+def _default_line(key: str, defaults: Mapping[str, Any], newline: str) -> str | None:
+    """The comment that takes the place of a removed setting, or ``None`` for none."""
+    if key not in defaults:
+        return None
+    default = defaults[key]
+    shown = "" if default is None else f" {example.toml_value(default)}"
+    return f"# {_key(key)} ={shown}{newline}"
+
+
+def _one_line(line: str) -> bool:
+    """True when the setting on ``line`` is complete on that line."""
+    try:
+        tomllib.loads(line)
+    except tomllib.TOMLDecodeError:
+        return False
+    return True
 
 
 def add(text: str, block_text: str) -> str:

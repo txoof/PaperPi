@@ -35,6 +35,8 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
 - On Save, the values are checked with the same description. Errors are shown next to the field. A saved change applies at once (see `live-config-reload.md`).
 - A setting that needs more than a plain field can name an input type from a small list in the web interface, e.g. `location` (lat/lon lookup), `server_search` (find music servers), `layout_picker`. New input types are added when a plugin needs one.
 - Plugins added later show up without changes to the web code.
+- *Agreed with txoof on 2026-10-08 (M5 part 3a):* the page shows the plugin's `name` first, then its own settings, then display time, refresh, layout and level; the other shared settings (time limit, alert and storage settings) are folded under "More settings", which opens by itself when one of them has an error or a value that is not the default. Each field shows its value, or the default when the file doesn't set it.
+- How a save works (M5 part 3a-1): only settings that changed are written. An empty field means "the default"; a value equal to the default is taken out of the file and, where the block lists it, becomes the comment `# key = default` again, so the help text above it still fits. A new setting takes the place of its `# key = ...` comment line when there is one. A value with an error saves nothing; each error is shown next to its field, with what was typed. A secret (such as an API key) is never shown on the page; leaving its field empty keeps the saved one. A setting the form can't show (a group of settings, a list of numbers) is shown as it is in the file, to be changed there. A setting written over several lines in the file is never changed by the page.
 
 ### Logging in
 
