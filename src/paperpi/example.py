@@ -74,6 +74,10 @@ _DISPLAY_SHOWN = {
 }
 
 
+#: Settings of a ``[[plugin]]`` block that :func:`plugin_block` takes as its own arguments.
+_FIXED = ("id", "type")
+
+
 def plugin_block(
     plugin: Plugin, plugin_id: str, values: Mapping[str, Any] | None = None, *, shared: bool = False
 ) -> str:
@@ -137,10 +141,6 @@ def plugin_block(
     text = "\n".join(lines) + "\n"
     _check_reads_back(text, {"id": plugin_id, "type": plugin.type} | values)
     return text
-
-
-#: Settings of a ``[[plugin]]`` block that :func:`plugin_block` takes as its own arguments.
-_FIXED = ("id", "type")
 
 
 def display_part(values: Mapping[str, Any]) -> str:

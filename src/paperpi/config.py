@@ -259,7 +259,7 @@ class PluginConfig:
     """One checked ``[[plugin]]`` block."""
 
     entry: PluginEntry
-    """The shared settings: name, type, level, ..."""
+    """The shared settings: id, name, type, level, ..."""
     settings: PluginSettings
     """The plugin's own settings."""
     plugin: Plugin
@@ -321,9 +321,11 @@ class Config:
         return [p for p in self.problems if p.level == "error"]
 
     def plugin(self, plugin_id: str) -> PluginConfig:
-        """The plugin block with ID ``plugin_id``. Raises ``KeyError`` if there is none."""
+        """The plugin block with ID ``plugin_id`` (capitals don't count, and - is the same
+        as _, as when IDs are checked to be different). Raises ``KeyError`` if there is
+        none."""
         for plugin in self.plugins:
-            if plugin.entry.id == plugin_id:
+            if folder_name(plugin.entry.id) == folder_name(plugin_id):
                 return plugin
         raise KeyError(plugin_id)
 
@@ -371,6 +373,11 @@ def plugin_rows(config: Config) -> list[PluginRow]:
         )
         for p in config.plugins
     ]
+
+
+#: The start of the IDs of PaperPi's own plugins (the fallback clock, ...), which a
+#: ``[[plugin]]`` block can't use, so they always have their own storage folder.
+BUILT_IN = "built-in"
 
 
 def folder_name(plugin_id: str) -> str:
@@ -696,7 +703,17 @@ class _Checker:
                     self.add(
                         "error",
                         f"id {plugin_id!r} is already used by the plugin block{at}; "
-                        "IDs must be different (capitals, - and _ don't count)",
+                        "IDs must be different (capitals don't count, and - is the same as _)",
+                        section,
+                        "id",
+                        f"[[plugin]] {plugin_id!r}",
+                    )
+                    continue
+                if folder.startswith(BUILT_IN):
+                    self.add(
+                        "error",
+                        f"id {plugin_id!r}: IDs starting with {BUILT_IN!r} are kept for "
+                        "PaperPi's own plugins",
                         section,
                         "id",
                         f"[[plugin]] {plugin_id!r}",

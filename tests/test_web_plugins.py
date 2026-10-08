@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from paperpi import config, plugins
-from paperpi.plugin import PluginDefinitionError
+from paperpi.plugin import PluginDefinitionError, PluginEntry
 from paperpi.web import auth
 from paperpi.web import password as web_password
 from paperpi.web import plugins as web_plugins
@@ -178,10 +178,15 @@ def test_names_may_be_empty_or_the_same(client, cfg):
 
 
 def test_a_new_id_is_never_one_in_use(client, cfg, monkeypatch):
-    made = iter(["CLOCK", "Weather", "word_clock-1"])  # the first two are used
+    made = iter(["CLOCK", "_clock_", "word-clock_1"])  # "Clock" is used: the first 2 are too
     monkeypatch.setattr(web_plugins, "new_id", lambda plugin_type: next(made))
     client.post("/library/word_clock", data={"name": "Words"})
-    assert blocks(cfg)[-1]["id"] == "word_clock-1"
+    assert blocks(cfg)[-1]["id"] == "word-clock_1"
+
+
+def test_a_new_id_fits_also_for_a_long_type():
+    made = web_plugins.new_id("a" * 50)
+    assert len(made) == 40 and PluginEntry(id=made, type="x").id == made
 
 
 def test_a_plugin_with_required_settings_is_added_switched_off(client, cfg):

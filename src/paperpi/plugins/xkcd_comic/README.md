@@ -34,6 +34,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
+id = "xkcd"
 name = "xkcd"
 type = "xkcd_comic"
 layout = "comic_title"   # optional; without it: comic_title_alttext

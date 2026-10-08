@@ -26,7 +26,7 @@ What v1 does badly:
 
 ### What a plugin is
 
-A folder in `src/paperpi/plugins/<name>/` with:
+A folder in `src/paperpi/plugins/<type>/` with:
 
 | Part | What it is |
 |---|---|

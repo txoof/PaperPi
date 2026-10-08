@@ -21,7 +21,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .. import config, example, plugins
-from ..plugin import ID_LENGTH, Plugin, PluginEntry
+from ..plugin import ID_LENGTH, Plugin, PluginEntry, label
 from . import config_file
 
 #: Plugin types the Plugin Library doesn't offer: ``default`` is PaperPi's own message when
@@ -207,7 +207,7 @@ def _plugin_list(text: str, source: str = "config") -> PluginList:
         file_problems = [str(p) for p in error.problems if p.level == "error"]
     else:
         problems = loaded.problems
-        # By the line of its [[plugin]] line: two blocks may have the same name (then
+        # By the line of its [[plugin]] line: two blocks may have the same ID (then
         # PaperPi uses only the first).
         checked = {p.line: p for p in loaded.plugins if p.line is not None}
     known = len(found) == len(raw) and not file_problems
@@ -231,7 +231,7 @@ def _plugin_list(text: str, source: str = "config") -> PluginList:
             Row(
                 index=index,
                 id=plugin_id,
-                name=(name.strip() or plugin_id) if isinstance(name, str) else plugin_id,
+                name=label(name if isinstance(name, str) else "", plugin_id),
                 type=plugin_type if isinstance(plugin_type, str) else "",
                 enabled=enabled if isinstance(enabled, bool) else True,
                 missing=good.missing if good is not None else (),

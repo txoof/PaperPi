@@ -141,6 +141,9 @@ def is_set(value: Any) -> bool:
 
 #: The longest plugin ID (``id`` in a ``[[plugin]]`` block).
 ID_LENGTH = 40
+#: Characters a plugin's name may not hold: control characters, the ones Python counts
+#: as line breaks, and the invisible ones that change the direction of the text after them.
+_HIDDEN_CHARACTERS = r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]"
 
 
 class PluginEntry(BaseModel):
@@ -155,8 +158,9 @@ class PluginEntry(BaseModel):
     id: str = Field(
         min_length=1,
         max_length=ID_LENGTH,
-        description="Unique ID of this plugin: letters, digits, _ and -. It names the plugin's "
-        "storage folder, so changing it starts with an empty folder",
+        description="Required. Unique ID of this plugin: up to 40 letters, digits, _ and - "
+        "(when checking that it is unique, capitals don't count and - is the same as _). "
+        "It names the plugin's storage folder, so changing it starts with an empty folder",
     )
     name: str = Field(
         "",
@@ -226,6 +230,8 @@ class PluginEntry(BaseModel):
     def _plain_id(cls, plugin_id: str) -> str:
         if not re.fullmatch(r"[A-Za-z0-9_-]*", plugin_id):
             raise ValueError("must hold only letters, digits, _ and - (e.g. weather_berlin)")
+        if plugin_id and not re.search(r"[A-Za-z0-9]", plugin_id):
+            raise ValueError("needs at least one letter or digit")
         return plugin_id
 
     @field_validator("name")
@@ -233,15 +239,22 @@ class PluginEntry(BaseModel):
     def _no_control_characters(cls, name: str) -> str:
         # They can't be written back to the file reliably, and would change the terminal's
         # output in ``paperpi list``.
-        # Also the characters Python counts as line breaks (U+0085, U+2028, U+2029).
-        if re.search(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]", name):
+        # Also the characters Python counts as line breaks, and the invisible ones that change
+        # the direction of the text after them (see _HIDDEN_CHARACTERS).
+        if re.search(_HIDDEN_CHARACTERS, name):
             raise ValueError("must not hold control characters (such as tab or new line)")
         return name
 
     @property
     def label(self) -> str:
         """What the web interface calls this plugin: its name, or its ID without one."""
-        return self.name.strip() or self.id
+        return label(self.name, self.id)
+
+
+def label(name: str, plugin_id: str) -> str:
+    """What a plugin is called on the web pages: ``name``, or ``plugin_id`` when the name is
+    empty (or only spaces)."""
+    return name.strip() or plugin_id
 
 
 #: Names a plugin may not use for its own settings.

@@ -31,6 +31,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
+id = "word_clock"
 name = "Word Clock"
 type = "word_clock"
 display_time = 255

@@ -16,7 +16,7 @@
 </div>
 {% endif %}
 <form method="post" action="/library/{{ item.type }}">
-  <label>Name (shown in Active Plugins; leave it empty to show the ID PaperPi makes for it)
+  <label>Name (shown in Active Plugins; leave it empty to show a code PaperPi makes, like {{ item.type }}-3f9a1c2e)
     <input type="text" name="name" value="{{ name }}" maxlength="100" autofocus></label>
   <button type="submit">Add</button>
   <a href="/library">Cancel</a>

@@ -14,7 +14,7 @@ On a day the moon doesn't rise or set (this happens about once a month, because 
 
 ## How often it asks met.no
 
-met.no gives one answer per place and day. The plugin saves it in its storage folder (PaperPi's own folder for this plugin's files, `/var/lib/paperpi/plugins/<name>/`, where `<name>` is made from the plugin's `name` in the config file: `name = "Moon"` gives `moon`) and asks again only on the next day, or after a change of `lat` or `lon`. If met.no can't be reached, the update fails as usual and PaperPi tries again at the next update. It sends your email address (only to met.no) as contact and rounds the coordinates to 4 decimals, as met.no's [terms of service](https://api.met.no/doc/TermsOfService) ask.
+met.no gives one answer per place and day. The plugin saves it in its storage folder (PaperPi's own folder for this plugin's files, `/var/lib/paperpi/plugins/<id>/`, where `<id>` is made from the plugin's `id` in the config file: `id = "moon"` gives `moon`) and asks again only on the next day, or after a change of `lat` or `lon`. If met.no can't be reached, the update fails as usual and PaperPi tries again at the next update. It sends your email address (only to met.no) as contact and rounds the coordinates to 4 decimals, as met.no's [terms of service](https://api.met.no/doc/TermsOfService) ask.
 
 ## Layouts
 
@@ -37,6 +37,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
+id = "moon"
 name = "Moon"
 type = "moon_phase"
 lat = 52.52

@@ -62,7 +62,8 @@ type = "virtual"
 # basic_clock: The time, and optionally the date, in large text.
 # Layouts (values for "layout"): time, time_date, small
 [[plugin]]
-# Unique ID of this plugin: letters, digits, _ and -. It names the plugin's storage folder, so
+# Required. Unique ID of this plugin: up to 40 letters, digits, _ and - (when checking that it is
+# unique, capitals don't count and - is the same as _). It names the plugin's storage folder, so
 # changing it starts with an empty folder
 id = "clock"
 # Name shown in the web interface; leave it out to show the ID

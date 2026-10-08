@@ -8,6 +8,7 @@ from epdlib import ScreenMode
 
 from paperpi import config, limits, plugins
 from paperpi.config import ConfigError, DisplaySettings, folder_name, load, parse
+from paperpi.plugin import PluginEntry
 
 GOOD = """\
 config_version = 1
@@ -320,7 +321,7 @@ def test_ids_must_be_different(other):
     assert [p.entry.id for p in cfg.plugins] == ["Clock"]
     assert problems(cfg) == [
         f"config line 11 [[plugin]] '{other}': id '{other}' is already used by the plugin "
-        "block at line 6; IDs must be different (capitals, - and _ don't count)"
+        "block at line 6; IDs must be different (capitals don't count, and - is the same as _)"
     ]
 
 
@@ -331,6 +332,56 @@ def test_id_holds_only_letters_digits_and_dashes():
         "config line 7 [[plugin]] 'Weather Berlin': id: Value error, must hold only letters, "
         "digits, _ and - (e.g. weather_berlin) (got 'Weather Berlin')"
     ]
+
+
+def test_dash_and_underscore_are_the_same_in_ids():
+    cfg = parse(
+        GOOD
+        + '\n[[plugin]]\nid = "my_clock"\ntype = "basic_clock"\n'
+        + '\n[[plugin]]\nid = "my-clock"\ntype = "basic_clock"\n'
+    )
+    assert [p.entry.id for p in cfg.plugins] == ["Clock", "my_clock"]
+    assert "is already used by the plugin block" in problems(cfg)[0]
+
+
+@pytest.mark.parametrize(
+    ("plugin_id", "message"),
+    [
+        ("x" * 41, "at most 40 characters"),
+        ("", "at least 1 character"),
+        ("_", "needs at least one letter or digit"),
+        ("-_-", "needs at least one letter or digit"),
+        ("built_in_clock", "kept for PaperPi's own plugins"),
+        ("Built-In-Default", "kept for PaperPi's own plugins"),
+    ],
+)
+def test_ids_that_cant_be_used(plugin_id, message):
+    cfg = parse(GOOD.replace('id = "Clock"', f'id = "{plugin_id}"'))
+    assert cfg.plugins == []
+    assert message in problems(cfg)[0]
+
+
+def test_longest_id():
+    assert [p.entry.id for p in parse(GOOD.replace("Clock", "x" * 40)).plugins] == ["x" * 40]
+
+
+def test_plugin_is_found_by_id_as_ids_are_compared():
+    cfg = parse(GOOD)
+    assert cfg.plugin("CLOCK") is cfg.plugin("clock") is cfg.plugins[0]
+    with pytest.raises(KeyError):
+        cfg.plugin("Clock 2")
+
+
+def test_name_of_only_spaces_shows_the_id():
+    cfg = parse(GOOD.replace('type = "basic_clock"', 'name = "  "\ntype = "basic_clock"'))
+    assert cfg.plugins[0].entry.label == "Clock"
+    assert config.plugin_rows(cfg)[0].name == "Clock"
+
+
+@pytest.mark.parametrize("hidden", ["\N{RIGHT-TO-LEFT OVERRIDE}", "\N{LEFT-TO-RIGHT ISOLATE}"])
+def test_names_cant_hide_or_turn_text(hidden):
+    with pytest.raises(ValueError, match="control characters"):
+        PluginEntry(id="a", type="basic_clock", name=f"a{hidden}b")
 
 
 def test_name_is_shown_and_the_id_without_one():

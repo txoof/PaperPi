@@ -402,13 +402,13 @@ class Scheduler:
                         self._current = changed
                 slot = changed
             slots.append(slot)
-        names = [slot.id for slot in slots]
-        if self._last_rotation is not None and self._last_rotation not in names:
+        ids = [slot.id for slot in slots]
+        if self._last_rotation is not None and self._last_rotation not in ids:
             # The plugin shown last was removed: go on after the one before it.
-            old_names = [slot.id for slot in self._slots]
-            index = old_names.index(self._last_rotation)
-            before = old_names[:index][::-1] + old_names[index + 1 :][::-1]
-            self._last_rotation = next((n for n in before if n in names), None)
+            old_ids = [slot.id for slot in self._slots]
+            index = old_ids.index(self._last_rotation)
+            before = old_ids[:index][::-1] + old_ids[index + 1 :][::-1]
+            self._last_rotation = next((i for i in before if i in ids), None)
         self._slots = slots
         default = _default_config(config)
         if redraw or not _same_plugin(self._default.config, default):
@@ -867,7 +867,7 @@ def _default_config(config: Config) -> PluginConfig:
         if found.plugin.type == "default":
             return found
     plugin = plugins.load("default")
-    # Its own storage folder, also when a user names another plugin "default".
+    # Its own storage folder: a [[plugin]] block can't have an ID starting with "built-in".
     entry = PluginEntry(id="built-in-default", type="default")
     return PluginConfig(entry, plugin.settings(), plugin)
 
