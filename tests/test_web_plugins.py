@@ -159,8 +159,9 @@ def test_adding_a_plugin(client, cfg, reloads):
     added = blocks(cfg)[-1]
     assert re.fullmatch(r"word_clock-[0-9a-f]{8}", added["id"])
     assert added == {"id": added["id"], "name": "Words", "type": "word_clock"}
-    assert response.headers["location"] == f"/plugins?done=added&id={added['id']}"
-    assert "Added Words." in client.get(response.headers["location"]).text
+    assert response.headers["location"] == f"/plugins/3/settings?id={added['id']}&done=added"
+    page = client.get(response.headers["location"]).text
+    assert "<h1>Words</h1>" in page and "Added. Fill in its settings here" in page
     assert reloads == [1]
     # The next one gets another name.
     client.post("/library/word_clock", data={"name": "Word clock"})

@@ -33,8 +33,10 @@ HIDDEN = ("default", "debugging")
 class FormErrors(config_file.EditError):
     """A settings form with values that can't be used; nothing was saved."""
 
+    MESSAGE = "Nothing was saved: some settings can't be used; see the messages next to them."
+
     def __init__(self, found: forms.Read):
-        super().__init__("Some settings can't be used; see the messages next to them.")
+        super().__init__(self.MESSAGE)
         self.found = found
 
 
