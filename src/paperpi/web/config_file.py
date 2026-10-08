@@ -14,7 +14,7 @@
   understand (for example a ``[[plugin]]`` line written differently, or a value line
   that looks like a ``[part]`` line) is never saved wrongly: :class:`UnknownForm` says to
   change it by hand instead.
-- Each change names its block by place and name, so a block that was moved or removed by
+- Each change names its block by place and ID, so a block that was moved or removed by
   hand a moment ago is not changed by mistake (:class:`ChangedMeanwhile`).
 """
 
@@ -189,15 +189,15 @@ def plugin_blocks(data: dict[str, Any]) -> list[Any]:
     return found if isinstance(found, list) else []
 
 
-def name_of(block: Any) -> str:
-    """The name of a loaded plugin block, or ``""`` when it has none (a broken block)."""
-    name = block.get("name") if isinstance(block, dict) else None
-    return name if isinstance(name, str) else ""
+def id_of(block: Any) -> str:
+    """The ID of a loaded plugin block, or ``""`` when it has none (a broken block)."""
+    plugin_id = block.get("id") if isinstance(block, dict) else None
+    return plugin_id if isinstance(plugin_id, str) else ""
 
 
-def move(text: str, index: int, name: str, step: int) -> str:
+def move(text: str, index: int, plugin_id: str, step: int) -> str:
     """``text`` with plugin block ``index`` moved one place up (``step=-1``) or down (``1``)."""
-    data, scan = _check(text, index, name)
+    data, scan = _check(text, index, plugin_id)
     other = index + step
     if step not in (-1, 1) or not 0 <= other < len(scan.blocks):
         raise EditError("This plugin can't move further.")
@@ -216,9 +216,9 @@ def move(text: str, index: int, name: str, step: int) -> str:
     return _checked("".join(new), data | {"plugin": expected})
 
 
-def remove(text: str, index: int, name: str) -> str:
+def remove(text: str, index: int, plugin_id: str) -> str:
     """``text`` without plugin block ``index`` (and the comments just above it)."""
-    data, scan = _check(text, index, name)
+    data, scan = _check(text, index, plugin_id)
     block = scan.blocks[index]
     new = "".join([*scan.lines[: block.start], *scan.lines[block.end :]])
     expected = plugin_blocks(data)
@@ -227,13 +227,13 @@ def remove(text: str, index: int, name: str) -> str:
     return _checked(new, data | {"plugin": expected} if expected else data)
 
 
-def set_enabled(text: str, index: int, name: str, enabled: bool) -> str:
+def set_enabled(text: str, index: int, plugin_id: str, enabled: bool) -> str:
     """``text`` with plugin block ``index`` switched on or off.
 
     Off writes ``enabled = false``; on removes that line, because the file only holds
     settings that differ from the default.
     """
-    data, scan = _check(text, index, name)
+    data, scan = _check(text, index, plugin_id)
     block = scan.blocks[index]
     lines = _ended(scan.lines)
     own = [n for n in range(block.header + 1, block.own_end) if n not in scan.in_string]
@@ -246,7 +246,7 @@ def set_enabled(text: str, index: int, name: str, enabled: bool) -> str:
         if at:
             new[at[0]] = line
         else:
-            after = _setting_line(lines, own, "type") or _setting_line(lines, own, "name")
+            after = _setting_line(lines, own, "type") or _setting_line(lines, own, "id")
             new.insert((after or block.header) + 1, line)
     expected = plugin_blocks(data)
     changed = {k: v for k, v in expected[index].items() if k != "enabled"}
@@ -272,13 +272,13 @@ def add(text: str, block_text: str) -> str:
     return _checked(new, data | {"plugin": [*plugin_blocks(data), *new_block]})
 
 
-def _check(text: str, index: int, name: str) -> tuple[dict[str, Any], _Scan]:
+def _check(text: str, index: int, plugin_id: str) -> tuple[dict[str, Any], _Scan]:
     data = load(text)
     scan = _scan(text)
     raw = plugin_blocks(data)
     if len(scan.blocks) != len(raw):
         raise UnknownForm()
-    if not 0 <= index < len(raw) or name_of(raw[index]) != name:
+    if not 0 <= index < len(raw) or id_of(raw[index]) != plugin_id:
         raise ChangedMeanwhile()
     return data, scan
 

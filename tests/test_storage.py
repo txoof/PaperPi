@@ -85,7 +85,7 @@ def test_time_limit_stops_the_clean_up(tmp_path, caplog):
 def test_clean_all_also_cleans_plugins_that_are_switched_off(tmp_path):
     loaded = config.parse(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        '[[plugin]]\nname = "Off"\ntype = "basic_clock"\nenabled = false\n'
+        '[[plugin]]\nid = "Off"\ntype = "basic_clock"\nenabled = false\n'
     )
     old = make(tmp_path / "plugins" / "off", "old.json", 10, 400)
     storage.clean_all(loaded.plugins, tmp_path)
@@ -125,7 +125,7 @@ def test_low_disk_check_that_fails_is_not_low():
 def test_storage_settings_are_checked(setting, ok):
     loaded = config.parse(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        f'[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n{setting}\n'
+        f'[[plugin]]\nid = "Clock"\ntype = "basic_clock"\n{setting}\n'
     )
     assert (not loaded.errors) is ok
 
@@ -137,10 +137,10 @@ def test_setting_wins_over_the_plugin_suggestion():
     from paperpi.config import PluginConfig
 
     plugin = replace(plugins.load("basic_clock"), storage_mb=20_000, storage_days=0)
-    entry = PluginEntry(name="Photos", type="basic_clock")
+    entry = PluginEntry(id="Photos", type="basic_clock")
     found = PluginConfig(entry, plugin.settings(), plugin)
     assert (found.storage_mb, found.storage_days) == (20_000, 0)
-    entry = PluginEntry(name="Photos", type="basic_clock", storage_mb=100, storage_days=7)
+    entry = PluginEntry(id="Photos", type="basic_clock", storage_mb=100, storage_days=7)
     found = PluginConfig(entry, plugin.settings(), plugin)
     assert (found.storage_mb, found.storage_days) == (100, 7)
 
@@ -238,8 +238,8 @@ def test_folders_no_block_uses_are_named_but_not_cleaned(tmp_path, caplog):
 def test_clean_all_uses_each_blocks_own_values(tmp_path):
     loaded = config.parse(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        '[[plugin]]\nname = "Keep"\ntype = "basic_clock"\nenabled = false\nstorage_days = 0\n'
-        '[[plugin]]\nname = "Small"\ntype = "basic_clock"\nstorage_mb = 1\n'
+        '[[plugin]]\nid = "Keep"\ntype = "basic_clock"\nenabled = false\nstorage_days = 0\n'
+        '[[plugin]]\nid = "Small"\ntype = "basic_clock"\nstorage_mb = 1\n'
     )
     kept = make(tmp_path / "plugins" / "keep", "ancient.json", 10, 400)
     for name, days in [("a", 2), ("b", 1)]:
@@ -337,7 +337,7 @@ def test_second_low_disk_period_is_warned_about_again(caplog):
 def test_highest_storage_settings(setting, ok):
     loaded = config.parse(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        f'[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n{setting}\n'
+        f'[[plugin]]\nid = "Clock"\ntype = "basic_clock"\n{setting}\n'
     )
     assert (not loaded.errors) is ok
 

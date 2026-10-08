@@ -16,7 +16,7 @@ config_version = 1
 type = "virtual"
 
 [[plugin]]
-name = "Clock"
+id = "Clock"
 type = "basic_clock"
 """
 
@@ -44,7 +44,7 @@ def test_good_file_uses_defaults():
     assert cfg.display.size == (1200, 825)
     assert cfg.display.screen_mode == ScreenMode.gray(16)
     (clock,) = cfg.plugins
-    assert clock.entry.name == "Clock"
+    assert clock.entry.id == "Clock"
     assert clock.entry.enabled
     assert clock.entry.level == "rotation"
     assert clock.entry.time_limit == limits.PLUGIN_UPDATE
@@ -65,7 +65,7 @@ def test_settings_are_read():
         mode = "7color"
         rotation = 90
         [[plugin]]
-        name = "Clock"
+        id = "Clock"
         type = "basic_clock"
         enabled = false
         level = "interrupt"
@@ -94,8 +94,8 @@ def test_web_part_with_a_password():
 
 
 def test_same_plugin_type_twice_with_different_names():
-    cfg = parse(GOOD + '\n[[plugin]]\nname = "Clock 12"\ntype = "basic_clock"\nhours = 12\n')
-    assert [p.entry.name for p in cfg.plugins] == ["Clock", "Clock 12"]
+    cfg = parse(GOOD + '\n[[plugin]]\nid = "Clock_12"\ntype = "basic_clock"\nhours = 12\n')
+    assert [p.entry.id for p in cfg.plugins] == ["Clock", "Clock_12"]
 
 
 @pytest.mark.parametrize(
@@ -256,7 +256,7 @@ def test_a_virtual_screen_ignores_model_and_vcom():
 
 
 def test_plugin_problems_are_not_checked_while_the_file_is_wrong():
-    messages = errors_of('config_version = 1\n[[plugin]]\nname = "x"\ntype = "nope"\n')
+    messages = errors_of('config_version = 1\n[[plugin]]\nid = "x"\ntype = "nope"\n')
     assert len(messages) == 1
 
 
@@ -265,9 +265,9 @@ def test_plugin_problems_are_not_checked_while_the_file_is_wrong():
 
 def test_wrong_plugin_value_leaves_only_that_plugin_out():
     cfg = parse(
-        GOOD + '\n[[plugin]]\nname = "Bad"\ntype = "basic_clock"\nhours = 13\n', "paperpi.toml"
+        GOOD + '\n[[plugin]]\nid = "Bad"\ntype = "basic_clock"\nhours = 13\n', "paperpi.toml"
     )
-    assert [p.entry.name for p in cfg.plugins] == ["Clock"]
+    assert [p.entry.id for p in cfg.plugins] == ["Clock"]
     assert problems(cfg) == [
         "paperpi.toml line 13 [[plugin]] 'Bad': hours: Input should be 12 or 24 (got 13)"
     ]
@@ -284,11 +284,11 @@ def test_unknown_plugin_type_suggests_a_name():
     )
 
 
-def test_missing_name_and_type():
+def test_missing_id_and_type():
     cfg = parse("config_version = 1\n[display]\ntype = 'virtual'\n[[plugin]]\nlevel = 'alert'\n")
     assert cfg.plugins == []
     assert problems(cfg) == [
-        "config line 4 [[plugin]] 1: name: required setting is missing",
+        "config line 4 [[plugin]] 1: id: required setting is missing",
         "config line 4 [[plugin]] 1: type: required setting is missing",
     ]
 
@@ -314,18 +314,36 @@ def test_wrong_time_limit(value):
     assert "time_limit:" in problems(cfg)[0]
 
 
-@pytest.mark.parametrize("other", ["Clock", "clock", "CLOCK!"])
-def test_names_must_be_different(other):
-    cfg = parse(GOOD + f'\n[[plugin]]\nname = "{other}"\ntype = "basic_clock"\n')
-    assert [p.entry.name for p in cfg.plugins] == ["Clock"]
+@pytest.mark.parametrize("other", ["Clock", "clock", "CLOCK"])
+def test_ids_must_be_different(other):
+    cfg = parse(GOOD + f'\n[[plugin]]\nid = "{other}"\ntype = "basic_clock"\n')
+    assert [p.entry.id for p in cfg.plugins] == ["Clock"]
     assert problems(cfg) == [
-        f"config line 11 [[plugin]] '{other}': name '{other}' is already used by the plugin "
-        "block at line 6; names must be different (also ignoring capitals and punctuation)"
+        f"config line 11 [[plugin]] '{other}': id '{other}' is already used by the plugin "
+        "block at line 6; IDs must be different (capitals, - and _ don't count)"
+    ]
+
+
+def test_id_holds_only_letters_digits_and_dashes():
+    cfg = parse(GOOD.replace('id = "Clock"', 'id = "Weather Berlin"'))
+    assert cfg.plugins == []
+    assert problems(cfg) == [
+        "config line 7 [[plugin]] 'Weather Berlin': id: Value error, must hold only letters, "
+        "digits, _ and - (e.g. weather_berlin) (got 'Weather Berlin')"
+    ]
+
+
+def test_name_is_shown_and_the_id_without_one():
+    cfg = parse(GOOD + '\n[[plugin]]\nid = "big"\nname = "Big clock"\ntype = "basic_clock"\n')
+    assert [p.entry.label for p in cfg.plugins] == ["Clock", "Big clock"]
+    assert [(r.id, r.name) for r in config.plugin_rows(cfg)] == [
+        ("Clock", "Clock"),
+        ("big", "Big clock"),
     ]
 
 
 def test_single_brackets_for_plugin():
-    cfg = parse('config_version = 1\n[display]\ntype = "virtual"\n[plugin]\nname = "x"\n')
+    cfg = parse('config_version = 1\n[display]\ntype = "virtual"\n[plugin]\nid = "x"\n')
     assert cfg.plugins == []
     assert problems(cfg) == ["config line 4: write [[plugin]] (two brackets) above each plugin"]
 
@@ -342,7 +360,7 @@ def test_unknown_settings_are_warnings_with_suggestions():
         type = "virtual"
         rotaton = 90
         [[plugin]]
-        name = "Clock"
+        id = "Clock"
         type = "basic_clock"
         houres = 12
         dispaly_time = 30
@@ -445,7 +463,7 @@ def test_broken_file_uses_last_good_copy(files):
     cfg = load(path, state_dir=state)
     assert cfg.from_last_good
     assert cfg.text == GOOD  # the text in use: the last good copy's
-    assert [p.entry.name for p in cfg.plugins] == ["Clock"]
+    assert [p.entry.id for p in cfg.plugins] == ["Clock"]
     assert problems(cfg) == [
         "paperpi.toml line 2: not valid TOML: Expected ']' at the end of a table declaration "
         "(at line 2, column 9)",
@@ -526,7 +544,7 @@ def test_strange_toml_is_an_error_not_a_crash(text):
 
 
 def test_too_many_plugin_blocks():
-    block = '\n[[plugin]]\nname = "Clock {n}"\ntype = "basic_clock"\n'
+    block = '\n[[plugin]]\nid = "Clock_{n}"\ntype = "basic_clock"\n'
     text = GOOD + "".join(block.format(n=n) for n in range(limits.PLUGIN_BLOCKS + 5))
     cfg = parse(text)
     assert len(cfg.plugins) == limits.PLUGIN_BLOCKS
@@ -543,8 +561,8 @@ def test_broken_plugin_code_only_switches_off_that_plugin(monkeypatch):
 
     monkeypatch.setattr(config.plugins, "load", load)
     monkeypatch.setattr(config.plugins, "available", lambda *a: ["basic_clock", "broken"])
-    cfg = parse(GOOD + '\n[[plugin]]\nname = "Broken"\ntype = "broken"\n')
-    assert [p.entry.name for p in cfg.plugins] == ["Clock"]
+    cfg = parse(GOOD + '\n[[plugin]]\nid = "Broken"\ntype = "broken"\n')
+    assert [p.entry.id for p in cfg.plugins] == ["Clock"]
     assert problems(cfg) == [
         "config line 12 [[plugin]] 'Broken': the plugin itself is broken: "
         "ModuleNotFoundError: No module named 'requests'"
@@ -586,8 +604,8 @@ def test_long_values_are_shortened_in_messages():
 
 
 def test_duplicate_name_is_found_even_if_the_first_block_is_broken():
-    first = '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\nhours = 13\n'
-    second = '\n[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n'
+    first = '[[plugin]]\nid = "Clock"\ntype = "basic_clock"\nhours = 13\n'
+    second = '\n[[plugin]]\nid = "Clock"\ntype = "basic_clock"\n'
     cfg = parse('config_version = 1\n[display]\ntype = "virtual"\n' + first + second)
     assert cfg.plugins == []
     assert len(problems(cfg, "error")) == 2
@@ -599,7 +617,7 @@ def test_line_numbers_after_a_multi_line_string():
         [display]
         type = "virtual"
         [[plugin]]
-        name = "Clock"
+        id = "Clock"
         type = "basic_clock"
         note = """
         hours = 1
@@ -687,7 +705,7 @@ config_version = 1
 [display]
 type = "virtual"
 [[plugin]]
-name = "Weather"
+id = "Weather"
 type = "met_no"
 lat = 52.52
 lon = 13.40

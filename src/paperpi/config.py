@@ -287,8 +287,8 @@ class PluginConfig:
 
     @property
     def folder_name(self) -> str:
-        """The name of this plugin's storage folder, made from its name."""
-        return folder_name(self.entry.name)
+        """The name of this plugin's storage folder, made from its ID."""
+        return folder_name(self.entry.id)
 
     @property
     def missing(self) -> tuple[str, ...]:
@@ -320,19 +320,21 @@ class Config:
     def errors(self) -> list[Problem]:
         return [p for p in self.problems if p.level == "error"]
 
-    def plugin(self, name: str) -> PluginConfig:
-        """The plugin block called ``name``. Raises ``KeyError`` if there is none."""
+    def plugin(self, plugin_id: str) -> PluginConfig:
+        """The plugin block with ID ``plugin_id``. Raises ``KeyError`` if there is none."""
         for plugin in self.plugins:
-            if plugin.entry.name == name:
+            if plugin.entry.id == plugin_id:
                 return plugin
-        raise KeyError(name)
+        raise KeyError(plugin_id)
 
 
 @dataclass(frozen=True)
 class PluginRow:
     """One configured plugin, as the plugin list shows it."""
 
+    id: str
     name: str
+    """The name it is shown with: its ``name``, or its ID without one."""
     type: str
     enabled: bool
     level: str
@@ -355,7 +357,8 @@ def plugin_rows(config: Config) -> list[PluginRow]:
     what is wrong with them."""
     return [
         PluginRow(
-            name=p.entry.name,
+            id=p.entry.id,
+            name=p.entry.label,
             type=p.plugin.type,
             enabled=p.entry.enabled,
             level=p.entry.level,
@@ -370,9 +373,9 @@ def plugin_rows(config: Config) -> list[PluginRow]:
     ]
 
 
-def folder_name(name: str) -> str:
-    """A safe folder name for a plugin name: ``"Weather Berlin"`` -> ``weather-berlin``."""
-    return re.sub(r"[^a-z0-9]+", "-", name.casefold()).strip("-") or "plugin"
+def folder_name(plugin_id: str) -> str:
+    """The storage folder name for a plugin ID: ``"Weather_Berlin"`` -> ``weather-berlin``."""
+    return re.sub(r"[^a-z0-9]+", "-", plugin_id.casefold()).strip("-") or "plugin"
 
 
 def load(path: Path = CONFIG_FILE, *, state_dir: Path | None = STATE_DIR) -> Config:
@@ -676,38 +679,42 @@ class _Checker:
             )
             blocks = blocks[: limits.PLUGIN_BLOCKS]
         found: list[PluginConfig] = []
-        names: dict[str, int | None] = {}
+        ids: dict[str, int | None] = {}
         for index, block in enumerate(blocks):
             section = ("plugin", index)
             if not isinstance(block, dict):
                 self.add("error", "each plugin must be a [[plugin]] block", key="plugin")
                 continue
-            name = block.get("name")
-            if isinstance(name, str):
+            plugin_id = block.get("id")
+            if isinstance(plugin_id, str):
                 # Checked for every block, also broken ones, so fixing one block can't
                 # silently switch off another.
-                folder = folder_name(name)
-                if folder in names:
-                    used = names[folder]
+                folder = folder_name(plugin_id)
+                if folder in ids:
+                    used = ids[folder]
                     at = f" at line {used}" if used else ""
                     self.add(
                         "error",
-                        f"name {name!r} is already used by the plugin block{at}; "
-                        "names must be different (also ignoring capitals and punctuation)",
+                        f"id {plugin_id!r} is already used by the plugin block{at}; "
+                        "IDs must be different (capitals, - and _ don't count)",
                         section,
-                        "name",
-                        f"[[plugin]] {name!r}",
+                        "id",
+                        f"[[plugin]] {plugin_id!r}",
                     )
                     continue
-                names[folder] = self.lines.get(section)
+                ids[folder] = self.lines.get(section)
             checked = self.check_plugin(block, section)
             if checked is not None:
                 found.append(checked)
         return found
 
     def check_plugin(self, block: dict[str, Any], section: tuple) -> PluginConfig | None:
-        name = block.get("name")
-        where = f"[[plugin]] {name!r}" if isinstance(name, str) else f"[[plugin]] {section[1] + 1}"
+        plugin_id = block.get("id")
+        where = (
+            f"[[plugin]] {plugin_id!r}"
+            if isinstance(plugin_id, str)
+            else f"[[plugin]] {section[1] + 1}"
+        )
         errors_before = len(self.problems)
 
         def failed() -> bool:

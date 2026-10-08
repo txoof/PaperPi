@@ -55,13 +55,13 @@ height = 480
 mode = "bw"
 
 [[plugin]]
-name = "Clock"
+id = "clock"
 type = "basic_clock"
 layout = "time_date"
 ```
 
 ```bash
-uv run paperpi render --config paperpi.toml --name "Clock"   # writes clock.png, named after the plugin's name
+uv run paperpi render --config paperpi.toml --id clock   # writes clock.png, named after the plugin's ID
 ```
 
 Run `uv run paperpi render --help` for all options. How to write a plugin: [docs/writing-plugins.md](docs/writing-plugins.md).

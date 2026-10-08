@@ -23,12 +23,12 @@ ready (a later version), type them into the config file on the Pi:
 <ol class="plugins">
 {% for row in rows %}
   <li>
-    <div><strong>{{ row.name or "(no name)" }}</strong> <span class="type">{{ row.type }}</span></div>
+    <div><strong>{{ row.name or "(no id)" }}</strong> <span class="type">{{ row.type }}{% if row.id and row.id != row.name %} · {{ row.id }}{% endif %}</span></div>
     <div class="status">{{ row.status }}</div>
     {% for error in row.errors %}<div class="problem">{{ error }}</div>{% endfor %}
     <div class="buttons">
       <form method="post" action="/plugins/{{ row.index }}/enabled">
-        <input type="hidden" name="name" value="{{ row.name }}">
+        <input type="hidden" name="id" value="{{ row.id }}">
         {% if row.enabled %}
         <input type="hidden" name="on" value="0"><button type="submit">Switch off</button>
         {% else %}
@@ -37,11 +37,11 @@ ready (a later version), type them into the config file on the Pi:
         {% endif %}
       </form>
       <form method="post" action="/plugins/{{ row.index }}/move">
-        <input type="hidden" name="name" value="{{ row.name }}">
+        <input type="hidden" name="id" value="{{ row.id }}">
         <button type="submit" name="step" value="up"{% if loop.first %} disabled{% endif %}>Up</button>
         <button type="submit" name="step" value="down"{% if loop.last %} disabled{% endif %}>Down</button>
       </form>
-      <a href="/plugins/{{ row.index }}/remove?name={{ row.name|urlencode }}">Remove</a>
+      <a href="/plugins/{{ row.index }}/remove?id={{ row.id|urlencode }}">Remove</a>
     </div>
   </li>
 {% endfor %}

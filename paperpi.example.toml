@@ -4,7 +4,7 @@
 # The file only needs the settings that differ from the default. Every other setting is
 # shown as a comment with its default: remove the # in front of it to change it.
 # Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
-# more than once, with a different name. The weather blocks are not shown until you remove
+# more than once, with a different id. The weather blocks are not shown until you remove
 # the # in front of "email" and fill in your own, real email address: met.no asks every
 # program for a way to contact its user. Settings marked "(required)" must be filled in
 # before a plugin is shown.
@@ -62,6 +62,10 @@ type = "virtual"
 # basic_clock: The time, and optionally the date, in large text.
 # Layouts (values for "layout"): time, time_date, small
 [[plugin]]
+# Unique ID of this plugin: letters, digits, _ and -. It names the plugin's storage folder, so
+# changing it starts with an empty folder
+id = "clock"
+# Name shown in the web interface; leave it out to show the ID
 name = "Clock"
 type = "basic_clock"
 # 12-hour (3:45 PM) or 24-hour (15:45) clock
@@ -94,6 +98,7 @@ type = "basic_clock"
 # met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
 # Layouts (values for "layout"): hours_12, small, steps_3h, now, portrait_hours, portrait_now
 [[plugin]]
+id = "weather_berlin"
 name = "Weather Berlin"
 type = "met_no"
 # Latitude of the place, e.g. 52.52 (required)
@@ -117,6 +122,7 @@ place = "Berlin"
 # met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
 # Layouts (values for "layout"): hours_12, small, steps_3h, now, portrait_hours, portrait_now
 [[plugin]]
+id = "weather_rio"
 name = "Weather Rio"
 type = "met_no"
 # Latitude of the place, e.g. 52.52 (required)

@@ -18,7 +18,7 @@ CONFIG = (
     "# my screen\n"
     '[display]\ntype = "virtual"\n'
     "[[plugin]]\n"
-    'name = "Clock"\ntype = "basic_clock"  # the first plugin\n'
+    'id = "Clock"\ntype = "basic_clock"  # the first plugin\n'
 )
 
 

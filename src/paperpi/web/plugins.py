@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,7 +21,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .. import config, example, plugins
-from ..plugin import Plugin, PluginEntry
+from ..plugin import ID_LENGTH, Plugin, PluginEntry
 from . import config_file
 
 #: Plugin types the Plugin Library doesn't offer: ``default`` is PaperPi's own message when
@@ -34,8 +35,10 @@ class Row:
 
     index: int
     """Its place in the file, counted from 0."""
+    id: str
+    """``""`` when the block has no proper ID."""
     name: str
-    """``""`` when the block has no proper name."""
+    """The name it is shown with: its ``name``, or its ID without one."""
     type: str
     enabled: bool
     missing: tuple[str, ...] = ()
@@ -127,61 +130,65 @@ class PluginEditor:
             self._reload()
         return hand_edits
 
-    def move(self, index: int, name: str, step: int) -> bool:
-        return self.change(lambda text: config_file.move(text, index, name, step))
+    def move(self, index: int, plugin_id: str, step: int) -> bool:
+        return self.change(lambda text: config_file.move(text, index, plugin_id, step))
 
-    def set_enabled(self, index: int, name: str, enabled: bool) -> bool:
+    def set_enabled(self, index: int, plugin_id: str, enabled: bool) -> bool:
         def switch(text: str) -> str:
-            row = _row(_plugin_list(text), index, name)
+            row = _row(_plugin_list(text), index, plugin_id)
             if enabled and row.missing:
                 raise config_file.EditError(
-                    f"{name} can't be switched on yet. Fill in these settings first: "
+                    f"{row.name} can't be switched on yet. Fill in these settings first: "
                     f"{', '.join(row.missing)}."
                 )
-            return config_file.set_enabled(text, index, name, enabled)
+            return config_file.set_enabled(text, index, plugin_id, enabled)
 
         return self.change(switch)
 
-    def remove(self, index: int, name: str) -> bool:
-        return self.change(lambda text: config_file.remove(text, index, name))
+    def remove(self, index: int, plugin_id: str) -> bool:
+        return self.change(lambda text: config_file.remove(text, index, plugin_id))
 
-    def row(self, index: int, name: str) -> Row:
-        """The block at ``index``, if it is still called ``name``."""
-        return _row(self.plugin_list(), index, name)
+    def row(self, index: int, plugin_id: str) -> Row:
+        """The block at ``index``, if it still has the ID ``plugin_id``."""
+        return _row(self.plugin_list(), index, plugin_id)
 
-    def add(self, item: LibraryItem, name: str) -> bool:
-        """Add a block for ``item`` called ``name`` at the end of the plugin list. A plugin
-        with required settings is added switched off. Raises
+    def add(self, item: LibraryItem, name: str) -> tuple[bool, str]:
+        """Add a block for ``item``, shown as ``name``, at the end of the plugin list. It
+        gets a new ID: the type and 8 random letters and digits, e.g. ``met_no-3f9a1c2e``.
+        A plugin with required settings is added switched off.
+
+        Returns whether hand edits applied too (see :meth:`change`) and the new ID. Raises
         :class:`config_file.EditError` for a name that can't be used."""
         if item.plugin is None:
             raise config_file.EditError(f"{item.type} can't be added. {item.description}")
+        plugin = item.plugin
         name = name.strip()
         problem = name_problem(name)
         if problem:
             raise config_file.EditError(problem)
-        values = {"enabled": False} if item.plugin.required else {}
-        block = example.plugin_block(item.plugin, name, values)
+        values = ({"name": name} if name else {}) | ({"enabled": False} if plugin.required else {})
+        made = ""
 
         def add(text: str) -> str:
-            if config.folder_name(name) in _used_names(text):
-                raise config_file.EditError(
-                    "Another plugin already has this name (capitals and punctuation don't "
-                    "count). Choose another name."
-                )
-            return config_file.add(text, block)
+            nonlocal made
+            used = _used_ids(text)
+            made = new_id(item.type)
+            while config.folder_name(made) in used:
+                made = new_id(item.type)
+            return config_file.add(text, example.plugin_block(plugin, made, values))
 
-        return self.change(add)
+        return self.change(add), made
 
     def suggested_name(self, item: LibraryItem) -> str:
-        """A name for a new block of ``item`` that is not used yet: "Basic clock",
-        "Basic clock 2", ..."""
+        """A name for a new block of ``item`` that no other plugin is shown with yet:
+        "Basic clock", "Basic clock 2", ..."""
         try:
             used = _used_names(config_file.read(self.path)[1])
         except config_file.EditError:
             used = set()
         base = item.type.replace("_", " ").capitalize()
         name, number = base, 1
-        while config.folder_name(name) in used:
+        while name.casefold() in used:
             number += 1
             name = f"{base} {number}"
         return name
@@ -219,10 +226,12 @@ def _plugin_list(text: str, source: str = "config") -> PluginList:
                 for p in problems
                 if p.level == "error" and p.line and place.start < p.line <= place.end
             )
+        plugin_id, name = config_file.id_of(block), block.get("name")
         rows.append(
             Row(
                 index=index,
-                name=config_file.name_of(block),
+                id=plugin_id,
+                name=(name.strip() or plugin_id) if isinstance(name, str) else plugin_id,
                 type=plugin_type if isinstance(plugin_type, str) else "",
                 enabled=enabled if isinstance(enabled, bool) else True,
                 missing=good.missing if good is not None else (),
@@ -233,8 +242,8 @@ def _plugin_list(text: str, source: str = "config") -> PluginList:
     return PluginList(rows, file_problems)
 
 
-def _row(found: PluginList, index: int, name: str) -> Row:
-    if not 0 <= index < len(found.rows) or found.rows[index].name != name:
+def _row(found: PluginList, index: int, plugin_id: str) -> Row:
+    if not 0 <= index < len(found.rows) or found.rows[index].id != plugin_id:
         raise config_file.ChangedMeanwhile()
     return found.rows[index]
 
@@ -258,23 +267,31 @@ def library_item(plugin_type: str) -> LibraryItem | None:
     return next((item for item in library() if item.type == plugin_type), None)
 
 
+def new_id(plugin_type: str) -> str:
+    """A new plugin ID: ``plugin_type``, ``-`` and 8 random letters and digits."""
+    return f"{plugin_type[: ID_LENGTH - 9]}-{secrets.token_hex(4)}"
+
+
 def name_problem(name: str) -> str | None:
-    """Why ``name`` can't be a plugin's name, or ``None`` when it can."""
+    """Why ``name`` can't be the name a plugin is shown with, or ``None`` when it can."""
     try:
-        PluginEntry.model_validate({"name": name, "type": "x"})
+        PluginEntry.model_validate({"id": "x", "type": "x", "name": name})
     except ValidationError as error:
         found = error.errors()[0]
-        if found["type"] == "string_too_short":
-            return "Give the plugin a name."
         if found["type"] == "string_too_long":
             return f"The name can have at most {found['ctx']['max_length']} characters."
         return f"The name {found['msg'].removeprefix('Value error, ')}."
     return None
 
 
-def _used_names(text: str) -> set[str]:
+def _used_ids(text: str) -> set[str]:
     blocks = config_file.plugin_blocks(config_file.load(text))
-    return {config.folder_name(n) for n in map(config_file.name_of, blocks) if n}
+    return {config.folder_name(i) for i in map(config_file.id_of, blocks) if i}
+
+
+def _used_names(text: str) -> set[str]:
+    """The names the plugins are shown with, without capitals."""
+    return {row.name.casefold() for row in _plugin_list(text).rows}
 
 
 def _without_place(problem: config.Problem) -> str:

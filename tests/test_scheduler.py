@@ -218,19 +218,19 @@ def make_config(*blocks, display=""):
 
 
 def rotation(name, display_time=100, refresh=30):
-    return f'name = "{name}"\nlevel = "rotation"\ndisplay_time = {display_time}\n' + (
+    return f'id = "{name}"\nlevel = "rotation"\ndisplay_time = {display_time}\n' + (
         f"refresh = {refresh}"
     )
 
 
 def interrupt(name, refresh=5):
-    return f'name = "{name}"\nlevel = "interrupt"\nrefresh = {refresh}\ndisplay_time = 100'
+    return f'id = "{name}"\nlevel = "interrupt"\nrefresh = {refresh}\ndisplay_time = 100'
 
 
 def alert(name, refresh=10, **extra):
     """An alert plugin block; ``extra`` are more settings, e.g. ``alert_reminder=300``."""
     lines = "".join(f"\n{key} = {value}" for key, value in extra.items())
-    return f'name = "{name}"\nlevel = "alert"\nrefresh = {refresh}{lines}'
+    return f'id = "{name}"\nlevel = "alert"\nrefresh = {refresh}{lines}'
 
 
 def between(start, end, inside, outside="nothing"):
@@ -519,7 +519,7 @@ def test_default_is_only_updated_when_the_count_changes(tmp_path):
 
 
 def test_default_block_in_the_config_is_used_and_not_rotated(tmp_path):
-    sim = Sim(tmp_path, rotation("a"), 'name = "fallback"\ntype = "default"')
+    sim = Sim(tmp_path, rotation("a"), 'id = "fallback"\ntype = "default"')
     sim.plan(a=lambda t: "A" if t < 50 else "fail")
     sim.run(until=200)
     assert sim.shown == ["A", "default 1/1"]
@@ -832,7 +832,7 @@ def test_splash_comes_back_when_every_plugin_is_switched_off(tmp_path):
 
 
 def test_on_the_minute_plugin_updates_just_after_the_minute_changes(tmp_path):
-    sim = Sim(tmp_path, 'name = "clock"\ntype = "basic_clock"\nlevel = "rotation"')
+    sim = Sim(tmp_path, 'id = "clock"\ntype = "basic_clock"\nlevel = "rotation"')
     sim.clock.start = datetime(2026, 10, 5, 10, 0, 20)
     sim.run(until=200)
     # Started at 10:00:20; then at 10:01:01, 10:02:01 and 10:03:01 (each takes 1 s).
@@ -1012,7 +1012,7 @@ def test_switching_type_on_reload_keeps_the_driver_settings_until_the_next_start
     sim.run(until=10)
     # E.g. type = "virtual" for a test, and vcom removed: nothing applies before the next start.
     text = 'config_version = 1\n[display]\ntype = "it8951"\nmodel = "9.7"\nvcom = -2.0\n'
-    new = config.parse(text + '[[plugin]]\nname = "a"\ntype = "debugging"\n')
+    new = config.parse(text + '[[plugin]]\nid = "a"\ntype = "debugging"\n')
     sim.next_config = make_config(rotation("a"))
     sim.next_config.display = new.display
     sim.scheduler.reload()

@@ -80,7 +80,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     render.add_argument("plugin", nargs="?", help=f"plugin type: {', '.join(plugins.available())}")
     render.add_argument("--config", type=Path, help="config file to read the plugin from")
-    render.add_argument("--name", help='with --config: the plugin\'s name, e.g. "Clock"')
+    render.add_argument("--id", help="with --config: the plugin's ID, e.g. clock")
     render.add_argument(
         "--size",
         help=f'WIDTHxHEIGHT in pixels, e.g. 800x480 (default: {SIZE}, the 9.7" screen)',
@@ -224,14 +224,14 @@ def _render(args: argparse.Namespace) -> int:
     if args.config is not None:
         if args.plugin:
             raise UsageError(f"give either a plugin type ({args.plugin!r}) or --config, not both")
-        if args.name is None:
-            raise UsageError('with --config, give the plugin\'s name: --name "Clock"')
+        if args.id is None:
+            raise UsageError("with --config, give the plugin's ID: --id clock")
         if args.set or args.size or args.mode:
             raise UsageError("with --config, settings, size and mode come from the config file")
         job = _job_from_config(args)
     else:
-        if args.name is not None:
-            raise UsageError("--name only works together with --config")
+        if args.id is not None:
+            raise UsageError("--id only works together with --config")
         if not args.plugin:
             raise UsageError("which plugin? e.g. paperpi render basic_clock")
         job = _job_from_options(args)
@@ -394,10 +394,11 @@ def _list(args: argparse.Namespace) -> int:
     except config.ConfigError as error:
         print(f"paperpi: the config file can't be used:\n{error}", file=sys.stderr)
         return 1
-    rows = [("name", "type", "on", "level", "display", "refresh", "layout", "storage")]
+    rows = [("id", "name", "type", "on", "level", "display", "refresh", "layout", "storage")]
     for row in config.plugin_rows(loaded):
         rows.append(
             (
+                row.id,
                 row.name,
                 row.type,
                 _on_column(row),
@@ -490,12 +491,12 @@ def _job_from_config(args: argparse.Namespace) -> _Job:
     except config.ConfigError as error:
         raise UsageError(f"the config file can't be used:\n{error}") from None
     try:
-        found = loaded.plugin(args.name)
+        found = loaded.plugin(args.id)
     except KeyError:
-        names = ", ".join(repr(p.entry.name) for p in loaded.plugins) or "none"
+        ids = ", ".join(repr(p.entry.id) for p in loaded.plugins) or "none"
         raise UsageError(
-            f"no usable plugin named {args.name!r} in {args.config} (problems are shown "
-            f"above); plugins without errors: {names}"
+            f"no usable plugin with ID {args.id!r} in {args.config} (problems are shown "
+            f"above); plugins without errors: {ids}"
         ) from None
     width, height = loaded.display.layout_size
     return _Job(
