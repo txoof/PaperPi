@@ -6,19 +6,21 @@ the values a sent form holds, checked the same way as the config file.
   ("More settings"). Each field shows the setting's value, or its default when the config
   file doesn't set it. ``id`` and ``type`` can't change; ``enabled`` is switched on the
   Active Plugins page.
-- :func:`read` turns a sent form into the changes to save, or an error per field. An empty
-  field means "the default". A value equal to the default is taken out of the file, which
-  only holds the settings that differ from the default (``docs/decisions/config-format.md``).
-  An empty secret (an API key, ...) keeps the one that is saved, so the page never has to
-  show it. A field that is not in the form stays as it is; so the page sends an empty value
-  in front of each check box (``false``) and list (``""``), which browsers leave out when
-  nothing is ticked.
+- :func:`read` turns a sent form into the changes to save, or an error per field (then
+  nothing is saved). An empty field means "the default" (for a check box: off; for a list:
+  nothing picked). A value changed to its default is taken out of the file, which only holds
+  the settings that differ from the default (``docs/decisions/config-format.md``). An empty
+  secret (an API key, ...) keeps the one that is saved, so the page never has to show it.
+- Browsers send nothing for a check box that is off or a list with nothing picked. So the
+  page adds a hidden empty field for each, and a field that is missing from the form is
+  left as it is.
 - A setting of a kind the form can't show (a group of settings, a list of numbers) is shown
   as it is in the file, to be changed there.
 """
 
 from __future__ import annotations
 
+import re
 import types
 import typing
 from collections.abc import Mapping, Sequence
@@ -118,9 +120,12 @@ def fields(
         if kind == "file":
             texts = [example.toml_value(value) if value is not None else ""]
         if sent is not None and key in sent and kind not in ("secret", "file"):
-            texts = list(sent[key])
-        if kind == "check" and sent is not None:
-            texts = ["true" if sent.get(key) else "false"]
+            # Without the empty value the page sends for a check box or list.
+            texts = [t for t in sent[key] if t] or [""]
+            if kind == "check":
+                texts = ["true" if texts[-1] not in ("", "false") else "false"]
+            elif kind == "choices":
+                texts = [t for t in texts if t]
         found.append(
             FormField(
                 key=key,
@@ -156,8 +161,7 @@ def read(plugin: Plugin, block: Mapping[str, Any], form: Mapping[str, Sequence[s
     errors: dict[str, str] = {}
     sent = {key: list(texts) for key, texts in form.items()}
     for item in fields(plugin, block):
-        # A browser leaves out a check box that is off and a list with nothing picked, so
-        # the page sends an empty value for them too: a missing field stays as it is.
+        # A field that is not in the form stays as it is (see the top of this file).
         if item.key not in sent:
             continue
         texts = [t.strip() for t in sent[item.key]]
@@ -176,12 +180,18 @@ def read(plugin: Plugin, block: Mapping[str, Any], form: Mapping[str, Sequence[s
     _check(PluginEntry, entry | _set(block, shared, PluginEntry), errors)
     _check(plugin.settings, _set(block, own, plugin.settings), errors)
     if errors:
-        return Read({}, errors, sent)
+        # Shown again on the page, so without what was typed into a secret field.
+        secrets = {item.key for item in fields(plugin, block) if item.kind == "secret"}
+        return Read({}, errors, {k: v for k, v in sent.items() if k not in secrets})
     shown = defaults(plugin)
     changes = {}
     for key, value in values.items():
-        new = None if value is None or value == shown[key] else value
-        if new != block.get(key):
+        # As plain data: the file gives a list where the form gives a tuple. A value as it
+        # is in the file stays, also one written there that equals the default.
+        if key in block and example.plain(value) == example.plain(block[key]):
+            continue
+        new = None if example.plain(value) == example.plain(shown[key]) else value
+        if example.plain(new) != example.plain(block.get(key)):
             changes[key] = new
     return Read(changes)
 
@@ -257,17 +267,18 @@ def _value(item: FormField, text: str, texts: list[str]) -> Any:
     if item.kind == "check":
         return text not in ("", "false")
     if item.kind == "choices":
-        unknown = [t for t in texts if t not in item.choices]
-        if unknown:
+        if any(t not in item.choices for t in texts):
             raise ValueError(f"choose from: {', '.join(item.choices)}")
-        return tuple(_choice(item, t) for t in texts)
+        # Each one once, in the order of the choices (a form can't send more).
+        return tuple(_choice(item, t) for t in item.choices if t in texts)
     if not text:
         return None
     if item.kind == "number":
-        try:
-            return int(text) if item.whole else float(text)
-        except ValueError:
-            raise ValueError("enter a whole number" if item.whole else "enter a number") from None
+        # Plain digits only: int() and float() also take "1_0", "nan" and other scripts' digits.
+        pattern = r"-?[0-9]{1,18}" if item.whole else r"-?[0-9]{1,18}(\.[0-9]{1,18})?"
+        if not re.fullmatch(pattern, text):
+            raise ValueError("enter a whole number" if item.whole else "enter a number")
+        return int(text) if item.whole else float(text)
     if item.kind == "choice":
         if text not in item.choices:
             raise ValueError(f"choose one of: {', '.join(item.choices)}")

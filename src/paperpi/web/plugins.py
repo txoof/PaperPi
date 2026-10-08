@@ -116,7 +116,8 @@ class PluginEditor:
         """Change the file with ``edit`` (old text -> new text), save it and apply it.
 
         Returns True when the file had hand edits that were not applied yet; they apply
-        too. Raises :class:`config_file.EditError` when the change can't be made.
+        too. When ``edit`` changes nothing, nothing is saved or applied (False). Raises
+        :class:`config_file.EditError` when the change can't be made.
         """
         with config_file.LOCK:
             path, text = config_file.read(self.path)
@@ -126,6 +127,8 @@ class PluginEditor:
                 and not config_file.saved_here(path, text)
             )
             new = edit(text)
+            if new == text:  # nothing to save or apply
+                return False
             try:
                 config.parse(new, path.name)
             except config.ConfigError as error:

@@ -274,3 +274,54 @@ def test_windows_line_breaks_are_kept_when_settings_change():
     text = CONFIG.replace("\n", "\r\n")
     new = config_file.set_settings(text, 0, "Clock", {"refresh": 120, "name": "Kitchen"})
     assert "\n" not in new.replace("\r\n", "")
+
+
+def test_a_quoted_key_in_the_file_is_not_changed_wrongly():
+    text = CONFIG.replace("# refresh = 60", '"hours" = 24')
+    with pytest.raises(config_file.UnknownForm):
+        config_file.set_settings(text, 0, "Clock", {"hours": 12})
+
+
+def test_a_key_that_starts_like_another_is_another():
+    text = CONFIG.replace("# refresh = 60", "latitude = 1")
+    new = config_file.set_settings(text, 0, "Clock", {"lat": 2})
+    assert tomllib.loads(new)["plugin"][0] | {} == {
+        "id": "Clock",
+        "type": "basic_clock",
+        "latitude": 1,
+        "lat": 2,
+    }
+
+
+def test_a_key_that_needs_quotes_gets_them():
+    new = config_file.set_settings(CONFIG, 0, "Clock", {"my key": 1})
+    assert '"my key" = 1\n' in new
+
+
+def test_removing_a_value_with_its_comment_there_already_adds_no_second_one():
+    text = CONFIG.replace("# refresh = 60", "# hours = 24\nhours = 12")
+    new = config_file.set_settings(text, 0, "Clock", {"hours": None}, {"hours": 24})
+    assert new.count("# hours = 24") == 1 and "hours = 12" not in new
+
+
+def test_a_help_text_that_starts_like_a_setting_stays():
+    text = CONFIG.replace("# refresh = 60", "# hours = 12 or 24 (default 24)")
+    new = config_file.set_settings(text, 0, "Clock", {"hours": 12})
+    assert "# hours = 12 or 24 (default 24)\n" in new and "\nhours = 12\n" in new
+
+
+def test_a_not_set_comment_takes_the_value():
+    text = CONFIG.replace("# refresh = 60", "# help for lat\n# lat =")
+    new = config_file.set_settings(text, 0, "Clock", {"lat": 2})
+    assert "# help for lat\nlat = 2\n" in new
+
+
+def test_windows_line_breaks_keep_the_values():
+    text = CONFIG.replace("\n", "\r\n")
+    new = config_file.set_settings(text, 0, "Clock", {"refresh": 120, "name": "Kitchen"})
+    assert tomllib.loads(new)["plugin"][0] == {
+        "id": "Clock",
+        "name": "Kitchen",
+        "type": "basic_clock",
+        "refresh": 120,
+    }
