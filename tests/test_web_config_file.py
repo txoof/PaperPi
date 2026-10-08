@@ -13,13 +13,13 @@ type = "virtual"
 
 # the clock in the kitchen
 [[plugin]]
-name = "Clock"
+id = "Clock"
 type = "basic_clock"
 # refresh = 60
 
 # words
 [[plugin]]
-name = "Words"
+id = "Words"
 type = "word_clock"
 enabled = true  # for now
 [plugin.extra]
@@ -31,7 +31,7 @@ port = 8081
 
 
 def names(text):
-    return [b["name"] for b in tomllib.loads(text).get("plugin", [])]
+    return [b["id"] for b in tomllib.loads(text).get("plugin", [])]
 
 
 def test_blocks_start_at_their_comments():
@@ -47,7 +47,7 @@ def test_blocks_start_at_their_comments():
 def test_moving_a_block_takes_its_comments_and_parts_along():
     moved = config_file.move(CONFIG, 1, "Words", -1)
     assert names(moved) == ["Words", "Clock"]
-    assert moved.index("# words") < moved.index('name = "Words"') < moved.index("[plugin.extra]")
+    assert moved.index("# words") < moved.index('id = "Words"') < moved.index("[plugin.extra]")
     assert moved.index("[plugin.extra]") < moved.index("# the clock in the kitchen")
     assert tomllib.loads(moved)["plugin"][0]["extra"] == {"a": 1}
     assert tomllib.loads(moved)["web"] == {"port": 8081}
@@ -91,7 +91,7 @@ def test_adding_a_block_after_the_last_plugin():
     block = example.plugin_block(plugins.load("dec_binary_clock"), "Dots", {})
     added = config_file.add(CONFIG, block)
     assert names(added) == ["Clock", "Words", "Dots"]
-    assert added.index('name = "Dots"') < added.index("[web]")
+    assert added.index('id = "Dots"') < added.index("[web]")
     assert tomllib.loads(added)["web"] == {"port": 8081}
     # A file without plugins: at the end.
     empty = 'config_version = 1\n[display]\ntype = "virtual"'
@@ -110,7 +110,7 @@ def test_files_it_doesnt_understand_are_not_changed():
     text = CONFIG.replace('type = "virtual"', 'type = "virtual"\nnote = """\n[[plugin]]\n"""')
     assert names(config_file.remove(text, 0, "Clock")) == ["Words"]
     # ... and a header written in another way is not found, so nothing is changed.
-    quoted = CONFIG.replace('[[plugin]]\nname = "Words"', '[["plugin"]]\nname = "Words"')
+    quoted = CONFIG.replace('[[plugin]]\nid = "Words"', '[["plugin"]]\nid = "Words"')
     with pytest.raises(EditError, match="config file itself"):
         config_file.move(quoted, 0, "Clock", 1)
     with pytest.raises(EditError, match="not valid TOML"):
@@ -130,12 +130,8 @@ def test_saving_keeps_the_permissions(tmp_path):
 
 
 def test_comments_right_after_a_setting_stay_with_the_block_above():
-    text = (
-        '[[plugin]]\nname = "A"\ntype = "x"\n# refresh = 60\n[[plugin]]\nname = "B"\ntype = "y"\n'
-    )
-    assert (
-        config_file.remove(text, 1, "B") == '[[plugin]]\nname = "A"\ntype = "x"\n# refresh = 60\n'
-    )
+    text = '[[plugin]]\nid = "A"\ntype = "x"\n# refresh = 60\n[[plugin]]\nid = "B"\ntype = "y"\n'
+    assert config_file.remove(text, 1, "B") == '[[plugin]]\nid = "A"\ntype = "x"\n# refresh = 60\n'
 
 
 def test_windows_line_endings_are_kept():
@@ -154,7 +150,7 @@ def test_windows_line_endings_are_kept():
 def test_a_file_without_a_last_line_break():
     text = CONFIG.removesuffix("\n")
     assert tomllib.loads(config_file.move(text, 1, "Words", -1))["web"] == {"port": 8081}
-    last = '[[plugin]]\nname = "A"\ntype = "x"'
+    last = '[[plugin]]\nid = "A"\ntype = "x"'
     off = config_file.set_enabled(last, 0, "A", False)
     assert tomllib.loads(off)["plugin"][0]["enabled"] is False
 
@@ -166,13 +162,13 @@ def test_other_parts_between_blocks_stay_where_they_are():
     moved = config_file.move(text, 1, "Words", -1)
     assert names(moved) == ["Words", "Clock"]
     # The blocks swap places; [web] stays between them.
-    assert moved.index('name = "Words"') < moved.index("[web]") < moved.index('name = "Clock"')
+    assert moved.index('id = "Words"') < moved.index("[web]") < moved.index('id = "Clock"')
     assert tomllib.loads(moved)["web"] == {"port": 8081}
 
 
 def test_enabled_in_a_part_or_a_string_is_not_the_switch():
     text = (
-        '[[plugin]]\nname = "A"\nnote = """\nenabled = true\n"""\ntype = "x"\n'
+        '[[plugin]]\nid = "A"\nnote = """\nenabled = true\n"""\ntype = "x"\n'
         "[plugin.extra]\nenabled = true\n"
     )
     off = config_file.set_enabled(text, 0, "A", False)
@@ -181,16 +177,16 @@ def test_enabled_in_a_part_or_a_string_is_not_the_switch():
     assert data["note"] == "enabled = true\n"
     assert config_file.set_enabled(off, 0, "A", True) == text
     # Only a "type" inside a string: the new line goes right below [[plugin]].
-    hidden = '[[plugin]]\nnote = """\ntype = "y"\n"""\nname = "B"\n'
+    hidden = '[[plugin]]\nnote = """\ntype = "y"\n"""\nid = "B"\n'
     assert tomllib.loads(config_file.set_enabled(hidden, 0, "B", False))["plugin"][0] == {
         "note": 'type = "y"\n',
-        "name": "B",
+        "id": "B",
         "enabled": False,
     }
 
 
 def test_unicode_line_breaks_inside_a_value_are_not_line_breaks():
-    text = CONFIG.replace('name = "Words"', 'name = "Words"\nplace = "a b\x85c"')
+    text = CONFIG.replace('id = "Words"', 'id = "Words"\nplace = "a b\x85c"')
     assert names(config_file.remove(text, 0, "Clock")) == ["Words"]
     off = config_file.set_enabled(text, 1, "Words", False)
     assert tomllib.loads(off)["plugin"][1]["place"] == "a b\x85c"

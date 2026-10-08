@@ -26,7 +26,7 @@ What v1 does badly:
 
 ### What a plugin is
 
-A folder in `src/paperpi/plugins/<name>/` with:
+A folder in `src/paperpi/plugins/<type>/` with:
 
 | Part | What it is |
 |---|---|
@@ -56,7 +56,7 @@ For sample images and tests, `fetch` is skipped and the sample data goes straigh
 
 - Every update runs in a **new, short-lived process**. When the update is done, the process exits and its memory is given back. A plugin that hangs or crashes is stopped without affecting PaperPi or the other plugins.
 - To keep starts quick (important for music plugins, which check every few seconds), PaperPi keeps one ready copy with the common packages already loaded and starts each update from it. A start takes a fraction of a second, even on a Pi 3.
-- A plugin can't keep anything in memory between updates. It gets its own folder, `/var/lib/paperpi/plugins/<plugin name>/`, for saved files such as downloaded data or the last track played.
+- A plugin can't keep anything in memory between updates. It gets its own folder, `/var/lib/paperpi/plugins/<plugin id>/`, for saved files such as downloaded data or the last track played.
 - Time limit per update: a default for all plugins, which can be changed per plugin. The exact numbers and what happens after repeated failures are in the error-handling note (#190) and `plugin-scheduling.md`.
 
 ### When a plugin is updated

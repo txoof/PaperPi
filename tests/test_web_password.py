@@ -13,7 +13,7 @@ CONFIG = (
     "# my screen\n"
     '[display]\ntype = "virtual"\n'
     "[[plugin]]\n"
-    'name = "Clock"\ntype = "basic_clock"  # the first plugin\n'
+    'id = "Clock"\ntype = "basic_clock"  # the first plugin\n'
 )
 
 
@@ -129,7 +129,7 @@ def test_saving_into_a_web_part_written_by_hand(cfg):
     loaded = config.parse(cfg.read_text())
     assert (loaded.web.port, loaded.web.password_hash) == (9000, "scrypt:one")
     assert "port = 9000  # mine" in cfg.read_text()
-    assert [p.entry.name for p in loaded.plugins] == ["Clock"]
+    assert [p.entry.id for p in loaded.plugins] == ["Clock"]
 
 
 @pytest.mark.parametrize(

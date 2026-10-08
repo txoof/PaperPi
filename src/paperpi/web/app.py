@@ -27,9 +27,10 @@ from __future__ import annotations
 import ipaddress
 from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import urlencode, urlsplit
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -45,6 +46,9 @@ COOKIE = "paperpi_login"
 _HERE = Path(__file__).parent
 #: Pages that work without a log-in (and everything in ``/static/``).
 _OPEN = ("/setup", "/login")
+#: A plugin's ID, sent as ``id`` in a form or in the address.
+_FormId = Annotated[str, Form(alias="id")]
+_QueryId = Annotated[str, Query(alias="id")]
 
 
 def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
@@ -155,9 +159,10 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         else:
             rows, problems = found.rows, found.problems
         done = request.query_params.get("done")
-        # The name in the address is only shown when it is in the list: a link can't put
-        # other text on the page.
-        name = request.query_params.get("name")
+        # The name is looked up by the ID in the address: a link can't put other text on
+        # the page.
+        plugin_id = request.query_params.get("id")
+        name = next((row.name for row in rows if plugin_id and row.id == plugin_id), None)
         return page(
             request,
             "plugins.html",
@@ -166,13 +171,13 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
             problems=[p for p in dict.fromkeys(problems) if p != problem],
             problem=problem,
             done=done if done in ("saved", "added", "removed") else None,
-            name=name if any(row.name == name for row in rows) else None,
+            name=name,
             hand_edits=request.query_params.get("hand") == "1",
             config_file=auth.config_file,
         )
 
-    def saved(done: str, hand_edits: bool, name: str = "") -> RedirectResponse:
-        values = {"done": done} | ({"name": name} if name else {})
+    def saved(done: str, hand_edits: bool, plugin_id: str = "") -> RedirectResponse:
+        values = {"done": done} | ({"id": plugin_id} if plugin_id else {})
         query = urlencode(values | ({"hand": "1"} if hand_edits else {}))
         return RedirectResponse(f"/plugins?{query}", status_code=303)
 
@@ -181,35 +186,35 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         return plugin_list(request)
 
     @app.post("/plugins/{index}/move", response_class=HTMLResponse)
-    def move(request: Request, index: int, name: str = Form(""), step: str = Form("")):
+    def move(request: Request, index: int, plugin_id: _FormId = "", step: str = Form("")):
         if step not in ("up", "down"):
             return plugin_list(request, 400, "Choose up or down.")
         try:
-            hand_edits = editor.move(index, name, -1 if step == "up" else 1)
+            hand_edits = editor.move(index, plugin_id, -1 if step == "up" else 1)
         except EditError as error:
             return plugin_list(request, 409, str(error))
         return saved("saved", hand_edits)
 
     @app.post("/plugins/{index}/enabled", response_class=HTMLResponse)
-    def switch(request: Request, index: int, name: str = Form(""), on: str = Form("")):
+    def switch(request: Request, index: int, plugin_id: _FormId = "", on: str = Form("")):
         try:
-            hand_edits = editor.set_enabled(index, name, on == "1")
+            hand_edits = editor.set_enabled(index, plugin_id, on == "1")
         except EditError as error:
             return plugin_list(request, 409, str(error))
         return saved("saved", hand_edits)
 
     @app.get("/plugins/{index}/remove", response_class=HTMLResponse)
-    def remove_page(request: Request, index: int, name: str = ""):
+    def remove_page(request: Request, index: int, plugin_id: _QueryId = ""):
         try:
-            row = editor.row(index, name)
+            row = editor.row(index, plugin_id)
         except EditError as error:
             return plugin_list(request, 409, str(error))
         return page(request, "remove.html", row=row)
 
     @app.post("/plugins/{index}/remove", response_class=HTMLResponse)
-    def remove(request: Request, index: int, name: str = Form("")):
+    def remove(request: Request, index: int, plugin_id: _FormId = ""):
         try:
-            hand_edits = editor.remove(index, name)
+            hand_edits = editor.remove(index, plugin_id)
         except EditError as error:
             return plugin_list(request, 409, str(error))
         return saved("removed", hand_edits)
@@ -235,10 +240,10 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         if item is None:
             return add_page(request, plugin_type)
         try:
-            hand_edits = editor.add(item, name)
+            hand_edits, plugin_id = editor.add(item, name)
         except EditError as error:
             return add_page(request, plugin_type, 400, name=name, problem=str(error))
-        return saved("added", hand_edits, name.strip())
+        return saved("added", hand_edits, plugin_id)
 
     @app.post("/logout")
     def logout():

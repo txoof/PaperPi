@@ -1,7 +1,7 @@
 """Size and age limits for the plugins' storage folders, and the low-disk check.
 
 See "Saved files" in ``docs/decisions/errors-and-time-limits.md``. Each plugin has its own
-folder (``<state-dir>/plugins/<name>/``) with two limits, set per plugin (``storage_mb``,
+folder (``<state-dir>/plugins/<id>/``) with two limits, set per plugin (``storage_mb``,
 ``storage_days``) or suggested by the plugin:
 
 - Files not changed for more than ``storage_days`` days are removed (0: they are kept).

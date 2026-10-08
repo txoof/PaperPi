@@ -48,6 +48,7 @@ vcom = -1.90
 rotation = 0
 
 [[plugin]]
+id = "weather_berlin"
 name = "Weather Berlin"
 type = "met_no"
 level = "rotation"
@@ -56,7 +57,7 @@ lat = 52.52
 lon = 13.40
 
 [[plugin]]
-name = "Word Clock"
+id = "word_clock"
 type = "word_clock"
 level = "rotation"
 display_time = 255
@@ -64,7 +65,12 @@ display_time = 255
 
 ### Only changed values are stored
 
-The file only holds settings that differ from the default. This keeps it short and easy to fix by hand. When a later version improves a default, you get it automatically. The web interface shows every setting with its default filled in. `paperpi.example.toml` is generated from the program (`paperpi example-config`), so it is always up to date; a test checks the copy in the repository. It is short and works as it is: `[display]` with a virtual screen, a clock, and the weather in Berlin and in Rio (the same plugin type twice). Every setting it doesn't set is a comment with its default, and its help text on the line above. The first `[[plugin]]` block lists all the settings every plugin has; the other blocks list only `refresh` and `layout`, because their defaults depend on the plugin. `storage_mb` and `storage_days` can also differ per plugin, but most plugins keep the defaults, so they are only in the first block; `paperpi list` shows the values used (M4 issue #224). The copy in the repository is not edited by hand: it is made again with `paperpi example-config -o paperpi.example.toml --force`. Agreed with txoof on 2026-10-06: the example does not list every plugin. Adding and removing plugin blocks is the job of a config manager (the web interface, M5), which builds a block the same way (`paperpi.example.plugin_block`). That function refuses unknown settings and values the plugin would not accept, and checks that PaperPi reads the block back as written. Plugin names may not hold control characters (such as tab, new line or the terminal's ESC), because they can't be written back to the file reliably.
+The file only holds settings that differ from the default. This keeps it short and easy to fix by hand. When a later version improves a default, you get it automatically. The web interface shows every setting with its default filled in. `paperpi.example.toml` is generated from the program (`paperpi example-config`), so it is always up to date; a test checks the copy in the repository. It is short and works as it is: `[display]` with a virtual screen, a clock, and the weather in Berlin and in Rio (the same plugin type twice). Every setting it doesn't set is a comment with its default, and its help text on the line above. The first `[[plugin]]` block lists all the settings every plugin has; the other blocks list only `refresh` and `layout`, because their defaults depend on the plugin. `storage_mb` and `storage_days` can also differ per plugin, but most plugins keep the defaults, so they are only in the first block; `paperpi list` shows the values used (M4 issue #224). The copy in the repository is not edited by hand: it is made again with `paperpi example-config -o paperpi.example.toml --force`. Agreed with txoof on 2026-10-06: the example does not list every plugin. Adding and removing plugin blocks is the job of a config manager (the web interface, M5), which builds a block the same way (`paperpi.example.plugin_block`). That function refuses unknown settings and values the plugin would not accept, and checks that PaperPi reads the block back as written. Plugin names (`name`) may not hold control characters (such as tab, new line or the terminal's ESC), because they can't be written back to the file reliably.
+
+*Update 2026-10-08 (M5 part 3a-0, issue #238), agreed with txoof:* each `[[plugin]]` block has a fixed **`id`** and an optional friendly **`name`**.
+- `id` is required and unique (capitals don't count, and `-` is the same as `_`). It holds only letters, digits, `_` and `-`, at most 40 characters, so it is safe as a folder name and in the log. It names the plugin's storage folder, so it is not meant to change. The web interface makes one when it adds a plugin: the type and 8 random letters and digits, for example `met_no-3f9a1c2e`. By hand you may choose a readable one, such as `weather_berlin`. A block without an `id` is an error and is not shown; PaperPi never adds a missing `id` to a block that is already in the file.
+- `name` is what the web interface shows ("Weather Berlin"). Any text up to 100 characters, without control characters; it does not have to be unique and can be changed at any time. Without one, the `id` is shown.
+- The other choices were renaming the plugin (its storage folder is named after it, so a rename leaves the folder behind or has to move it while the plugin may be updating) and a fixed name. v2 does not read v1 config files, so the key could be renamed freely (global decision 2026-10-07; a later tool to move a v1 `paperpi.ini` is issue #248).
 
 *Update 2026-10-07 (M5 part 2a, issue #238):* the example no longer fills in a made-up email address, because met.no's terms of service ask for a real one. It loads without errors, but the weather blocks are not shown, and the check warns, until you fill in `email`.
 

@@ -2,11 +2,11 @@
 {% set logged_in = true %}
 {% block title %}Remove {{ row.name }} · PaperPi{% endblock %}
 {% block main %}
-<h1>Remove {{ row.name or "(no name)" }}?</h1>
-<p>This removes the <code>{{ row.type }}</code> plugin <strong>{{ row.name or "(no name)" }}</strong>
+<h1>Remove {{ row.name or "(no id)" }}?</h1>
+<p>This removes the <code>{{ row.type }}</code> plugin <strong>{{ row.name or "(no id)" }}</strong>
 and all its settings from the config file. To only stop showing it, switch it off instead.</p>
 <form method="post" action="/plugins/{{ row.index }}/remove">
-  <input type="hidden" name="name" value="{{ row.name }}">
+  <input type="hidden" name="id" value="{{ row.id }}">
   <button type="submit">Remove</button>
   <a href="/plugins">Cancel</a>
 </form>

@@ -55,7 +55,7 @@ def test_render_from_config(tmp_path):
         )
     )
     out = tmp_path / "c.png"
-    assert render("--config", str(cfg), "--name", "Clock", "-o", str(out)) == 0
+    assert render("--config", str(cfg), "--id", "Clock", "-o", str(out)) == 0
     assert Image.open(out).size == (300, 400)  # drawn for a screen turned on its side
     assert not (tmp_path / "paperpi.last-good.toml").exists()
 
@@ -67,7 +67,7 @@ def test_render_from_config_with_color_off(tmp_path, mode, image_mode):
         GOOD.replace('type = "virtual"', f'type = "virtual"\nmode = "{mode}"\ncolor = false')
     )
     out = tmp_path / "c.png"
-    assert render("--config", str(cfg), "--name", "Clock", "-o", str(out)) == 0
+    assert render("--config", str(cfg), "--id", "Clock", "-o", str(out)) == 0
     assert Image.open(out).mode == image_mode
 
 
@@ -86,7 +86,7 @@ def test_render_from_config_with_color_off(tmp_path, mode, image_mode):
             "unknown layout 'huge'; choose from: time, time_date",
         ),
         (["basic_clock", "--time-limit", "0"], "--time-limit must be above 0"),
-        (["--config", "x.toml"], "give the plugin's name"),
+        (["--config", "x.toml"], "give the plugin's ID"),
     ],
 )
 def test_render_usage_errors(args, message, capsys):
@@ -97,17 +97,17 @@ def test_render_usage_errors(args, message, capsys):
 def test_render_config_problems(tmp_path, capsys):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(GOOD + "hours = 13\n")
-    assert render("--config", str(cfg), "--name", "Clock") == 2
+    assert render("--config", str(cfg), "--id", "Clock") == 2
     err = capsys.readouterr().err
-    assert "no usable plugin named 'Clock'" in err
+    assert "no usable plugin with ID 'Clock'" in err
 
     cfg.write_text("config_version = 1\n")
-    assert render("--config", str(cfg), "--name", "Clock") == 2
+    assert render("--config", str(cfg), "--id", "Clock") == 2
     assert "a [display] part is needed" in capsys.readouterr().err
 
 
 def test_render_options_not_allowed_with_config(tmp_path, capsys):
-    args = ["--config", "x.toml", "--name", "Clock", "--size", "10x10"]
+    args = ["--config", "x.toml", "--id", "Clock", "--size", "10x10"]
     assert render(*args) == 2
     assert "come from the config file" in capsys.readouterr().err
 
@@ -175,14 +175,14 @@ def test_render_from_config_never_saves_a_last_good_copy(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "_save_last_good", save)
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(GOOD)
-    assert render("--config", str(cfg), "--name", "Clock", "-o", str(tmp_path / "c.png")) == 0
+    assert render("--config", str(cfg), "--id", "Clock", "-o", str(tmp_path / "c.png")) == 0
 
 
 @pytest.mark.parametrize(
     ("args", "message"),
     [
-        (["basic_clock", "--name", "Clock"], "--name only works together with --config"),
-        (["basic_clock", "--config", "x.toml", "--name", "C"], "not both"),
+        (["basic_clock", "--id", "Clock"], "--id only works together with --config"),
+        (["basic_clock", "--config", "x.toml", "--id", "C"], "not both"),
     ],
 )
 def test_render_name_and_config_mistakes(args, message, capsys):
@@ -210,7 +210,7 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
         'config_version = 1\n[display]\ntype = "virtual"\nwidth = 200\nheight = 100\n'
         "splash_time = 0\n"  # no minute-long splash screen first
         f'[web]\naddress = "127.0.0.1"\nport = {port}\n'
-        '[[plugin]]\nname = "Test"\ntype = "debugging"\nrefresh = 5\n'
+        '[[plugin]]\nid = "Test"\ntype = "debugging"\nrefresh = 5\n'
     )
     state = tmp_path / "state"
     out = state / "screen"  # the default for --out
@@ -279,7 +279,7 @@ def test_run_shows_plugins_reloads_and_stops(tmp_path, stop):
 
 IT8951_CONFIG = (
     'config_version = 1\n[display]\ntype = "it8951"\nmodel = "9.7"\nvcom = -1.90\n'
-    'max_refresh = 2\n{extra}[[plugin]]\nname = "Test"\ntype = "debugging"\n'
+    'max_refresh = 2\n{extra}[[plugin]]\nid = "Test"\ntype = "debugging"\n'
 )
 
 
@@ -432,7 +432,7 @@ def test_run_cleans_every_plugin_folder_at_start(tmp_path, monkeypatch):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        '[[plugin]]\nname = "Off"\ntype = "basic_clock"\nenabled = false\n'
+        '[[plugin]]\nid = "Off"\ntype = "basic_clock"\nenabled = false\n'
     )
     old = tmp_path / "plugins" / "off" / "old.json"
     old.parent.mkdir(parents=True)
@@ -449,8 +449,8 @@ def test_run_counts_only_the_plugins_that_are_shown(tmp_path, monkeypatch, capsy
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n'
-        '[[plugin]]\nname = "Weather"\ntype = "met_no"\nlat = 1\nlon = 2\n'
+        '[[plugin]]\nid = "Clock"\ntype = "basic_clock"\n'
+        '[[plugin]]\nid = "Weather"\ntype = "met_no"\nlat = 1\nlon = 2\n'
     )
     args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
     assert main([*args, "--health-file", str(tmp_path / "health")]) == 0
@@ -461,13 +461,21 @@ def test_list_says_which_required_settings_are_missing(tmp_path, capsys):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        '[[plugin]]\nname = "Weather"\ntype = "met_no"\n'
-        '[[plugin]]\nname = "Off"\ntype = "met_no"\nenabled = false\n'
+        '[[plugin]]\nid = "Weather"\ntype = "met_no"\n'
+        '[[plugin]]\nid = "Off"\ntype = "met_no"\nenabled = false\n'
     )
     assert main(["list", "--config", str(cfg)]) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert lines[1].split()[:6] == ["Weather", "met_no", "needs", "lat,", "lon,", "email"]
-    assert lines[2].split()[:3] == ["Off", "met_no", "no"]  # switched off: no "needs"
+    assert lines[1].split()[:7] == [
+        "Weather",
+        "Weather",
+        "met_no",
+        "needs",
+        "lat,",
+        "lon,",
+        "email",
+    ]
+    assert lines[2].split()[:4] == ["Off", "Off", "met_no", "no"]  # switched off: no "needs"
 
 
 def test_render_live_says_which_required_settings_are_missing(capsys):
@@ -481,7 +489,7 @@ def test_list_shows_no_age_limit(tmp_path, capsys):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        '[[plugin]]\nname = "Photos"\ntype = "basic_clock"\nstorage_days = 0\n'
+        '[[plugin]]\nid = "Photos"\ntype = "basic_clock"\nstorage_days = 0\n'
     )
     assert main(["list", "--config", str(cfg)]) == 0
     assert capsys.readouterr().out.splitlines()[1].endswith("500 MB, no age limit")
@@ -491,19 +499,27 @@ def test_list_shows_the_plugins_as_used(capsys):
     example = Path(__file__).parent.parent / "paperpi.example.toml"
     assert main(["list", "--config", str(example)]) == 0
     lines = capsys.readouterr().out.splitlines()
-    header = ["name", "type", "on", "level", "display", "refresh", "layout", "storage"]
+    header = ["id", "name", "type", "on", "level", "display", "refresh", "layout", "storage"]
     assert lines[0].split() == header
-    assert lines[1].split() == "Clock basic_clock yes rotation 120 s 60 s time 500 MB, 30 d".split()
-    assert lines[3].startswith("Weather Rio ")
+    row = "clock Clock basic_clock yes rotation 120 s 60 s time 500 MB, 30 d"
+    assert lines[1].split() == row.split()
+    assert lines[3].startswith("weather_rio     Weather Rio ")
     # Not shown until the user fills in their email address.
-    assert lines[2].split()[:5] == ["Weather", "Berlin", "met_no", "needs", "email"]
+    assert lines[2].split()[:6] == [
+        "weather_berlin",
+        "Weather",
+        "Berlin",
+        "met_no",
+        "needs",
+        "email",
+    ]
 
 
 def test_list_says_how_many_problems(tmp_path, capsys):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(
         'config_version = 1\n[display]\ntype = "virtual"\n'
-        '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\nhours = 13\n'
+        '[[plugin]]\nid = "Clock"\ntype = "basic_clock"\nhours = 13\n'
     )
     assert main(["list", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out

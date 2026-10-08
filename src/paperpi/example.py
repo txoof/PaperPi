@@ -34,19 +34,19 @@ from .config import (
 )
 from .plugin import Plugin, PluginEntry, is_required
 
-#: The blocks of the example file: name, plugin type and the settings that are set.
+#: The blocks of the example file: ID, plugin type and the settings that are set.
 #: Weather twice, to show that one plugin type can be used more than once.
 EXAMPLE_PLUGINS = (
-    ("Clock", "basic_clock", {}),
+    ("clock", "basic_clock", {"name": "Clock"}),
     (
-        "Weather Berlin",
+        "weather_berlin",
         "met_no",
-        {"lat": 52.52, "lon": 13.40, "place": "Berlin"},
+        {"name": "Weather Berlin", "lat": 52.52, "lon": 13.40, "place": "Berlin"},
     ),
     (
-        "Weather Rio",
+        "weather_rio",
         "met_no",
-        {"lat": -22.91, "lon": -43.17, "place": "Rio"},
+        {"name": "Weather Rio", "lat": -22.91, "lon": -43.17, "place": "Rio"},
     ),
 )
 
@@ -57,7 +57,7 @@ _HEADER = """\
 # The file only needs the settings that differ from the default. Every other setting is
 # shown as a comment with its default: remove the # in front of it to change it.
 # Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
-# more than once, with a different name. The weather blocks are not shown until you remove
+# more than once, with a different id. The weather blocks are not shown until you remove
 # the # in front of "email" and fill in your own, real email address: met.no asks every
 # program for a way to contact its user. Settings marked "(required)" must be filled in
 # before a plugin is shown.
@@ -74,15 +74,20 @@ _DISPLAY_SHOWN = {
 }
 
 
-def plugin_block(
-    plugin: Plugin, name: str, values: Mapping[str, Any] | None = None, *, shared: bool = False
-) -> str:
-    """One ``[[plugin]]`` block for ``plugin``, called ``name``.
+#: Settings of a ``[[plugin]]`` block that :func:`plugin_block` takes as its own arguments.
+_FIXED = ("id", "type")
 
-    ``values`` are the settings that are set (the plugin's own or shared ones); ``None``
-    means "not set". Every other setting of the plugin follows as a comment with its
-    default. With ``shared``, all shared settings (level, display time, ...) are listed too;
-    otherwise only ``refresh`` and ``layout``, whose defaults depend on the plugin.
+
+def plugin_block(
+    plugin: Plugin, plugin_id: str, values: Mapping[str, Any] | None = None, *, shared: bool = False
+) -> str:
+    """One ``[[plugin]]`` block for ``plugin``, with ID ``plugin_id``.
+
+    ``values`` are the settings that are set (the plugin's own or shared ones, also the
+    ``name`` it is shown with); ``None`` means "not set". Every other setting of the plugin
+    follows as a comment with its default. With ``shared``, all shared settings (level,
+    display time, ...) are listed too; otherwise only ``refresh`` and ``layout``, whose
+    defaults depend on the plugin.
 
     Raises ``ValueError`` for an unknown setting or a value the plugin would not accept, so
     a config manager never writes a block that is switched off when the file loads. The
@@ -92,11 +97,11 @@ def plugin_block(
     entry = PluginEntry.model_fields
     values = {k: v for k, v in (values or {}).items() if v is not None}
     for key in values:
-        if key in ("name", "type") or key not in own | entry:
-            known = ", ".join(k for k in own | entry if k not in ("name", "type"))
+        if key in _FIXED or key not in own | entry:
+            known = ", ".join(k for k in own | entry if k not in _FIXED)
             raise ValueError(f"{plugin.type} has no setting {key!r}; it has: {known}")
     PluginEntry.model_validate(
-        {"name": name, "type": plugin.type} | {k: v for k, v in values.items() if k in entry}
+        {"id": plugin_id, "type": plugin.type} | {k: v for k, v in values.items() if k in entry}
     )
     plugin.settings.model_validate({k: v for k, v in values.items() if k in own})
     if "layout" in values and values["layout"] not in plugin.layouts:
@@ -105,10 +110,19 @@ def plugin_block(
         *_comment(f"{plugin.type}: {plugin.description}"),
         *_comment(f'Layouts (values for "layout"): {", ".join(plugin.layouts)}'),
         "[[plugin]]",
-        f"name = {_toml(name)}",
-        f"type = {_toml(plugin.type)}",
     ]
+    if shared:
+        lines += _comment(entry["id"].description or "")
+    lines.append(f"id = {_toml(plugin_id)}")
+    named = "name" in values
+    if shared:
+        lines += _setting("name", entry["name"], values.get("name", ""), comment=not named)
+    elif named:
+        lines.append(f"name = {_toml(values['name'])}")
+    lines.append(f"type = {_toml(plugin.type)}")
     for key, value in values.items():
+        if key == "name":
+            continue
         lines += _setting(key, (own | entry)[key], value)
     shown = {
         "refresh": plugin.refresh,
@@ -118,14 +132,14 @@ def plugin_block(
     }
     lines += _settings(own, values, {})
     if shared:
-        keys = [k for k in entry if k not in ("name", "type")]
+        keys = [k for k in entry if k not in (*_FIXED, "name")]
         lines.append("# --- Settings every plugin has ---")
     else:
         keys = ["refresh", "layout"]
         lines.append("# --- Settings every plugin has (all of them are in the first block) ---")
     lines += _settings({k: entry[k] for k in keys}, values, shown)
     text = "\n".join(lines) + "\n"
-    _check_reads_back(text, {"name": name, "type": plugin.type} | values)
+    _check_reads_back(text, {"id": plugin_id, "type": plugin.type} | values)
     return text
 
 
@@ -160,9 +174,9 @@ def example_config() -> str:
         display_part({"type": "virtual"}),
         web_part(),
     ]
-    for index, (name, plugin_type, values) in enumerate(EXAMPLE_PLUGINS):
+    for index, (plugin_id, plugin_type, values) in enumerate(EXAMPLE_PLUGINS):
         plugin = plugins.load(plugin_type)
-        parts.append(plugin_block(plugin, name, values, shared=index == 0))
+        parts.append(plugin_block(plugin, plugin_id, values, shared=index == 0))
     return "\n".join(parts)
 
 

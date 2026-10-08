@@ -133,7 +133,7 @@ class _Written:
     seconds: float
     error: Exception | None
     new_turn: bool
-    name: str | None = None
+    plugin_id: str | None = None
     """The plugin whose image was written."""
     cleared: bool = False
     """The screen was cleared first (also when the write after it failed)."""
@@ -145,7 +145,7 @@ class _Written:
 
 @dataclass(frozen=True)
 class _Dismiss:
-    name: str
+    plugin_id: str
 
 
 _STOP = "stop"
@@ -179,8 +179,8 @@ class _Slot:
     when that update has finished, so two updates never use the same storage folder."""
 
     @property
-    def name(self) -> str:
-        return self.config.entry.name
+    def id(self) -> str:
+        return self.config.entry.id
 
     @property
     def level(self) -> str:
@@ -194,7 +194,7 @@ class _Slot:
 class Scheduler:
     """Decides what is on ``screen`` and writes it there.
 
-    ``state_dir`` holds each plugin's storage folder (``<state_dir>/plugins/<name>/``).
+    ``state_dir`` holds each plugin's storage folder (``<state_dir>/plugins/<id>/``).
     ``reload`` returns a freshly loaded config when :meth:`reload` is called. ``clock``,
     ``executor``, ``update`` and ``stop_updates`` are for tests; by default updates run in
     plugin processes with :func:`paperpi.runner.run_update`, at most
@@ -260,7 +260,7 @@ class Scheduler:
         """The plugin on screen."""
         self._turn_start = 0.0
         self._last_rotation: str | None = None
-        """The name of the rotation plugin shown last; the rotation goes on after it."""
+        """The ID of the rotation plugin shown last; the rotation goes on after it."""
         self._attempted: Image.Image | None = None
         """The image last sent to the screen (also when the write failed)."""
         self.write_seconds = 0.0
@@ -298,14 +298,14 @@ class Scheduler:
         """Ask :meth:`run` to load the config again and apply the changes."""
         self._events.put(_RELOAD)
 
-    def dismiss(self, name: str) -> None:
-        """Dismiss the alert of the plugin called ``name`` (from the web interface, M5)."""
-        self._events.put(_Dismiss(name))
+    def dismiss(self, plugin_id: str) -> None:
+        """Dismiss the alert of the plugin with ID ``plugin_id`` (from the web interface, M5)."""
+        self._events.put(_Dismiss(plugin_id))
 
     @property
     def on_screen(self) -> str | None:
-        """The name of the plugin on screen."""
-        return None if self._current is None else self._current.name
+        """The ID of the plugin on screen."""
+        return None if self._current is None else self._current.id
 
     def run(self) -> None:
         """Show plugins until :meth:`stop` is called."""
@@ -351,9 +351,9 @@ class Scheduler:
             self._written(event, now)
         elif isinstance(event, _Dismiss):
             for slot in self._slots:
-                if slot.name == event.name and slot.level == "alert":
+                if slot.id == event.plugin_id and slot.level == "alert":
                     slot.dismissed_at = now
-                    log.info("alert %r dismissed", slot.name)
+                    log.info("alert %r dismissed", slot.id)
         elif event == _RELOAD and self._reload is not None:
             try:
                 new = self._load_with_time_limit()
@@ -378,12 +378,12 @@ class Scheduler:
         """Use a new config. Plugins whose settings did not change keep their place and image."""
         redraw = self._apply_display(config.display)
         now = self.clock.monotonic()
-        old = {slot.name: slot for slot in self._slots}
+        old = {slot.id: slot for slot in self._slots}
         slots = []
         for found in config.plugins:
             if not found.shown or found.plugin.type == "default":
                 continue
-            slot = old.get(found.entry.name)
+            slot = old.get(found.entry.id)
             if slot is None or redraw or not _same_plugin(slot.config, found):
                 changed = _Slot(found, due=now)
                 if slot is not None:
@@ -402,13 +402,13 @@ class Scheduler:
                         self._current = changed
                 slot = changed
             slots.append(slot)
-        names = [slot.name for slot in slots]
-        if self._last_rotation is not None and self._last_rotation not in names:
+        ids = [slot.id for slot in slots]
+        if self._last_rotation is not None and self._last_rotation not in ids:
             # The plugin shown last was removed: go on after the one before it.
-            old_names = [slot.name for slot in self._slots]
-            index = old_names.index(self._last_rotation)
-            before = old_names[:index][::-1] + old_names[index + 1 :][::-1]
-            self._last_rotation = next((n for n in before if n in names), None)
+            old_ids = [slot.id for slot in self._slots]
+            index = old_ids.index(self._last_rotation)
+            before = old_ids[:index][::-1] + old_ids[index + 1 :][::-1]
+            self._last_rotation = next((i for i in before if i in ids), None)
         self._slots = slots
         default = _default_config(config)
         if redraw or not _same_plugin(self._default.config, default):
@@ -522,7 +522,7 @@ class Scheduler:
             # Here, not in the plugin process: also after a failed or stopped update.
             clean(folder, slot.config.storage_mb, slot.config.storage_days)
         except Exception as error:  # noqa: BLE001 - a clean-up problem never stops updates
-            log.warning("cleaning the folder of %r failed: %s", slot.name, error)
+            log.warning("cleaning the folder of %r failed: %s", slot.id, error)
 
     def _finished(self, event: _Finished, now: float) -> None:
         slot = event.slot
@@ -563,14 +563,14 @@ class Scheduler:
                 slot.due = now + limits.LEFT_OUT
                 log.warning(
                     "plugin %r failed %d times in a row; left out for %g minutes: %s",
-                    slot.name,
+                    slot.id,
                     slot.failures,
                     limits.LEFT_OUT / 60,
                     event.error,
                 )
             else:
                 slot.due = self._next_update(slot, now)
-                log.warning("plugin %r failed: %s", slot.name, event.error)
+                log.warning("plugin %r failed: %s", slot.id, event.error)
             return
         slot.failures = 0
         if slot is self._current and self._write_failures:
@@ -603,7 +603,7 @@ class Scheduler:
             slot.expired = True
             log.warning(
                 "alert %r was active for %g hours and was dismissed",
-                slot.name,
+                slot.id,
                 slot.config.entry.alert_max_time / 3600,
             )
             return False
@@ -625,7 +625,7 @@ class Scheduler:
             # The next plugin takes over before this image would be finished drawing.
             return
         if chosen.level == "rotation" and chosen in self._slots:
-            self._last_rotation = chosen.name
+            self._last_rotation = chosen.id
         self._current = chosen
         paused = self._retry_at is not None
         if not paused and (
@@ -683,11 +683,11 @@ class Scheduler:
             return group[0], True
         if now - self._turn_start < current.config.entry.display_time:
             return current, False
-        return self._next(group, current.name), True
+        return self._next(group, current.id), True
 
     def _next(self, group: list[_Slot], after: str | None) -> _Slot:
         """The first plugin in ``group`` after the one called ``after``, in config order."""
-        names = [s.name for s in self._slots]
+        names = [s.id for s in self._slots]
         start = names.index(after) + 1 if after in names else 0
         order = self._slots[start:] + self._slots[:start]
         return next(s for s in order if s in group)
@@ -745,9 +745,9 @@ class Scheduler:
         image = image.rotate(-rotation, expand=True) if rotation else image
         every = self.display.clean_every
         clean = bool(every) and now - self._last_clean >= every
-        fast = not clean and self._shown_by == chosen.name
+        fast = not clean and self._shown_by == chosen.id
         change, self._change = self._change, None
-        job = (self.clock.monotonic(), new_turn, chosen.name, fast, clean, change, self._generation)
+        job = (self.clock.monotonic(), new_turn, chosen.id, fast, clean, change, self._generation)
         self.writer.submit(self._write_job, image, *job)
 
     def _write_job(
@@ -755,7 +755,7 @@ class Scheduler:
         image: Image.Image,
         start: float,
         new_turn: bool,
-        name: str,
+        plugin_id: str,
         fast: bool,
         clean: bool,
         change: Callable[[], None] | None,
@@ -774,7 +774,8 @@ class Scheduler:
         except Exception as failed:  # noqa: BLE001 - handled in the loop
             error = failed
         seconds = self.clock.monotonic() - start
-        self._events.put(_Written(seconds, error, new_turn, name, cleared, generation=generation))
+        written = _Written(seconds, error, new_turn, plugin_id, cleared, generation=generation)
+        self._events.put(written)
 
     def _check_job(self, start: float) -> None:
         """Runs in the writer thread at start: start the screen, to check that it answers."""
@@ -822,7 +823,7 @@ class Scheduler:
         self._last_written = now
         self.write_seconds = event.seconds
         if event.generation == self._generation:
-            self._shown_by = event.name
+            self._shown_by = event.plugin_id
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""
@@ -866,15 +867,15 @@ def _default_config(config: Config) -> PluginConfig:
         if found.plugin.type == "default":
             return found
     plugin = plugins.load("default")
-    # Its own storage folder, also when a user names another plugin "default".
-    entry = PluginEntry(name="built-in default", type="default")
+    # Its own storage folder: a [[plugin]] block can't have an ID starting with "built-in".
+    entry = PluginEntry(id="built-in-default", type="default")
     return PluginConfig(entry, plugin.settings(), plugin)
 
 
 def _fallback_config() -> PluginConfig:
     """The fallback clock: basic_clock with one small line of time and date."""
     plugin = plugins.load("basic_clock")
-    entry = PluginEntry(name="built-in clock", type="basic_clock", layout="small")
+    entry = PluginEntry(id="built-in-clock", type="basic_clock", layout="small")
     return PluginConfig(entry, plugin.settings(), plugin)
 
 
@@ -884,7 +885,7 @@ def _splash_config(web_port: int) -> PluginConfig:
     plugin = plugins.load("splash_screen")
     # Its time on screen comes from [display] splash_time, not from display_time. A short
     # time limit: while its first picture is drawn, the screen waits for it.
-    entry = PluginEntry(name="built-in splash", type="splash_screen", time_limit=30)
+    entry = PluginEntry(id="built-in-splash", type="splash_screen", time_limit=30)
     return PluginConfig(entry, plugin.settings(port=web_port), plugin)
 
 

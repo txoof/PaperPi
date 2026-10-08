@@ -28,15 +28,15 @@ def test_example_file_works_as_it_is():
     # The weather blocks wait for the user's own email address (met.no's terms).
     assert [(p.level, p.message, p.where) for p in loaded.problems] == [
         ("warning", "not shown until these required settings are filled in: email", where)
-        for where in ("[[plugin]] 'Weather Berlin'", "[[plugin]] 'Weather Rio'")
+        for where in ("[[plugin]] 'weather_berlin'", "[[plugin]] 'weather_rio'")
     ]
-    assert [p.entry.name for p in loaded.plugins if p.shown] == ["Clock"]
-    assert [(p.entry.name, p.plugin.type) for p in loaded.plugins] == [
-        ("Clock", "basic_clock"),
-        ("Weather Berlin", "met_no"),
-        ("Weather Rio", "met_no"),
+    assert [p.entry.id for p in loaded.plugins if p.shown] == ["clock"]
+    assert [(p.entry.id, p.entry.label, p.plugin.type) for p in loaded.plugins] == [
+        ("clock", "Clock", "basic_clock"),
+        ("weather_berlin", "Weather Berlin", "met_no"),
+        ("weather_rio", "Weather Rio", "met_no"),
     ]
-    assert loaded.plugin("Weather Rio").settings.place == "Rio"
+    assert loaded.plugin("weather_rio").settings.place == "Rio"
 
 
 def uncomment(text):
@@ -60,8 +60,8 @@ def test_every_default_shown_is_a_valid_setting(plugin_type):
     assert found.refresh == plugin.refresh
     assert found.layout == plugin.default_layout
     assert (found.storage_mb, found.storage_days) == (plugin.storage_mb, plugin.storage_days)
-    skip = {"name", "type", "refresh", "layout", "storage_mb", "storage_days"}
-    default = PluginEntry(name="Test", type=plugin_type)
+    skip = {"id", "type", "refresh", "layout", "storage_mb", "storage_days"}
+    default = PluginEntry(id="Test", type=plugin_type)
     assert found.entry.model_dump(exclude=skip) == default.model_dump(exclude=skip)
 
 
@@ -83,27 +83,28 @@ def test_block_lists_every_setting_of_the_plugin(plugin_type):
     assert "# refresh =" in block and "# layout =" in block
     assert "display_time" not in block  # the other shared settings only with shared=True
     full = plugin_block(plugin, "Test", shared=True)
-    for key in set(PluginEntry.model_fields) - {"name", "type"}:
+    for key in set(PluginEntry.model_fields) - {"id", "type"}:
         assert re.search(rf"^# {key} =", full, re.MULTILINE), key
 
 
 def test_block_sets_the_values_given_and_says_what_each_setting_is():
     clock = plugins.load("basic_clock")
-    block = plugin_block(clock, 'Clock "big"', {"hours": 12, "refresh": 120.0, "layout": None})
-    assert 'name = "Clock \\"big\\""' in block
+    values = {"name": 'Clock "big"', "hours": 12, "refresh": 120.0, "layout": None}
+    block = plugin_block(clock, "big", values)
+    assert '[[plugin]]\nid = "big"\nname = "Clock \\"big\\""\ntype = "basic_clock"\n' in block
     assert "\n# 12-hour (3:45 PM) or 24-hour (15:45) clock\nhours = 12\n" in block
     assert "\nrefresh = 120\n" in block  # 120, not 120.0
     assert "# refresh =" not in block  # set, so not repeated as a comment
     assert '# layout = "time"' in block  # None: not set, shown with its default
-    assert config.parse(HEAD + block).plugin('Clock "big"').settings.hours == 12
+    assert config.parse(HEAD + block).plugin("big").settings.hours == 12
 
 
 @pytest.mark.parametrize(
     ("values", "message"),
     [
         ({"hours": 13}, "Input should be 12 or 24"),
-        ({"houres": 12}, "basic_clock has no setting 'houres'; it has: hours, enabled"),
-        ({"name": "Other"}, "has no setting 'name'"),
+        ({"houres": 12}, "basic_clock has no setting 'houres'; it has: hours, name, enabled"),
+        ({"id": "Other"}, "has no setting 'id'"),
         ({"display_time": -1}, "greater than 0"),
         ({"layout": "nope"}, "basic_clock has no layout 'nope'"),
     ],
@@ -116,17 +117,21 @@ def test_block_refuses_values_the_plugin_would_not_accept(values, message):
 def test_block_refuses_what_paperpi_could_not_read_back():
     # tomlkit writes the control character ESC in a form Python's TOML reader doesn't know.
     with pytest.raises(ValueError, match="control characters"):
-        plugin_block(plugins.load("basic_clock"), "B\x1bad")
+        plugin_block(plugins.load("basic_clock"), "b", {"name": "B\x1bad"})
     # Characters Python counts as line breaks, which the web interface's line counting skips.
     for name in ["a\u2028b", "a\u2029b", "a\x85b"]:
         with pytest.raises(ValueError, match="control characters"):
-            plugin_block(plugins.load("basic_clock"), name)
+            plugin_block(plugins.load("basic_clock"), "b", {"name": name})
+    with pytest.raises(ValueError, match="only letters, digits"):
+        plugin_block(plugins.load("basic_clock"), "B\x1bad")
     with pytest.raises(ValueError, match="reads it back"):
         plugin_block(plugins.load("met_no"), "Weather", {"place": "B\x1bad"})
 
 
 def test_config_file_refuses_control_characters_in_names():
-    loaded = config.parse(HEAD + '[[plugin]]\nname = "A\\u001b[31m"\ntype = "basic_clock"\n')
+    loaded = config.parse(
+        HEAD + '[[plugin]]\nid = "a"\nname = "A\\u001b[31m"\ntype = "basic_clock"\n'
+    )
     assert loaded.plugins == []
     assert "control characters" in loaded.problems[0].message
 
@@ -184,16 +189,20 @@ def test_choices_are_listed_when_the_help_does_not_name_them():
 def test_plugin_rows():
     text = (
         HEAD
-        + '[[plugin]]\nname = "Clock"\ntype = "basic_clock"\n'
-        + '[[plugin]]\nname = "Big"\ntype = "basic_clock"\nenabled = false\nrefresh = 300\n'
+        + '[[plugin]]\nid = "Clock"\ntype = "basic_clock"\n'
+        + '[[plugin]]\nid = "Big"\ntype = "basic_clock"\nenabled = false\nrefresh = 300\n'
         + 'layout = "time_date"\ndisplay_time = 90\nlevel = "interrupt"\n'
         + "storage_mb = 20000\nstorage_days = 0\n"
-        + '[[plugin]]\nname = "Broken"\ntype = "basic_clock"\nhours = 13\n'
+        + '[[plugin]]\nid = "Broken"\ntype = "basic_clock"\nhours = 13\n'
     )
     rows = config.plugin_rows(config.parse(text))
     assert rows == [
-        config.PluginRow("Clock", "basic_clock", True, "rotation", 120, 60, "time", 500, 30),
-        config.PluginRow("Big", "basic_clock", False, "interrupt", 90, 300, "time_date", 20000, 0),
+        config.PluginRow(
+            "Clock", "Clock", "basic_clock", True, "rotation", 120, 60, "time", 500, 30
+        ),
+        config.PluginRow(
+            "Big", "Big", "basic_clock", False, "interrupt", 90, 300, "time_date", 20000, 0
+        ),
     ]
 
 

@@ -1,3 +1,4 @@
+import re
 import tomllib
 import urllib.request
 
@@ -5,9 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from paperpi import config, plugins
-from paperpi.plugin import PluginDefinitionError
+from paperpi.plugin import PluginDefinitionError, PluginEntry
 from paperpi.web import auth
 from paperpi.web import password as web_password
+from paperpi.web import plugins as web_plugins
 from paperpi.web.app import create_app
 from paperpi.web.plugins import PluginEditor
 
@@ -18,18 +20,18 @@ type = "virtual"
 
 # the clock in the kitchen
 [[plugin]]
-name = "Clock"
+id = "Clock"
 type = "basic_clock"
 
 [[plugin]]
-name = "Weather"
+id = "Weather"
 type = "met_no"
 lat = 52.52
 lon = 13.40
 enabled = false
 
 [[plugin]]
-name = "Broken"
+id = "Broken"
 type = "basic_clock"
 refresh = 1
 """
@@ -68,7 +70,7 @@ def blocks(cfg):
 
 
 def names(cfg):
-    return [b["name"] for b in blocks(cfg)]
+    return [b["id"] for b in blocks(cfg)]
 
 
 def test_active_plugins_shows_every_block_with_its_state(client):
@@ -85,37 +87,37 @@ def test_active_plugins_shows_every_block_with_its_state(client):
 
 
 def test_moving_a_plugin_saves_and_applies_at_once(client, cfg, reloads):
-    response = client.post("/plugins/0/move", data={"name": "Clock", "step": "down"})
+    response = client.post("/plugins/0/move", data={"id": "Clock", "step": "down"})
     assert response.status_code == 303
     assert response.headers["location"].startswith("/plugins?done=saved")
     assert names(cfg) == ["Weather", "Clock", "Broken"]
-    assert '# the clock in the kitchen\n[[plugin]]\nname = "Clock"' in cfg.read_text()
+    assert '# the clock in the kitchen\n[[plugin]]\nid = "Clock"' in cfg.read_text()
     assert reloads == [1]
     page = client.get(response.headers["location"])
     assert "Saved. PaperPi applies the change now." in page.text
     assert "hand edits" not in page.text
-    client.post("/plugins/1/move", data={"name": "Clock", "step": "up"})
+    client.post("/plugins/1/move", data={"id": "Clock", "step": "up"})
     assert names(cfg) == ["Clock", "Weather", "Broken"]
 
 
 def test_switching_off_and_on(client, cfg):
-    client.post("/plugins/0/enabled", data={"name": "Clock", "on": "0"})
+    client.post("/plugins/0/enabled", data={"id": "Clock", "on": "0"})
     assert blocks(cfg)[0]["enabled"] is False
-    client.post("/plugins/0/enabled", data={"name": "Clock", "on": "1"})
+    client.post("/plugins/0/enabled", data={"id": "Clock", "on": "1"})
     assert "enabled" not in blocks(cfg)[0]
 
 
 def test_a_plugin_with_missing_settings_cant_be_switched_on(client, cfg, reloads):
-    response = client.post("/plugins/1/enabled", data={"name": "Weather", "on": "1"})
+    response = client.post("/plugins/1/enabled", data={"id": "Weather", "on": "1"})
     assert response.status_code == 409
     assert "Fill in these settings first: email." in response.text
     assert cfg.read_text() == CONFIG and not reloads
 
 
 def test_removing_asks_first(client, cfg):
-    page = client.get("/plugins/0/remove", params={"name": "Clock"})
+    page = client.get("/plugins/0/remove", params={"id": "Clock"})
     assert "Remove Clock?" in page.text and cfg.read_text() == CONFIG
-    response = client.post("/plugins/0/remove", data={"name": "Clock"})
+    response = client.post("/plugins/0/remove", data={"id": "Clock"})
     assert response.headers["location"] == "/plugins?done=removed"
     assert names(cfg) == ["Weather", "Broken"]
     assert "kitchen" not in cfg.read_text()
@@ -124,21 +126,21 @@ def test_removing_asks_first(client, cfg):
 
 def test_a_list_changed_by_hand_meanwhile_is_not_changed(client, cfg, reloads):
     # The page showed Clock first, but it was removed by hand since then.
-    cfg.write_text(CONFIG.replace('name = "Clock"', 'name = "Kitchen"'))
-    response = client.post("/plugins/0/remove", data={"name": "Clock"})
+    cfg.write_text(CONFIG.replace('id = "Clock"', 'id = "Kitchen"'))
+    response = client.post("/plugins/0/remove", data={"id": "Clock"})
     assert response.status_code == 409 and "changed after this page was opened" in response.text
     assert names(cfg) == ["Kitchen", "Weather", "Broken"] and not reloads
 
 
 def test_hand_edits_are_kept_and_the_page_says_so(client, cfg, editor):
-    cfg.write_text(CONFIG + '\n[[plugin]]\nname = "Words"\ntype = "word_clock"\n')
-    response = client.post("/plugins/0/move", data={"name": "Clock", "step": "down"})
+    cfg.write_text(CONFIG + '\n[[plugin]]\nid = "Words"\ntype = "word_clock"\n')
+    response = client.post("/plugins/0/move", data={"id": "Clock", "step": "down"})
     assert "hand=1" in response.headers["location"]
     assert names(cfg) == ["Weather", "Clock", "Broken", "Words"]
     page = client.get(response.headers["location"])
     assert "Your hand edits to the config file were applied too." in page.text
     # The next change, before PaperPi reloaded: the file holds only the web's own change.
-    response = client.post("/plugins/1/move", data={"name": "Clock", "step": "up"})
+    response = client.post("/plugins/1/move", data={"id": "Clock", "step": "up"})
     assert "hand=1" not in response.headers["location"]
 
 
@@ -153,29 +155,54 @@ def test_adding_a_plugin(client, cfg, reloads):
     form = client.get("/library/word_clock").text
     assert 'value="Word clock"' in form  # a name that is not used yet
     response = client.post("/library/word_clock", data={"name": " Words "})
-    assert response.headers["location"] == "/plugins?done=added&name=Words"
-    assert blocks(cfg)[-1] == {"name": "Words", "type": "word_clock"}
+    added = blocks(cfg)[-1]
+    assert re.fullmatch(r"word_clock-[0-9a-f]{8}", added["id"])
+    assert added == {"id": added["id"], "name": "Words", "type": "word_clock"}
+    assert response.headers["location"] == f"/plugins?done=added&id={added['id']}"
+    assert "Added Words." in client.get(response.headers["location"]).text
     assert reloads == [1]
     # The next one gets another name.
     client.post("/library/word_clock", data={"name": "Word clock"})
     assert 'value="Word clock 2"' in client.get("/library/word_clock").text
 
 
+def test_names_may_be_empty_or_the_same(client, cfg):
+    client.post("/library/word_clock", data={"name": ""})
+    client.post("/library/word_clock", data={"name": "Clock"})
+    first, second = blocks(cfg)[-2:]
+    assert "name" not in first and second["name"] == "Clock"
+    assert first["id"] != second["id"]
+    page = client.get("/plugins").text
+    assert f"<strong>{first['id']}</strong>" in page  # without a name: the ID
+    assert f"word_clock · {second['id']}" in page  # the ID tells the two Clocks apart
+
+
+def test_a_new_id_is_never_one_in_use(client, cfg, monkeypatch):
+    made = iter(["CLOCK", "_clock_", "word-clock_1"])  # "Clock" is used: the first 2 are too
+    monkeypatch.setattr(web_plugins, "new_id", lambda plugin_type: next(made))
+    client.post("/library/word_clock", data={"name": "Words"})
+    assert blocks(cfg)[-1]["id"] == "word-clock_1"
+
+
+def test_a_new_id_fits_also_for_a_long_type():
+    made = web_plugins.new_id("a" * 50)
+    assert len(made) == 40 and PluginEntry(id=made, type="x").id == made
+
+
 def test_a_plugin_with_required_settings_is_added_switched_off(client, cfg):
     form = client.get("/library/met_no").text
     assert "real email address" in form and "added switched off" in form
     client.post("/library/met_no", data={"name": "Weather Rio"})
-    assert blocks(cfg)[-1] == {"name": "Weather Rio", "type": "met_no", "enabled": False}
-    assert config.parse(cfg.read_text()).plugin("Weather Rio").missing == ("lat", "lon", "email")
+    added = blocks(cfg)[-1]
+    assert added == {"id": added["id"], "name": "Weather Rio", "type": "met_no", "enabled": False}
+    assert config.parse(cfg.read_text()).plugin(added["id"]).missing == ("lat", "lon", "email")
 
 
 @pytest.mark.parametrize(
     ("name", "problem"),
     [
-        ("", "Give the plugin a name."),
         ("x" * 101, "at most 100 characters"),
         ("a\tb", "must not hold control characters"),
-        ("clock!", "Another plugin already has this name"),
     ],
 )
 def test_names_that_cant_be_used(client, cfg, name, problem):
@@ -193,7 +220,7 @@ def test_a_broken_file_is_shown_not_changed(client, cfg):
     cfg.write_text("[[plugin]\n")
     page = client.get("/plugins")
     assert page.status_code == 500 and "The config file is not valid TOML" in page.text
-    assert client.post("/plugins/0/move", data={"name": "", "step": "up"}).status_code == 409
+    assert client.post("/plugins/0/move", data={"id": "", "step": "up"}).status_code == 409
     assert cfg.read_text() == "[[plugin]\n"
 
 
@@ -202,7 +229,7 @@ def test_the_plugin_pages_need_a_log_in(cfg):
     client = TestClient(create_app(paperpi_auth), follow_redirects=False, base_url=PI)
     for path in ["/plugins", "/library", "/library/basic_clock", "/plugins/0/remove"]:
         assert client.get(path).headers["location"] == "/setup"
-    assert client.post("/plugins/0/remove", data={"name": "Clock"}).status_code == 303
+    assert client.post("/plugins/0/remove", data={"id": "Clock"}).status_code == 303
     assert cfg.read_text() == CONFIG
 
 
@@ -218,7 +245,7 @@ def test_a_change_in_the_running_web_interface_reloads_paperpi(cfg, reloads):
     try:
         request = urllib.request.Request(
             f"http://127.0.0.1:{web.port}/plugins/0/enabled",
-            data=b"name=Clock&on=0",
+            data=b"id=Clock&on=0",
             headers={"Origin": f"http://127.0.0.1:{web.port}"},
         )
         with urllib.request.urlopen(request, timeout=30) as page:
@@ -280,7 +307,7 @@ def test_a_broken_plugin_is_shown_but_cant_be_added(client, cfg, monkeypatch):
 
 
 def test_a_repeated_name_shows_the_second_block_as_not_used(client, cfg):
-    cfg.write_text(CONFIG + '\n[[plugin]]\nname = "Clock"\ntype = "word_clock"\n')
+    cfg.write_text(CONFIG + '\n[[plugin]]\nid = "Clock"\ntype = "word_clock"\n')
     page = client.get("/plugins").text
     assert page.count("Not used: has errors") == 2  # Broken and the second Clock
     assert "is already used by the plugin block" in page
@@ -291,16 +318,16 @@ def test_a_change_is_refused_while_paperpi_cant_use_the_file(client, cfg, reload
     cfg.write_text(broken)
     page = client.get("/plugins")
     assert "unknown screen type" in page.text and "Unknown" in page.text
-    response = client.post("/plugins/0/move", data={"name": "Clock", "step": "down"})
+    response = client.post("/plugins/0/move", data={"id": "Clock", "step": "down"})
     assert response.status_code == 409 and "must be fixed first" in response.text
     assert cfg.read_text() == broken and not reloads
 
 
 def test_every_change_needs_a_log_in_and_a_form_from_paperpi(cfg):
     forms = {
-        "/plugins/0/move": {"name": "Clock", "step": "down"},
-        "/plugins/0/enabled": {"name": "Clock", "on": "0"},
-        "/plugins/0/remove": {"name": "Clock"},
+        "/plugins/0/move": {"id": "Clock", "step": "down"},
+        "/plugins/0/enabled": {"id": "Clock", "on": "0"},
+        "/plugins/0/remove": {"id": "Clock"},
         "/library/word_clock": {"name": "Words"},
     }
     stored = web_password.hash_password("correct horse")
@@ -320,17 +347,19 @@ def test_every_change_needs_a_log_in_and_a_form_from_paperpi(cfg):
 
 
 def test_odd_requests(client, cfg):
-    response = client.post("/plugins/0/move", data={"name": "Clock", "step": "sideways"})
+    response = client.post("/plugins/0/move", data={"id": "Clock", "step": "sideways"})
     assert response.status_code == 400 and cfg.read_text() == CONFIG
-    assert client.get("/plugins/0/remove", params={"name": "Kitchen"}).status_code == 409
-    # Text in the address is only shown when it names a plugin in the list.
+    assert client.get("/plugins/0/remove", params={"id": "Kitchen"}).status_code == 409
+    # Only the ID of a plugin in the list is taken from the address, not text to show.
     page = client.get("/plugins", params={"done": "added", "name": "Your password was reset"})
     assert "Your password was reset" not in page.text and "Plugin added." in page.text
-    page = client.get("/plugins", params={"done": "added", "name": "Clock"})
+    page = client.get("/plugins", params={"done": "added", "id": "Your password was reset"})
+    assert "Your password was reset" not in page.text and "Plugin added." in page.text
+    page = client.get("/plugins", params={"done": "added", "id": "Clock"})
     assert "Added Clock." in page.text
 
 
 def test_the_file_keeps_its_permissions(client, cfg):
     cfg.chmod(0o640)
-    client.post("/plugins/0/move", data={"name": "Clock", "step": "down"})
+    client.post("/plugins/0/move", data={"id": "Clock", "step": "down"})
     assert cfg.stat().st_mode & 0o777 == 0o640

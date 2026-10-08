@@ -2,7 +2,7 @@
 
 A plugin for testing PaperPi itself. It can crash, hang, and switch between the states "nothing", "ready" and "alert" in a fixed pattern. It needs no network.
 
-Every update adds 1 to a count kept in the file `count` in its storage folder: `plugins/<folder>/` in PaperPi's state folder (`/var/lib/paperpi` unless `paperpi run --state-dir` says otherwise). The folder name is made from the plugin's name, e.g. `test-alert` for "Test alert". The count decides what the update does, so the same settings always give the same pattern.
+Every update adds 1 to a count kept in the file `count` in its storage folder: `plugins/<folder>/` in PaperPi's state folder (`/var/lib/paperpi` unless `paperpi run --state-dir` says otherwise). The folder name is made from the plugin's `id`, e.g. `test-alert` for `test_alert`. The count decides what the update does, so the same settings always give the same pattern.
 
 ## Layouts
 
@@ -28,6 +28,7 @@ An alert every 3rd update, and a crash every 5th:
 
 ```toml
 [[plugin]]
+id = "test_alert"
 name = "Test alert"
 type = "debugging"
 level = "alert"

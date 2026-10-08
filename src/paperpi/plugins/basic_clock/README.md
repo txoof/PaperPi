@@ -22,6 +22,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
+id = "clock"
 name = "Clock"
 type = "basic_clock"
 layout = "time_date"

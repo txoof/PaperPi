@@ -55,13 +55,13 @@ height = 480
 mode = "bw"
 
 [[plugin]]
-name = "Clock"
+id = "clock"
 type = "basic_clock"
 layout = "time_date"
 ```
 
 ```bash
-uv run paperpi render --config paperpi.toml --name "Clock"   # writes clock.png, named after the plugin's name
+uv run paperpi render --config paperpi.toml --id clock   # writes clock.png, named after the plugin's ID
 ```
 
 Run `uv run paperpi render --help` for all options. How to write a plugin: [docs/writing-plugins.md](docs/writing-plugins.md).
@@ -75,7 +75,7 @@ uv run paperpi example-config -o paperpi.toml
 uv run paperpi list --config paperpi.toml
 ```
 
-`paperpi list` shows the plugins of a config file, one line each, in the order of the file: name, type, on (`yes`, `no`, or `needs <settings>` when a required setting is missing), level, display time, refresh, layout and storage (the ones used: the setting, or else the plugin's suggestion or first layout; storage is the size limit and the age limit, for example `500 MB, 30 d`, or `500 MB, no age limit`). Anything wrong with the file is shown first; a block with an error is left out of the list.
+`paperpi list` shows the plugins of a config file, one line each, in the order of the file: id, name (the id when it has none), type, on (`yes`, `no`, or `needs <settings>` when a required setting is missing), level, display time, refresh, layout and storage (the ones used: the setting, or else the plugin's suggestion or first layout; storage is the size limit and the age limit, for example `500 MB, 30 d`, or `500 MB, no age limit`). Anything wrong with the file is shown first; a block with an error is left out of the list.
 
 ```
 name            type         on   level     display  refresh  layout

@@ -32,6 +32,7 @@ To put it in the rotation (not needed for the splash at start):
 
 ```toml
 [[plugin]]
+id = "splash_screen"
 name = "Splash Screen"
 type = "splash_screen"
 ```
