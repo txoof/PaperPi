@@ -15,6 +15,11 @@
     <code>{{ f.key }}</code></label>
   {% if f.kind == "choice" %}
   <select id="setting-{{ f.key }}" name="{{ f.key }}">
+    {# Else the browser would pick, and Save would write, the first choice. #}
+    {% if f.value not in f.choices %}
+    <option value="" selected>
+      {%- if f.value %}(not one of the choices: {{ f.value }}){% else %}(not set){% endif %}</option>
+    {% endif %}
     {% for choice in f.choices %}
     <option value="{{ choice }}"{% if choice == f.value %} selected{% endif %}>{{ choice }}</option>
     {% endfor %}
