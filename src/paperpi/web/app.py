@@ -179,7 +179,6 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
             done=done if done in ("saved", "added", "removed") else None,
             name=name,
             hand_edits=request.query_params.get("hand") == "1",
-            config_file=auth.config_file,
         )
 
     def saved(done: str, hand_edits: bool, plugin_id: str = "") -> RedirectResponse:
@@ -250,7 +249,7 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
             row=row,
             plugin=plugin,
             groups=groups,
-            more_open=any(f.error or f.value != f.default for f in groups["more"]),
+            more_open=any(f.error or f.changed for f in groups["more"]),
             folder=folder_name(row.id),
             done=done if done in ("saved", "added") and not found else None,
             hand_edits=request.query_params.get("hand") == "1",
@@ -305,9 +304,12 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         except EditError as error:
             return add_page(request, plugin_type, 400, name=name, problem=str(error))
         # On to its settings page, to fill in what it needs (agreed with txoof, M5 part 3a).
-        rows = editor.plugin_list().rows
+        try:
+            rows = editor.plugin_list().rows
+        except EditError:  # the file can't be read a moment later: show what can be shown
+            rows = []
         index = next((r.index for r in rows if r.id == plugin_id), None)
-        if index is None:  # moved away by hand meanwhile
+        if index is None:  # moved away or removed by hand meanwhile
             return saved("added", hand_edits, plugin_id)
         return settings_saved(index, plugin_id, "added", hand_edits)
 

@@ -27,7 +27,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel, SecretStr, ValidationError
+from pydantic import BaseModel, SecretBytes, SecretStr, ValidationError
 from pydantic.fields import FieldInfo
 
 from .. import example
@@ -75,6 +75,8 @@ class FormField:
     error: str = ""
     helper: str | None = None
     """The web interface helper shown under the field (see :mod:`paperpi.web.helpers`)."""
+    changed: bool = False
+    """The config file sets a value that is not the default."""
 
 
 @dataclass(frozen=True)
@@ -121,6 +123,8 @@ def fields(
         texts = [_text(v) for v in value] if isinstance(value, list | tuple) else [_text(value)]
         if kind == "file":
             texts = [example.toml_value(value) if value is not None else ""]
+            if _holds_secret(info.annotation) and texts[0]:
+                texts = ["(set; it holds a secret, so it is not shown)"]
         if sent is not None and key in sent and kind not in ("secret", "file"):
             # Without the empty value the page sends for a check box or list.
             texts = [t for t in sent[key] if t] or [""]
@@ -138,9 +142,10 @@ def fields(
                 selected=tuple(texts) if kind == "choices" else (),
                 choices=tuple(_text(c) for c in allowed),
                 values=tuple(allowed),
-                default="" if kind == "secret" else _text(shown[key]),
+                default=_default_text(kind, shown[key], info),
                 required=is_required(info),
                 is_set=kind == "secret" and bool(_text(value)),
+                changed=example.plain(value) != example.plain(shown[key]),
                 minimum=_limit(info, "ge", "gt"),
                 maximum=_limit(info, "le", "lt"),
                 whole=_plain_type(info.annotation) is int,
@@ -250,6 +255,28 @@ def _limit(info: FieldInfo, *names: str) -> Any:
             if found is not None:
                 return found
     return None
+
+
+def _default_text(kind: Kind, default: Any, info: FieldInfo) -> str:
+    """The default as the page shows it next to the field (``""``: none)."""
+    if kind == "secret" or default is None:
+        return ""
+    if kind == "check":
+        return "on" if default else "off"
+    if kind == "choices":
+        return ", ".join(_text(v) for v in default) or "none"
+    if kind == "file":
+        return "" if _holds_secret(info.annotation) else example.toml_value(default)
+    return _text(default)
+
+
+def _holds_secret(annotation: Any) -> bool:
+    """True when a setting of this type is, or holds, a secret (``SecretStr``)."""
+    if annotation in (SecretStr, SecretBytes):
+        return True
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return any(_holds_secret(f.annotation) for f in annotation.model_fields.values())
+    return any(_holds_secret(a) for a in typing.get_args(annotation))
 
 
 def _text(value: Any) -> str:

@@ -6,6 +6,11 @@ here is a function that gets the field (:class:`paperpi.web.forms.FormField`) an
 the HTML to show under it. A name that is not in :data:`HELPERS` (yet) shows nothing, so
 the plain field still works. The first helper, ``location`` (look up a place's latitude
 and longitude), comes in M5 part 3c; new ones are added when a plugin needs one.
+
+The page shows a helper's HTML as it is, and the field's texts come from the config file
+or the form. So build the HTML with ``Markup("<p>{}</p>").format(...)`` or a template,
+never with an f-string: those escape the texts (turn ``<`` into ``&lt;`` and so on), so
+typed text can't become part of the page.
 """
 
 from __future__ import annotations
