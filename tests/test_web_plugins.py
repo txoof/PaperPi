@@ -406,3 +406,25 @@ def test_settings_of_an_unknown_plugin_type_cant_be_changed(editor, cfg):
     cfg.write_text(CONFIG.replace('type = "basic_clock"\n\n', 'type = "nothing"\n\n', 1))
     with pytest.raises(EditError, match="its plugin type 'nothing' can't be used"):
         editor.settings(0, "Clock")
+
+
+def test_saving_the_same_form_again_changes_nothing(editor, cfg, reloads):
+    form = {"lon": ["13.5"], "temperature": ["F"]}
+    editor.save_settings(1, "Weather", form)
+    saved = cfg.read_text()
+    assert editor.save_settings(1, "Weather", form) is False
+    assert cfg.read_text() == saved and reloads == [1]
+
+
+def test_a_list_over_several_lines_doesnt_stop_other_changes(editor, cfg):
+    cfg.write_text(
+        CONFIG + '\n[[plugin]]\nid = "Test"\ntype = "debugging"\nstates = [\n  "ready",\n]\n'
+    )
+    editor.save_settings(3, "Test", {"states": ["", "ready"], "text": ["hello"]})
+    assert blocks(cfg)[3]["text"] == "hello"
+
+
+def test_settings_of_an_unknown_plugin_type_cant_be_saved(editor, cfg):
+    cfg.write_text(CONFIG.replace('type = "basic_clock"\n\n', 'type = "nothing"\n\n', 1))
+    with pytest.raises(EditError, match="its plugin type 'nothing' can't be used"):
+        editor.save_settings(0, "Clock", {"hours": ["12"]})

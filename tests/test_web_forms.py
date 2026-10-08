@@ -184,3 +184,44 @@ def test_defaults_include_the_plugins_suggestions():
     shown = forms.defaults(weather)
     assert shown["refresh"] == weather.refresh and shown["layout"] == weather.default_layout
     assert shown["display_time"] == 120 and shown["lat"] is None
+
+
+def test_unchanged_values_are_no_change():
+    # The file gives a list and whole numbers; the form a tuple and text.
+    block = T | {"words": ["b", "c"], "loud": True}
+    form = {"words": ["", "b", "c"], "loud": ["false", "true"], "display_time": ["60"]}
+    assert forms.read(TEST, block | {"display_time": 60.0}, form).changes == {}
+
+
+def test_a_list_picks_each_choice_once():
+    found = forms.read(TEST, T, {"words": ["", "c", "a", "c", "a"]})
+    assert found.changes == {"words": ("a", "c")}
+
+
+@pytest.mark.parametrize(
+    "text", ["1_0", "nan", "inf", "1e3", "\N{ARABIC-INDIC DIGIT ONE}", "1" * 19, "0x10"]
+)
+def test_numbers_are_plain_digits(text):
+    found = forms.read(plugins.load("met_no"), WEATHER, {"display_time": [text]})
+    assert found.errors == {"display_time": "enter a number"}
+
+
+def test_a_form_shown_again_keeps_check_boxes_and_lists_as_sent():
+    sent = {"loud": ["false"], "words": ["", "c"]}
+    found = by_key(forms.fields(TEST, T | {"loud": True}, sent, {"words": "x"}))
+    assert found["loud"].value == "false"
+    assert found["words"].selected == ("c",)
+    found = by_key(forms.fields(TEST, T | {"loud": True}, {"words": [""]}, {"words": "x"}))
+    assert found["loud"].value == "true"  # not sent: as saved
+    assert found["words"].selected == ()
+
+
+def test_a_secret_is_not_sent_back_with_errors():
+    found = forms.read(TEST, T, {"token": ["NEWSECRET"], "words": ["d"]})
+    assert found.errors and "token" not in found.sent
+    assert "NEWSECRET" not in repr(found)
+
+
+def test_a_default_written_in_the_file_stays_until_it_is_changed():
+    block = WEATHER | {"display_time": 120}
+    assert forms.read(plugins.load("met_no"), block, {"display_time": ["120"]}).changes == {}

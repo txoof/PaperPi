@@ -289,16 +289,17 @@ def set_settings(
         at = _setting_line(lines, own, re.escape(key))
         if at is not None and not _one_line(lines[at]):
             raise UnknownForm()
+        commented = _commented_setting(lines, own, key)
         if value is None:
             changed.pop(key, None)
             if at is not None:
-                new[at] = _default_line(key, defaults, newline)
+                # Back to "# key = default", unless the block has that comment already.
+                new[at] = None if commented is not None else _default_line(key, defaults, newline)
             continue
         changed[key] = example.plain(value)
         line = f"{_key(key)} = {example.toml_value(value)}{newline}"
         if at is None:
-            at = _setting_line(lines, own, rf"#\s*{re.escape(key)}")
-            at = None if at in new else at
+            at = commented  # a commented-out setting, so its help text above stays
         if at is None:
             added.append((key, line))
         else:
@@ -312,9 +313,7 @@ def set_settings(
     below: dict[int, list[str]] = {}  # line -> new lines to put below it
     for key, line in added:
         at = _setting_line(lines, own, "id") if key == "name" else None
-        at = last if at is None else at
-        while at + 1 in scan.in_string:  # below the whole of a value over several lines
-            at += 1
+        at = _value_end(lines, last if at is None else at, block.own_end)
         below.setdefault(at, []).append(line)
     result = []
     for number, line in enumerate(lines):
@@ -324,6 +323,28 @@ def set_settings(
         result += below.get(number, [])
     expected[index] = changed
     return _checked("".join(result), data | {"plugin": expected})
+
+
+def _value_end(lines: list[str], line: int, end: int) -> int:
+    """The last line of the setting that starts on ``line``: a list or a text written over
+    several lines ends further down. ``line`` itself when it is not a setting."""
+    if not _HEADER.fullmatch(lines[line].rstrip("\r\n")) and not _one_line(lines[line]):
+        for last in range(line + 1, end):
+            if _one_line("".join(lines[line : last + 1])):
+                return last
+    return line
+
+
+def _commented_setting(lines: list[str], within: list[int], key: str) -> int | None:
+    """The line of a commented-out ``key``: ``# key = value`` (a setting without the ``#``)
+    or ``# key =`` (not set), not a help text that starts the same way."""
+    for number in within:
+        line = lines[number].strip()
+        if not re.match(rf"#\s*{re.escape(key)}\s*=", line):
+            continue
+        if _one_line(line[1:]) or re.fullmatch(rf"#\s*{re.escape(key)}\s*=", line):
+            return number
+    return None
 
 
 def _key(key: str) -> str:
