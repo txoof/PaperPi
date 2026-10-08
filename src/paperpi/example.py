@@ -113,13 +113,13 @@ def plugin_block(
     ]
     if shared:
         lines += _comment(entry["id"].description or "")
-    lines.append(f"id = {_toml(plugin_id)}")
+    lines.append(f"id = {toml_value(plugin_id)}")
     named = "name" in values
     if shared:
         lines += _setting("name", entry["name"], values.get("name", ""), comment=not named)
     elif named:
-        lines.append(f"name = {_toml(values['name'])}")
-    lines.append(f"type = {_toml(plugin.type)}")
+        lines.append(f"name = {toml_value(values['name'])}")
+    lines.append(f"type = {toml_value(plugin.type)}")
     for key, value in values.items():
         if key == "name":
             continue
@@ -199,11 +199,11 @@ def _setting(key: str, info: FieldInfo, value: Any, *, comment: bool = False) ->
     help_text = info.description or key
     if is_required(info):
         help_text += " (required)"
-    choices = _choices(info.annotation)
-    named = all(re.search(rf"\b{re.escape(str(c))}\b", help_text) for c in choices)
-    if choices and not named:
-        help_text += f". One of: {', '.join(_toml(c) for c in choices)}"
-    line = f"{key} = {_toml(value)}" if value is not None else f"{key} ="
+    allowed = choices(info.annotation)
+    named = all(re.search(rf"\b{re.escape(str(c))}\b", help_text) for c in allowed)
+    if allowed and not named:
+        help_text += f". One of: {', '.join(toml_value(c) for c in allowed)}"
+    line = f"{key} = {toml_value(value)}" if value is not None else f"{key} ="
     return [*_comment(help_text), f"# {line}" if comment else line]
 
 
@@ -219,7 +219,7 @@ def _check_reads_back(text: str, values: Mapping[str, Any]) -> None:
     TOML than Python's reader understands; such a block would make the whole file
     unreadable.
     """
-    expected = {"plugin": [{k: _plain(v) for k, v in values.items()}]}
+    expected = {"plugin": [{k: plain(v) for k, v in values.items()}]}
     try:
         read = tomllib.loads(text)
     except tomllib.TOMLDecodeError as error:
@@ -228,7 +228,7 @@ def _check_reads_back(text: str, values: Mapping[str, Any]) -> None:
         raise ValueError("can't be written so that PaperPi reads it back the same")
 
 
-def _choices(annotation: Any) -> tuple:
+def choices(annotation: Any) -> tuple:
     """The allowed values of a ``Literal`` setting (also inside ``... | None``)."""
     if typing.get_origin(annotation) is Literal:
         return typing.get_args(annotation)
@@ -239,7 +239,7 @@ def _choices(annotation: Any) -> tuple:
     return ()
 
 
-def _plain(value: Any) -> Any:
+def plain(value: Any) -> Any:
     """``value`` as plain data: text, numbers, true/false, lists and dictionaries."""
     if hasattr(value, "get_secret_value"):
         value = value.get_secret_value()
@@ -248,15 +248,15 @@ def _plain(value: Any) -> Any:
     return to_jsonable_python(value)
 
 
-def _toml(value: Any) -> str:
+def toml_value(value: Any) -> str:
     """``value`` written as in a TOML file: ``24``, ``true``, ``"Berlin"``, ``[1, 2]``,
     ``{a = 1}`` (a group of settings on one line)."""
-    value = _plain(value)
+    value = plain(value)
     if isinstance(value, dict):
-        items = (f"{tomlkit.key(k).as_string()} = {_toml(v)}" for k, v in value.items())
+        items = (f"{tomlkit.key(k).as_string()} = {toml_value(v)}" for k, v in value.items())
         return "{" + ", ".join(items) + "}"
     if isinstance(value, list):
-        return "[" + ", ".join(_toml(v) for v in value) + "]"
+        return "[" + ", ".join(toml_value(v) for v in value) + "]"
     if isinstance(value, float) and value.is_integer():
         value = int(value)  # 120, not 120.0
     return tomlkit.item(value).as_string()
