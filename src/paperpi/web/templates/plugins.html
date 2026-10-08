@@ -14,11 +14,6 @@
 {% for found in problems %}<p class="problem">{{ found|sentence }}</p>{% endfor %}
 <p>The plugins that are switched on take turns on the screen, in this order.
 <a href="/library">Add a plugin</a> from the Plugin Library.</p>
-{% if rows | selectattr("missing") | list %}
-<p class="note">Some plugins need settings before they are shown. Until the settings page is
-ready (a later version), type them into the config file on the Pi:
-<code>{{ config_file }}</code>.</p>
-{% endif %}
 {% if not rows and not problems %}<p>No plugins yet.</p>{% endif %}
 <ol class="plugins">
 {% for row in rows %}
@@ -41,6 +36,7 @@ ready (a later version), type them into the config file on the Pi:
         <button type="submit" name="step" value="up"{% if loop.first %} disabled{% endif %}>Up</button>
         <button type="submit" name="step" value="down"{% if loop.last %} disabled{% endif %}>Down</button>
       </form>
+      {% if row.id %}<a href="/plugins/{{ row.index }}/settings?id={{ row.id|urlencode }}">Settings</a>{% endif %}
       <a href="/plugins/{{ row.index }}/remove?id={{ row.id|urlencode }}">Remove</a>
     </div>
   </li>

@@ -8,9 +8,11 @@ Address            What it does
 ``/login``         log in; also says how to reset a forgotten password
 ``/logout``        log out (a button on every page)
 ``/plugins``       Active Plugins: the plugins in the config file; switch on or off, move
-                   up or down, remove (``/plugins/<n>/...``, n = place in the file,
-                   counted from 0)
-``/library``       Plugin Library: every plugin type; ``/library/<type>`` adds one
+                   up or down, remove, settings (``/plugins/<n>/...?id=<id>``, n = place
+                   in the file, counted from 0, and the plugin's id to check it is
+                   still there)
+``/library``       Plugin Library: every plugin type; ``/library/<type>`` adds one and
+                   opens its settings
 ``/static/...``    the style sheet and htmx (a small JavaScript file that updates
                    one part of a page without loading the whole page again)
 =================  ==============================================================
@@ -37,10 +39,13 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from .. import __version__
+from ..config import folder_name
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError
+from .forms import Read, fields
+from .helpers import helper_html
 from .password import PasswordError, password_problem
-from .plugins import PluginEditor, library, library_item
+from .plugins import FormErrors, PluginEditor, library, library_item
 
 COOKIE = "paperpi_login"
 _HERE = Path(__file__).parent
@@ -58,7 +63,8 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
     app = FastAPI(title="PaperPi", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
-    templates.env.globals.update(version=__version__, auth=auth)
+    templates.env.globals.update(version=__version__, auth=auth, helper_html=helper_html)
+    templates.env.filters["number"] = _number
     templates.env.filters["sentence"] = lambda text: text[:1].upper() + text[1:]
 
     def page(request: Request, template: str, status: int = 200, **values) -> HTMLResponse:
@@ -219,6 +225,61 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
             return plugin_list(request, 409, str(error))
         return saved("removed", hand_edits)
 
+    def settings_page(
+        request: Request,
+        index: int,
+        plugin_id: str,
+        status: int = 200,
+        found: Read | None = None,
+    ) -> HTMLResponse:
+        try:
+            plugin, block = editor.settings(index, plugin_id)
+            row = editor.row(index, plugin_id)
+        except EditError as error:
+            return plugin_list(request, 409, str(error))
+        errors = found.errors if found else {}
+        shown = fields(plugin, block, found.sent if found else None, errors)
+        groups = {g: [f for f in shown if f.group == g] for g in ("name", "own", "common", "more")}
+        # Errors that belong to no field on the page (a broken id, ...).
+        other = [m for k, m in errors.items() if k not in {f.key for f in shown}]
+        done = request.query_params.get("done")
+        return page(
+            request,
+            "settings.html",
+            status,
+            row=row,
+            plugin=plugin,
+            groups=groups,
+            more_open=any(f.error or f.value != f.default for f in groups["more"]),
+            folder=folder_name(row.id),
+            done=done if done in ("saved", "added") and not found else None,
+            hand_edits=request.query_params.get("hand") == "1",
+            problem="; ".join(other) if other else FormErrors.MESSAGE if found else None,
+        )
+
+    @app.get("/plugins/{index}/settings", response_class=HTMLResponse)
+    def settings_form(request: Request, index: int, plugin_id: _QueryId = ""):
+        return settings_page(request, index, plugin_id)
+
+    @app.post("/plugins/{index}/settings", response_class=HTMLResponse)
+    async def save_settings(request: Request, index: int):
+        form = await request.form()
+        plugin_id = str(form.get("id", ""))
+        sent = {k: [str(v) for v in form.getlist(k)] for k in form if k != "id"}
+        try:
+            hand_edits = await run_in_threadpool(editor.save_settings, index, plugin_id, sent)
+        except FormErrors as error:
+            return await run_in_threadpool(
+                settings_page, request, index, plugin_id, 400, error.found
+            )
+        except EditError as error:
+            return await run_in_threadpool(plugin_list, request, 409, str(error))
+        return settings_saved(index, plugin_id, "saved", hand_edits)
+
+    def settings_saved(index: int, plugin_id: str, done: str, hand_edits: bool):
+        values = {"id": plugin_id, "done": done} | ({"hand": "1"} if hand_edits else {})
+        return RedirectResponse(f"/plugins/{index}/settings?{urlencode(values)}", 303)
+
     @app.get("/library", response_class=HTMLResponse)
     def library_page(request: Request):
         return page(request, "library.html", items=library())
@@ -243,7 +304,12 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
             hand_edits, plugin_id = editor.add(item, name)
         except EditError as error:
             return add_page(request, plugin_type, 400, name=name, problem=str(error))
-        return saved("added", hand_edits, plugin_id)
+        # On to its settings page, to fill in what it needs (agreed with txoof, M5 part 3a).
+        rows = editor.plugin_list().rows
+        index = next((r.index for r in rows if r.id == plugin_id), None)
+        if index is None:  # moved away by hand meanwhile
+            return saved("added", hand_edits, plugin_id)
+        return settings_saved(index, plugin_id, "added", hand_edits)
 
     @app.post("/logout")
     def logout():
@@ -252,6 +318,11 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         return response
 
     return app
+
+
+def _number(value: float) -> str:
+    """A number as the pages show it: ``604800``, not ``604800.0``."""
+    return str(int(value)) if float(value).is_integer() else str(value)
 
 
 def _known_host(host: str) -> bool:

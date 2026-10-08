@@ -22,3 +22,14 @@ code { background: #eee; padding: 0 0.2rem; }
 .buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
 .buttons form { margin: 0; display: flex; gap: 0.5rem; }
 .library li { margin: 0.5rem 0; }
+.settings h2 { font-size: 1.1rem; margin-top: 1.5rem; }
+.settings .field { margin: 0.9rem 0; }
+.settings .field > label { display: block; margin: 0 0 0.25rem; }
+.settings select { font-size: 1rem; padding: 0.3rem; }
+.settings label.check { display: flex; gap: 0.4rem; align-items: center; margin: 0.25rem 0; }
+.settings label.check input { width: auto; display: inline; }
+.settings .wrong input, .settings .wrong select { border: 2px solid #a00; }
+.settings .problem { margin: 0.25rem 0 0; }
+.hint, .type, .required { color: #555; font-size: 0.9rem; }
+.technical dt { font-weight: bold; margin-top: 0.5rem; }
+.technical dd { margin-left: 0; }

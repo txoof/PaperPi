@@ -31,7 +31,7 @@ from pydantic import BaseModel, SecretStr, ValidationError
 from pydantic.fields import FieldInfo
 
 from .. import example
-from ..plugin import Plugin, PluginEntry, is_required
+from ..plugin import Plugin, PluginEntry, helper_of, is_required
 
 #: The shared settings shown right after the plugin's own ones; the others are folded away
 #: under "More settings" (agreed with txoof, M5 part 3a).
@@ -73,6 +73,8 @@ class FormField:
     """``number``: whole numbers only."""
     max_length: int | None = None
     error: str = ""
+    helper: str | None = None
+    """The web interface helper shown under the field (see :mod:`paperpi.web.helpers`)."""
 
 
 @dataclass(frozen=True)
@@ -144,6 +146,7 @@ def fields(
                 whole=_plain_type(info.annotation) is int,
                 max_length=_limit(info, "max_length"),
                 error=errors.get(key, ""),
+                helper=helper_of(info),
             )
         )
     order: list[Group] = ["name", "own", "common", "more"]

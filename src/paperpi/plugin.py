@@ -102,11 +102,12 @@ class PluginSettings(BaseModel):
 _OPTIONS = "paperpi"
 
 
-def setting(default: Any, *, required: bool = False, **field: Any) -> Any:
+def setting(
+    default: Any, *, required: bool = False, helper: str | None = None, **field: Any
+) -> Any:
     """A plugin setting: pydantic's ``Field`` (with the same ``description``, ``ge``,
     ``max_length``, ...) plus what PaperPi needs to know about it. This is the one place a
-    setting gets PaperPi's own options; later ones (such as a web interface helper that
-    looks up a place's latitude and longitude, M5 part 3c) are added here too::
+    setting gets PaperPi's own options::
 
         lat: float | None = setting(None, required=True, description="Latitude")
 
@@ -114,20 +115,39 @@ def setting(default: Any, *, required: bool = False, **field: Any) -> Any:
     address, an API key). Its default must be "not set" (see :func:`is_set`). A plugin
     with a required setting that is not set is not shown; the config check and
     ``paperpi list`` and the web interface's Active Plugins page say which settings it needs.
+
+    ``helper``: the name of a web interface helper for this setting, shown under its field
+    on the settings page, for example ``"location"`` (look up a place's latitude and
+    longitude, M5 part 3c). A name the web interface doesn't know is left out, so the
+    plain field still works. See ``paperpi.web.helpers``.
     """
     extra = field.pop("json_schema_extra", None) or {}
     if not isinstance(extra, dict):
         raise TypeError("setting() takes json_schema_extra only as a dictionary")
-    if required:
-        extra = extra | {_OPTIONS: {"required": True}}
+    options = {"required": True} if required else {}
+    if helper is not None:
+        options["helper"] = helper
+    if options:
+        extra = extra | {_OPTIONS: options}
     return Field(default, json_schema_extra=extra or None, **field)
+
+
+def _options(info: FieldInfo) -> dict[str, Any]:
+    """PaperPi's own options of a setting made with :func:`setting`."""
+    extra = info.json_schema_extra
+    options = extra.get(_OPTIONS) if isinstance(extra, dict) else None
+    return options if isinstance(options, dict) else {}
 
 
 def is_required(info: FieldInfo) -> bool:
     """True for a setting made with ``setting(required=True)``."""
-    extra = info.json_schema_extra
-    options = extra.get(_OPTIONS) if isinstance(extra, dict) else None
-    return isinstance(options, dict) and bool(options.get("required"))
+    return bool(_options(info).get("required"))
+
+
+def helper_of(info: FieldInfo) -> str | None:
+    """The web interface helper a setting names (``setting(helper=...)``), or ``None``."""
+    helper = _options(info).get("helper")
+    return helper if isinstance(helper, str) else None
 
 
 def is_set(value: Any) -> bool:
