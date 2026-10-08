@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 import segno
-from epdlib import ScreenMode, text
+from epdlib import Layout, ScreenMode, text
 from pydantic import ValidationError
 
 from paperpi import __version__
@@ -25,7 +25,7 @@ from paperpi.plugins.splash_screen import (
     qr_code,
     web_address,
 )
-from paperpi.plugins.splash_screen.layouts import ADDRESS_BLOCKS, PADDING
+from paperpi.plugins.splash_screen.layouts import ADDRESS_BLOCKS
 
 SAMPLE = PLUGIN.sample
 # The screens the image tests use, the smallest Waveshare screen, and upright screens.
@@ -142,7 +142,18 @@ FONT = splash_screen.layouts.fonts.DOSIS_SEMIBOLD
 
 
 def fit(address, size, width, height):
-    return fit_address(address, FONT, size, width, height, 2, "…")
+    """fit_address in a one-block layout of ``width`` x ``height`` at font ``size``."""
+    block = {
+        "name": "a",
+        "type": "text",
+        "font": FONT,
+        "font_size": {"pixels": size},
+        "max_lines": 2,
+        "shrink": True,
+        "padding": 0,
+    }
+    prepared = Layout({"column": [block]}).prepare(width, height, ScreenMode.bw())
+    return fit_address(prepared, "a", address)
 
 
 def test_fit_address_keeps_one_line_when_it_fits():
@@ -204,24 +215,11 @@ def test_draw_without_a_network():
 
 def _complete(values, width, height):
     """True when every address is drawn whole: epdlib's own text fitting cut nothing."""
-    layout = PLUGIN.layout("splash", Settings())
-    prepared = layout.prepare(width, height, ScreenMode.bw())
-    edge = round(PADDING * min(width, height))
+    prepared = PLUGIN.layout("splash", Settings()).prepare(width, height, ScreenMode.bw())
     for name in ADDRESS_BLOCKS:
-        box = prepared.boxes[name]
-        o = layout.blocks[name].options
-        fit = text.fit_text(
-            o["font"],
-            prepared.font_sizes[name],
-            values[name],
-            box.width - 2 * edge,
-            box.height - 2 * edge,
-            o["max_lines"],
-            o["shrink"],
-            o["ellipsis"],
-        )
+        report = prepared.text_fit(name, values[name])
         # Whole, and drawn with exactly the line breaks draw() chose (none inside a word).
-        if not fit.complete or fit.lines != values[name].split("\n"):
+        if not report.complete or list(report.lines) != values[name].split("\n"):
             return False
     return True
 
