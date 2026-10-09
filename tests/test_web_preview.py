@@ -1,11 +1,13 @@
 """The Preview button on a plugin's settings page (M5 part 3b-1)."""
 
 import base64
+import html
 import io
 import re
 import threading
 
 import pytest
+from epdlib import ScreenMode
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -15,9 +17,10 @@ from paperpi.runner import PluginFailed, PluginTimeout, UpdateResult, run_update
 from paperpi.web import auth
 from paperpi.web.app import create_app
 from paperpi.web.plugins import PluginEditor
-from paperpi.web.preview import Previewer
+from paperpi.web.preview import Previewer, PreviewFailed
 
 from .test_web_settings import CONFIG, PI
+from .test_web_settings import kinds as kinds  # a fixture
 
 
 class FakeUpdate:
@@ -61,7 +64,7 @@ def make_client(cfg, reloads, update):
 def preview(client, index, plugin_id, **form):
     response = client.post(f"/plugins/{index}/preview", data={"id": plugin_id, **form})
     assert response.status_code == 200  # htmx only shows answers with 200
-    return response.text
+    return html.unescape(response.text)
 
 
 def picture(page):
@@ -97,8 +100,11 @@ def test_real_data_may_take_the_plugins_time_limit_but_at_most_45_s(cfg, reloads
 
 def test_the_preview_uses_the_form_not_the_file_and_saves_nothing(cfg, reloads):
     update = FakeUpdate(State.READY)
-    preview(make_client(cfg, reloads, update), 2, "Comic", time_limit="20", name="New")
-    assert update.calls[0][3] == 20
+    preview(make_client(cfg, reloads, update), 2, "Comic", time_limit="20", layout="nope")
+    assert "Fix these settings first" not in preview(
+        make_client(cfg, reloads, update), 2, "Comic", time_limit="20"
+    )
+    assert [call[3] for call in update.calls] == [20]
     assert cfg.read_text() == CONFIG and reloads == []
 
 
@@ -106,8 +112,8 @@ def test_the_preview_uses_the_form_not_the_file_and_saves_nothing(cfg, reloads):
     ("error", "note"),
     [
         (PluginTimeout("xkcd_comic", "stopped"), "The real data took longer than 30 seconds."),
-        (PluginFailed("xkcd_comic", "URLError: no network"), "could not be drawn: URLError"),
-        (State.NOTHING, "It has nothing to show right now"),
+        (PluginFailed("xkcd_comic", "URLError: no network"), "drawn: URLError: no network."),
+        (State.NOTHING, "The plugin has nothing to show right now"),
     ],
 )
 def test_without_real_data_the_sample_is_drawn_and_says_why(cfg, reloads, error, note):
@@ -139,10 +145,23 @@ def test_an_alert_says_so(cfg, reloads):
 
 
 def test_when_the_sample_fails_too_both_reasons_are_shown(cfg, reloads):
-    update = FakeUpdate(PluginTimeout("basic_clock", "stopped"), PluginFailed("x", "Boom"))
+    update = FakeUpdate(PluginTimeout("basic_clock", "stopped"), PluginTimeout("x", "Late"))
     page = preview(make_client(cfg, reloads, update), 0, "Clock")
-    assert "took longer than 45 seconds. Drawing the sample data failed too: Boom" in page
+    assert "took longer than 45 seconds. The sample data could not be drawn either: Late." in page
     assert "<img" not in page
+
+
+def test_a_sample_after_missing_settings_does_not_say_either(cfg, reloads):
+    page = preview(make_client(cfg, reloads, FakeUpdate(PluginFailed("x", "Boom"))), 1, "Weather")
+    assert "settings first: email. The sample data could not be drawn: Boom." in page
+
+
+def test_a_sample_without_a_picture_says_so(cfg, reloads):
+    def no_picture(plugin_type, context, *, sample, time_limit):
+        return UpdateResult(State.READY, None, 0.1)
+
+    page = preview(make_client(cfg, reloads, no_picture), 1, "Weather")
+    assert "The sample data gives no picture." in page
 
 
 def test_wrong_values_are_listed_and_nothing_is_drawn(cfg, reloads):
@@ -155,7 +174,63 @@ def test_wrong_values_are_listed_and_nothing_is_drawn(cfg, reloads):
 def test_a_block_that_changed_meanwhile_is_not_drawn(cfg, reloads):
     update = FakeUpdate()
     page = preview(make_client(cfg, reloads, update), 0, "Weather")
-    assert 'class="problem"' in page and update.calls == []
+    assert "changed" in page and update.calls == []
+
+
+def test_the_screen_size_and_type_come_from_the_display_settings(cfg, reloads):
+    cfg.write_text(
+        CONFIG.replace(
+            'type = "virtual"',
+            'type = "virtual"\nwidth = 800\nheight = 480\nrotation = 90\nmode = "gray4"',
+        )
+    )
+    update = FakeUpdate()
+    page = preview(make_client(cfg, reloads, update), 0, "Clock")
+    context = update.calls[0][1]
+    assert (context.width, context.height, context.mode) == (480, 800, ScreenMode.gray(4))
+    assert picture(page).size == (480, 800)
+
+
+def test_a_config_file_paperpi_cant_use_is_not_drawn(cfg, reloads):
+    cfg.write_text(CONFIG.replace('type = "virtual"', 'type = "nope"'))
+    update = FakeUpdate()
+    page = preview(make_client(cfg, reloads, update), 0, "Clock")
+    assert "must be fixed first" in page and update.calls == []
+
+
+def test_of_two_blocks_with_the_same_id_the_right_one_is_drawn(cfg, reloads):
+    # PaperPi leaves out the second one ("used twice"): it can't be drawn, and says why.
+    cfg.write_text(CONFIG + '\n[[plugin]]\nid = "clock"\ntype = "word_clock"\n')
+    update = FakeUpdate()
+    page = preview(make_client(cfg, reloads, update), 3, "clock")
+    assert (
+        "This plugin can't be drawn" in page
+        and "already used by the plugin block at line 5" in page
+    )
+    assert update.calls == []
+
+
+def test_only_the_problems_of_this_block_are_listed(cfg, reloads):
+    cfg.write_text(CONFIG + '\n[[plugin]]\nid = "Broken"\ntype = "no_such_type"\n')
+    page = preview(make_client(cfg, reloads, FakeUpdate()), 0, "Clock")
+    assert "<img" in page and "no_such_type" not in page
+
+
+def test_an_empty_secret_field_keeps_the_saved_secret(cfg, reloads, kinds):
+    update = FakeUpdate(State.READY, State.READY)
+    client = make_client(cfg, reloads, update)
+    preview(client, kinds, "Kinds", token="")
+    preview(client, kinds, "Kinds", token="NEWKEY")
+    tokens = [call[1].settings.token.get_secret_value() for call in update.calls]
+    assert tokens == ["SAVEDKEY", "NEWKEY"] and "NEWKEY" not in cfg.read_text()
+
+
+def test_a_wrong_form_never_shows_a_secret(cfg, reloads, kinds):
+    page = preview(
+        make_client(cfg, reloads, FakeUpdate()), kinds, "Kinds", token="NEWKEY", words="d"
+    )
+    assert "Fix these settings first" in page
+    assert "NEWKEY" not in page and "SAVEDKEY" not in page
 
 
 def test_one_preview_at_a_time(cfg, reloads):
@@ -167,7 +242,8 @@ def test_one_preview_at_a_time(cfg, reloads):
         return FakeUpdate()(*args, **options)
 
     client = make_client(cfg, reloads, slow)
-    first = threading.Thread(target=preview, args=(client, 0, "Clock"))
+    pages = []
+    first = threading.Thread(target=lambda: pages.append(preview(client, 0, "Clock")))
     first.start()
     try:
         assert started.wait(5)
@@ -175,7 +251,60 @@ def test_one_preview_at_a_time(cfg, reloads):
     finally:
         go_on.set()
         first.join(5)
+    assert not first.is_alive() and "<img" in pages[0]
     assert "<img" in preview(client, 0, "Clock")
+
+
+def test_after_an_error_the_next_preview_can_be_drawn(cfg, reloads):
+    def broken(*args, **options):
+        raise RuntimeError("no process could be started")
+
+    update = FakeUpdate()
+    previewer = Previewer(broken)
+    job = PluginEditor(cfg).preview_job(0, "Clock", {})
+    with pytest.raises(RuntimeError):
+        previewer.draw(job)
+    previewer._update = update
+    assert previewer.draw(job).png and len(update.calls) == 1
+
+
+def test_an_unexpected_error_is_shown_and_logged(cfg, reloads, caplog):
+    def broken(*args, **options):
+        raise OSError("no more processes")
+
+    page = preview(make_client(cfg, reloads, broken), 0, "Clock")
+    assert "could not be drawn. PaperPi's log has the details." in page
+    assert "no more processes" in caplog.text and "no more processes" not in page
+
+
+def test_no_preview_is_started_while_paperpi_stops(cfg, reloads):
+    previewer = Previewer(FakeUpdate())
+    previewer.stop()
+    with pytest.raises(PreviewFailed, match="PaperPi is stopping"):
+        previewer.draw(PluginEditor(cfg).preview_job(0, "Clock", {}))
+
+
+def test_when_the_real_data_was_stopped_for_a_stop_no_sample_is_drawn(cfg, reloads):
+    previewer = None
+
+    def stopped(plugin_type, context, *, sample, time_limit):
+        previewer.stop()  # what runner.stop_all and paperpi run do at a stop
+        raise PluginFailed(plugin_type, "process ended without a result")
+
+    previewer = Previewer(stopped)
+    with pytest.raises(PreviewFailed, match="PaperPi is stopping"):
+        previewer.draw(PluginEditor(cfg).preview_job(0, "Clock", {}))
+
+
+def test_an_ended_log_in_opens_the_log_in_page_not_inside_the_preview(cfg, reloads):
+    paperpi_auth = auth.Auth(cfg, config.WebSettings(login=True, password_hash="x" * 10))
+    client = TestClient(create_app(paperpi_auth, PluginEditor(cfg)), base_url=PI)
+    response = client.post(
+        "/plugins/0/preview", data={"id": "Clock"}, headers={"HX-Request": "true"}
+    )
+    assert response.headers["HX-Redirect"] == "/login" and response.text == ""
+    response = client.post("/plugins/0/preview", data={"id": "Clock"}, follow_redirects=False)
+    assert response.status_code == 303 and response.headers["location"] == "/login"
 
 
 def test_pages_allow_pictures_sent_inside_the_page(cfg, reloads):

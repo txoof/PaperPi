@@ -175,14 +175,21 @@ class PluginEditor:
         block as Save would write it, and the screen. Nothing is saved. Raises
         :class:`FormErrors` when a value can't be used."""
         path, text = config_file.read(self.path)
-        checked = _parse(_with_settings(text, index, plugin_id, form), path.name)
-        try:
-            found = checked.plugin(plugin_id)
-        except KeyError:
-            problems = "; ".join(_without_place(p) for p in checked.errors) or "unknown"
+        new = _with_settings(text, index, plugin_id, form)
+        checked = _parse(new, path.name)
+        # By the line of its [[plugin]] line: another block may have the same ID.
+        place = config_file.blocks(new)[index]
+        found = next((p for p in checked.plugins if p.line == place.header + 1), None)
+        if found is None:
+            problems = "; ".join(
+                _without_place(p)
+                for p in checked.errors
+                if p.line and place.start < p.line <= place.end
+            )
             raise config_file.EditError(
-                f"{plugin_id} can't be drawn, its block has a problem: {problems}"
-            ) from None
+                "This plugin can't be drawn. Its settings in the config file have a problem: "
+                f"{problems or 'unknown'}"
+            )
         width, height = checked.display.layout_size
         return preview.Job(found, width, height, checked.display.screen_mode)
 

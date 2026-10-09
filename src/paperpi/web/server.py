@@ -19,6 +19,7 @@ from .. import config
 from .app import create_app
 from .auth import Auth
 from .plugins import PluginEditor
+from .preview import Previewer
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class WebServer:
     ):
         self.auth = auth
         self.editor = editor
+        self.previewer = Previewer()
         self.settings = settings
         """The settings it was started with; a change of address or port needs a restart."""
         self._socket = sock
@@ -45,7 +47,7 @@ class WebServer:
         """The port it listens on (useful with ``port = 0`` in tests)."""
         self._server = uvicorn.Server(
             uvicorn.Config(
-                create_app(auth, self.editor),
+                create_app(auth, self.editor, self.previewer),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
                 access_log=False,
@@ -78,7 +80,12 @@ class WebServer:
     def running(self) -> bool:
         return self._thread.is_alive()
 
+    def stop_previews(self) -> None:
+        """Start no more previews: PaperPi is stopping (see :meth:`Previewer.stop`)."""
+        self.previewer.stop()
+
     def stop(self) -> None:
+        self.stop_previews()
         self._server.should_exit = True
         self._thread.join(STOP_SECONDS)
         if self._thread.is_alive():

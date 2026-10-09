@@ -12,7 +12,7 @@ or has nothing to show, or a required setting is missing, it draws the plugin's 
 instead and says why.
 
 Only one preview is drawn at a time: each one starts a Python process and may wait for a
-web server, and a phone may send the button more than once. A second preview meanwhile gets
+web server, and a phone may press the button more than once. A second preview meanwhile gets
 :class:`Busy`.
 """
 
@@ -86,6 +86,12 @@ class Previewer:
     def __init__(self, update: Update = run_update):
         self._update = update
         self._lock = threading.Lock()
+        self._stopped = threading.Event()
+
+    def stop(self) -> None:
+        """PaperPi stops: start no more plugin processes for previews. (A running one is
+        stopped by :func:`paperpi.runner.stop_all`.)"""
+        self._stopped.set()
 
     def draw(self, job: Job) -> Preview:
         """Draw ``job``. Raises :class:`Busy` while another preview is drawn and
@@ -95,16 +101,22 @@ class Previewer:
         if not self._lock.acquire(blocking=False):
             raise Busy("Another preview is being drawn. Wait a moment, then try again.")
         try:
+            self._check_stopped()
             with tempfile.TemporaryDirectory(prefix="paperpi-preview-") as storage:
                 return self._draw(job, Path(storage))
         finally:
             self._lock.release()
+
+    def _check_stopped(self) -> None:
+        if self._stopped.is_set():
+            raise PreviewFailed("PaperPi is stopping, so no preview can be drawn now.")
 
     def _draw(self, job: Job, storage: Path) -> Preview:
         found = job.found
         plugin_type = found.plugin.type
         context = Context(found.settings, job.width, job.height, job.mode, storage, found.layout)
         start = time.monotonic()
+        failed = False  # the real data failed (not: it wasn't tried, or had nothing)
         if found.missing:
             note = f"Real data needs these settings first: {', '.join(found.missing)}."
         else:
@@ -113,22 +125,26 @@ class Previewer:
                 result = self._update(plugin_type, context, sample=False, time_limit=time_limit)
             except PluginTimeout as error:
                 note = f"The real data took longer than {time_limit:g} seconds."
+                failed = True
                 _log_details(found, error)
             except PluginFailed as error:
-                note = f"The real data could not be drawn: {error.reason}"
+                note = f"The real data could not be drawn: {_sentence(error.reason)}"
+                failed = True
                 _log_details(found, error)
             else:
                 if result.state is not State.NOTHING and result.image is not None:
                     return _preview(result, sample=False, note="", start=start)
-                note = "It has nothing to show right now, so it would not take a turn."
+                note = "The plugin has nothing to show right now, so the screen would skip it."
+        self._check_stopped()  # e.g. stop_all ended the real data's process
         try:
             result = self._update(
                 plugin_type, context, sample=True, time_limit=limits.PREVIEW_SAMPLE
             )
         except PluginFailed as error:
             _log_details(found, error)
+            either = " either" if failed else ""
             raise PreviewFailed(
-                f"{note} Drawing the sample data failed too: {error.reason}"
+                f"{note} The sample data could not be drawn{either}: {_sentence(error.reason)}"
             ) from None
         if result.image is None:
             raise PreviewFailed(f"{note} The sample data gives no picture.")
@@ -140,6 +156,12 @@ def _preview(result: UpdateResult, *, sample: bool, note: str, start: float) -> 
     result.image.save(png, format="PNG")
     alert = result.state is State.ALERT
     return Preview(png.getvalue(), sample, note, alert, time.monotonic() - start)
+
+
+def _sentence(text: str) -> str:
+    """``text`` ending with a full stop, so another sentence can follow."""
+    text = text.rstrip()
+    return text if text.endswith((".", "!", "?")) else text + "."
 
 
 def _log_details(found: PluginConfig, error: PluginFailed) -> None:

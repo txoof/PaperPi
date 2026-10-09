@@ -45,7 +45,7 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
 - No limit on wrong password attempts.
 
 *Update (M5, issue #238, agreed with txoof on 2026-10-07):*
-- The web server runs **inside `paperpi run`**, in its own thread, not as a separate program. It can tell the scheduler directly to apply a change, it needs one Python process fewer (about 40 MB), and there is one program to install. Previews will draw in a separate process with a time limit, like normal updates, so a slow or broken plugin can't stop the web pages or the screen. If the web interface can't start (port taken), the log says why and the screen keeps running.
+- The web server runs **inside `paperpi run`**, in its own thread, not as a separate program. It can tell the scheduler directly to apply a change, it needs one Python process fewer (about 40 MB), and there is one program to install. Previews draw in a separate process with a time limit, like normal updates, so a slow or broken plugin can't stop the web pages or the screen. If the web interface can't start (port taken), the log says why and the screen keeps running.
 - The password is stored as a **scrypt** hash, which is built into Python (about 0.1 s and 16 MB of memory per check on a Pi; checks run one at a time; no limit on wrong tries, agreed again on 2026-10-07). The log-in cookie is signed with that hash, so a new password logs out every browser.
 - Packages: FastAPI, uvicorn (the web server that runs FastAPI), jinja2 (page templates) and python-multipart (reads forms).
 - **Log-in can be switched off:** `login = false` in `[web]`. Then anyone on the home network can change the settings; the config check gives a hint and the home page says so.
@@ -60,12 +60,13 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
 ### Preview images
 
 - **Home page:** a copy of what is on the e-paper screen now, with the plugin's name and when it was drawn. It updates by itself when the screen changes.
-- **Plugin settings page:** a **Preview** button draws the plugin with the settings in the form, before saving, using the PNG driver (see `display-driver-interface.md`). The real screen is not touched. If the plugin's data source can't be reached, the preview uses the plugin's sample data and says so.
+- **Plugin settings page:** a **Preview** button draws the plugin with the settings in the form, before saving, in a separate process, as normal updates are drawn. The real screen is not touched. If the plugin's data source can't be reached, the preview uses the plugin's sample data and says so.
 - *Update (M5 part 3b-1, agreed with txoof on 2026-10-09):*
   - The preview draws the block as Save would write it (the form's values applied to a copy of the file text), at the screen's size and for the screen's type from `[display]`. It runs in its own process with a time limit, as normal updates do, in a new, empty storage folder that is deleted afterwards, so it can't change the plugin's saved files.
   - Real data may take the plugin's own time limit, but at most 45 seconds. When it fails, takes longer, has nothing to show right now, or a required setting is still empty, the preview draws the plugin's sample data (at most 10 seconds) and says why.
   - One preview is drawn at a time; a second one meanwhile is asked to wait.
   - The picture is sent inside the page (a `data:` address), so it is never saved as a file. The pages allow such pictures (`img-src 'self' data:`).
+  - For later plugins: an empty secret field (such as an API key) keeps the saved secret, also in a preview. A plugin that has both a secret and a web address the user can change must not send the saved secret to a changed address: then the secret must be typed again (in a preview and when saving), or the plugin allows only its own servers. Network errors in the preview should then say only "could not reach the server", so the preview can't be used to look around the home network. No plugin has such an address yet (checked in the security review of part 3b-1); this matters for e.g. the Dutch public transport plugin.
   - There is no "send to display" button on the settings page. A **Show on screen now** button, which starts a saved plugin's turn at once, comes with the home page in part 4.
 
 ### Other pages

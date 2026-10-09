@@ -28,6 +28,7 @@ address or ``localhost``: a website could otherwise point a name of its own at t
 from __future__ import annotations
 
 import ipaddress
+import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Annotated
@@ -50,6 +51,7 @@ from .plugins import FormErrors, PluginEditor, library, library_item
 from .preview import Busy, Previewer, PreviewFailed
 
 COOKIE = "paperpi_login"
+log = logging.getLogger(__name__)
 _HERE = Path(__file__).parent
 #: Pages that work without a log-in (and everything in ``/static/``).
 _OPEN = ("/setup", "/login")
@@ -96,9 +98,9 @@ def create_app(
         path = request.url.path
         if auth.login and path not in _OPEN and not path.startswith("/static/"):
             if auth.password_hash is None:
-                return RedirectResponse("/setup", status_code=303)
+                return _go_to(request, "/setup")
             if not auth.cookie_ok(request.cookies.get(COOKIE)):
-                return RedirectResponse("/login", status_code=303)
+                return _go_to(request, "/login")
         return await call_next(request)
 
     @app.middleware("http")
@@ -292,6 +294,10 @@ def create_app(
             return page(request, "preview.html", errors=error.found.errors)
         except (EditError, Busy, PreviewFailed) as error:
             return page(request, "preview.html", problem=str(error))
+        except Exception:  # noqa: BLE001 - e.g. no plugin process could be started
+            log.exception("preview of %s", plugin_id)
+            problem = "The preview could not be drawn. PaperPi's log has the details."
+            return page(request, "preview.html", problem=problem)
         return page(request, "preview.html", drawn=drawn, job=job)
 
     def settings_saved(index: int, plugin_id: str, done: str, hand_edits: bool):
@@ -339,6 +345,14 @@ def create_app(
         return response
 
     return app
+
+
+def _go_to(request: Request, path: str) -> Response:
+    """Send the browser to ``path``. For a part of a page that htmx asked for, htmx opens
+    the whole page (else it would show the page inside the part)."""
+    if request.headers.get("hx-request") == "true":
+        return Response(status_code=204, headers={"HX-Redirect": path})
+    return RedirectResponse(path, status_code=303)
 
 
 def _settings_form(form) -> tuple[str, dict[str, list[str]]]:
