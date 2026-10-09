@@ -14,19 +14,30 @@
 from __future__ import annotations
 
 import secrets
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
 from .. import config, example, plugins
 from ..plugin import ID_LENGTH, Plugin, PluginEntry, label
-from . import config_file
+from . import config_file, forms
 
 #: Plugin types the Plugin Library doesn't offer: ``default`` is PaperPi's own message when
 #: nothing else can be shown, and ``debugging`` is for testing PaperPi.
 HIDDEN = ("default", "debugging")
+
+
+class FormErrors(config_file.EditError):
+    """A settings form with values that can't be used; nothing was saved."""
+
+    MESSAGE = "Nothing was saved: some settings can't be used; see the messages next to them."
+
+    def __init__(self, found: forms.Read):
+        super().__init__(self.MESSAGE)
+        self.found = found
 
 
 @dataclass(frozen=True)
@@ -107,7 +118,8 @@ class PluginEditor:
         """Change the file with ``edit`` (old text -> new text), save it and apply it.
 
         Returns True when the file had hand edits that were not applied yet; they apply
-        too. Raises :class:`config_file.EditError` when the change can't be made.
+        too. When ``edit`` changes nothing, nothing is saved or applied (False). Raises
+        :class:`config_file.EditError` when the change can't be made.
         """
         with config_file.LOCK:
             path, text = config_file.read(self.path)
@@ -117,6 +129,8 @@ class PluginEditor:
                 and not config_file.saved_here(path, text)
             )
             new = edit(text)
+            if new == text:  # nothing to save or apply
+                return False
             try:
                 config.parse(new, path.name)
             except config.ConfigError as error:
@@ -147,6 +161,25 @@ class PluginEditor:
 
     def remove(self, index: int, plugin_id: str) -> bool:
         return self.change(lambda text: config_file.remove(text, index, plugin_id))
+
+    def settings(self, index: int, plugin_id: str) -> tuple[Plugin, dict[str, Any]]:
+        """The plugin of block ``index`` (if it still has the ID ``plugin_id``) and the
+        settings in its block, for the settings form."""
+        return _plugin_block(config_file.read(self.path)[1], index, plugin_id)
+
+    def save_settings(self, index: int, plugin_id: str, form: Mapping[str, Sequence[str]]) -> bool:
+        """Save a sent settings form (see :func:`forms.read`) into block ``index``. Raises
+        :class:`FormErrors` when a value can't be used, so nothing is saved."""
+
+        def save(text: str) -> str:
+            plugin, block = _plugin_block(text, index, plugin_id)
+            found = forms.read(plugin, block, form)
+            if found.errors:
+                raise FormErrors(found)
+            changes, shown = found.changes, forms.defaults(plugin)
+            return config_file.set_settings(text, index, plugin_id, changes, shown)
+
+        return self.change(save)
 
     def row(self, index: int, plugin_id: str) -> Row:
         """The block at ``index``, if it still has the ID ``plugin_id``."""
@@ -240,6 +273,22 @@ def _plugin_list(text: str, source: str = "config") -> PluginList:
             )
         )
     return PluginList(rows, file_problems)
+
+
+def _plugin_block(text: str, index: int, plugin_id: str) -> tuple[Plugin, dict[str, Any]]:
+    raw = config_file.plugin_blocks(config_file.load(text))
+    if not 0 <= index < len(raw) or config_file.id_of(raw[index]) != plugin_id:
+        raise config_file.ChangedMeanwhile()
+    plugin_type = raw[index].get("type")
+    try:
+        if plugin_type not in plugins.available():
+            raise KeyError(plugin_type)
+        return plugins.load(plugin_type), raw[index]
+    except Exception:  # noqa: BLE001 - a missing or broken plugin can't be set up here
+        raise config_file.EditError(
+            f"The settings of {plugin_id} can't be changed here: its plugin type "
+            f"{plugin_type!r} can't be used. Fix the block in the config file."
+        ) from None
 
 
 def _row(found: PluginList, index: int, plugin_id: str) -> Row:

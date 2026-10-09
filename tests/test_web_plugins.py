@@ -11,6 +11,7 @@ from paperpi.web import auth
 from paperpi.web import password as web_password
 from paperpi.web import plugins as web_plugins
 from paperpi.web.app import create_app
+from paperpi.web.config_file import EditError
 from paperpi.web.plugins import PluginEditor
 
 CONFIG = """\
@@ -158,8 +159,9 @@ def test_adding_a_plugin(client, cfg, reloads):
     added = blocks(cfg)[-1]
     assert re.fullmatch(r"word_clock-[0-9a-f]{8}", added["id"])
     assert added == {"id": added["id"], "name": "Words", "type": "word_clock"}
-    assert response.headers["location"] == f"/plugins?done=added&id={added['id']}"
-    assert "Added Words." in client.get(response.headers["location"]).text
+    assert response.headers["location"] == f"/plugins/3/settings?id={added['id']}&done=added"
+    page = client.get(response.headers["location"]).text
+    assert "<h1>Words</h1>" in page and "Added. Fill in its settings here" in page
     assert reloads == [1]
     # The next one gets another name.
     client.post("/library/word_clock", data={"name": "Word clock"})
@@ -363,3 +365,67 @@ def test_the_file_keeps_its_permissions(client, cfg):
     cfg.chmod(0o640)
     client.post("/plugins/0/move", data={"id": "Clock", "step": "down"})
     assert cfg.stat().st_mode & 0o777 == 0o640
+
+
+# --- Settings ---------------------------------------------------------------------------------
+
+
+def test_saving_settings_changes_only_what_changed_and_applies_at_once(editor, cfg, reloads):
+    plugin, block = editor.settings(1, "Weather")
+    assert plugin.type == "met_no" and block["lat"] == 52.52
+    form = {"lat": ["52.52"], "lon": ["13.5"], "email": ["me@example.org"], "display_time": [""]}
+    assert editor.save_settings(1, "Weather", form) is False  # no hand edits
+    assert blocks(cfg)[1] == {
+        "id": "Weather",
+        "type": "met_no",
+        "lat": 52.52,
+        "lon": 13.5,
+        "enabled": False,
+        "email": "me@example.org",
+    }
+    assert reloads == [1]
+    assert "# the clock in the kitchen" in cfg.read_text()
+
+
+def test_settings_with_errors_save_nothing(editor, cfg, reloads):
+    with pytest.raises(web_plugins.FormErrors) as raised:
+        editor.save_settings(1, "Weather", {"lat": ["91"], "lon": ["13.5"]})
+    assert raised.value.found.errors == {"lat": "Input should be less than or equal to 90"}
+    assert raised.value.found.sent == {"lat": ["91"], "lon": ["13.5"]}
+    assert cfg.read_text() == CONFIG and reloads == []
+
+
+def test_settings_of_a_block_moved_meanwhile_are_not_saved(editor, cfg):
+    with pytest.raises(EditError, match="changed"):
+        editor.save_settings(0, "Weather", {"lat": ["1"]})
+    with pytest.raises(EditError, match="changed"):
+        editor.settings(5, "Weather")
+    assert cfg.read_text() == CONFIG
+
+
+def test_settings_of_an_unknown_plugin_type_cant_be_changed(editor, cfg):
+    cfg.write_text(CONFIG.replace('type = "basic_clock"\n\n', 'type = "nothing"\n\n', 1))
+    with pytest.raises(EditError, match="its plugin type 'nothing' can't be used"):
+        editor.settings(0, "Clock")
+
+
+def test_saving_the_same_form_again_changes_nothing(editor, cfg, reloads):
+    form = {"lon": ["13.5"], "temperature": ["F"]}
+    editor.save_settings(1, "Weather", form)
+    saved = cfg.read_text()
+    assert editor.save_settings(1, "Weather", form) is False
+    assert cfg.read_text() == saved and reloads == [1]
+
+
+def test_a_list_over_several_lines_doesnt_stop_other_changes(editor, cfg):
+    cfg.write_text(
+        CONFIG + '\n[[plugin]]\nid = "Test"\ntype = "debugging"\nstates = [\n  "ready",\n]\n'
+    )
+    editor.save_settings(3, "Test", {"states": ["", "ready"], "text": ["hello"]})
+    assert blocks(cfg)[3]["text"] == "hello"
+
+
+def test_settings_of_an_unknown_plugin_type_cant_be_saved(editor, cfg):
+    cfg.write_text(CONFIG.replace('type = "basic_clock"\n\n', 'type = "nothing"\n\n', 1))
+    with pytest.raises(EditError, match="its plugin type 'nothing' can't be used"):
+        editor.save_settings(0, "Clock", {"hours": ["12"]})

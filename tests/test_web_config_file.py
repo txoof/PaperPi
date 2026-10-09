@@ -204,3 +204,124 @@ def test_a_file_too_large_for_paperpi_is_not_saved(tmp_path, monkeypatch):
     config_file.write(path, CONFIG)
     assert config_file.saved_here(path, CONFIG)
     assert not config_file.saved_here(path, CONFIG + "#\n")
+
+
+# --- Changing settings ------------------------------------------------------------------------
+
+
+def test_setting_a_value_uses_the_commented_line_and_keeps_its_help():
+    new = config_file.set_settings(CONFIG, 0, "Clock", {"refresh": 120, "hours": 12})
+    assert '# the clock in the kitchen\n[[plugin]]\nid = "Clock"\n' in new
+    assert 'type = "basic_clock"\nrefresh = 120\nhours = 12\n' in new
+    assert tomllib.loads(new)["plugin"][0] == {
+        "id": "Clock",
+        "type": "basic_clock",
+        "refresh": 120,
+        "hours": 12,
+    }
+
+
+def test_changing_a_value_keeps_its_place_and_loses_the_comment_on_its_line():
+    new = config_file.set_settings(CONFIG, 1, "Words", {"enabled": False})
+    assert 'type = "word_clock"\nenabled = false\n[plugin.extra]' in new
+
+
+def test_a_name_goes_below_the_id():
+    new = config_file.set_settings(CONFIG, 1, "Words", {"name": 'Words "big"'})
+    assert '[[plugin]]\nid = "Words"\nname = "Words \\"big\\""\ntype = "word_clock"' in new
+
+
+def test_removing_a_value_shows_its_default_as_a_comment_or_takes_the_line_out():
+    text = CONFIG.replace("# refresh = 60", "refresh = 120\nhours = 12")
+    new = config_file.set_settings(
+        text, 0, "Clock", {"refresh": None, "hours": None}, {"refresh": 60}
+    )
+    assert 'type = "basic_clock"\n# refresh = 60\n\n# words' in new
+    assert tomllib.loads(new)["plugin"][0] == {"id": "Clock", "type": "basic_clock"}
+    # None as the default: "# key =", as in the example config.
+    new = config_file.set_settings(text, 0, "Clock", {"hours": None}, {"hours": None})
+    assert "refresh = 120\n# hours =\n" in new
+
+
+def test_new_settings_go_below_the_last_one_that_stays():
+    text = CONFIG.replace("# refresh = 60", "refresh = 120\n# help for hours\nhours = 12")
+    new = config_file.set_settings(text, 0, "Clock", {"hours": None, "display_time": 30})
+    assert "refresh = 120\ndisplay_time = 30\n# help for hours\n\n# words" in new
+
+
+def test_settings_in_a_part_or_a_string_are_not_changed():
+    text = CONFIG.replace("a = 1", "a = 1\nlevel = 'alert'").replace(
+        "enabled = true  # for now", 'note = """\nlevel = "x"\n"""'
+    )
+    new = config_file.set_settings(text, 1, "Words", {"level": "interrupt"})
+    block = tomllib.loads(new)["plugin"][1]
+    assert block["level"] == "interrupt" and block["extra"]["level"] == "alert"
+    assert block["note"] == 'level = "x"\n'
+
+
+def test_a_value_over_several_lines_is_not_changed():
+    text = CONFIG.replace("# refresh = 60", "hours = [\n  12,\n]")
+    with pytest.raises(config_file.UnknownForm):
+        config_file.set_settings(text, 0, "Clock", {"hours": 24})
+
+
+def test_settings_of_a_block_changed_meanwhile_are_not_changed():
+    with pytest.raises(ChangedMeanwhile):
+        config_file.set_settings(CONFIG, 0, "Words", {"hours": 12})
+
+
+def test_windows_line_breaks_are_kept_when_settings_change():
+    text = CONFIG.replace("\n", "\r\n")
+    new = config_file.set_settings(text, 0, "Clock", {"refresh": 120, "name": "Kitchen"})
+    assert "\n" not in new.replace("\r\n", "")
+
+
+def test_a_quoted_key_in_the_file_is_not_changed_wrongly():
+    text = CONFIG.replace("# refresh = 60", '"hours" = 24')
+    with pytest.raises(config_file.UnknownForm):
+        config_file.set_settings(text, 0, "Clock", {"hours": 12})
+
+
+def test_a_key_that_starts_like_another_is_another():
+    text = CONFIG.replace("# refresh = 60", "latitude = 1")
+    new = config_file.set_settings(text, 0, "Clock", {"lat": 2})
+    assert tomllib.loads(new)["plugin"][0] | {} == {
+        "id": "Clock",
+        "type": "basic_clock",
+        "latitude": 1,
+        "lat": 2,
+    }
+
+
+def test_a_key_that_needs_quotes_gets_them():
+    new = config_file.set_settings(CONFIG, 0, "Clock", {"my key": 1})
+    assert '"my key" = 1\n' in new
+
+
+def test_removing_a_value_with_its_comment_there_already_adds_no_second_one():
+    text = CONFIG.replace("# refresh = 60", "# hours = 24\nhours = 12")
+    new = config_file.set_settings(text, 0, "Clock", {"hours": None}, {"hours": 24})
+    assert new.count("# hours = 24") == 1 and "hours = 12" not in new
+
+
+def test_a_help_text_that_starts_like_a_setting_stays():
+    text = CONFIG.replace("# refresh = 60", "# hours = 12 or 24 (default 24)")
+    new = config_file.set_settings(text, 0, "Clock", {"hours": 12})
+    assert "# hours = 12 or 24 (default 24)\n" in new and "\nhours = 12\n" in new
+
+
+def test_a_not_set_comment_takes_the_value():
+    text = CONFIG.replace("# refresh = 60", "# help for lat\n# lat =")
+    new = config_file.set_settings(text, 0, "Clock", {"lat": 2})
+    assert "# help for lat\nlat = 2\n" in new
+
+
+def test_windows_line_breaks_keep_the_values():
+    text = CONFIG.replace("\n", "\r\n")
+    new = config_file.set_settings(text, 0, "Clock", {"refresh": 120, "name": "Kitchen"})
+    assert tomllib.loads(new)["plugin"][0] == {
+        "id": "Clock",
+        "name": "Kitchen",
+        "type": "basic_clock",
+        "refresh": 120,
+    }

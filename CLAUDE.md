@@ -108,6 +108,7 @@ Every PR costs txoof review time. Too many small PRs and too few huge ones both 
 ## Tools and commands
 - Python 3.13 (the version in Raspberry Pi OS trixie). `uv` installs Python and all packages into `.venv`.
 - `uv sync`: install. `uv run pytest`: tests. `uv run ruff check .` and `uv run ruff format .`: code style.
+- `uv run pytest -n auto` runs the tests on every processor core at once (pytest-xdist; about half the time on the 4-core Pi). While working, run only the tests of the files you changed; run all of them once before the first push of a PR. GitHub runs all of them for every pull request and every merge to main.
 - Plain `.py` files only. No Jupyter notebooks in the repo.
 - Tests that need a real display are marked `@pytest.mark.hardware`. They are skipped by default; run them on the Pi with `uv run pytest -m hardware`.
 
