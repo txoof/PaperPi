@@ -94,8 +94,14 @@
   </details>
   <div class="buttons">
     <button type="submit">Save</button>
+    {# htmx sends this form's values; the answer replaces the picture below. #}
+    <button type="button" hx-post="/plugins/{{ row.index }}/preview" hx-target="#preview"
+      hx-indicator="#preview-wait" hx-disabled-elt="this">Preview</button>
     <a href="/plugins">Back to Active Plugins</a>
   </div>
+  <p id="preview-wait" class="htmx-indicator">Drawing the preview. This can take up to a
+    minute.</p>
+  <div id="preview" aria-live="polite"></div>
 </form>
 
 <details>

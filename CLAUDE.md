@@ -101,6 +101,7 @@ Every PR costs txoof review time. Too many small PRs and too few huge ones both 
 - **Aim for 300–600 changed lines** (code, tests and docs together; images don't count). Above about 800 lines, split the work: 800 is a guideline and an upper bound, so a PR may go a little over it, but never much. Below that, keep a task in one PR (see "One PR per task" above).
 - **Each PR does one thing that works on its own**, with its tests and docs. `main` is never left half-built.
 - **No PR for one small change** (a typo, a one-line rule). Put it in the next related PR.
+- **Every PR is based on `main`.** No stacked PRs (a PR based on another PR's branch): they cost extra merges and conflict fixes. Split a task into parts that each go straight to `main`, one after the other.
 - **Plan the split before coding.** Show the planned PRs to txoof together with the design questions. One issue may need several PRs; list them in the issue. For example, the scheduler (+1925 lines in #206) could have been four PRs: the new plugins and settings; the scheduler core with its tests (which use a pretend clock); failures, the fallback plugins and config reload; the `paperpi run` command and README.
 - **Review fixes:** small fixes go into the same PR. Fixes that add a new feature go into a follow-up PR, so the first one doesn't keep growing.
 - See the size with `git diff --shortstat origin/main...HEAD`.

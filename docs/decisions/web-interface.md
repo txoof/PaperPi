@@ -61,6 +61,12 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
 
 - **Home page:** a copy of what is on the e-paper screen now, with the plugin's name and when it was drawn. It updates by itself when the screen changes.
 - **Plugin settings page:** a **Preview** button draws the plugin with the settings in the form, before saving, using the PNG driver (see `display-driver-interface.md`). The real screen is not touched. If the plugin's data source can't be reached, the preview uses the plugin's sample data and says so.
+- *Update (M5 part 3b-1, agreed with txoof on 2026-10-09):*
+  - The preview draws the block as Save would write it (the form's values applied to a copy of the file text), at the screen's size and for the screen's type from `[display]`. It runs in its own process with a time limit, as normal updates do, in a new, empty storage folder that is deleted afterwards, so it can't change the plugin's saved files.
+  - Real data may take the plugin's own time limit, but at most 45 seconds. When it fails, takes longer, has nothing to show right now, or a required setting is still empty, the preview draws the plugin's sample data (at most 10 seconds) and says why.
+  - One preview is drawn at a time; a second one meanwhile is asked to wait.
+  - The picture is sent inside the page (a `data:` address), so it is never saved as a file. The pages allow such pictures (`img-src 'self' data:`).
+  - There is no "send to display" button on the settings page. A **Show on screen now** button, which starts a saved plugin's turn at once, comes with the home page in part 4.
 
 ### Other pages
 

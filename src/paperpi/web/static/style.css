@@ -33,3 +33,8 @@ code { background: #eee; padding: 0 0.2rem; }
 .hint, .type, .required { color: #555; font-size: 0.9rem; }
 .technical dt { font-weight: bold; margin-top: 0.5rem; }
 .technical dd { margin-left: 0; }
+.htmx-indicator { display: none; }
+.htmx-request.htmx-indicator { display: block; color: #555; }
+.preview { margin: 1rem 0; }
+.preview img { display: block; max-width: 100%; height: auto; border: 1px solid #999; }
+.preview figcaption { color: #555; font-size: 0.9rem; margin-top: 0.4rem; }

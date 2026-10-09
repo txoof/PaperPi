@@ -1,0 +1,23 @@
+{#- Only a part of the settings page: htmx puts it into <div id="preview">. -#}
+{% if errors %}
+<p class="problem">Fix these settings first, then try again:</p>
+<ul class="problem">
+  {% for key, message in errors.items() %}
+  <li>{% if key %}<code>{{ key }}</code>: {% endif %}{{ message }}</li>
+  {% endfor %}
+</ul>
+{% elif problem %}
+<p class="problem">{{ problem|sentence }}</p>
+{% else %}
+<figure class="preview">
+  <img src="{{ drawn.data_url }}" width="{{ job.width }}" height="{{ job.height }}"
+    alt="Preview of the picture on the screen">
+  <figcaption>
+    {%- if drawn.sample %}<strong>Sample data, not real data.</strong> {{ drawn.note }}
+    {%- else %}Real data.{% endif %}
+    {%- if drawn.alert %} Shown as an alert.{% endif %}
+    Drawn in {{ "%.1f"|format(drawn.seconds) }} s at the screen's size, {{ job.width }} x
+    {{ job.height }} pixels. Not saved yet: Save keeps these settings.
+  </figcaption>
+</figure>
+{% endif %}
