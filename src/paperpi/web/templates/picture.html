@@ -1,0 +1,15 @@
+{#- One plugin's example picture in the Plugin Library. Also sent alone (htmx): while the
+picture is being drawn, it asks again every few seconds and replaces itself. -#}
+{% if picture is none %}
+{%- elif picture.file %}
+<figure class="picture">
+  <a href="/library/{{ item.type }}"><img src="/library/pictures/{{ picture.file }}"
+    width="{{ picture.screen.width }}" height="{{ picture.screen.height }}"
+    alt="Add {{ item.type }} (example drawn with its sample data)"></a>
+</figure>
+{%- elif picture.problem %}
+<p class="hint picture">No example picture. {{ picture.problem }}</p>
+{%- else %}
+<p class="hint picture" hx-get="/library/{{ item.type }}/picture" hx-trigger="load delay:3s"
+  hx-swap="outerHTML">Drawing the example picture…</p>
+{%- endif %}

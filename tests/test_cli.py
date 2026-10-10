@@ -568,5 +568,6 @@ def test_run_starts_the_web_interface_unless_asked_not_to(
         # A change in the web interface reloads PaperPi; the web knows the text in use.
         ((_, kw),) = calls
         assert kw["text"] == text
+        assert kw["state_dir"] == tmp_path and kw["display"].type == "virtual"
         kw["reload"]()
         assert reloads == [1]

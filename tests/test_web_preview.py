@@ -58,7 +58,9 @@ def make_client(cfg, reloads, update):
     editor.loaded(CONFIG)
     paperpi_auth = auth.Auth(cfg, config.WebSettings(login=False))
     app = create_app(paperpi_auth, editor, Previewer(update))
-    return TestClient(app, follow_redirects=False, base_url=PI)
+    client = TestClient(app, follow_redirects=False, base_url=PI)
+    client.app_editor = editor
+    return client
 
 
 def preview(client, index, plugin_id, **form):
@@ -189,6 +191,17 @@ def test_the_screen_size_and_type_come_from_the_display_settings(cfg, reloads):
     context = update.calls[0][1]
     assert (context.width, context.height, context.mode) == (480, 800, ScreenMode.gray(4))
     assert picture(page).size == (480, 800)
+
+
+def test_a_new_screen_size_waits_for_the_next_start(cfg, reloads):
+    """Previews draw for the screen as it runs: a new size or mode applies at the next start."""
+    update = FakeUpdate()
+    client = make_client(cfg, reloads, update)
+    client.app_editor.display = config.DisplaySettings(type="virtual", width=300, height=200)
+    cfg.write_text(CONFIG.replace('type = "virtual"', 'type = "virtual"\nwidth = 800\nmode = "bw"'))
+    preview(client, 0, "Clock")
+    context = update.calls[0][1]
+    assert (context.width, context.height, context.mode) == (300, 200, ScreenMode.gray(16))
 
 
 def test_a_config_file_paperpi_cant_use_is_not_drawn(cfg, reloads):
