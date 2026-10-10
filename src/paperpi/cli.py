@@ -343,6 +343,8 @@ def _run(args: argparse.Namespace) -> int:
             )
             scheduler.run()
             reports.stopping()
+            if web is not None:
+                web.stop_previews()  # before the clear below, which can take 30 s
             # Only after a stop that was asked for (Ctrl+C, systemctl stop, shutdown or
             # reboot): after an error, the restart draws the picture again anyway. A second
             # stop signal ends the clear at once.

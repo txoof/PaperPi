@@ -9,6 +9,8 @@
 - A change is refused while the file has a problem that stops PaperPi from using it (such
   as a wrong ``[display]``): PaperPi would keep running on the last good copy, so the change
   would not apply.
+- A preview (:meth:`PluginEditor.preview_job`) makes the same change to a copy of the file
+  text, so it draws the settings as Save would write them, and saves nothing.
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from pydantic import ValidationError
 
 from .. import config, example, plugins
 from ..plugin import ID_LENGTH, Plugin, PluginEntry, label
-from . import config_file, forms
+from . import config_file, forms, preview
 
 #: Plugin types the Plugin Library doesn't offer: ``default`` is PaperPi's own message when
 #: nothing else can be shown, and ``debugging`` is for testing PaperPi.
@@ -131,14 +133,7 @@ class PluginEditor:
             new = edit(text)
             if new == text:  # nothing to save or apply
                 return False
-            try:
-                config.parse(new, path.name)
-            except config.ConfigError as error:
-                found = "; ".join(str(p) for p in error.problems if p.level == "error")
-                raise config_file.EditError(
-                    "The config file has a problem that must be fixed first, in the file "
-                    f"itself: {found}"
-                ) from None
+            _parse(new, path.name)
             config_file.write(path, new)
         if self._reload is not None:
             self._reload()
@@ -171,15 +166,32 @@ class PluginEditor:
         """Save a sent settings form (see :func:`forms.read`) into block ``index``. Raises
         :class:`FormErrors` when a value can't be used, so nothing is saved."""
 
-        def save(text: str) -> str:
-            plugin, block = _plugin_block(text, index, plugin_id)
-            found = forms.read(plugin, block, form)
-            if found.errors:
-                raise FormErrors(found)
-            changes, shown = found.changes, forms.defaults(plugin)
-            return config_file.set_settings(text, index, plugin_id, changes, shown)
+        return self.change(lambda text: _with_settings(text, index, plugin_id, form))
 
-        return self.change(save)
+    def preview_job(
+        self, index: int, plugin_id: str, form: Mapping[str, Sequence[str]]
+    ) -> preview.Job:
+        """What a preview of block ``index`` draws with the settings of a sent form: the
+        block as Save would write it, and the screen. Nothing is saved. Raises
+        :class:`FormErrors` when a value can't be used."""
+        path, text = config_file.read(self.path)
+        new = _with_settings(text, index, plugin_id, form)
+        checked = _parse(new, path.name)
+        # By the line of its [[plugin]] line: another block may have the same ID.
+        place = config_file.blocks(new)[index]
+        found = next((p for p in checked.plugins if p.line == place.header + 1), None)
+        if found is None:
+            problems = "; ".join(
+                _without_place(p)
+                for p in checked.errors
+                if p.line and place.start < p.line <= place.end
+            )
+            raise config_file.EditError(
+                "This plugin can't be drawn. Its settings in the config file have a problem: "
+                f"{problems or 'unknown'}"
+            )
+        width, height = checked.display.layout_size
+        return preview.Job(found, width, height, checked.display.screen_mode)
 
     def row(self, index: int, plugin_id: str) -> Row:
         """The block at ``index``, if it still has the ID ``plugin_id``."""
@@ -288,6 +300,28 @@ def _plugin_block(text: str, index: int, plugin_id: str) -> tuple[Plugin, dict[s
         raise config_file.EditError(
             f"The settings of {plugin_id} can't be changed here: its plugin type "
             f"{plugin_type!r} can't be used. Fix the block in the config file."
+        ) from None
+
+
+def _with_settings(text: str, index: int, plugin_id: str, form: Mapping[str, Sequence[str]]) -> str:
+    """``text`` with the settings of a sent form in block ``index``. Raises
+    :class:`FormErrors` when a value can't be used."""
+    plugin, block = _plugin_block(text, index, plugin_id)
+    found = forms.read(plugin, block, form)
+    if found.errors:
+        raise FormErrors(found)
+    changes, shown = found.changes, forms.defaults(plugin)
+    return config_file.set_settings(text, index, plugin_id, changes, shown)
+
+
+def _parse(text: str, source: str) -> config.Config:
+    """Check changed config file text, as PaperPi would load it."""
+    try:
+        return config.parse(text, source)
+    except config.ConfigError as error:
+        found = "; ".join(str(p) for p in error.problems if p.level == "error")
+        raise config_file.EditError(
+            f"The config file has a problem that must be fixed first, in the file itself: {found}"
         ) from None
 
 

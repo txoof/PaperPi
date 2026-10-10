@@ -11,6 +11,13 @@ PLUGIN_UPDATE = 60.0
 #: Highest time limit a user may set for one plugin update.
 PLUGIN_UPDATE_MAX = 600.0
 
+#: Longest a web interface preview may wait for a plugin's real data (the plugin's own time
+#: limit, if that is shorter). Then the preview draws the sample data instead.
+PREVIEW_LIVE = 45.0
+
+#: Longest drawing a plugin's sample data may take for a preview.
+PREVIEW_SAMPLE = 10.0
+
 #: How long a plugin process may take to exit after it has handed over its image.
 PLUGIN_EXIT = 5.0
 

@@ -10,7 +10,8 @@ Address            What it does
 ``/plugins``       Active Plugins: the plugins in the config file; switch on or off, move
                    up or down, remove, settings (``/plugins/<n>/...?id=<id>``, n = place
                    in the file, counted from 0, and the plugin's id to check it is
-                   still there)
+                   still there); ``/plugins/<n>/preview`` draws the settings form's
+                   values without saving them (part of the settings page)
 ``/library``       Plugin Library: every plugin type; ``/library/<type>`` adds one and
                    opens its settings
 ``/static/...``    the style sheet and htmx (a small JavaScript file that updates
@@ -27,6 +28,7 @@ address or ``localhost``: a website could otherwise point a name of its own at t
 from __future__ import annotations
 
 import ipaddress
+import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Annotated
@@ -46,8 +48,10 @@ from .forms import Read, fields
 from .helpers import helper_html
 from .password import PasswordError, password_problem
 from .plugins import FormErrors, PluginEditor, library, library_item
+from .preview import Busy, Previewer, PreviewFailed
 
 COOKIE = "paperpi_login"
+log = logging.getLogger(__name__)
 _HERE = Path(__file__).parent
 #: Pages that work without a log-in (and everything in ``/static/``).
 _OPEN = ("/setup", "/login")
@@ -56,10 +60,13 @@ _FormId = Annotated[str, Form(alias="id")]
 _QueryId = Annotated[str, Query(alias="id")]
 
 
-def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
-    """The web interface, using ``auth`` for the password and log-in and ``editor`` to
-    change the plugins in the config file."""
+def create_app(
+    auth: Auth, editor: PluginEditor | None = None, previewer: Previewer | None = None
+) -> FastAPI:
+    """The web interface, using ``auth`` for the password and log-in, ``editor`` to
+    change the plugins in the config file and ``previewer`` to draw previews."""
     editor = editor or PluginEditor(auth.config_file)
+    previewer = previewer or Previewer()
     app = FastAPI(title="PaperPi", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
@@ -91,9 +98,9 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         path = request.url.path
         if auth.login and path not in _OPEN and not path.startswith("/static/"):
             if auth.password_hash is None:
-                return RedirectResponse("/setup", status_code=303)
+                return _go_to(request, "/setup")
             if not auth.cookie_ok(request.cookies.get(COOKIE)):
-                return RedirectResponse("/login", status_code=303)
+                return _go_to(request, "/login")
         return await call_next(request)
 
     @app.middleware("http")
@@ -101,8 +108,10 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         response = await refused_or_page(request, call_next)
         path = request.url.path
         response.headers["X-Frame-Options"] = "DENY"
+        # Previews are pictures sent inside the page (data: addresses), never saved.
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+            "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; "
+            "form-action 'self'; base-uri 'none'"
         )
         response.headers["Referrer-Policy"] = "same-origin"
         if not path.startswith("/static/"):
@@ -262,9 +271,7 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
 
     @app.post("/plugins/{index}/settings", response_class=HTMLResponse)
     async def save_settings(request: Request, index: int):
-        form = await request.form()
-        plugin_id = str(form.get("id", ""))
-        sent = {k: [str(v) for v in form.getlist(k)] for k in form if k != "id"}
+        plugin_id, sent = _settings_form(await request.form())
         try:
             hand_edits = await run_in_threadpool(editor.save_settings, index, plugin_id, sent)
         except FormErrors as error:
@@ -274,6 +281,24 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         except EditError as error:
             return await run_in_threadpool(plugin_list, request, 409, str(error))
         return settings_saved(index, plugin_id, "saved", hand_edits)
+
+    @app.post("/plugins/{index}/preview", response_class=HTMLResponse)
+    async def preview(request: Request, index: int):
+        # Only a part of the settings page (htmx), so every answer is a 200: htmx doesn't
+        # show the others.
+        plugin_id, sent = _settings_form(await request.form())
+        try:
+            job = await run_in_threadpool(editor.preview_job, index, plugin_id, sent)
+            drawn = await run_in_threadpool(previewer.draw, job)
+        except FormErrors as error:
+            return page(request, "preview.html", errors=error.found.errors)
+        except (EditError, Busy, PreviewFailed) as error:
+            return page(request, "preview.html", problem=str(error))
+        except Exception:  # noqa: BLE001 - e.g. no plugin process could be started
+            log.exception("preview of %s", plugin_id)
+            problem = "The preview could not be drawn. PaperPi's log has the details."
+            return page(request, "preview.html", problem=problem)
+        return page(request, "preview.html", drawn=drawn, job=job)
 
     def settings_saved(index: int, plugin_id: str, done: str, hand_edits: bool):
         values = {"id": plugin_id, "done": done} | ({"hand": "1"} if hand_edits else {})
@@ -320,6 +345,20 @@ def create_app(auth: Auth, editor: PluginEditor | None = None) -> FastAPI:
         return response
 
     return app
+
+
+def _go_to(request: Request, path: str) -> Response:
+    """Send the browser to ``path``. For a part of a page that htmx asked for, htmx opens
+    the whole page (else it would show the page inside the part)."""
+    if request.headers.get("hx-request") == "true":
+        return Response(status_code=204, headers={"HX-Redirect": path})
+    return RedirectResponse(path, status_code=303)
+
+
+def _settings_form(form) -> tuple[str, dict[str, list[str]]]:
+    """The plugin ID and the settings of a sent settings form."""
+    plugin_id = str(form.get("id", ""))
+    return plugin_id, {k: [str(v) for v in form.getlist(k)] for k in form if k != "id"}
 
 
 def _number(value: float) -> str:

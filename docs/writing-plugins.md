@@ -59,7 +59,7 @@ PLUGIN = Plugin(
 3. `draw(data, context)` returns a dictionary with a value for each block of the layout, for example `{"time": "10:42"}` (or a `Drawn`, see "Moving blocks and colours"). PaperPi draws the layout with epdlib.
 4. The image goes back to PaperPi and the process exits.
 
-For tests and sample images, step 2 is skipped and `sample` is drawn instead. So every plugin can draw an image without network access, and `draw` must work with the sample data.
+For tests and sample images, step 2 is skipped and `sample` is drawn instead. So every plugin can draw an image without network access, and `draw` must work with the sample data. The web interface's Preview also draws the sample data when the real data fails, takes too long, has nothing to show or still needs settings, so make the sample look like real data.
 
 `context` holds:
 
