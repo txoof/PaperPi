@@ -85,6 +85,8 @@ def test_the_page_has_a_search_box_with_a_form_of_its_own(cfg):
     assert '<form id="search-form-text" hx-post="/plugins/0/search/text"' in page
     assert 'hx-include="#settings-form"' in page and 'id="settings-form"' in page
     assert page.count('class="helper"') == 1  # only the setting that names a helper
+    # The search comes first, then the fields it fills.
+    assert page.index('id="helper-text"') < page.index('id="field-text"')
 
 
 def test_a_search_shows_the_choices_and_where_they_come_from(cfg):

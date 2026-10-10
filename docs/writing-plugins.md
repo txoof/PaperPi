@@ -102,9 +102,9 @@ hours = 12
 
 ## Setting helpers
 
-Some settings are hard to fill in by hand, such as a place's latitude and longitude or a stop's code. A plugin can offer a **helper**: a search box under the setting on its settings page. The user types something, PaperPi shows a list of choices, and **Use** fills in the form's fields (nothing is saved until Save). The reasons are in `docs/decisions/setting-helpers.md`.
+Some settings are hard to fill in by hand, such as a place's latitude and longitude or a stop's code. A plugin can offer a **helper**: a search box on its settings page, just before the setting it fills. The user types something, PaperPi shows a list of choices, and **Use** fills in the form's fields (nothing is saved until Save). The reasons are in `docs/decisions/setting-helpers.md`.
 
-- A helper is a `paperpi.plugin.Helper` in the plugin's `helpers`, by name. A setting names it with `setting(..., helper="<name>")`; the search box is shown under that setting. The plugin check fails for a name the plugin doesn't have.
+- A helper is a `paperpi.plugin.Helper` in the plugin's `helpers`, by name. A setting names it with `setting(..., helper="<name>")`; the search box is shown just before that setting, so name the first of the settings it fills. The plugin check fails for a name the plugin doesn't have.
 - Its `find(query)` gets a `Query`: `query.text` (what the user typed, without spaces around it, at most 100 characters; empty for `typed=False`) and `query.settings` (the form's settings, checked as Save checks them; an empty secret field gives the saved secret).
 - It returns a list of choices, or `{"choices": [...], "note": "..."}` with a message for the whole result. Each choice is a dictionary; its keys say what PaperPi does with each value:
   - `fill`: the plugin's own settings and their values, put into the form by **Use**. Leave a setting out to leave it alone (e.g. a name the user already typed). Only settings the form shows as a field: not secrets (`SecretStr`), and not settings that are changed in the file (such as a list of numbers).

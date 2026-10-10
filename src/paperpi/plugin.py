@@ -125,7 +125,7 @@ def setting(
     ``paperpi list`` and the web interface's Active Plugins page say which settings it needs.
 
     ``helper``: the name of one of the plugin's ``helpers`` (a search, such as finding a
-    place's latitude and longitude), shown under this setting's field on the settings page.
+    place's latitude and longitude), shown just before this setting's field on the settings page.
     See :mod:`paperpi.helper`.
     """
     extra = field.pop("json_schema_extra", None) or {}

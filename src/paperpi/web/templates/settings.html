@@ -26,8 +26,11 @@
   {% for f in groups.name %}{{ field(f) }}{% endfor %}
   {% if groups.own %}
   <h2>Settings of this plugin</h2>
-  {% for f in groups.own %}{{ field(f) }}
+  {# A search box comes before the setting that names its helper: it fills that setting
+     and often the ones after it (latitude, longitude, ...). #}
+  {% for f in groups.own %}
   {%- set helper = plugin.helper(f.key) %}{% if helper %}{% include "helper.html" %}{% endif %}
+  {{- field(f) }}
   {%- endfor %}
   {% endif %}
   <h2>When and how it is shown</h2>

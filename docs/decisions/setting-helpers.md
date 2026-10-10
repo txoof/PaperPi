@@ -82,7 +82,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 
 ### Where helpers come from
 
-- Helpers are part of the plugin, next to its settings and layouts. A setting names one as now: `setting(..., helper="location")`, and the search box is shown under that setting. A name the plugin doesn't have fails the plugin check, so a typing mistake is caught by the tests and not on the user's page.
+- Helpers are part of the plugin, next to its settings and layouts. A setting names one as now: `setting(..., helper="location")`, and the search box is shown just before that setting, so name the first of the settings it fills. A name the plugin doesn't have fails the plugin check, so a typing mistake is caught by the tests and not on the user's page.
 - **PaperPi offers search functions** for needs many plugins share. The first is a place search: "find places for this text" returns places with name, region, country, latitude, longitude and altitude. A plugin's helper calls it and turns each place into a choice for its own settings.
 - For the common case PaperPi also has a **ready-made location helper**: the plugin only names its settings for latitude, longitude and, if it has them, altitude and the name shown on the screen. This is a shortcut built on the place search, not a separate idea.
 
@@ -94,7 +94,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 
 ### On the settings page
 
-- Under the field: the text, a search box and the button. The search starts with the button or the Enter key, not while the user types (txoof, 2026-10-10): one request per search, which matters for services with a daily limit such as NS. After a search, the list of choices appears, each with a **Use** button. "Nothing found" comes with a hint (check the spelling, or try a larger place).
+- Just before the setting's field: the text, a search box and the button (txoof, 2026-10-10: the search comes first, then the fields it fills). The search starts with the button or the Enter key, not while the user types (txoof, 2026-10-10): one request per search, which matters for services with a daily limit such as NS. After a search, the list of choices appears, each with a **Use** button. "Nothing found" comes with a hint (check the spelling, or try a larger place).
 - **Use** fills in the form's fields. **Nothing is saved yet**: the user sees the values, can change them, can press Preview, and then Save. The list stays until the next search, so a wrong pick is easy to change.
 - No new JavaScript library: htmx (the small script the pages already use) sends the search and puts the values in the fields.
 - Typing the values by hand keeps working. When the service can't be reached, the page says so and the fields are left as they are.

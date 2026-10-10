@@ -2,8 +2,8 @@
 latitude and longitude from its name (see ``docs/decisions/setting-helpers.md``).
 
 A helper is a :class:`Helper` in the plugin's ``helpers``. A setting names it with
-``setting(..., helper="<name>")`` and the settings page shows a search box under that
-setting. The helper's ``find`` gets a :class:`Query` (the typed text and the form's settings)
+``setting(..., helper="<name>")`` and the settings page shows a search box just before
+that setting. The helper's ``find`` gets a :class:`Query` (the typed text and the form's settings)
 and returns choices: a list of dictionaries, or ``{"choices": [...], "note": "..."}``. Each
 choice is a dictionary whose keys are **kinds** that say what PaperPi does with the value:
 
