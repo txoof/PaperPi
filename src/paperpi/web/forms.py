@@ -27,11 +27,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel, SecretBytes, SecretStr, ValidationError
+from pydantic import BaseModel, SecretStr, ValidationError
 from pydantic.fields import FieldInfo
 
 from .. import example
-from ..plugin import Plugin, PluginEntry, helper_of, is_required
+from ..plugin import Plugin, PluginEntry, helper_of, holds_secret, is_required
 
 #: The shared settings shown right after the plugin's own ones; the others are folded away
 #: under "More settings" (agreed with txoof, M5 part 3a).
@@ -74,7 +74,7 @@ class FormField:
     max_length: int | None = None
     error: str = ""
     helper: str | None = None
-    """The web interface helper shown under the field (see :mod:`paperpi.web.helpers`)."""
+    """The name of the plugin's helper shown under the field (see :mod:`paperpi.helper`)."""
     changed: bool = False
     """The config file sets a value that is not the default."""
 
@@ -120,10 +120,10 @@ def fields(
         if key == "layout":
             kind, allowed = "choice", tuple(plugin.layouts)
         value = block.get(key, shown[key])
-        texts = [_text(v) for v in value] if isinstance(value, list | tuple) else [_text(value)]
+        texts = form_texts(value)
         if kind == "file":
             texts = [example.toml_value(value) if value is not None else ""]
-            if _holds_secret(info.annotation) and texts[0]:
+            if holds_secret(info.annotation) and texts[0]:
                 texts = ["(set; it holds a secret, so it is not shown)"]
         if sent is not None and key in sent and kind not in ("secret", "file"):
             # Without the empty value the page sends for a check box or list.
@@ -204,6 +204,11 @@ def read(plugin: Plugin, block: Mapping[str, Any], form: Mapping[str, Sequence[s
     return Read(changes)
 
 
+def form_texts(value: Any) -> list[str]:
+    """``value`` as the texts a form sends for it (several for a list)."""
+    return [_text(v) for v in value] if isinstance(value, list | tuple) else [_text(value)]
+
+
 def _infos(plugin: Plugin) -> dict[str, FieldInfo]:
     """Every setting the form shows, with its description."""
     entry = {k: v for k, v in PluginEntry.model_fields.items() if k not in NOT_IN_FORM}
@@ -266,17 +271,8 @@ def _default_text(kind: Kind, default: Any, info: FieldInfo) -> str:
     if kind == "choices":
         return ", ".join(_text(v) for v in default) or "none"
     if kind == "file":
-        return "" if _holds_secret(info.annotation) else example.toml_value(default)
+        return "" if holds_secret(info.annotation) else example.toml_value(default)
     return _text(default)
-
-
-def _holds_secret(annotation: Any) -> bool:
-    """True when a setting of this type is, or holds, a secret (``SecretStr``)."""
-    if annotation in (SecretStr, SecretBytes):
-        return True
-    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-        return any(_holds_secret(f.annotation) for f in annotation.model_fields.values())
-    return any(_holds_secret(a) for a in typing.get_args(annotation))
 
 
 def _text(value: Any) -> str:

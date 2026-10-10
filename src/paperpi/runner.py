@@ -1,4 +1,5 @@
-"""Run one plugin update in a new, short-lived process, with a time limit.
+"""Run one plugin update (or one search of a setting helper) in a new, short-lived process,
+with a time limit.
 
 See ``docs/decisions/plugin-interface.md``. Each update gets its own process: when it is
 done, the process exits and its memory is given back. A plugin that hangs or crashes is
@@ -11,6 +12,7 @@ these packages are not loaded again every time.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import logging
 import multiprocessing
@@ -19,6 +21,7 @@ import signal
 import threading
 import time
 import traceback
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from multiprocessing.connection import Connection
 from urllib.parse import quote, quote_plus
@@ -27,7 +30,8 @@ from PIL import Image
 from pydantic import SecretBytes, SecretStr
 
 from . import limits
-from .plugin import Context, State
+from .helper import Found, HelperProblem, Query
+from .plugin import Context, PluginSettings, State, holds_secret
 
 log = logging.getLogger(__name__)
 
@@ -86,14 +90,48 @@ def run_update(
     """
     time_limit = limits.PLUGIN_UPDATE if time_limit is None else time_limit
     start = time.monotonic()
-    receiver, sender = _context.Pipe(duplex=False)
     # The settings travel as plain data: unpacking a settings object would import the plugin
     # before the child is in its own process group, where a hang can't be stopped cleanly.
     settings = context.settings.model_dump()
     bare = dataclasses.replace(context, settings=None)
+    args = (plugin_type, package, bare, settings, sample)
+    message = _run(plugin_type, _child, args, time_limit)
+    seconds = time.monotonic() - start
+    _, state, image = message
+    return UpdateResult(State(state), _unpack(image), seconds)
+
+
+def run_helper(
+    plugin_type: str,
+    name: str,
+    text: str,
+    settings: PluginSettings,
+    *,
+    time_limit: float | None = None,
+    language: str = "en",
+    package: str = "paperpi.plugins",
+) -> Found:
+    """Run one search of the plugin's helper ``name`` (see :mod:`paperpi.helper`) in its own
+    process, for the typed ``text``, the form's ``settings`` and the user's ``language``
+    (see :class:`~paperpi.helper.Query`), and return its checked result.
+
+    ``time_limit`` defaults to :data:`paperpi.limits.HELPER_SEARCH`. Raises
+    :class:`HelperProblem` with the helper's message for the user, and otherwise the same
+    errors as :func:`run_update`.
+    """
+    time_limit = limits.HELPER_SEARCH if time_limit is None else time_limit
+    args = (plugin_type, package, name, text, settings.model_dump(), language)
+    return _run(plugin_type, _helper_child, args, time_limit)[1]
+
+
+def _run(plugin_type: str, target: Callable, args: tuple, time_limit: float) -> tuple:
+    """Run ``target(sender, *args)`` in a new plugin process and return the message it sends:
+    ``("ok", ...)``. Raises for the others: ``("error", reason, details)`` and
+    ``("problem", message)`` (a helper's message for the user)."""
+    receiver, sender = _context.Pipe(duplex=False)
     process = _context.Process(
-        target=_child,
-        args=(sender, plugin_type, package, bare, settings, sample),
+        target=target,
+        args=(sender, *args),
         name=f"paperpi-plugin-{plugin_type}",
         daemon=True,
     )
@@ -119,12 +157,12 @@ def run_update(
         sender.close()
         receiver.close()
         _stop(process, wait=finished)
-    seconds = time.monotonic() - start
     if message[0] == "error":
         _, reason, details = message
         raise PluginFailed(plugin_type, reason, details)
-    _, state, image = message
-    return UpdateResult(State(state), _unpack(image), seconds)
+    if message[0] == "problem":
+        raise HelperProblem(message[1])
+    return message
 
 
 def stop_all() -> None:
@@ -186,23 +224,63 @@ def _child(
     sample: bool,
 ) -> None:
     """Runs in the plugin process: one update, then send the result and exit."""
-    os.setpgrp()  # own process group, so the parent can stop everything this plugin starts
-    secrets: list[str] = []
-    try:
-        from . import plugins
+    with _reporting(sender) as secrets:
         from .plugin import draw_update
 
-        plugin = plugins.load(plugin_type, package)
-        checked = plugin.settings.model_validate(settings)
-        secrets = [v.get_secret_value() for v in dict(checked).values() if _is_secret(v)]
+        plugin, checked = _load(plugin_type, package, settings, secrets)
         context = dataclasses.replace(context, settings=checked)
         state, image = draw_update(plugin, context, sample=sample)
         sender.send(("ok", state.value, _pack(image)))
+
+
+def _helper_child(
+    sender: Connection,
+    plugin_type: str,
+    package: str,
+    name: str,
+    text: str,
+    settings: dict,
+    language: str,
+) -> None:
+    """Runs in the plugin process: one search of a helper, then send the result and exit."""
+    with _reporting(sender) as secrets:
+        from .helper import clean
+
+        plugin, checked = _load(plugin_type, package, settings, secrets)
+        try:
+            result = plugin.helpers[name].find(Query(text, checked, language))
+        except HelperProblem as problem:  # only here: in an update it is an ordinary error
+            sender.send(("problem", _hide(str(problem), secrets)))
+            return
+        # A secret (an API key) can't be filled in, and is never shown or logged.
+        fields = plugin.settings.model_fields.items()
+        fillable = [key for key, info in fields if not holds_secret(info.annotation)]
+        sender.send(("ok", clean(result, fillable, lambda text: _hide(text, secrets))))
+
+
+@contextlib.contextmanager
+def _reporting(sender: Connection) -> Iterator[list[str]]:
+    """In the plugin process: send any error as a message, with secret settings (filled into
+    the list it gives) replaced with ``****``. Also closes ``sender``."""
+    os.setpgrp()  # own process group, so the parent can stop everything this plugin starts
+    secrets: list[str] = []
+    try:
+        yield secrets
     except BaseException as error:  # noqa: BLE001 - report everything, then exit
         reason = _hide(f"{type(error).__name__}: {error}", secrets)
         sender.send(("error", reason, _hide(traceback.format_exc(), secrets)))
     finally:
         sender.close()
+
+
+def _load(plugin_type: str, package: str, settings: dict, secrets: list[str]):
+    """The plugin and its checked settings; their secrets are added to ``secrets``."""
+    from . import plugins
+
+    plugin = plugins.load(plugin_type, package)
+    checked = plugin.settings.model_validate(settings)
+    secrets += [v.get_secret_value() for v in dict(checked).values() if _is_secret(v)]
+    return plugin, checked
 
 
 def _is_secret(value) -> bool:

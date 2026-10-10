@@ -40,3 +40,10 @@ code { background: #eee; padding: 0 0.2rem; }
 .preview { margin: 1rem 0; }
 .preview img { display: block; max-width: 100%; height: auto; border: 1px solid #999; }
 .preview figcaption { color: #555; font-size: 0.9rem; margin-top: 0.4rem; }
+.helper { margin: 0.9rem 0; padding: 0.5rem 0.75rem; border-left: 4px solid #ccc; background: #f6f6f6; }
+.helper > label { display: block; margin: 0 0 0.25rem; }
+.helper .search { display: flex; gap: 0.5rem; }
+.helper .search input { flex: 1; }
+.found { padding-left: 1.25rem; }
+.found li { margin: 0.5rem 0; }
+.found button { margin-top: 0.25rem; }

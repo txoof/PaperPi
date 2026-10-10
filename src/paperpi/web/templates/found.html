@@ -1,0 +1,38 @@
+{#- Only a part of the settings page: htmx puts it into <div id="found-<key>">. -#}
+{% if errors %}
+<p class="problem">Fix these settings first, then search again:</p>
+<ul class="problem">
+  {% for name, message in errors.items() %}
+  <li>{% if name %}<code>{{ name }}</code>: {% endif %}{{ message }}</li>
+  {% endfor %}
+</ul>
+{% elif problem %}
+<p class="problem">{{ problem|sentence }}</p>
+{% else %}
+{% if found.note %}<p>{{ found.note }}</p>{% endif %}
+{% if not found.choices %}
+<p class="note">Nothing found. Check the spelling, or try something more general.</p>
+{% else %}
+<ul class="found">
+  {% for choice in found.choices %}
+  <li>
+    <strong>{{ choice.heading }}</strong>
+    {%- for label, text in choice.show[1:] %}<br><span class="hint">{{ label }}: {{ text }}</span>{% endfor %}
+    {%- for label, address in choice.links %}<br><a href="{{ address }}" target="_blank"
+      rel="noopener noreferrer">{{ label }}</a>{% endfor %}
+    {%- if choice.fill %}
+    <br><button type="button" hx-post="/plugins/{{ index }}/use/{{ key }}"
+      hx-vals='{{ {"_use": uses[loop.index0]}|tojson }}' hx-target="#used-{{ key }}">Use</button>
+    {%- endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% if found.more %}<p class="hint">Only the first {{ found.choices|length }} are shown. Type more
+  to narrow the search.</p>{% endif %}
+<p id="used-{{ key }}" aria-live="polite"></p>
+{% endif %}
+{% endif %}
+{% if helper and helper.source %}
+<p class="hint">{% if helper.source_link %}<a href="{{ helper.source_link }}" target="_blank"
+  rel="noopener noreferrer">{{ helper.source }}</a>{% else %}{{ helper.source }}{% endif %}</p>
+{% endif %}

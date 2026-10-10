@@ -11,7 +11,9 @@ Address            What it does
                    up or down, remove, settings (``/plugins/<n>/...?id=<id>``, n = place
                    in the file, counted from 0, and the plugin's id to check it is
                    still there); ``/plugins/<n>/preview`` draws the settings form's
-                   values without saving them (part of the settings page)
+                   values without saving them; ``/plugins/<n>/search/<setting>`` runs
+                   that setting's helper and ``/plugins/<n>/use/<setting>`` puts a
+                   choice into the form (all three are parts of the settings page)
 ``/library``       Plugin Library: every plugin type with an example picture
                    (``/library/pictures/<file>``; ``/library/<type>/picture`` is the
                    picture's part of the page, asked for again until it is drawn);
@@ -30,6 +32,7 @@ address or ``localhost``: a website could otherwise point a name of its own at t
 from __future__ import annotations
 
 import ipaddress
+import json
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -42,12 +45,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
-from .. import __version__
+from .. import __version__, limits
 from ..config import folder_name
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError
-from .forms import Read, fields
-from .helpers import helper_html
+from .forms import Read, fields, form_texts
+from .helpers import Searcher, SearchFailed, language
 from .password import PasswordError, password_problem
 from .pictures import Pictures
 from .plugins import FormErrors, PluginEditor, library, library_item
@@ -68,17 +71,25 @@ def create_app(
     editor: PluginEditor | None = None,
     previewer: Previewer | None = None,
     pictures: Pictures | None = None,
+    searcher: Searcher | None = None,
 ) -> FastAPI:
     """The web interface, using ``auth`` for the password and log-in, ``editor`` to
-    change the plugins in the config file, ``previewer`` to draw previews and ``pictures``
-    for the Plugin Library's example pictures (default: none)."""
+    change the plugins in the config file, ``previewer`` to draw previews, ``pictures``
+    for the Plugin Library's example pictures (default: none) and ``searcher`` for the
+    settings helpers' searches."""
     editor = editor or PluginEditor(auth.config_file)
     previewer = previewer or Previewer()
     pictures = pictures or Pictures(None)
+    searcher = searcher or Searcher()
     app = FastAPI(title="PaperPi", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
-    templates.env.globals.update(version=__version__, auth=auth, helper_html=helper_html)
+    templates.env.globals.update(
+        version=__version__,
+        auth=auth,
+        text_limit=limits.HELPER_TEXT,
+        time_limit=limits.HELPER_SEARCH,
+    )
     templates.env.filters["number"] = _number
     templates.env.filters["sentence"] = lambda text: text[:1].upper() + text[1:]
 
@@ -308,6 +319,51 @@ def create_app(
             return page(request, "preview.html", problem=problem)
         return page(request, "preview.html", drawn=drawn, job=job)
 
+    @app.post("/plugins/{index}/search/{key}", response_class=HTMLResponse)
+    async def search(request: Request, index: int, key: str):
+        # Only a part of the settings page (htmx), so every answer is a 200.
+        plugin_id, sent = _settings_form(await request.form())
+        text = (sent.pop("_search", None) or [""])[-1]
+        job = None
+        try:
+            spoken = language(request.headers.get("accept-language"))
+            job = await run_in_threadpool(
+                editor.search_job, index, plugin_id, sent, key, text, spoken
+            )
+            found = await run_in_threadpool(searcher.find, job)
+        except FormErrors as error:
+            return page(request, "found.html", errors=error.found.errors)
+        except (EditError, Busy, SearchFailed) as error:
+            helper = job.helper if job else None
+            return page(request, "found.html", problem=str(error), helper=helper)
+        except Exception:  # noqa: BLE001 - e.g. no plugin process could be started
+            log.exception("search of %s, %s", plugin_id, key)
+            problem = "The search failed. PaperPi's log has the details."
+            return page(request, "found.html", problem=problem)
+        # What Use sends back: each setting with its texts, as the form sends them.
+        uses = [
+            json.dumps({k: form_texts(v) for k, v in choice.fill.items()})
+            for choice in found.choices
+        ]
+        values = {"found": found, "helper": job.helper, "uses": uses}
+        return page(request, "found.html", index=index, key=key, **values)
+
+    @app.post("/plugins/{index}/use/{key}", response_class=HTMLResponse)
+    async def use(request: Request, index: int, key: str):
+        # Only a part of the settings page (htmx), so every answer is a 200.
+        plugin_id, sent = _settings_form(await request.form())
+        fill = _fill((sent.pop("_use", None) or [""])[-1])
+        if not fill:
+            return page(request, "filled.html", problem="This choice can't be used.", shown=[])
+        try:
+            shown = await run_in_threadpool(editor.filled, index, plugin_id, sent, key, fill)
+        except EditError as error:
+            return page(request, "filled.html", problem=str(error), shown=[])
+        if not shown:
+            problem = "This choice has nothing the form can fill in."
+            return page(request, "filled.html", problem=problem, shown=[])
+        return page(request, "filled.html", shown=shown)
+
     def settings_saved(index: int, plugin_id: str, done: str, hand_edits: bool):
         values = {"id": plugin_id, "done": done} | ({"hand": "1"} if hand_edits else {})
         return RedirectResponse(f"/plugins/{index}/settings?{urlencode(values)}", 303)
@@ -389,6 +445,20 @@ def _settings_form(form) -> tuple[str, dict[str, list[str]]]:
     """The plugin ID and the settings of a sent settings form."""
     plugin_id = str(form.get("id", ""))
     return plugin_id, {k: [str(v) for v in form.getlist(k)] for k in form if k != "id"}
+
+
+def _fill(text: str) -> dict[str, list[str]]:
+    """The settings and texts a Use button sends (``{}`` when they are not in that form)."""
+    if len(text) > limits.HELPER_USE:
+        return {}
+    try:
+        fill = json.loads(text)
+    except (ValueError, RecursionError):  # RecursionError: nested very deeply
+        return {}
+    texts = fill.values() if isinstance(fill, dict) else [None]
+    if not all(isinstance(v, list) and all(isinstance(t, str) for t in v) for v in texts):
+        return {}
+    return fill
 
 
 def _number(value: float) -> str:

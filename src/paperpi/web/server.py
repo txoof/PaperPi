@@ -18,6 +18,7 @@ import uvicorn
 from .. import config
 from .app import create_app
 from .auth import Auth
+from .helpers import Searcher
 from .pictures import FOLDER, Pictures, Screen
 from .plugins import PluginEditor
 from .preview import Previewer
@@ -42,6 +43,7 @@ class WebServer:
         self.auth = auth
         self.editor = editor
         self.previewer = Previewer()
+        self.searcher = Searcher()
         self.pictures = pictures or Pictures(None)
         self.display: config.DisplaySettings | None = None
         """The ``[display]`` settings the screen uses now (see :meth:`use_display`)."""
@@ -52,7 +54,7 @@ class WebServer:
         """The port it listens on (useful with ``port = 0`` in tests)."""
         self._server = uvicorn.Server(
             uvicorn.Config(
-                create_app(auth, self.editor, self.previewer, self.pictures),
+                create_app(auth, self.editor, self.previewer, self.pictures, self.searcher),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
                 access_log=False,
@@ -97,9 +99,10 @@ class WebServer:
         return self._thread.is_alive()
 
     def stop_previews(self) -> None:
-        """Start no more previews or library pictures: PaperPi is stopping (see
-        :meth:`Previewer.stop`)."""
+        """Start no more previews, library pictures or helper searches: PaperPi is stopping
+        (see :meth:`Previewer.stop`)."""
         self.previewer.stop()
+        self.searcher.stop()
         self.pictures.stop()
 
     def stop(self) -> None:

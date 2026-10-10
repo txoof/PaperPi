@@ -23,6 +23,19 @@ PREVIEW_SAMPLE = 10.0
 #: drawn, so the first screen update goes first. Opening the Library page starts them at once.
 LIBRARY_PICTURES_WAIT = 60.0
 
+#: Longest one search of a setting helper may take: one web request with its retry
+#: (``docs/decisions/setting-helpers.md``).
+HELPER_SEARCH = 30.0
+
+#: Most characters the user may type into a helper's search box.
+HELPER_TEXT = 100
+
+#: Most choices a helper's search shows.
+HELPER_CHOICES = 10
+
+#: Most characters a Use button may send (one choice's ``fill``, as JSON).
+HELPER_USE = 20_000
+
 #: How long a plugin process may take to exit after it has handed over its image.
 PLUGIN_EXIT = 5.0
 

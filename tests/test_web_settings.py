@@ -3,12 +3,11 @@ from typing import Literal
 
 import pytest
 from fastapi.testclient import TestClient
-from markupsafe import Markup
 from pydantic import Field, SecretStr
 
 from paperpi import config
 from paperpi.plugin import Plugin, PluginSettings, helper_of, is_required, ready, setting
-from paperpi.web import auth, forms, helpers
+from paperpi.web import auth
 from paperpi.web import plugins as web_plugins
 from paperpi.web.app import create_app
 from paperpi.web.plugins import PluginEditor
@@ -147,18 +146,6 @@ def test_a_plugin_moved_meanwhile_shows_the_list(client, cfg):
     response = client.post("/plugins/0/settings", data={"id": "Weather", "lat": "1"})
     assert response.status_code == 409 and "changed after this page was opened" in response.text
     assert cfg.read_text() == CONFIG
-
-
-def test_a_helper_is_shown_under_its_field(client, monkeypatch):
-    show = {"test": lambda f: Markup("<p>help {}</p>").format(f.key)}
-    monkeypatch.setattr(helpers, "HELPERS", show)
-    monkeypatch.setattr(
-        forms,
-        "helper_of",
-        lambda info: "test" if (info.description or "").startswith("Latitude") else "nope",
-    )
-    page = client.get("/plugins/1/settings", params={"id": "Weather"}).text
-    assert page.count("<p>help ") == 1 and "<p>help lat</p>" in page  # "nope" shows nothing
 
 
 def test_setting_takes_a_helper_name():

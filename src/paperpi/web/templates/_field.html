@@ -1,0 +1,62 @@
+{#- One field of the settings form (settings.html). With oob, htmx puts it in place of the
+    field with the same id (after Use in a helper's choices). -#}
+{% macro field(f, oob=false) %}
+<div class="field{% if f.error %} wrong{% endif %}" id="field-{{ f.key }}"
+  {%- if oob %} hx-swap-oob="true"{% endif %}>
+  {% if f.kind == "check" %}
+  {# A browser sends nothing for a box that is off, so "false" goes first. #}
+  <input type="hidden" name="{{ f.key }}" value="false">
+  <label class="check"><input type="checkbox" name="{{ f.key }}" value="true"
+    {%- if f.value == "true" %} checked{% endif %}> {{ f.help }} <code>{{ f.key }}</code></label>
+  {% else %}
+  <label for="setting-{{ f.key }}">{{ f.help }}
+    {%- if f.required %} <span class="required">(required)</span>{% endif %}
+    <code>{{ f.key }}</code></label>
+  {% if f.kind == "choice" %}
+  <select id="setting-{{ f.key }}" name="{{ f.key }}">
+    {# Else the browser would pick, and Save would write, the first choice. #}
+    {% if f.value not in f.choices %}
+    <option value="" selected>
+      {%- if f.value %}(not one of the choices: {{ f.value }}){% else %}(not set){% endif %}</option>
+    {% endif %}
+    {% for choice in f.choices %}
+    <option value="{{ choice }}"{% if choice == f.value %} selected{% endif %}>{{ choice }}</option>
+    {% endfor %}
+  </select>
+  {% elif f.kind == "choices" %}
+  {# A browser sends nothing for a list with nothing picked, so an empty value goes first. #}
+  <input type="hidden" name="{{ f.key }}" value="">
+  <div id="setting-{{ f.key }}" class="choices">
+    {% for choice in f.choices %}
+    <label class="check"><input type="checkbox" name="{{ f.key }}" value="{{ choice }}"
+      {%- if choice in f.selected %} checked{% endif %}> {{ choice }}</label>
+    {% endfor %}
+  </div>
+  {% elif f.kind == "number" %}
+  {# A phone's number keys often have no minus, so only for numbers that can't be below 0. #}
+  <input id="setting-{{ f.key }}" name="{{ f.key }}" type="text" value="{{ f.value }}"
+    {%- if f.minimum is not none and f.minimum >= 0 %}
+    inputmode="{{ 'numeric' if f.whole else 'decimal' }}"{% endif %}>
+  {% elif f.kind == "text" %}
+  <input id="setting-{{ f.key }}" name="{{ f.key }}" type="text" value="{{ f.value }}"
+    {%- if f.max_length %} maxlength="{{ f.max_length }}"{% endif %}>
+  {% elif f.kind == "secret" %}
+  <input id="setting-{{ f.key }}" name="{{ f.key }}" type="password" value=""
+    autocomplete="new-password"
+    {%- if f.is_set %} placeholder="Saved. Leave empty to keep it."{% endif %}>
+  {% else %}
+  <p id="setting-{{ f.key }}"><code>{{ f.value or "(not set)" }}</code>
+    <span class="hint">Change this one in the config file.</span></p>
+  {% endif %}
+  {% if f.kind not in ("secret", "file") %}
+  <div class="hint">
+    {%- if f.kind == "number" and (f.minimum is not none or f.maximum is not none) %}
+    {%- if f.minimum is not none %}From {{ f.minimum|number }}{% endif %}
+    {%- if f.maximum is not none %} up to {{ f.maximum|number }}{% endif %}. {% endif %}
+    {%- if f.default %}Default: {{ f.default }}.{% elif f.kind != "choices" %}Empty: not set.{% endif -%}
+  </div>
+  {% endif %}
+  {% endif %}
+  {% if f.error %}<p class="problem">{{ f.error|sentence }}</p>{% endif %}
+</div>
+{% endmacro %}
