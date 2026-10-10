@@ -44,7 +44,7 @@ MAX_SIDE = 4000
 PAGE_BYTES = PICTURE_BYTES = 2_000_000
 FEED_SECONDS, PICTURE_SECONDS, PAGE_SECONDS = 20, 15, 10
 NEW_YORK = "America/New_York"
-SAMPLE = Path(__file__).parent / "sample" / "island.png"
+SAMPLE = Path(__file__).parent / "sample" / "therapist.png"
 
 
 class Settings(PluginSettings):
@@ -354,11 +354,12 @@ PLUGIN = Plugin(
     layouts=LAYOUTS,
     fetch=fetch,
     draw=draw,
-    # A made-up cartoon, caption and cartoonist, drawn for PaperPi: not a New Yorker cartoon.
+    # A made-up cartoon, caption and cartoonist, made for PaperPi: not a New Yorker cartoon.
     sample=Cartoon(
         Texts(
-            "“Finally, a place where the news arrives only once a week.”",
-            "Cartoon by Rosa Paperwhite",
+            "“You keep saying you want to be more spontaneous, but have you considered that "
+            "spontaneity might be the problem?”",
+            "Cartoon by Chatwell Gilbert Pennington Thurston (C.G.P.T.)",
             "Monday, October 5",
         ),
         SAMPLE,
