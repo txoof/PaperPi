@@ -40,7 +40,7 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
   - the button text (default "Search"). A helper that needs no typed text (finding music servers) shows only a button, e.g. "Find servers";
   - where the answers come from, with a link, shown under the list (e.g. "Search by Open-Meteo"). The user sees that their typed text goes to an outside service, and the credit that service asks for is given;
   - optional: settings that must be filled in first (the NS API key). Until they are, the box says so instead of searching.
-- The function gets what the user typed and the form's current settings, checked as Save would check them. An empty secret field (an API key) gives the saved secret, as in a preview (`web-interface.md`).
+- The function gets what the user typed, the form's current settings, checked as Save would check them, and the language the user's browser asks for first (e.g. `nl`). An empty secret field (an API key) gives the saved secret, as in a preview (`web-interface.md`). The language was added after the demo (txoof, 2026-10-10): Open-Meteo finds "Den Haag" only when asked in Dutch.
 - It returns a **result**: a list of **choices**, and optionally a `note` for the whole result (below).
 - It may also stop with a message for the user ("The NS API key was not accepted"). Any other error shows "The search failed" and the details go to the log.
 - It uses `paperpi.webrequest` for web requests, like plugins do, so the same time limits and size limits apply.

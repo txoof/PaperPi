@@ -42,8 +42,9 @@ class FakeSearch:
         self.answer = answer
         self.calls = []
 
-    def __call__(self, plugin_type, name, text, settings, *, time_limit):
+    def __call__(self, plugin_type, name, text, settings, *, time_limit, language):
         self.calls.append((plugin_type, name, text, settings, time_limit))
+        self.language = language
         if isinstance(self.answer, Exception):
             raise self.answer
         return clean(self.answer, ["text", "delay"])
@@ -273,6 +274,7 @@ def test_settings_a_helper_needs_come_first(finder):
 def test_a_real_search_in_a_plugin_process(cfg):
     page = search(make_client(cfg), "hello world")
     assert "<strong>hello</strong>" in page and "Now: typed" in page
+    assert "Language: en" in page
     assert uses(page) == [json.dumps({"text": ["hello"]}), json.dumps({"text": ["world"]})]
 
 
@@ -281,3 +283,23 @@ def test_what_a_search_left_out_goes_to_the_log(cfg, caplog):
     with caplog.at_level("INFO", logger="paperpi.web.helpers"):
         search(make_client(cfg, fake), "x")
     assert f"search of {ID} left out: choice kind 'wait'" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "header, spoken",
+    [
+        ("nl-NL,nl;q=0.9,en;q=0.8", "nl"),
+        ("de", "de"),
+        ("EN-gb", "en"),
+        (None, "en"),
+        ("", "en"),
+        ("*", "en"),
+        ("x&q=1", "en"),  # only letters reach a helper
+    ],
+)
+def test_the_browsers_language_goes_to_the_helper(cfg, header, spoken):
+    fake = FakeSearch([])
+    client = make_client(cfg, fake)
+    headers = {"Accept-Language": header} if header is not None else {}
+    client.post("/plugins/0/search/text", data=FORM | {"_search": "x"}, headers=headers)
+    assert fake.language == spoken

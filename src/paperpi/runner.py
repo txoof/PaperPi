@@ -108,18 +108,19 @@ def run_helper(
     settings: PluginSettings,
     *,
     time_limit: float | None = None,
+    language: str = "en",
     package: str = "paperpi.plugins",
 ) -> Found:
     """Run one search of the plugin's helper ``name`` (see :mod:`paperpi.helper`) in its own
-    process, for the typed ``text`` and the form's ``settings``, and return its checked
-    result.
+    process, for the typed ``text``, the form's ``settings`` and the user's ``language``
+    (see :class:`~paperpi.helper.Query`), and return its checked result.
 
     ``time_limit`` defaults to :data:`paperpi.limits.HELPER_SEARCH`. Raises
     :class:`HelperProblem` with the helper's message for the user, and otherwise the same
     errors as :func:`run_update`.
     """
     time_limit = limits.HELPER_SEARCH if time_limit is None else time_limit
-    args = (plugin_type, package, name, text, settings.model_dump())
+    args = (plugin_type, package, name, text, settings.model_dump(), language)
     return _run(plugin_type, _helper_child, args, time_limit)[1]
 
 
@@ -233,7 +234,13 @@ def _child(
 
 
 def _helper_child(
-    sender: Connection, plugin_type: str, package: str, name: str, text: str, settings: dict
+    sender: Connection,
+    plugin_type: str,
+    package: str,
+    name: str,
+    text: str,
+    settings: dict,
+    language: str,
 ) -> None:
     """Runs in the plugin process: one search of a helper, then send the result and exit."""
     with _reporting(sender) as secrets:
@@ -241,7 +248,7 @@ def _helper_child(
 
         plugin, checked = _load(plugin_type, package, settings, secrets)
         try:
-            result = plugin.helpers[name].find(Query(text, checked))
+            result = plugin.helpers[name].find(Query(text, checked, language))
         except HelperProblem as problem:  # only here: in an update it is an ordinary error
             sender.send(("problem", _hide(str(problem), secrets)))
             return

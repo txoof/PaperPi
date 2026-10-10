@@ -50,6 +50,10 @@ class Query:
     settings: PluginSettings
     """The settings in the form, checked as Save checks them. An empty secret field (an API
     key) gives the saved secret."""
+    language: str = "en"
+    """The language the user's browser asks for first, as a short lowercase code such as
+    ``nl`` or ``de`` (``en`` when it is not known). For services that find names only in
+    the language they are asked in."""
 
 
 @dataclass(frozen=True)

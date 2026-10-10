@@ -184,7 +184,13 @@ class PluginEditor:
         return preview.Job(found, width, height, display.screen_mode)
 
     def search_job(
-        self, index: int, plugin_id: str, form: Mapping[str, Sequence[str]], key: str, text: str
+        self,
+        index: int,
+        plugin_id: str,
+        form: Mapping[str, Sequence[str]],
+        key: str,
+        text: str,
+        language: str = "en",
     ) -> helpers.Job:
         """A search with the helper of setting ``key`` of block ``index``, for the typed
         ``text`` and the settings of a sent form as Save would write them. Nothing is
@@ -197,7 +203,7 @@ class PluginEditor:
         helper = found.plugin.helpers[name]
         # A helper without a search box gets no text, also from a form sent by hand.
         text = text.strip() if helper.typed else ""
-        return helpers.Job(found, key, name, helper, text)
+        return helpers.Job(found, key, name, helper, text, language)
 
     def filled(
         self,

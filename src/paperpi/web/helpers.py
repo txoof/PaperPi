@@ -23,9 +23,18 @@ from .preview import Busy
 
 log = logging.getLogger(__name__)
 
-#: Runs one search: ``search(plugin_type, name, text, settings, time_limit=...)``, as
-#: :func:`paperpi.runner.run_helper`. Tests pass a quick fake.
+#: Runs one search: ``search(plugin_type, name, text, settings, time_limit=..., language=...)``,
+#: as :func:`paperpi.runner.run_helper`. Tests pass a quick fake.
 Search = Callable[..., Found]
+
+
+def language(accept_language: str | None) -> str:
+    """The language a browser asks for first, from its ``Accept-Language`` header (e.g.
+    ``nl-NL,nl;q=0.9,en;q=0.8`` gives ``nl``), or ``en``. Only 2 or 3 letters are taken, so
+    the header can't put anything else into a helper's web request."""
+    first = (accept_language or "").split(",")[0].split(";")[0].strip()
+    code = first.split("-")[0].lower()
+    return code if code.isascii() and code.isalpha() and 2 <= len(code) <= 3 else "en"
 
 
 class SearchFailed(RuntimeError):
@@ -43,6 +52,8 @@ class Job:
     """The helper's name in the plugin's ``helpers``."""
     helper: Helper
     text: str
+    language: str = "en"
+    """The language the browser asks for first (see :func:`language`)."""
 
 
 class Searcher:
@@ -78,7 +89,12 @@ class Searcher:
             plugin_type = job.found.plugin.type
             try:
                 found = self._search(
-                    plugin_type, job.name, job.text, settings, time_limit=limits.HELPER_SEARCH
+                    plugin_type,
+                    job.name,
+                    job.text,
+                    settings,
+                    time_limit=limits.HELPER_SEARCH,
+                    language=job.language,
                 )
             except PluginTimeout:
                 raise SearchFailed(

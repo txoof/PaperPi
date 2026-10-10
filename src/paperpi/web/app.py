@@ -50,7 +50,7 @@ from ..config import folder_name
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError
 from .forms import Read, fields, form_texts
-from .helpers import Searcher, SearchFailed
+from .helpers import Searcher, SearchFailed, language
 from .password import PasswordError, password_problem
 from .pictures import Pictures
 from .plugins import FormErrors, PluginEditor, library, library_item
@@ -326,7 +326,10 @@ def create_app(
         text = (sent.pop("_search", None) or [""])[-1]
         job = None
         try:
-            job = await run_in_threadpool(editor.search_job, index, plugin_id, sent, key, text)
+            spoken = language(request.headers.get("accept-language"))
+            job = await run_in_threadpool(
+                editor.search_job, index, plugin_id, sent, key, text, spoken
+            )
             found = await run_in_threadpool(searcher.find, job)
         except FormErrors as error:
             return page(request, "found.html", errors=error.found.errors)

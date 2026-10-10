@@ -106,7 +106,7 @@ def find_words(query: Query):
     choices = [
         {
             "fill": {"text": word},
-            "show": {"Word": word, "Now": query.settings.text},
+            "show": {"Word": word, "Now": query.settings.text, "Language": query.language},
             "link": {"Example": "https://example.org/"},
         }
         for word in words
