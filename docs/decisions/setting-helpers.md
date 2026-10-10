@@ -1,6 +1,6 @@
 # Setting helpers
 
-Status: proposed (M5 part 3c, issue #238). Talked through with txoof on 2026-10-10; the open questions at the end are still to be answered.
+Status: proposed (M5 part 3c, issue #238). Decided with txoof on 2026-10-10.
 
 ## Problem
 
@@ -23,28 +23,68 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
    - It can't be used from the command line.
    - A safer form exists: the plugin's page runs in a locked box inside the page (a "sandboxed iframe") that can't reach the rest. That is a lot of work no plugin needs yet; it stays on the "Later" list.
 3. **A map to search on** (a small map library such as Leaflet, with map pictures from OpenStreetMap). Rejected by txoof on 2026-10-10: a place or stop is searched once, when the plugin is set up, so a map is too much work and upkeep for it.
-4. **A helper is a plain function that returns data; PaperPi shows one standard search box and pick list for all of them.** **Chosen.**
+4. **A helper is a plain function of the plugin that returns data (a dictionary per choice); PaperPi shows one standard search box and pick list for all of them.** **Chosen.**
 
 ## Decision (proposed)
 
+### Who does what
+
+- **PaperPi owns the page:** a search box, a list of choices, and putting the chosen one into the form. It doesn't need to know what a place, a stop or a server is.
+- **The plugin owns its settings:** what they mean and which ones a search changes. So the logic of a search lives in the plugin, and a new kind of plugin needs nothing new from PaperPi.
+- Agreed with txoof on 2026-10-10. An earlier draft gave each choice fixed parts (a label, a detail line, values that are "set" or "suggested") guessed from the few plugins we know; a dictionary of kinds (below) fits plugins nobody has thought of yet.
+
 ### What a helper is
 
-- A helper is a Python function with a few texts for the page:
+- A helper is a Python function of the plugin, with a few texts for the page:
   - the text above the search box, e.g. "Place name, e.g. Berlin or Morrison, Colorado";
   - the button text (default "Search"). A helper that needs no typed text (finding music servers) shows only a button, e.g. "Find servers";
   - where the answers come from, with a link, shown under the list (e.g. "Search by Open-Meteo"). The user sees that their typed text goes to an outside service, and the credit that service asks for is given;
   - optional: settings that must be filled in first (the NS API key). Until they are, the box says so instead of searching.
-- The function gets what the user typed and the other values in the form, checked as Save would check them. An empty secret field (an API key) gives the saved secret, as in a preview (`web-interface.md`).
-- It returns a list of **choices**. Each choice has a label ("Morrison"), a detail line ("Colorado, United States, 1757 m") and the settings it fills in, e.g. `lat`, `lon` and `altitude`.
+- The function gets what the user typed and the form's current settings, checked as Save would check them. An empty secret field (an API key) gives the saved secret, as in a preview (`web-interface.md`).
+- It returns a **result**: a list of **choices**, and optionally a `note` for the whole result (below).
 - It may also stop with a message for the user ("The NS API key was not accepted"). Any other error shows "The search failed" and the details go to the log.
 - It uses `paperpi.webrequest` for web requests, like plugins do, so the same time limits and size limits apply.
 
+### What a choice is
+
+A choice is a dictionary. Each key is a **kind** that says what PaperPi does with its value. For a Dutch transport stop:
+
+```python
+{
+    "fill": {"stop_code": "3104", "stop_name": "Nieuwe Duinweg"},
+    "show": {"Stop": "Nieuwe Duinweg", "Town": "Den Haag", "Lines": "9, 21", "Distance": "120 m"},
+    "link": {"See on map": "https://www.openstreetmap.org/?mlat=52.09&mlon=4.29"},
+}
+```
+
+**Kinds built now** (all four are used by the first helper, `location`):
+
+| Kind | Where | What PaperPi does with it |
+|---|---|---|
+| `fill` | choice | Settings put into the form when the user presses **Use**. The keys are the plugin's own setting names. PaperPi checks them with the plugin's settings description, as Save does, so a wrong name or value is an error and never a broken setting. Only what is in `fill` changes, so a helper leaves a setting alone by leaving it out (e.g. the name shown on the screen, when the user has already typed one). |
+| `show` | choice | Information to help the user pick: label and text, shown in the order given. The first entry is the heading of the choice. |
+| `link` | choice | Web addresses the user can open in a new tab, e.g. "See on map". Only `http` and `https` addresses; others are left out and logged. |
+| `note` | result | A message for the whole result, e.g. "Only the first 10 matches are shown; type more to narrow it down". |
+
+**Kinds planned** (same dictionary shape; each is built with the first plugin that needs it):
+
+| Kind | What it would do | Likely first user |
+|---|---|---|
+| `add` | Adds an item to a list setting instead of replacing a field (each **Use** adds one stop). | Dutch transport plugin |
+| `next` | Choosing starts a second search instead of filling in fields: pick a stop, then a direction or line; pick a music server, then a player on it. | Dutch transport plugin, `lms_client` |
+| `disabled` | The choice is shown but can't be used, with the reason ("No trains to Utrecht from this station"). | NS trains |
+| `picture` | A small image next to the choice (a station logo, an album cover), sent inside the page like preview images. | music plugins |
+| `wait` | For logging in to an outside account: show a message, a link and a code ("Open example.com/device on your phone and enter ABCD-1234"), and ask the helper again every few seconds, each call in its own process with its own time limit, until it returns a choice (e.g. a token in a secret setting) or stops with a message. | a calendar or Spotify plugin |
+
+- **A kind PaperPi doesn't know is ignored and logged**, so a plugin written for a newer PaperPi still works on an older one.
+- **All texts are shown as plain text**, so a stop name with odd characters can't change the page.
+- What happens after **Use** (such as drawing a preview at once) is the same for every plugin, so the page decides it, not each helper.
+
 ### Where helpers come from
 
-- **PaperPi's own helpers** are for needs many plugins share. The first is `location`.
-- **A plugin's own helpers** are part of the plugin, next to its settings and layouts (e.g. a stop search in the Dutch transport plugin).
-- A setting names its helper as now: `setting(..., helper="location")`. The plugin's own helpers are looked up first, then PaperPi's. A name that is found nowhere fails the plugin check, so a typing mistake is caught by the tests and not on the user's page.
-- The search box is shown under the setting that names the helper. A choice may fill in several settings; PaperPi fills in only settings the plugin has, and checks the values with the plugin's settings description before they go into the form.
+- Helpers are part of the plugin, next to its settings and layouts. A setting names one as now: `setting(..., helper="location")`, and the search box is shown under that setting. A name the plugin doesn't have fails the plugin check, so a typing mistake is caught by the tests and not on the user's page.
+- **PaperPi offers search functions** for needs many plugins share. The first is a place search: "find places for this text" returns places with name, region, country, latitude, longitude and altitude. A plugin's helper calls it and turns each place into a choice for its own settings.
+- For the common case PaperPi also has a **ready-made location helper**: the plugin only names its settings for latitude, longitude and, if it has them, altitude and the name shown on the screen. This is a shortcut built on the place search, not a separate idea.
 
 ### How a helper runs
 
@@ -61,27 +101,29 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
 
 ### Later (described so they fit, not built until a plugin needs them)
 
-- **On the command line** (txoof, 2026-10-10: later, as its own issue): `paperpi helper <plugin type>.<helper> "<text>"`, e.g. `paperpi helper met_no.location "Morrison, Colorado"`. It prints the choices with the lines to copy into the plugin's block in the config file. It names the plugin type, not a plugin `id`, so it works before the plugin is in the config file. To decide in that issue: how a helper that needs other settings first (the NS API key) gets them, e.g. from a plugin block in the config file or typed after the text.
-
-- **Logging in to an outside account:** a helper may return a **step** instead of choices: a message with a link and a code ("Open example.com/device on your phone and enter ABCD-1234"). PaperPi then calls the helper again every few seconds, each call in its own process with its own time limit, until it returns a choice (the token, which fills a secret setting) or stops with a message. The rest of the structure stays the same.
+- **On the command line** (txoof, 2026-10-10: later, as its own issue): `paperpi helper <plugin type>.<helper> "<text>"`, e.g. `paperpi helper met_no.location "Morrison, Colorado"`. It prints each choice's `show` and `link` texts and its `fill` values as lines to copy into the plugin's block in the config file. It names the plugin type, not a plugin `id`, so it works before the plugin is in the config file. To decide in that issue: how a helper that needs other settings first (the NS API key) gets them, e.g. from a plugin block in the config file or typed after the text.
+- **The planned kinds** in the table above.
 - **Sandboxed plugin pages** (option 2 in its safe form), if a plugin ever needs more than a search box and a list.
 
-### The first helper: `location`
+### The first helper: `location` in `met_no` and `moon_phase`
 
-- Uses the place search of **Open-Meteo** (`geocoding-api.open-meteo.com`), chosen with txoof on 2026-10-10. No key and no sign-up. It finds towns and cities (not street addresses) and returns region, country, latitude, longitude **and altitude**; Nominatim, which v1 used, returns no altitude. It understands "Morrison, Colorado"; a plain "Morrison" returns 10 towns in several countries, so region and country are shown with each choice.
+- The place search uses **Open-Meteo** (`geocoding-api.open-meteo.com`), chosen with txoof on 2026-10-10. No key and no sign-up. It finds towns and cities (not street addresses) and returns region, country, latitude, longitude **and altitude**; Nominatim, which v1 used, returns no altitude. It understands "Morrison, Colorado"; a plain "Morrison" returns 10 towns in several countries, so region and country are shown with each choice.
 - Terms: free for non-commercial use, fewer than 10,000 requests a day. The data is CC BY 4.0 and the place data is from GeoNames, so the page shows "Search by Open-Meteo, place data from GeoNames" with links next to the list.
-- A choice fills in `lat` and `lon` (4 decimals, about 10 m), `altitude` (whole metres, as met.no asks) and, when it is still empty, the name shown on the screen (`place` in `met_no`).
+- A choice:
+  - `fill`: `lat` and `lon` (4 decimals, about 10 m), `altitude` (whole metres, as met.no asks), and the name shown on the screen (`place` in `met_no`) only when it is still empty, so a name the user typed ("Home", "Cabin") is kept;
+  - `show`: place, region, country, altitude;
+  - `link`: "See on map" (OpenStreetMap at that point), so the user can check the place without a map in PaperPi.
 - `met_no` gets an optional `altitude` setting (whole metres, -500 to 9000), sent to met.no when it is filled in. This closes issue #176. The example in #176 had a sign mistake: `lon = 84.31` is on the Tibetan plateau, where met.no's 4949 m is right; Atlanta is at `-84.31`.
 - `moon_phase` uses it for `lat` and `lon` only; altitude doesn't matter for it.
 
 ### Planned PRs
 
-1. This note, the helper structure (functions, choices, the separate process, plugin check) and the search box with its pick list, tested with a helper in the `debugging` plugin. About 500 lines.
-2. The `location` helper with Open-Meteo, `altitude` for `met_no`, and both plugins using it. About 400 lines.
+1. This note, the helper structure (helper functions, results with the four kinds, the separate process, plugin check) and the search box with its pick list, tested with a helper in the `debugging` plugin. About 500 lines.
+2. The place search with Open-Meteo, the ready-made location helper, `altitude` for `met_no`, and both plugins using it. About 400 lines.
 
 ## Open questions
 
-To be answered with txoof one at a time:
-1. ~~Does the search start with the button (and Enter), or while the user types?~~ Button and Enter (txoof, 2026-10-10).
-2. ~~Should helpers also work from the command line on the Pi, and if so in these PRs or later?~~ Later, as its own issue, in the form `paperpi helper met_no.location "Morrison, Colorado"` (txoof, 2026-10-10; see "Later").
-3. Should `location` fill in the name shown on the screen when it is empty, as proposed above?
+None. Answered with txoof on 2026-10-10:
+1. The search starts with the button or the Enter key, not while the user types.
+2. The command line comes later, as its own issue, as `paperpi helper met_no.location "Morrison, Colorado"` (see "Later").
+3. The name shown on the screen is filled in only when it is empty. This is decided by the helper (it leaves `place` out of `fill`), not by a rule in PaperPi (see "What a choice is").
