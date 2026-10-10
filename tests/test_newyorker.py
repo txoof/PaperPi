@@ -442,7 +442,7 @@ def test_hostile_id_keeps_files_in_storage(tmp_path, monkeypatch, pick):
 def test_draw_gives_only_the_layouts_blocks(tmp_path, layout, blocks):
     values = newyorker.draw(PLUGIN.sample, context(tmp_path, layout))
     assert set(values) == blocks
-    assert values["comic"].size == (800, 800)
+    assert values["comic"].size == (1000, 789)
     assert values.get("date", "Monday, October 5") == "Monday, October 5"
 
 

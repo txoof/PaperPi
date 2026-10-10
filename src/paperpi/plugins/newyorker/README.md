@@ -45,7 +45,7 @@ Try it without a screen: `uv run paperpi render newyorker` (sample cartoon), or 
 
 ## The cartoons
 
-The cartoons and captions belong to The New Yorker and their cartoonists (© Condé Nast). PaperPi only downloads them to show on your own screen and does not share them. The sample cartoon, [`sample/island.png`](sample/island.png), its caption and its cartoonist ("Rosa Paperwhite") are made up: the drawing was made for this plugin with a short Pillow script (Pillow is the picture library PaperPi uses) and is under PaperPi's licence.
+The cartoons and captions belong to The New Yorker and their cartoonists (© Condé Nast). PaperPi only downloads them to show on your own screen and does not share them. The sample cartoon, [`sample/therapist.png`](sample/therapist.png), its caption and its cartoonist ("Chatwell Gilbert Pennington Thurston (C.G.P.T.)") are made up: the drawing was made for PaperPi with an AI image tool and is under PaperPi's licence. It is stored in 16 shades of gray (the most a PaperPi screen shows), which keeps the file small.
 
 ## Sample images
 
