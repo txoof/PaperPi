@@ -10,6 +10,11 @@ says what the update does, so the same settings always give the same pattern:
 
 The image shows only ``text`` and the state, so updates with the same state give the same
 image (the screen is then not written again).
+
+``text`` has a setting helper, ``words`` (see :mod:`paperpi.helper`), to test the settings
+page's search box: each typed word becomes a choice that fills in ``text``. Some words
+misbehave instead: ``crash`` raises an error, ``hang`` hangs until the time limit,
+``problem`` stops with a message for the user and ``many`` gives 12 choices.
 """
 
 import time
@@ -19,13 +24,26 @@ from pydantic import Field
 
 from ... import limits
 from ...files import write_atomic
-from ...plugin import NOTHING, Context, Plugin, PluginSettings, alert, ready
+from ...plugin import (
+    NOTHING,
+    Context,
+    Helper,
+    HelperProblem,
+    Plugin,
+    PluginSettings,
+    Query,
+    alert,
+    ready,
+    setting,
+)
 
 COUNT_FILE = "count"
 
 
 class Settings(PluginSettings):
-    text: str = Field("debugging", max_length=100, description="Text shown above the state")
+    text: str = setting(
+        "debugging", max_length=100, helper="words", description="Text shown above the state"
+    )
     states: tuple[Literal["nothing", "ready", "alert"], ...] = Field(
         ("ready",),
         min_length=1,
@@ -73,6 +91,29 @@ def draw(state: str, context: Context) -> dict:
     return {"text": context.settings.text, "state": state}
 
 
+def find_words(query: Query):
+    """The ``words`` helper (see the top)."""
+    words = query.text.split()
+    if "crash" in words:
+        raise RuntimeError("crash, as asked")
+    if "hang" in words:
+        while True:  # until the time limit stops this process
+            time.sleep(3600)
+    if "problem" in words:
+        raise HelperProblem("A problem, as asked.")
+    if "many" in words:
+        words = [f"word {n}" for n in range(1, 13)]
+    choices = [
+        {
+            "fill": {"text": word},
+            "show": {"Word": word, "Now": query.settings.text},
+            "link": {"Example": "https://example.org/"},
+        }
+        for word in words
+    ]
+    return {"choices": choices, "note": f"{len(words)} words."}
+
+
 BLOCK = {"type": "text", "align": "center", "padding": 0.05}
 
 LAYOUTS = {
@@ -93,4 +134,11 @@ PLUGIN = Plugin(
     draw=draw,
     sample="ready",
     refresh=30,
+    helpers={
+        "words": Helper(
+            find_words,
+            prompt="Some words; each one becomes a choice",
+            source="The debugging plugin",
+        )
+    },
 )

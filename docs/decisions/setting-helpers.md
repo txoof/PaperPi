@@ -118,7 +118,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 
 ### Planned PRs
 
-1. This note, the helper structure (helper functions, results with the four kinds, the separate process, plugin check) and the search box with its pick list, tested with a helper in the `debugging` plugin. About 500 lines.
+1. This note, the helper structure (helper functions, results with the four kinds, the separate process, plugin check) and the search box with its pick list, tested with a helper in the `debugging` plugin. About 900 lines (txoof chose one PR over two on 2026-10-10).
 2. The place search with Open-Meteo, the ready-made location helper, `altitude` for `met_no`, and both plugins using it. About 400 lines.
 
 ## Open questions

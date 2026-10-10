@@ -80,7 +80,7 @@ Each setting is a field of the plugin's `Settings` class, with a type, a default
 - Every setting needs a default.
 - Don't use the names of the shared settings, which every `[[plugin]]` block already has: `id`, `name`, `type`, `enabled`, `level`, `display_time`, `refresh`, `time_limit`, `layout`, `alert_reminder`, `alert_max_time`.
 - Use `pydantic.SecretStr` as the type for API keys and passwords. PaperPi then never shows their values in error messages or logs.
-- A setting the user must fill in before the plugin can work (a place, an email address, an API key) is made with `paperpi.plugin.setting(..., required=True)` instead of `Field`. It takes the same arguments as `Field`. Its default must be "not set": `None`, empty text or an empty `SecretStr` (text of only spaces also counts as not set). Until every required setting is filled in, the plugin is not shown and not counted as broken; the config check, `paperpi list` and the web interface's Active Plugins page say which settings are missing. The example block marks them "(required)". `setting` is also where other options for a single setting go: `helper="location"` names a web interface helper shown under the setting's field (the first one, a latitude and longitude lookup, comes in M5 part 3c; see `paperpi.web.helpers`).
+- A setting the user must fill in before the plugin can work (a place, an email address, an API key) is made with `paperpi.plugin.setting(..., required=True)` instead of `Field`. It takes the same arguments as `Field`. Its default must be "not set": `None`, empty text or an empty `SecretStr` (text of only spaces also counts as not set). Until every required setting is filled in, the plugin is not shown and not counted as broken; the config check, `paperpi list` and the web interface's Active Plugins page say which settings are missing. The example block marks them "(required)". `setting` is also where other options for a single setting go, such as `helper=` (see "Setting helpers" below).
 - The web interface shows the plugin's `description` in its Plugin Library, and the help text (`description`) of every setting on the plugin's Settings page, next to its field. Write both for someone at home who is not a programmer. The settings page is built from the settings description: a `Literal` becomes a choice list, `bool` a check box, `int`/`float` a number field (with its `ge`, `gt`, `le` and `lt` limits), `str` a text field (with `max_length`), `SecretStr` a password field, and a tuple or list of a `Literal` a list to tick. A setting of another kind is shown as it is in the file, to be changed there.
 
   ```python
@@ -99,6 +99,47 @@ id = "clock"
 type = "basic_clock"
 hours = 12
 ```
+
+## Setting helpers
+
+Some settings are hard to fill in by hand, such as a place's latitude and longitude or a stop's code. A plugin can offer a **helper**: a search box under the setting on its settings page. The user types something, PaperPi shows a list of choices, and **Use** fills in the form's fields (nothing is saved until Save). The reasons are in `docs/decisions/setting-helpers.md`.
+
+- A helper is a `paperpi.plugin.Helper` in the plugin's `helpers`, by name. A setting names it with `setting(..., helper="<name>")`; the search box is shown under that setting. The plugin check fails for a name the plugin doesn't have.
+- Its `find(query)` gets a `Query`: `query.text` (what the user typed, at most 100 characters) and `query.settings` (the form's settings, checked as Save checks them; an empty secret field gives the saved secret).
+- It returns a list of choices, or `{"choices": [...], "note": "..."}` with a message for the whole result. Each choice is a dictionary; its keys say what PaperPi does with each value:
+  - `fill`: the plugin's own settings and their values, put into the form by **Use**. Leave a setting out to leave it alone (e.g. a name the user already typed).
+  - `show`: label and text, shown to help the user choose; the first one is the heading.
+  - `link`: label and web address (`http` or `https` only), e.g. "See on map".
+  A kind PaperPi doesn't know is left out and logged. At most 10 choices are shown.
+- `raise HelperProblem("...")` stops with a message for the user (e.g. "The API key was not accepted"). Any other error shows "The search failed"; the details go to PaperPi's log.
+- Each search runs in its own process with a time limit of 30 seconds, like an update. Use `paperpi.webrequest` for web requests.
+- `Helper` also takes the `prompt` above the box, the `button` text, `typed=False` for a helper that needs no typed text (only a button), `needs` (settings that must be filled in first, e.g. an API key) and `source` and `source_link` (where the answers come from, shown under them; say it when the typed text goes to an outside service).
+
+```python
+from paperpi.plugin import Helper, HelperProblem, PluginSettings, Query, setting
+
+
+class Settings(PluginSettings):
+    stop: str = setting("", helper="stops", description="Code of the stop")
+    stop_name: str = setting("", description="Name shown on the screen")
+
+
+def find_stops(query: Query):
+    found = search_the_stop_list(query.text)  # the plugin's own code
+    return [
+        {
+            "fill": {"stop": s.code} | ({} if query.settings.stop_name else {"stop_name": s.name}),
+            "show": {"Stop": s.name, "Town": s.town},
+        }
+        for s in found
+    ]
+
+
+# In PLUGIN = Plugin(...):
+#     helpers={"stops": Helper(find_stops, prompt="Name of the stop, e.g. Centraal Station")},
+```
+
+The `debugging` plugin has a helper to try it out: `words` turns each typed word into a choice for its `text` setting.
 
 ## Layouts
 

@@ -1,0 +1,13 @@
+{#- After Use: the message goes into <p id="used-<key>">, and each filled field takes the place
+    of the field with its id (hx-swap-oob). -#}
+{% from "_field.html" import field %}
+{% if problem %}
+<span class="problem">{{ problem|sentence }}</span>
+{% elif shown|selectattr("error")|list %}
+<span class="problem">Filled in, but some values can't be used; see the messages next to
+  them.</span>
+{% else %}
+<span class="saved">Filled in: {{ shown|map(attribute="key")|join(", ") }}. Not saved yet: press
+  Save to keep it.</span>
+{% endif %}
+{% for f in shown %}{{ field(f, oob=true) }}{% endfor %}

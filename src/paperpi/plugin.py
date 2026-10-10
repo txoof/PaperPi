@@ -19,12 +19,14 @@ process (see :mod:`paperpi.runner`); a plugin can't keep anything in memory betw
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from epdlib import Layout, ScreenMode
 from PIL import Image
@@ -32,6 +34,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.fields import FieldInfo
 
 from . import limits
+from .helper import WEB
+
+# Part of the plugin interface too, so plugins import them from here.
+from .helper import Helper as Helper
+from .helper import HelperProblem as HelperProblem
+from .helper import Query as Query
 
 
 class State(StrEnum):
@@ -116,10 +124,9 @@ def setting(
     with a required setting that is not set is not shown; the config check and
     ``paperpi list`` and the web interface's Active Plugins page say which settings it needs.
 
-    ``helper``: the name of a web interface helper for this setting, shown under its field
-    on the settings page, for example ``"location"`` (look up a place's latitude and
-    longitude, M5 part 3c). A name the web interface doesn't know is left out, so the
-    plain field still works. See ``paperpi.web.helpers``.
+    ``helper``: the name of one of the plugin's ``helpers`` (a search, such as finding a
+    place's latitude and longitude), shown under this setting's field on the settings page.
+    See :mod:`paperpi.helper`.
     """
     extra = field.pop("json_schema_extra", None) or {}
     if not isinstance(extra, dict):
@@ -145,7 +152,7 @@ def is_required(info: FieldInfo) -> bool:
 
 
 def helper_of(info: FieldInfo) -> str | None:
-    """The web interface helper a setting names (``setting(helper=...)``), or ``None``."""
+    """The helper a setting names (``setting(helper=...)``), or ``None``."""
     helper = _options(info).get("helper")
     return helper if isinstance(helper, str) else None
 
@@ -351,6 +358,8 @@ class Plugin:
     """Suggested most megabytes in its storage folder (e.g. more for a photo album)."""
     storage_days: int = limits.STORAGE_DAYS
     """Suggested days after which its saved files are removed (0 = keep them)."""
+    helpers: Mapping[str, Helper] = dataclasses.field(default_factory=dict)
+    """Searches for the settings page, by name (see :mod:`paperpi.helper`)."""
 
     def __post_init__(self) -> None:
         problems = []
@@ -374,6 +383,7 @@ class Plugin:
                     )
         if not self.layouts:
             problems.append("needs at least one layout")
+        problems += self._helper_problems()
         if not limits.SHORTEST_REFRESH <= self.refresh <= limits.LONGEST_SETTING:
             problems.append(
                 f"refresh must be between {limits.SHORTEST_REFRESH:g} "
@@ -385,6 +395,31 @@ class Plugin:
             problems.append(f"storage_days must be between 0 and {limits.STORAGE_DAYS_MAX}")
         if problems:
             raise PluginDefinitionError(f"plugin {self.type!r}: " + "; ".join(problems))
+
+    def _helper_problems(self) -> list[str]:
+        problems = []
+        if not isinstance(self.helpers, Mapping):
+            return ["helpers must be a dictionary"]
+        good = isinstance(self.settings, type) and issubclass(self.settings, PluginSettings)
+        own = self.settings.model_fields if good else {}
+        for name, helper in self.helpers.items():
+            if not isinstance(helper, Helper):
+                problems.append(f"helper {name!r} must be a Helper")
+            elif unknown := [k for k in helper.needs if k not in own]:
+                problems.append(f"helper {name!r} needs settings it doesn't have: {unknown}")
+            elif helper.source_link and urlsplit(helper.source_link).scheme not in WEB:
+                problems.append(f"helper {name!r}: source_link must start with http or https")
+        for key, info in own.items():
+            name = helper_of(info)
+            if name is not None and name not in self.helpers:
+                problems.append(f"setting {key!r} names helper {name!r}, which it doesn't have")
+        return problems
+
+    def helper(self, key: str) -> Helper | None:
+        """The helper the setting ``key`` names, or ``None``."""
+        info = self.settings.model_fields.get(key)
+        name = helper_of(info) if info is not None else None
+        return self.helpers.get(name) if name is not None else None
 
     @property
     def default_layout(self) -> str:

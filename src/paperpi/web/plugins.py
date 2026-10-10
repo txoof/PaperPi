@@ -24,8 +24,8 @@ from typing import Any
 from pydantic import ValidationError
 
 from .. import config, example, plugins
-from ..plugin import ID_LENGTH, Plugin, PluginEntry, label
-from . import config_file, forms, preview
+from ..plugin import ID_LENGTH, Plugin, PluginEntry, helper_of, label
+from . import config_file, forms, helpers, preview
 
 #: Plugin types the Plugin Library doesn't offer: ``default`` is PaperPi's own message when
 #: nothing else can be shown, and ``debugging`` is for testing PaperPi.
@@ -177,6 +177,50 @@ class PluginEditor:
         """What a preview of block ``index`` draws with the settings of a sent form: the
         block as Save would write it, and the screen. Nothing is saved. Raises
         :class:`FormErrors` when a value can't be used."""
+        found, checked = self._as_saved(index, plugin_id, form, "drawn")
+        # The screen as it runs now: a new size, mode or type waits for the next start.
+        display = self.display or checked.display
+        width, height = display.layout_size
+        return preview.Job(found, width, height, display.screen_mode)
+
+    def search_job(
+        self, index: int, plugin_id: str, form: Mapping[str, Sequence[str]], key: str, text: str
+    ) -> helpers.Job:
+        """A search with the helper of setting ``key`` of block ``index``, for the typed
+        ``text`` and the settings of a sent form as Save would write them. Nothing is
+        saved. Raises :class:`FormErrors` when a value can't be used."""
+        found, _ = self._as_saved(index, plugin_id, form, "searched for")
+        info = found.plugin.settings.model_fields.get(key)
+        name = helper_of(info) if info is not None else None
+        if name is None:
+            raise config_file.EditError(f"The setting {key!r} has no search.")
+        return helpers.Job(found, key, name, found.plugin.helpers[name], text.strip())
+
+    def filled(
+        self,
+        index: int,
+        plugin_id: str,
+        form: Mapping[str, Sequence[str]],
+        fill: Mapping[str, Sequence[str]],
+    ) -> list[forms.FormField]:
+        """The fields of the settings form of block ``index`` after Use put a choice's
+        ``fill`` (setting and texts) into the sent form, each with its error if the value
+        can't be used. Only the plugin's own settings that the form can change are filled."""
+        plugin, block = self.settings(index, plugin_id)
+        sent = {k: list(v) for k, v in form.items()} | {k: list(v) for k, v in fill.items()}
+        found = forms.read(plugin, block, sent)
+        shown = forms.fields(plugin, block, sent, found.errors)
+        return [
+            f
+            for f in shown
+            if f.key in fill and f.group == "own" and f.kind not in ("secret", "file")
+        ]
+
+    def _as_saved(
+        self, index: int, plugin_id: str, form: Mapping[str, Sequence[str]], what: str
+    ) -> tuple[config.PluginConfig, config.Config]:
+        """Block ``index`` checked with the settings of a sent form, as Save would write
+        them, and the whole checked file. Nothing is saved."""
         path, text = config_file.read(self.path)
         new = _with_settings(text, index, plugin_id, form)
         checked = _parse(new, path.name)
@@ -190,13 +234,10 @@ class PluginEditor:
                 if p.line and place.start < p.line <= place.end
             )
             raise config_file.EditError(
-                "This plugin can't be drawn. Its settings in the config file have a problem: "
+                f"This plugin can't be {what}. Its settings in the config file have a problem: "
                 f"{problems or 'unknown'}"
             )
-        # The screen as it runs now: a new size, mode or type waits for the next start.
-        display = self.display or checked.display
-        width, height = display.layout_size
-        return preview.Job(found, width, height, display.screen_mode)
+        return found, checked
 
     def row(self, index: int, plugin_id: str) -> Row:
         """The block at ``index``, if it still has the ID ``plugin_id``."""

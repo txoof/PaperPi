@@ -2,66 +2,7 @@
 {% set logged_in = true %}
 {% block title %}Settings of {{ row.name }} · PaperPi{% endblock %}
 
-{% macro field(f) %}
-<div class="field{% if f.error %} wrong{% endif %}" id="field-{{ f.key }}">
-  {% if f.kind == "check" %}
-  {# A browser sends nothing for a box that is off, so "false" goes first. #}
-  <input type="hidden" name="{{ f.key }}" value="false">
-  <label class="check"><input type="checkbox" name="{{ f.key }}" value="true"
-    {%- if f.value == "true" %} checked{% endif %}> {{ f.help }} <code>{{ f.key }}</code></label>
-  {% else %}
-  <label for="setting-{{ f.key }}">{{ f.help }}
-    {%- if f.required %} <span class="required">(required)</span>{% endif %}
-    <code>{{ f.key }}</code></label>
-  {% if f.kind == "choice" %}
-  <select id="setting-{{ f.key }}" name="{{ f.key }}">
-    {# Else the browser would pick, and Save would write, the first choice. #}
-    {% if f.value not in f.choices %}
-    <option value="" selected>
-      {%- if f.value %}(not one of the choices: {{ f.value }}){% else %}(not set){% endif %}</option>
-    {% endif %}
-    {% for choice in f.choices %}
-    <option value="{{ choice }}"{% if choice == f.value %} selected{% endif %}>{{ choice }}</option>
-    {% endfor %}
-  </select>
-  {% elif f.kind == "choices" %}
-  {# A browser sends nothing for a list with nothing picked, so an empty value goes first. #}
-  <input type="hidden" name="{{ f.key }}" value="">
-  <div id="setting-{{ f.key }}" class="choices">
-    {% for choice in f.choices %}
-    <label class="check"><input type="checkbox" name="{{ f.key }}" value="{{ choice }}"
-      {%- if choice in f.selected %} checked{% endif %}> {{ choice }}</label>
-    {% endfor %}
-  </div>
-  {% elif f.kind == "number" %}
-  {# A phone's number keys often have no minus, so only for numbers that can't be below 0. #}
-  <input id="setting-{{ f.key }}" name="{{ f.key }}" type="text" value="{{ f.value }}"
-    {%- if f.minimum is not none and f.minimum >= 0 %}
-    inputmode="{{ 'numeric' if f.whole else 'decimal' }}"{% endif %}>
-  {% elif f.kind == "text" %}
-  <input id="setting-{{ f.key }}" name="{{ f.key }}" type="text" value="{{ f.value }}"
-    {%- if f.max_length %} maxlength="{{ f.max_length }}"{% endif %}>
-  {% elif f.kind == "secret" %}
-  <input id="setting-{{ f.key }}" name="{{ f.key }}" type="password" value=""
-    autocomplete="new-password"
-    {%- if f.is_set %} placeholder="Saved. Leave empty to keep it."{% endif %}>
-  {% else %}
-  <p id="setting-{{ f.key }}"><code>{{ f.value or "(not set)" }}</code>
-    <span class="hint">Change this one in the config file.</span></p>
-  {% endif %}
-  {% if f.kind not in ("secret", "file") %}
-  <div class="hint">
-    {%- if f.kind == "number" and (f.minimum is not none or f.maximum is not none) %}
-    {%- if f.minimum is not none %}From {{ f.minimum|number }}{% endif %}
-    {%- if f.maximum is not none %} up to {{ f.maximum|number }}{% endif %}. {% endif %}
-    {%- if f.default %}Default: {{ f.default }}.{% elif f.kind != "choices" %}Empty: not set.{% endif -%}
-  </div>
-  {% endif %}
-  {% endif %}
-  {% if f.error %}<p class="problem">{{ f.error|sentence }}</p>{% endif %}
-  {{ helper_html(f) }}
-</div>
-{% endmacro %}
+{% from "_field.html" import field %}
 
 {% block main %}
 <h1>{{ row.name }}</h1>
@@ -79,12 +20,15 @@
 {% endif %}
 {% for found in row.errors %}<p class="problem">{{ found }}</p>{% endfor %}
 
-<form method="post" action="/plugins/{{ row.index }}/settings" class="settings">
+<form method="post" action="/plugins/{{ row.index }}/settings" class="settings"
+  id="settings-form">
   <input type="hidden" name="id" value="{{ row.id }}">
   {% for f in groups.name %}{{ field(f) }}{% endfor %}
   {% if groups.own %}
   <h2>Settings of this plugin</h2>
-  {% for f in groups.own %}{{ field(f) }}{% endfor %}
+  {% for f in groups.own %}{{ field(f) }}
+  {%- set helper = plugin.helper(f.key) %}{% if helper %}{% include "helper.html" %}{% endif %}
+  {%- endfor %}
   {% endif %}
   <h2>When and how it is shown</h2>
   {% for f in groups.common %}{{ field(f) }}{% endfor %}
@@ -103,6 +47,13 @@
     minute.</p>
   <div id="preview" aria-live="polite"></div>
 </form>
+{# A form of its own for each search box, so Enter searches instead of saving. It sends the
+   settings form's values too. #}
+{% for f in groups.own %}{% if plugin.helper(f.key) %}
+<form id="search-form-{{ f.key }}" hx-post="/plugins/{{ row.index }}/search/{{ f.key }}"
+  hx-include="#settings-form" hx-target="#found-{{ f.key }}"
+  hx-indicator="#search-wait-{{ f.key }}" hx-disabled-elt="#search-button-{{ f.key }}"></form>
+{% endif %}{% endfor %}
 
 <details>
   <summary>Technical information</summary>

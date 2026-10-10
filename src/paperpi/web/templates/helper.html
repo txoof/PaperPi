@@ -1,0 +1,20 @@
+{#- A setting helper's search box, under its field (settings.html). Its input and button belong
+    to the form search-form-<key> after the settings form. -#}
+<div class="helper" id="helper-{{ f.key }}">
+  {% if helper.typed %}
+  <label for="search-{{ f.key }}">{{ helper.prompt }}</label>
+  <div class="search">
+    <input id="search-{{ f.key }}" name="_search" type="search" form="search-form-{{ f.key }}"
+      maxlength="{{ text_limit }}" enterkeyhint="search">
+    <button id="search-button-{{ f.key }}" type="submit" form="search-form-{{ f.key }}">
+      {{- helper.button }}</button>
+  </div>
+  {% else %}
+  <p>{{ helper.prompt }}</p>
+  <button id="search-button-{{ f.key }}" type="submit" form="search-form-{{ f.key }}">
+    {{- helper.button }}</button>
+  {% endif %}
+  <p id="search-wait-{{ f.key }}" class="htmx-indicator">Searching. This can take up to
+    {{ time_limit|number }} seconds.</p>
+  <div id="found-{{ f.key }}" aria-live="polite"></div>
+</div>

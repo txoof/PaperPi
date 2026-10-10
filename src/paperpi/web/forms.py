@@ -74,7 +74,7 @@ class FormField:
     max_length: int | None = None
     error: str = ""
     helper: str | None = None
-    """The web interface helper shown under the field (see :mod:`paperpi.web.helpers`)."""
+    """The name of the plugin's helper shown under the field (see :mod:`paperpi.helper`)."""
     changed: bool = False
     """The config file sets a value that is not the default."""
 
@@ -120,7 +120,7 @@ def fields(
         if key == "layout":
             kind, allowed = "choice", tuple(plugin.layouts)
         value = block.get(key, shown[key])
-        texts = [_text(v) for v in value] if isinstance(value, list | tuple) else [_text(value)]
+        texts = form_texts(value)
         if kind == "file":
             texts = [example.toml_value(value) if value is not None else ""]
             if _holds_secret(info.annotation) and texts[0]:
@@ -202,6 +202,11 @@ def read(plugin: Plugin, block: Mapping[str, Any], form: Mapping[str, Sequence[s
         if example.plain(new) != example.plain(block.get(key)):
             changes[key] = new
     return Read(changes)
+
+
+def form_texts(value: Any) -> list[str]:
+    """``value`` as the texts a form sends for it (several for a list)."""
+    return [_text(v) for v in value] if isinstance(value, list | tuple) else [_text(value)]
 
 
 def _infos(plugin: Plugin) -> dict[str, FieldInfo]:
