@@ -330,6 +330,8 @@ def _run(args: argparse.Namespace) -> int:
             loaded.web,
             reload=scheduler.reload,
             text=None if loaded.from_last_good else loaded.text,
+            state_dir=args.state_dir,
+            display=display,
         )
         if web is not None:
             print(f"web interface on port {web.port}")

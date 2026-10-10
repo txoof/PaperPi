@@ -18,6 +18,10 @@ PREVIEW_LIVE = 45.0
 #: Longest drawing a plugin's sample data may take for a preview.
 PREVIEW_SAMPLE = 10.0
 
+#: How long the Plugin Library's example pictures wait after PaperPi starts before they are
+#: drawn, so the first screen update goes first. Opening the Library page starts them at once.
+LIBRARY_PICTURES_WAIT = 60.0
+
 #: How long a plugin process may take to exit after it has handed over its image.
 PLUGIN_EXIT = 5.0
 

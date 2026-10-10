@@ -12,8 +12,10 @@ Address            What it does
                    in the file, counted from 0, and the plugin's id to check it is
                    still there); ``/plugins/<n>/preview`` draws the settings form's
                    values without saving them (part of the settings page)
-``/library``       Plugin Library: every plugin type; ``/library/<type>`` adds one and
-                   opens its settings
+``/library``       Plugin Library: every plugin type with an example picture
+                   (``/library/pictures/<file>``; ``/library/<type>/picture`` is the
+                   picture's part of the page, asked for again until it is drawn);
+                   ``/library/<type>`` adds one and opens its settings
 ``/static/...``    the style sheet and htmx (a small JavaScript file that updates
                    one part of a page without loading the whole page again)
 =================  ==============================================================
@@ -35,7 +37,7 @@ from typing import Annotated
 from urllib.parse import urlencode, urlsplit
 
 from fastapi import FastAPI, Form, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
@@ -47,6 +49,7 @@ from .config_file import EditError
 from .forms import Read, fields
 from .helpers import helper_html
 from .password import PasswordError, password_problem
+from .pictures import Pictures
 from .plugins import FormErrors, PluginEditor, library, library_item
 from .preview import Busy, Previewer, PreviewFailed
 
@@ -61,12 +64,17 @@ _QueryId = Annotated[str, Query(alias="id")]
 
 
 def create_app(
-    auth: Auth, editor: PluginEditor | None = None, previewer: Previewer | None = None
+    auth: Auth,
+    editor: PluginEditor | None = None,
+    previewer: Previewer | None = None,
+    pictures: Pictures | None = None,
 ) -> FastAPI:
     """The web interface, using ``auth`` for the password and log-in, ``editor`` to
-    change the plugins in the config file and ``previewer`` to draw previews."""
+    change the plugins in the config file, ``previewer`` to draw previews and ``pictures``
+    for the Plugin Library's example pictures (default: none)."""
     editor = editor or PluginEditor(auth.config_file)
     previewer = previewer or Previewer()
+    pictures = pictures or Pictures(None)
     app = FastAPI(title="PaperPi", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
@@ -114,7 +122,7 @@ def create_app(
             "form-action 'self'; base-uri 'none'"
         )
         response.headers["Referrer-Policy"] = "same-origin"
-        if not path.startswith("/static/"):
+        if not path.startswith(("/static/", "/library/pictures/")):
             response.headers["Cache-Control"] = "no-store"
         return response
 
@@ -304,14 +312,36 @@ def create_app(
         values = {"id": plugin_id, "done": done} | ({"hand": "1"} if hand_edits else {})
         return RedirectResponse(f"/plugins/{index}/settings?{urlencode(values)}", 303)
 
+    def library_page(request: Request, status: int = 200, problem: str | None = None):
+        items = library()
+        shown = {item.type: pictures.shown(item.type) for item in items}
+        return page(request, "library.html", status, items=items, shown=shown, problem=problem)
+
     @app.get("/library", response_class=HTMLResponse)
-    def library_page(request: Request):
-        return page(request, "library.html", items=library())
+    def library_list(request: Request):
+        return library_page(request)
+
+    @app.get("/library/pictures/{name}")
+    def library_picture(name: str):
+        found = pictures.path(name)
+        if found is None:
+            return Response("No such picture.", 404)
+        # The name changes with the picture, so the browser may keep it.
+        return FileResponse(
+            found, media_type="image/png", headers={"Cache-Control": "max-age=86400"}
+        )
+
+    @app.get("/library/{plugin_type}/picture", response_class=HTMLResponse)
+    def library_picture_part(request: Request, plugin_type: str):
+        # Only a part of the Library page (htmx), so every answer is a 200.
+        item = library_item(plugin_type)
+        shown = pictures.shown(plugin_type) if item is not None else None
+        return page(request, "picture.html", item=item, picture=shown)
 
     def add_page(request: Request, plugin_type: str, status: int = 200, **values):
         item = library_item(plugin_type)
         if item is None:
-            return page(request, "library.html", 404, items=library(), problem="No such plugin.")
+            return library_page(request, 404, "No such plugin.")
         values.setdefault("name", editor.suggested_name(item))
         return page(request, "add.html", status, item=item, **values)
 

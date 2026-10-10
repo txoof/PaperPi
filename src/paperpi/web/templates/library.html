@@ -7,11 +7,16 @@
 <p>Every plugin that comes with PaperPi. Choose one to add it at the end of
 <a href="/plugins">Active Plugins</a>. The same plugin can be added more than once, with
 different settings (for example the weather for two places).</p>
+{% if shown.values()|select|first %}
+<p class="hint">Each example is drawn at your screen's size with the plugin's sample data
+and default settings, not real data.</p>
+{% endif %}
 <ul class="library">
 {% for item in items %}
   <li>
     <strong>{{ item.type }}</strong>: {{ item.description }}
     {% if item.plugin %}<a href="/library/{{ item.type }}">Add</a>{% endif %}
+    {% if item.plugin %}{% with picture = shown[item.type] %}{% include "picture.html" %}{% endwith %}{% endif %}
   </li>
 {% endfor %}
 </ul>

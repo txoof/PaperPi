@@ -18,6 +18,7 @@ import uvicorn
 from .. import config
 from .app import create_app
 from .auth import Auth
+from .pictures import FOLDER, Pictures, Screen
 from .plugins import PluginEditor
 from .preview import Previewer
 
@@ -36,10 +37,12 @@ class WebServer:
         settings: config.WebSettings,
         sock: socket.socket,
         editor: PluginEditor,
+        pictures: Pictures | None = None,
     ):
         self.auth = auth
         self.editor = editor
         self.previewer = Previewer()
+        self.pictures = pictures or Pictures(None)
         self.settings = settings
         """The settings it was started with; a change of address or port needs a restart."""
         self._socket = sock
@@ -47,7 +50,7 @@ class WebServer:
         """The port it listens on (useful with ``port = 0`` in tests)."""
         self._server = uvicorn.Server(
             uvicorn.Config(
-                create_app(auth, self.editor, self.previewer),
+                create_app(auth, self.editor, self.previewer, self.pictures),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
                 access_log=False,
@@ -70,6 +73,7 @@ class WebServer:
         settings = loaded.web
         self.auth.use(settings)
         self.editor.loaded(loaded.text)
+        self.pictures.use(Screen.of(loaded.display))
         changed = [
             k for k in config.WEB_NEXT_START if getattr(settings, k) != getattr(self.settings, k)
         ]
@@ -81,8 +85,10 @@ class WebServer:
         return self._thread.is_alive()
 
     def stop_previews(self) -> None:
-        """Start no more previews: PaperPi is stopping (see :meth:`Previewer.stop`)."""
+        """Start no more previews or library pictures: PaperPi is stopping (see
+        :meth:`Previewer.stop`)."""
         self.previewer.stop()
+        self.pictures.stop()
 
     def stop(self) -> None:
         self.stop_previews()
@@ -99,11 +105,15 @@ def start(
     *,
     reload: Callable[[], None] | None = None,
     text: str | None = None,
+    state_dir: Path | None = None,
+    display: config.DisplaySettings | None = None,
 ) -> WebServer | None:
     """Start the web interface, or log why it can't start and return ``None``.
 
     ``reload`` makes PaperPi load the config file again (after a change in the web
-    interface); ``text`` is the config file text PaperPi uses now.
+    interface); ``text`` is the config file text PaperPi uses now. The Plugin Library's
+    example pictures are kept in ``state_dir`` and drawn for ``display`` (none without
+    them).
     """
     try:
         sock = _listen(settings.address, settings.port)
@@ -118,8 +128,11 @@ def start(
     editor = PluginEditor(config_file, reload)
     if text is not None:
         editor.loaded(text)
-    server = WebServer(Auth(config_file, settings), settings, sock, editor)
+    pictures = Pictures(state_dir / FOLDER if state_dir is not None else None)
+    server = WebServer(Auth(config_file, settings), settings, sock, editor, pictures)
     server._thread.start()
+    if display is not None:
+        pictures.use(Screen.of(display))
     return server
 
 
