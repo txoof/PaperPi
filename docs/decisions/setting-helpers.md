@@ -54,7 +54,7 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
 
 ### On the settings page
 
-- Under the field: the text, a search box and the button. After a search, the list of choices appears, each with a **Use** button. "Nothing found" comes with a hint (check the spelling, or try a larger place).
+- Under the field: the text, a search box and the button. The search starts with the button or the Enter key, not while the user types (txoof, 2026-10-10): one request per search, which matters for services with a daily limit such as NS. After a search, the list of choices appears, each with a **Use** button. "Nothing found" comes with a hint (check the spelling, or try a larger place).
 - **Use** fills in the form's fields. **Nothing is saved yet**: the user sees the values, can change them, can press Preview, and then Save. The list stays until the next search, so a wrong pick is easy to change.
 - No new JavaScript library: htmx (already shipped) sends the search and puts the values in the fields.
 - Typing the values by hand keeps working. When the service can't be reached, the page says so and the fields are left as they are.
@@ -80,6 +80,6 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
 ## Open questions
 
 To be answered with txoof one at a time:
-1. Does the search start with the button (and Enter), or while the user types?
+1. ~~Does the search start with the button (and Enter), or while the user types?~~ Button and Enter (txoof, 2026-10-10).
 2. Should helpers also work from the command line on the Pi (e.g. `paperpi find <plugin id> "Morrison, Colorado"`, printing the choices as lines to copy into the config file), and if so in these PRs or later?
 3. Should `location` fill in the name shown on the screen when it is empty, as proposed above?
