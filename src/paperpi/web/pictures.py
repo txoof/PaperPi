@@ -1,8 +1,9 @@
 """Example pictures for the Plugin Library: each plugin drawn with its sample data.
 
 See ``docs/decisions/web-interface.md``. The pictures are drawn ahead, in the background,
-at the screen's size and for the screen's type, and saved in ``library-pictures/`` in the
-state folder, so the Library page opens at once (agreed with txoof, M5 part 3b-2).
+at the screen's size (in 256 shades of gray, or in color for a color screen), and saved in
+``library-pictures/`` in the state folder, so the Library page opens at once (agreed with
+txoof, M5 part 3b-2).
 
 A picture's file name holds a fingerprint: a short code made from the plugin's files (the
 name, size and time of last change of each file in its folder, so a change to any of them
@@ -61,8 +62,12 @@ class Screen:
 
     @classmethod
     def of(cls, display: config.DisplaySettings) -> Screen:
-        """The screen plugins draw for with ``display`` (turned when it is rotated)."""
-        return cls(*display.layout_size, display.screen_mode)
+        """What the pictures are drawn for with ``display``: its size (turned when it is
+        rotated), in the best gray (256 shades) so the examples are easy to see on a phone,
+        also for a black-and-white screen (agreed with txoof, 2026-10-10). A color screen
+        keeps its colors."""
+        mode = display.screen_mode
+        return cls(*display.layout_size, mode if mode.has_color else ScreenMode.gray(256))
 
 
 @dataclass(frozen=True)

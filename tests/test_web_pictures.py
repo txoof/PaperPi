@@ -95,8 +95,8 @@ def test_each_plugin_is_drawn_once_with_its_sample_data(tmp_path, make):
     pictures = make(update)
     fake, broken = drawn(pictures, "fake", "broken")
     assert fake.file.startswith("fake-") and fake.file.endswith(".png") and fake.screen == SCREEN
-    image = Image.open(tmp_path / "pics" / fake.file)
-    assert image.size == (300, 200)
+    with Image.open(tmp_path / "pics" / fake.file) as image:
+        assert image.size == (300, 200)
     assert broken.problem.startswith("The plugin is broken:") and not broken.file
     [(plugin_type, context, sample, time_limit)] = update.calls  # not default, not broken
     assert (plugin_type, sample, time_limit) == ("fake", True, 10.0)
@@ -127,7 +127,8 @@ def test_another_screen_is_drawn_again(make):
     until(lambda: pictures.shown("fake").file not in ("", first.file))
     second = pictures.shown("fake")
     assert second.screen == other
-    assert Image.open(pictures.folder / second.file).size == (200, 300)
+    with Image.open(pictures.folder / second.file) as image:
+        assert image.size == (200, 300)
     until(lambda: [p.name for p in pictures.folder.iterdir()] == [second.file])
 
 
@@ -236,9 +237,18 @@ def test_no_folder_means_no_pictures(package):
     assert pictures.shown("fake") is None and pictures.path("fake-0123456789abcdef.png") is None
 
 
+@pytest.mark.parametrize(
+    ("mode", "drawn_in"),
+    [("bw", ScreenMode.gray(256)), ("gray4", ScreenMode.gray(256)), ("rgb", ScreenMode.rgb())],
+)
+def test_pictures_are_in_the_best_gray_or_in_color(mode, drawn_in):
+    display = config.DisplaySettings(type="virtual", width=300, height=200, mode=mode)
+    assert Screen.of(display) == Screen(300, 200, drawn_in)
+
+
 def test_the_screen_is_turned_with_the_display():
     display = config.DisplaySettings(type="virtual", width=300, height=200, rotation=90)
-    assert Screen.of(display) == Screen(200, 300, display.screen_mode)
+    assert Screen.of(display) == Screen(200, 300, ScreenMode.gray(256))
 
 
 def test_a_reload_keeps_the_screen_size_until_the_next_start(tmp_path):
@@ -255,7 +265,9 @@ def test_a_reload_keeps_the_screen_size_until_the_next_start(tmp_path):
         web.use_display(start)
         # As in the scheduler: size and mode wait for the next start, rotation does not.
         web.use_display(start.model_copy(update={"width": 800, "mode": "bw", "rotation": 90}))
-        assert used == [Screen(300, 200, start.screen_mode), Screen(200, 300, start.screen_mode)]
+        gray = ScreenMode.gray(256)
+        assert used == [Screen(300, 200, gray), Screen(200, 300, gray)]
+        assert editor.display.width == 300 and editor.display.rotation == 90  # for previews
     finally:
         web._socket.close()
 
@@ -316,7 +328,10 @@ def test_the_library_shows_drawn_pictures_and_waits_for_the_others(tmp_path, rea
     pictures, name = ready_pictures
     client = make_client(tmp_path, pictures)
     page = html.unescape(client.get("/library").text)
-    assert f'<img src="/library/pictures/{name}" width="300"' in page
+    # The name and the picture open the Add page; there is no separate Add link.
+    assert f'<a href="/library/basic_clock"><img src="/library/pictures/{name}"' in page
+    assert '<a href="/library/basic_clock"><strong>basic_clock</strong></a>' in page
+    assert ">Add<" not in page
     assert "drawn at your screen's size with the plugin's\nsample data" in page
     assert 'hx-get="/library/word_clock/picture"' in page  # not drawn yet
     picture = client.get(f"/library/pictures/{name}")

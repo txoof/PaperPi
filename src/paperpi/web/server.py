@@ -83,13 +83,13 @@ class WebServer:
             log.warning("[web] %s: changes apply at the next start of PaperPi", ", ".join(changed))
 
     def use_display(self, display: config.DisplaySettings) -> None:
-        """Draw the Library pictures for ``display``. As in the scheduler, a change of the
-        screen's type, model, size or mode applies only at the next start, so the pictures
-        keep the values the screen started with."""
+        """Draw previews and the Library pictures for ``display``. As in the scheduler, a
+        change of the screen's type, model, size or mode applies only at the next start, so
+        they keep the values the screen started with."""
         if self.display is not None:
             started = {key: getattr(self.display, key) for key in config.NEXT_START}
             display = display.model_copy(update=started)
-        self.display = display
+        self.display = self.editor.display = display
         self.pictures.use(Screen.of(display))
 
     @property

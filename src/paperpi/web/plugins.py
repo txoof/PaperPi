@@ -105,6 +105,9 @@ class PluginEditor:
         self._reload = reload
         self._applied: str | None = None
         """The file text PaperPi uses now (``None``: not known)."""
+        self.display: config.DisplaySettings | None = None
+        """The ``[display]`` settings the screen uses now (``None``: not known, then
+        previews use the file's)."""
 
     def loaded(self, text: str) -> None:
         """PaperPi loaded the config file ``text`` (at the start or a reload)."""
@@ -190,8 +193,10 @@ class PluginEditor:
                 "This plugin can't be drawn. Its settings in the config file have a problem: "
                 f"{problems or 'unknown'}"
             )
-        width, height = checked.display.layout_size
-        return preview.Job(found, width, height, checked.display.screen_mode)
+        # The screen as it runs now: a new size, mode or type waits for the next start.
+        display = self.display or checked.display
+        width, height = display.layout_size
+        return preview.Job(found, width, height, display.screen_mode)
 
     def row(self, index: int, plugin_id: str) -> Row:
         """The block at ``index``, if it still has the ID ``plugin_id``."""

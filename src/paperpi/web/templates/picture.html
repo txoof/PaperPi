@@ -3,8 +3,9 @@ picture is being drawn, it asks again every few seconds and replaces itself. -#}
 {% if picture is none %}
 {%- elif picture.file %}
 <figure class="picture">
-  <img src="/library/pictures/{{ picture.file }}" width="{{ picture.screen.width }}"
-    height="{{ picture.screen.height }}" alt="Example of {{ item.type }}, drawn with its sample data">
+  <a href="/library/{{ item.type }}"><img src="/library/pictures/{{ picture.file }}"
+    width="{{ picture.screen.width }}" height="{{ picture.screen.height }}"
+    alt="Add {{ item.type }} (example drawn with its sample data)"></a>
 </figure>
 {%- elif picture.problem %}
 <p class="hint picture">No example picture. {{ picture.problem }}</p>

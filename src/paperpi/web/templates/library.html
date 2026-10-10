@@ -4,19 +4,23 @@
 {% block main %}
 <h1>Plugin Library</h1>
 {% if problem %}<p class="problem">{{ problem }}</p>{% endif %}
-<p>Every plugin that comes with PaperPi. Choose one to add it at the end of
+<p>Every plugin that comes with PaperPi. Choose a name or picture to add it at the end of
 <a href="/plugins">Active Plugins</a>. The same plugin can be added more than once, with
 different settings (for example the weather for two places).</p>
 {% if shown.values()|select|first %}
 <p class="hint">Each example picture is drawn at your screen's size with the plugin's
-sample data and default settings, so it doesn't show your own data.</p>
+sample data and default settings, so it doesn't show your own data. Black-and-white and gray
+screens show fewer shades than the example.</p>
 {% endif %}
 <ul class="library">
 {% for item in items %}
   <li>
+    {% if item.plugin %}
+    <a href="/library/{{ item.type }}"><strong>{{ item.type }}</strong></a>: {{ item.description }}
+    {% with picture = shown[item.type] %}{% include "picture.html" %}{% endwith %}
+    {% else %}
     <strong>{{ item.type }}</strong>: {{ item.description }}
-    {% if item.plugin %}<a href="/library/{{ item.type }}">Add</a>{% endif %}
-    {% if item.plugin %}{% with picture = shown[item.type] %}{% include "picture.html" %}{% endwith %}{% endif %}
+    {% endif %}
   </li>
 {% endfor %}
 </ul>
