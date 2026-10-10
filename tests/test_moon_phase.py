@@ -10,7 +10,8 @@ from epdlib import ScreenMode
 from PIL import ImageChops, ImageStat
 
 import paperpi.plugins.moon_phase as moon_phase
-from paperpi import webrequest
+from paperpi import places, webrequest
+from paperpi.helper import Query
 from paperpi.plugin import Context
 from paperpi.plugins.moon_phase import (
     PLUGIN,
@@ -318,3 +319,16 @@ def test_draw_a_day_without_moonset(tmp_path):
 
 def test_moon_only_gets_only_the_moon(tmp_path):
     assert set(draw(SAMPLE, context(tmp_path, layout="moon_only"))) == {"moon"}
+
+
+# --- The place search on the settings page ---------------------------------------------------
+
+
+def test_the_place_search_fills_only_lat_and_lon(monkeypatch):
+    rio = places.Place(1, "Rio de Janeiro", "Rio de Janeiro", "Brazil", -22.9064, -43.1822, 4)
+    monkeypatch.setattr(places, "find_places", lambda text, language: [rio])
+    helper = PLUGIN.helper("lat")
+    choices = helper.find(Query("Rio", PLUGIN.settings(), "pt"))
+    # The moon doesn't need the altitude, and moon_phase shows no place name.
+    assert [c["fill"] for c in choices] == [{"lat": -22.9064, "lon": -43.1822}]
+    assert choices[0]["show"]["Country"] == "Brazil"

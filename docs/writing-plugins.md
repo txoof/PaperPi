@@ -140,6 +140,8 @@ def find_stops(query: Query):
 #     helpers={"stops": Helper(find_stops, prompt="Name of the stop, e.g. Centraal Station")},
 ```
 
+For a latitude and longitude, use PaperPi's ready-made helper instead of writing one: `paperpi.places.location_helper()` searches for places by name (Open-Meteo, in the user's language and in English) and fills in `lat` and `lon`. Pass the names of your settings if they are called something else. If your plugin also has settings for the height (in whole metres) or for the name shown on the screen, pass their names too, e.g. `altitude="height", name="place"` (the name is always replaced). `met_no` uses `location_helper(altitude="altitude", name="place")`, `moon_phase` plain `location_helper()`.
+
 The `debugging` plugin has a helper to try it out: `words` turns each typed word into a choice for its `text` setting.
 
 ## Layouts

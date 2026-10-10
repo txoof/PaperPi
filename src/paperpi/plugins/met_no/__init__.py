@@ -16,6 +16,7 @@ from pydantic import Field
 
 from ... import webrequest
 from ...files import write_atomic
+from ...places import location_helper
 from ...plugin import Context, Plugin, PluginSettings, ready, setting
 from . import barbs, forecast
 from .forecast import Forecast, Hour
@@ -36,10 +37,23 @@ CREDIT = "Data: MET Norway"
 
 class Settings(PluginSettings):
     lat: float | None = setting(
-        None, required=True, ge=-90, le=90, description="Latitude of the place, e.g. 52.52"
+        None,
+        required=True,
+        ge=-90,
+        le=90,
+        helper="location",
+        description="Latitude of the place, e.g. 52.52",
     )
     lon: float | None = setting(
         None, required=True, ge=-180, le=180, description="Longitude of the place, e.g. 13.40"
+    )
+    altitude: int | None = setting(
+        None,
+        ge=-500,
+        le=9000,
+        description="Height of the ground at the place, in whole metres, e.g. 34. Makes the "
+        "temperatures more exact in hills and mountains (else met.no guesses it from its own "
+        "map)",
     )
     place: str = Field(
         "", max_length=60, description="Name shown on the screen, e.g. Berlin (else lat, lon)"
@@ -80,6 +94,8 @@ def fetch(context: Context):
     now = datetime.now(UTC)
     path = context.storage / SAVED
     place = f"{settings.lat:.4f},{settings.lon:.4f}"
+    if settings.altitude is not None:
+        place += f",{settings.altitude}"
     saved = forecast.load(path)
     if saved and saved.place != place:
         saved = None  # the place was changed: the saved forecast is for somewhere else
@@ -101,9 +117,10 @@ def fetch(context: Context):
 
 def download(settings: Settings, place: str, saved: Forecast | None, now: datetime) -> Forecast:
     # met.no asks for at most 4 decimals: more only makes its caching work less well.
-    lat, lon = place.split(",")
+    lat, lon, *altitude = place.split(",")
+    extra = f"&altitude={altitude[0]}" if altitude else ""
     answer = webrequest.get(
-        f"{URL}?lat={lat}&lon={lon}",
+        f"{URL}?lat={lat}&lon={lon}{extra}",
         contact=settings.email,
         if_modified_since=saved.last_modified if saved else None,
     )
@@ -316,4 +333,5 @@ PLUGIN = Plugin(
     draw=draw,
     sample=_sample(),
     refresh=30 * 60,
+    helpers={"location": location_helper(altitude="altitude", name="place")},
 )
