@@ -7,11 +7,14 @@ import threading
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from paperpi import config
-from paperpi.helper import Found, HelperProblem, clean
+from paperpi.helper import Found, Helper, HelperProblem, clean
+from paperpi.plugin import Plugin, PluginSettings, ready, setting
 from paperpi.runner import PluginFailed, PluginTimeout
 from paperpi.web import auth
+from paperpi.web import plugins as web_plugins
 from paperpi.web.app import create_app
 from paperpi.web.helpers import Searcher
 from paperpi.web.plugins import PluginEditor
@@ -53,11 +56,11 @@ def cfg(tmp_path):
     return path
 
 
-def make_client(cfg, search=None):
+def make_client(cfg, search=None, searcher=None):
     editor = PluginEditor(cfg)
-    editor.loaded(CONFIG)
+    editor.loaded(cfg.read_text())
     paperpi_auth = auth.Auth(cfg, config.WebSettings(login=False))
-    searcher = Searcher(search) if search else Searcher()
+    searcher = searcher or (Searcher(search) if search else Searcher())
     app = create_app(paperpi_auth, editor, searcher=searcher)
     return TestClient(app, follow_redirects=False, base_url=PI)
 
@@ -138,7 +141,7 @@ def test_what_is_checked_before_searching(cfg):
     page = search(client, "x", delay="soon")
     assert "Fix these settings first" in page and "<code>delay</code>" in page
     assert "has no search" in client.post("/plugins/0/search/delay", data=FORM).text
-    assert "changed" in search(client, "x", id="other")
+    assert "The config file changed after this page was opened" in search(client, "x", id="o")
     assert not fake.calls
 
 
@@ -180,18 +183,99 @@ def test_use_shows_values_that_cant_be_used(cfg):
 
 
 @pytest.mark.parametrize(
-    "use",
-    ["not json", "[1]", '{"text": "Morrison"}', '{"id": ["other"]}', '{"nope": ["x"]}'],
+    "key, use, message",
+    [
+        ("text", "not json", "This choice can't be used"),
+        ("text", "[1]", "This choice can't be used"),
+        ("text", '{"text": "Morrison"}', "This choice can't be used"),
+        ("text", "[" * 200_000, "This choice can't be used"),  # too long, and nested too deeply
+        ("text", '{"id": ["other"]}', "nothing the form can fill in"),
+        ("text", '{"refresh": ["60"]}', "nothing the form can fill in"),  # a shared setting
+        ("delay", '{"text": ["x"]}', "The setting 'delay' has no search"),
+    ],
 )
-def test_use_refuses_what_a_use_button_doesnt_send(cfg, use):
-    page = html.unescape(
-        make_client(cfg).post("/plugins/0/use/text", data=FORM | {"_use": use}).text
+def test_use_refuses_what_a_use_button_doesnt_send(cfg, key, use, message):
+    sent = FORM | {"_use": use}
+    page = html.unescape(make_client(cfg).post(f"/plugins/0/use/{key}", data=sent).text)
+    assert message in page and "Filled in" not in page
+
+
+def test_no_search_once_paperpi_stops(cfg):
+    fake = FakeSearch([])
+    searcher = Searcher(fake)
+    client = make_client(cfg, searcher=searcher)
+    searcher.stop()
+    assert "PaperPi is stopping" in search(client, "x") and not fake.calls
+
+
+class FinderSettings(PluginSettings):
+    key: SecretStr = setting(SecretStr(""), description="API key")
+    server: str = setting("", helper="servers", description="Music server")
+
+
+FINDER = Plugin(
+    type="finder",
+    description="Finds servers",
+    settings=FinderSettings,
+    layouts={"one": {"column": [{"name": "t", "type": "text"}]}},
+    fetch=lambda context: ready(None),
+    draw=lambda data, context: {},
+    sample=None,
+    refresh=60,
+    helpers={
+        "servers": Helper(
+            lambda query: [], "Finds the servers", "Find servers", typed=False, needs=("key",)
+        )
+    },
+)
+
+
+@pytest.fixture
+def finder(cfg, monkeypatch):
+    """A plugin block (place 1) whose helper needs no typed text but an API key first."""
+    real_load, real_available = web_plugins.plugins.load, web_plugins.plugins.available
+    monkeypatch.setattr(web_plugins.plugins, "available", lambda: [*real_available(), "finder"])
+    monkeypatch.setattr(
+        web_plugins.plugins, "load", lambda t: FINDER if t == "finder" else real_load(t)
     )
-    assert "can't be used" in page or "nothing the form can fill in" in page
-    assert "Filled in" not in page
+    cfg.write_text(CONFIG + '\n[[plugin]]\nid = "finder-1"\ntype = "finder"\n')
+    return cfg
+
+
+def find_servers(client, **form):
+    sent = {"id": "finder-1", "_search": "typed by hand"} | form
+    return html.unescape(client.post("/plugins/1/search/server", data=sent).text)
+
+
+def test_a_helper_without_typed_text_has_only_a_button(finder):
+    page = make_client(finder).get("/plugins/1/settings", params={"id": "finder-1"}).text
+    box = page[page.index('id="helper-server"') :]
+    assert "<p>Finds the servers</p>" in box and ">Find servers</button>" in box
+    assert 'name="_search"' not in box
+
+
+def test_settings_a_helper_needs_come_first(finder):
+    fake = FakeSearch([])
+    client = make_client(finder, fake)
+    assert "Fill in these settings first: key." in find_servers(client)
+    assert not fake.calls
+    find_servers(client, key="TYPED")
+    ((_, name, text, settings, _),) = fake.calls
+    assert (name, text, settings.key.get_secret_value()) == ("servers", "", "TYPED")
+    # An empty secret field keeps the saved key, which is enough.
+    finder.write_text(finder.read_text() + 'key = "SAVED"\n')
+    find_servers(client)
+    assert fake.calls[-1][3].key.get_secret_value() == "SAVED"
 
 
 def test_a_real_search_in_a_plugin_process(cfg):
     page = search(make_client(cfg), "hello world")
     assert "<strong>hello</strong>" in page and "Now: typed" in page
     assert uses(page) == [json.dumps({"text": ["hello"]}), json.dumps({"text": ["world"]})]
+
+
+def test_what_a_search_left_out_goes_to_the_log(cfg, caplog):
+    fake = FakeSearch([{"show": {"Word": "x"}, "wait": 5}])
+    with caplog.at_level("INFO", logger="paperpi.web.helpers"):
+        search(make_client(cfg, fake), "x")
+    assert f"search of {ID} left out: choice kind 'wait'" in caplog.text

@@ -194,19 +194,28 @@ class PluginEditor:
         name = helper_of(info) if info is not None else None
         if name is None:
             raise config_file.EditError(f"The setting {key!r} has no search.")
-        return helpers.Job(found, key, name, found.plugin.helpers[name], text.strip())
+        helper = found.plugin.helpers[name]
+        # A helper without a search box gets no text, also from a form sent by hand.
+        text = text.strip() if helper.typed else ""
+        return helpers.Job(found, key, name, helper, text)
 
     def filled(
         self,
         index: int,
         plugin_id: str,
         form: Mapping[str, Sequence[str]],
+        key: str,
         fill: Mapping[str, Sequence[str]],
     ) -> list[forms.FormField]:
-        """The fields of the settings form of block ``index`` after Use put a choice's
+        """The fields of the settings form of block ``index`` after Use, in the choices of
+        the helper of setting ``key``, put a choice's
         ``fill`` (setting and texts) into the sent form, each with its error if the value
-        can't be used. Only the plugin's own settings that the form can change are filled."""
+        can't be used. Only the plugin's own settings that the form can change are filled;
+        ``fill`` was checked by :func:`paperpi.helper.clean` when the choice was made, and is
+        checked again here like typed values, as a browser can send anything."""
         plugin, block = self.settings(index, plugin_id)
+        if plugin.helper(key) is None:
+            raise config_file.EditError(f"The setting {key!r} has no search.")
         sent = {k: list(v) for k, v in form.items()} | {k: list(v) for k, v in fill.items()}
         found = forms.read(plugin, block, sent)
         shown = forms.fields(plugin, block, sent, found.errors)

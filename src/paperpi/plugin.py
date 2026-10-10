@@ -25,12 +25,12 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 from urllib.parse import urlsplit
 
 from epdlib import Layout, ScreenMode
 from PIL import Image
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr, field_validator
 from pydantic.fields import FieldInfo
 
 from . import limits
@@ -155,6 +155,15 @@ def helper_of(info: FieldInfo) -> str | None:
     """The helper a setting names (``setting(helper=...)``), or ``None``."""
     helper = _options(info).get("helper")
     return helper if isinstance(helper, str) else None
+
+
+def holds_secret(annotation: Any) -> bool:
+    """True when a setting of this type is, or holds, a secret (``SecretStr``)."""
+    if annotation in (SecretStr, SecretBytes):
+        return True
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return any(holds_secret(f.annotation) for f in annotation.model_fields.values())
+    return any(holds_secret(a) for a in get_args(annotation))
 
 
 def is_set(value: Any) -> bool:
@@ -400,8 +409,9 @@ class Plugin:
         problems = []
         if not isinstance(self.helpers, Mapping):
             return ["helpers must be a dictionary"]
-        good = isinstance(self.settings, type) and issubclass(self.settings, PluginSettings)
-        own = self.settings.model_fields if good else {}
+        if not (isinstance(self.settings, type) and issubclass(self.settings, PluginSettings)):
+            return []  # already a problem of its own
+        own = self.settings.model_fields
         for name, helper in self.helpers.items():
             if not isinstance(helper, Helper):
                 problems.append(f"helper {name!r} must be a Helper")

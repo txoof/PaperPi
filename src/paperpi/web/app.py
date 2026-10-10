@@ -353,7 +353,7 @@ def create_app(
         if not fill:
             return page(request, "filled.html", problem="This choice can't be used.", shown=[])
         try:
-            shown = await run_in_threadpool(editor.filled, index, plugin_id, sent, fill)
+            shown = await run_in_threadpool(editor.filled, index, plugin_id, sent, key, fill)
         except EditError as error:
             return page(request, "filled.html", problem=str(error), shown=[])
         if not shown:
@@ -446,9 +446,11 @@ def _settings_form(form) -> tuple[str, dict[str, list[str]]]:
 
 def _fill(text: str) -> dict[str, list[str]]:
     """The settings and texts a Use button sends (``{}`` when they are not in that form)."""
+    if len(text) > limits.HELPER_USE:
+        return {}
     try:
         fill = json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):  # RecursionError: nested very deeply
         return {}
     texts = fill.values() if isinstance(fill, dict) else [None]
     if not all(isinstance(v, list) and all(isinstance(t, str) for t in v) for v in texts):

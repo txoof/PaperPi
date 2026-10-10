@@ -33,6 +33,9 @@ HELPER_TEXT = 100
 #: Most choices a helper's search shows.
 HELPER_CHOICES = 10
 
+#: Most characters a Use button may send (one choice's ``fill``, as JSON).
+HELPER_USE = 20_000
+
 #: How long a plugin process may take to exit after it has handed over its image.
 PLUGIN_EXIT = 5.0
 

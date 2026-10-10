@@ -12,11 +12,11 @@ from typing import Literal
 
 from pydantic import SecretStr
 
-from paperpi.plugin import NOTHING, Plugin, PluginSettings, alert, ready
+from paperpi.plugin import NOTHING, Helper, HelperProblem, Plugin, PluginSettings, alert, ready
 
 Act = Literal[
     "ok", "nothing", "alert", "raise", "hang", "exit", "crash", "kill", "child", "leave_child",
-    "secret", "wrong",
+    "secret", "wrong", "problem",
 ]  # fmt: skip
 
 
@@ -53,7 +53,20 @@ def fetch(context):
         raise ValueError(f"server refused key {context.settings.key.get_secret_value()}")
     if act == "wrong":
         return "not a Fetched"
+    if act == "problem":  # meant for helpers; in an update it is an ordinary error
+        raise HelperProblem("only for searches")
     return ready("OK")
+
+
+def leak(query):
+    """A helper that puts the API key everywhere it can."""
+    key = query.settings.key.get_secret_value()
+    if query.text == "fill":
+        return [{"show": {"Key": "x"}, "fill": {"key": key}}]
+    return {
+        "choices": [{"show": {"Key": key}, "link": {key: f"https://example.org/?key={key}"}}],
+        "note": f"key {key}",
+    }
 
 
 def draw(text, context):
@@ -69,4 +82,5 @@ PLUGIN = Plugin(
     draw=draw,
     sample="SAMPLE",
     refresh=30,
+    helpers={"leak": Helper(leak, "Anything")},
 )

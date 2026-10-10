@@ -105,14 +105,15 @@ hours = 12
 Some settings are hard to fill in by hand, such as a place's latitude and longitude or a stop's code. A plugin can offer a **helper**: a search box under the setting on its settings page. The user types something, PaperPi shows a list of choices, and **Use** fills in the form's fields (nothing is saved until Save). The reasons are in `docs/decisions/setting-helpers.md`.
 
 - A helper is a `paperpi.plugin.Helper` in the plugin's `helpers`, by name. A setting names it with `setting(..., helper="<name>")`; the search box is shown under that setting. The plugin check fails for a name the plugin doesn't have.
-- Its `find(query)` gets a `Query`: `query.text` (what the user typed, at most 100 characters) and `query.settings` (the form's settings, checked as Save checks them; an empty secret field gives the saved secret).
+- Its `find(query)` gets a `Query`: `query.text` (what the user typed, without spaces around it, at most 100 characters; empty for `typed=False`) and `query.settings` (the form's settings, checked as Save checks them; an empty secret field gives the saved secret).
 - It returns a list of choices, or `{"choices": [...], "note": "..."}` with a message for the whole result. Each choice is a dictionary; its keys say what PaperPi does with each value:
-  - `fill`: the plugin's own settings and their values, put into the form by **Use**. Leave a setting out to leave it alone (e.g. a name the user already typed).
+  - `fill`: the plugin's own settings and their values, put into the form by **Use**. Leave a setting out to leave it alone (e.g. a name the user already typed). Only settings the form shows as a field: not secrets (`SecretStr`), and not settings that are changed in the file (such as a list of numbers).
   - `show`: label and text, shown to help the user choose; the first one is the heading.
   - `link`: label and web address (`http` or `https` only), e.g. "See on map".
-  A kind PaperPi doesn't know is left out and logged. At most 10 choices are shown.
+  A kind PaperPi doesn't know is left out and logged. At most 10 choices are shown. Each text is put on one line and cut to 200 characters.
 - `raise HelperProblem("...")` stops with a message for the user (e.g. "The API key was not accepted"). Any other error shows "The search failed"; the details go to PaperPi's log.
 - Each search runs in its own process with a time limit of 30 seconds, like an update. Use `paperpi.webrequest` for web requests.
+- Secret settings (API keys) are replaced with `****` in everything a search returns, and a choice can't `fill` them. A search uses the form's values before they are saved, so never send a saved secret to a web address taken from the settings: someone could type their own address and get the key. Use only the plugin's own servers for that.
 - `Helper` also takes the `prompt` above the box, the `button` text, `typed=False` for a helper that needs no typed text (only a button), `needs` (settings that must be filled in first, e.g. an API key) and `source` and `source_link` (where the answers come from, shown under them; say it when the typed text goes to an outside service).
 
 ```python

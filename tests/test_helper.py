@@ -3,10 +3,10 @@
 import pytest
 from pydantic import SecretStr
 
-from paperpi import limits, plugins, runner
+from paperpi import limits, plugins
 from paperpi.helper import Found, Helper, HelperProblem, clean
 from paperpi.plugin import PluginDefinitionError, PluginSettings, setting
-from paperpi.runner import PluginFailed, PluginTimeout, run_helper
+from paperpi.runner import PluginFailed, PluginTimeout, run_helper, run_update
 
 from .test_plugin import make as make_plugin
 
@@ -58,6 +58,19 @@ def test_unknown_kinds_and_other_links_are_left_out_and_noted():
     )
 
 
+def test_too_many_entries_are_left_out_and_secrets_are_hidden_everywhere():
+    show = {f"Label {n}": "KEY" for n in range(12)}
+    found = clean(
+        {"choices": [choice(show=show, fill={"place": "KEY"})], "note": "the KEY"},
+        SETTINGS,
+        hide=lambda text: text.replace("KEY", "****"),
+    )
+    (only,) = found.choices
+    assert len(only.show) == 10 and {text for _, text in only.show} == {"****"}
+    assert only.fill == {"place": "****"} and found.note == "the ****"
+    assert found.left_out == ("choice 1: show: 2 entries over 10",)
+
+
 def test_texts_are_made_short_and_on_one_line():
     found = clean([{"show": {"Place": "Morrison\n  Colorado", "Long": "x" * 500}}], SETTINGS)
     (_, place), (_, long) = found.choices[0].show
@@ -70,10 +83,12 @@ def test_texts_are_made_short_and_on_one_line():
         ("Morrison", "list of choices"),
         ([["Morrison"]], "choice 1 is not a dictionary"),
         ([{"fill": {"lat": 1}}], "choice 1 has nothing to show"),
-        ([choice(fill={"altitude": 1757})], "fills settings it doesn't have: altitude"),
+        ([choice(fill={"altitude": 1757})], "fills settings it can't fill: altitude"),
         ([choice(fill=[1])], "fill must be a dictionary"),
         ([choice(link="https://osm.org/")], "link must be a dictionary"),
         ({"choices": [], "note": 5}, "note must be text"),
+        ([choice(fill={"lat": {"x": 1}})], "fill lat must be text, a number"),
+        ([choice(fill={"place": "x" * 1001})], "longer than 1000 characters"),
     ],
 )
 def test_a_result_that_breaks_the_rules_is_a_bug_in_the_plugin(result, message):
@@ -143,29 +158,26 @@ def test_run_helper_reports_a_problem_an_error_and_a_hang(words):
         run_helper("debugging", "words", "hang", words, time_limit=1)
 
 
-def test_run_helper_hides_secret_settings_in_its_messages(monkeypatch):
-    class Secret(PluginSettings):
-        key: SecretStr = setting(SecretStr(""))
+# --- With the runner tests' fake plugin, whose "leak" helper shows its API key ---------------
 
-    def leak(query):
-        raise HelperProblem(f"key {query.settings.key.get_secret_value()} refused")
-
-    plugin = make_plugin(settings=Secret, helpers={"leak": Helper(leak, "Key")})
-    settings = Secret(key=SecretStr("TOPSECRET"))
-    # In this process (the fake plugin can't be imported in another one), as the child would.
-    sender = Sender()
-    monkeypatch.setattr(plugins, "load", lambda plugin_type, package: plugin)
-    monkeypatch.setattr(runner.os, "setpgrp", lambda: None)
-    runner._helper_child(sender, "fake", "tests", "leak", "", settings.model_dump())
-    assert sender.sent == [("problem", "key **** refused")]
+FAKES = "tests.fake_plugins"
 
 
-class Sender:
-    def __init__(self):
-        self.sent = []
+def test_a_search_never_shows_or_fills_an_api_key():
+    from .fake_plugins.fake import Settings
 
-    def send(self, message):
-        self.sent.append(message)
+    keyed = Settings(key=SecretStr("TOP/SECRET"))
+    found = run_helper("fake", "leak", "", keyed, package=FAKES)
+    (choice,) = found.choices
+    assert choice.show == (("Key", "****"),)
+    assert choice.links == (("****", "https://example.org/?key=****"),)
+    assert found.note == "key ****"
+    with pytest.raises(PluginFailed, match="fills settings it can't fill: key"):
+        run_helper("fake", "leak", "fill", keyed, package=FAKES)
 
-    def close(self):
-        pass
+
+def test_helper_problem_in_an_update_is_an_ordinary_failure(tmp_path):
+    from .test_runner import context
+
+    with pytest.raises(PluginFailed, match="HelperProblem: only for searches"):
+        run_update("fake", context(tmp_path, "problem"), package=FAKES)

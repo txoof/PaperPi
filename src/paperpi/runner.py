@@ -31,7 +31,7 @@ from pydantic import SecretBytes, SecretStr
 
 from . import limits
 from .helper import Found, HelperProblem, Query
-from .plugin import Context, PluginSettings, State
+from .plugin import Context, PluginSettings, State, holds_secret
 
 log = logging.getLogger(__name__)
 
@@ -240,8 +240,15 @@ def _helper_child(
         from .helper import clean
 
         plugin, checked = _load(plugin_type, package, settings, secrets)
-        result = plugin.helpers[name].find(Query(text, checked))
-        sender.send(("ok", clean(result, list(plugin.settings.model_fields))))
+        try:
+            result = plugin.helpers[name].find(Query(text, checked))
+        except HelperProblem as problem:  # only here: in an update it is an ordinary error
+            sender.send(("problem", _hide(str(problem), secrets)))
+            return
+        # A secret (an API key) can't be filled in, and is never shown or logged.
+        fields = plugin.settings.model_fields.items()
+        fillable = [key for key, info in fields if not holds_secret(info.annotation)]
+        sender.send(("ok", clean(result, fillable, lambda text: _hide(text, secrets))))
 
 
 @contextlib.contextmanager
@@ -252,8 +259,6 @@ def _reporting(sender: Connection) -> Iterator[list[str]]:
     secrets: list[str] = []
     try:
         yield secrets
-    except HelperProblem as problem:
-        sender.send(("problem", _hide(str(problem), secrets)))
     except BaseException as error:  # noqa: BLE001 - report everything, then exit
         reason = _hide(f"{type(error).__name__}: {error}", secrets)
         sender.send(("error", reason, _hide(traceback.format_exc(), secrets)))

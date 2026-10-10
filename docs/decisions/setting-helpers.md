@@ -1,6 +1,6 @@
 # Setting helpers
 
-Status: proposed (M5 part 3c, issue #238). Decided with txoof on 2026-10-10.
+Status: decided with txoof on 2026-10-10 (M5 part 3c, issue #238).
 
 ## Problem
 
@@ -25,7 +25,7 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
 3. **A map to search on** (a small map library such as Leaflet, with map pictures from OpenStreetMap). Rejected by txoof on 2026-10-10: a place or stop is searched once, when the plugin is set up, so a map is too much work and upkeep for it.
 4. **A helper is a plain function of the plugin that returns data (a dictionary per choice); PaperPi shows one standard search box and pick list for all of them.** **Chosen.**
 
-## Decision (proposed)
+## Decision
 
 ### Who does what
 
@@ -57,11 +57,11 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 }
 ```
 
-**Kinds built now** (all four are used by the first helper, `location`):
+**Kinds built now** (three kinds for a choice, plus `note` for the whole result; the first helper, `location`, uses all of them):
 
 | Kind | Where | What PaperPi does with it |
 |---|---|---|
-| `fill` | choice | Settings put into the form when the user presses **Use**. The keys are the plugin's own setting names. PaperPi checks them with the plugin's settings description, as Save does, so a wrong name or value is an error and never a broken setting. Only what is in `fill` changes, so a helper leaves a setting alone by leaving it out (e.g. the name shown on the screen, when the user has already typed one). |
+| `fill` | choice | Settings put into the form when the user presses **Use**. The keys are the plugin's own setting names. PaperPi checks them with the plugin's settings description, as Save does, so a wrong name or value is an error and never a broken setting. Only what is in `fill` changes, so a helper leaves a setting alone by leaving it out (e.g. the name shown on the screen, when the user has already typed one). Only settings the form shows as a field: not secrets, and not settings that are changed in the file. |
 | `show` | choice | Information to help the user pick: label and text, shown in the order given. The first entry is the heading of the choice. |
 | `link` | choice | Web addresses the user can open in a new tab, e.g. "See on map". Only `http` and `https` addresses; others are left out and logged. |
 | `note` | result | A message for the whole result, e.g. "Only the first 10 matches are shown; type more to narrow it down". |
@@ -77,7 +77,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 | `wait` | For logging in to an outside account: show a message, a link and a code ("Open example.com/device on your phone and enter ABCD-1234"), and ask the helper again every few seconds, each call in its own process with its own time limit, until it returns a choice (e.g. a token in a secret setting) or stops with a message. | a calendar or Spotify plugin |
 
 - **A kind PaperPi doesn't know is ignored and logged**, so a plugin written for a newer PaperPi still works on an older one.
-- **All texts are shown as plain text**, so a stop name with odd characters can't change the page.
+- **All texts are shown as plain text**, so a stop name with odd characters can't change the page. Each text is put on one line and cut to 200 characters.
 - What happens after **Use** (such as drawing a preview at once) is the same for every plugin, so the page decides it, not each helper.
 
 ### Where helpers come from
@@ -96,7 +96,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 
 - Under the field: the text, a search box and the button. The search starts with the button or the Enter key, not while the user types (txoof, 2026-10-10): one request per search, which matters for services with a daily limit such as NS. After a search, the list of choices appears, each with a **Use** button. "Nothing found" comes with a hint (check the spelling, or try a larger place).
 - **Use** fills in the form's fields. **Nothing is saved yet**: the user sees the values, can change them, can press Preview, and then Save. The list stays until the next search, so a wrong pick is easy to change.
-- No new JavaScript library: htmx (already shipped) sends the search and puts the values in the fields.
+- No new JavaScript library: htmx (the small script the pages already use) sends the search and puts the values in the fields.
 - Typing the values by hand keeps working. When the service can't be reached, the page says so and the fields are left as they are.
 
 ### Later (described so they fit, not built until a plugin needs them)

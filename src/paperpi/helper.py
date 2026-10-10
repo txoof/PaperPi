@@ -8,6 +8,7 @@ and returns choices: a list of dictionaries, or ``{"choices": [...], "note": "..
 choice is a dictionary whose keys are **kinds** that say what PaperPi does with the value:
 
 - ``fill``: settings put into the form when the user presses Use (nothing is saved yet);
+  only settings the form shows as a field, not secrets or settings changed in the file;
 - ``show``: label and text, shown to help the user choose; the first one is the heading;
 - ``link``: label and web address (``http`` or ``https``) the user can open.
 
@@ -34,6 +35,10 @@ KINDS = ("fill", "show", "link")
 WEB = ("http", "https")
 #: The longest text PaperPi shows from a choice.
 LONGEST_TEXT = 200
+#: Most ``show`` or ``link`` entries of one choice; the others are left out.
+MOST_PAIRS = 10
+#: The longest text a ``fill`` may put into a field.
+LONGEST_FILL = 1000
 
 
 @dataclass(frozen=True)
@@ -101,9 +106,10 @@ class Found:
     """What was left out (kinds PaperPi doesn't know, links that are not ``http``), to log."""
 
 
-def clean(result: Any, settings: Sequence[str]) -> Found:
+def clean(result: Any, settings: Sequence[str], hide: Callable[[str], str] = str) -> Found:
     """Check what a helper's ``find`` returned. ``settings`` are the names a ``fill`` may
-    use. Raises ``TypeError`` for a result that breaks the rules (a bug in the plugin)."""
+    use. ``hide`` is applied to every text, to replace secrets (API keys) with ``****``.
+    Raises ``TypeError`` for a result that breaks the rules (a bug in the plugin)."""
     note: Any = ""
     left_out: list[str] = []
     if isinstance(result, Mapping):
@@ -118,30 +124,51 @@ def clean(result: Any, settings: Sequence[str]) -> Found:
         if not isinstance(raw, Mapping):
             raise TypeError(f"choice {number} is not a dictionary")
         left_out += [f"choice kind {k!r}" for k in raw if k not in KINDS]
-        show = _pairs(raw.get("show", {}), f"choice {number}: show")
+        show = _pairs(raw.get("show", {}), f"choice {number}: show", hide, left_out)
         if not show:
             raise TypeError(f"choice {number} has nothing to show")
-        fill = raw.get("fill", {})
-        if not isinstance(fill, Mapping):
-            raise TypeError(f"choice {number}: fill must be a dictionary")
-        unknown = [str(k) for k in fill if k not in settings]
-        if unknown:
-            raise TypeError(f"choice {number} fills settings it doesn't have: {', '.join(unknown)}")
+        fill = _fill(raw.get("fill", {}), f"choice {number}", settings, hide)
         links = []
-        for label, address in _pairs(raw.get("link", {}), f"choice {number}: link"):
+        for label, address in _pairs(raw.get("link", {}), f"choice {number}: link", hide, left_out):
             if urlsplit(address).scheme in WEB:
                 links.append((label, address))
             else:
                 left_out.append(f"link {address!r} (only http and https)")
-        choices.append(Choice(show, dict(fill), tuple(links)))
+        choices.append(Choice(show, fill, tuple(links)))
     more = len(result) > limits.HELPER_CHOICES
-    return Found(tuple(choices), _short(note), more, tuple(left_out))
+    return Found(tuple(choices), _short(hide(note)), more, tuple(left_out))
 
 
-def _pairs(raw: Any, what: str) -> tuple[tuple[str, str], ...]:
+def _pairs(
+    raw: Any, what: str, hide: Callable[[str], str], left_out: list[str]
+) -> tuple[tuple[str, str], ...]:
     if not isinstance(raw, Mapping):
         raise TypeError(f"{what} must be a dictionary")
-    return tuple((_short(str(k)), _short(str(v))) for k, v in raw.items())
+    if len(raw) > MOST_PAIRS:
+        left_out.append(f"{what}: {len(raw) - MOST_PAIRS} entries over {MOST_PAIRS}")
+    pairs = list(raw.items())[:MOST_PAIRS]
+    return tuple((_short(hide(str(k))), _short(hide(str(v)))) for k, v in pairs)
+
+
+def _fill(
+    raw: Any, what: str, settings: Sequence[str], hide: Callable[[str], str]
+) -> dict[str, Any]:
+    """A choice's ``fill``: plain values (text, numbers, true or false, or lists of them)."""
+    if not isinstance(raw, Mapping):
+        raise TypeError(f"{what}: fill must be a dictionary")
+    unknown = [str(k) for k in raw if k not in settings]
+    if unknown:
+        raise TypeError(f"{what} fills settings it can't fill: {', '.join(unknown)}")
+    fill = {}
+    for key, value in raw.items():
+        items = value if isinstance(value, list | tuple) else [value]
+        if not all(isinstance(v, str | int | float | bool) for v in items):
+            raise TypeError(f"{what}: fill {key} must be text, a number, true or false, or a list")
+        if any(isinstance(v, str) and len(v) > LONGEST_FILL for v in items):
+            raise TypeError(f"{what}: fill {key} is longer than {LONGEST_FILL} characters")
+        texts = [hide(v) if isinstance(v, str) else v for v in items]
+        fill[key] = texts if isinstance(value, list | tuple) else texts[0]
+    return fill
 
 
 def _short(text: str) -> str:
