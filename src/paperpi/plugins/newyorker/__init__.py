@@ -358,7 +358,7 @@ PLUGIN = Plugin(
     sample=Cartoon(
         Texts(
             "“You keep saying you want to be more spontaneous, but have you considered that "
-            "spontaneity might be the problem”",
+            "spontaneity might be the problem?”",
             "Cartoon by Chatwell Gilbert Pennington Thurston (C.G.P.T.)",
             "Monday, October 5",
         ),
