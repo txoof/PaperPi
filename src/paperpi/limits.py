@@ -27,6 +27,14 @@ LIBRARY_PICTURES_WAIT = 60.0
 #: (``docs/decisions/setting-helpers.md``).
 HELPER_SEARCH = 30.0
 
+#: Longest one request to the place search may take (``paperpi.places``), with its retry.
+#: A search may need two requests (the browser's language, then English), and both must fit
+#: in :data:`HELPER_SEARCH`, with time left to start the plugin process.
+PLACE_REQUEST = 12.0
+
+#: Longest the place search may take to connect.
+PLACE_CONNECT = 5.0
+
 #: Most characters the user may type into a helper's search box.
 HELPER_TEXT = 100
 

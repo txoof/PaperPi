@@ -9,7 +9,8 @@ import pytest
 from epdlib import Layout, ScreenMode
 
 import paperpi.plugins.met_no as met_no
-from paperpi import webrequest
+from paperpi import places, webrequest
+from paperpi.helper import Query
 from paperpi.plugin import Context
 from paperpi.plugins.met_no import PLUGIN, Settings, Weather, barbs, draw, fetch, forecast
 from paperpi.plugins.met_no.forecast import Forecast, ForecastError, Hour
@@ -225,6 +226,26 @@ def test_a_changed_place_is_downloaded_again(tmp_path, monkeypatch):
     assert metno.calls[0][1]["if_modified_since"] is None  # not the other place's time
     assert len(fetched.data.forecast.hours) == 3
     assert forecast.load(tmp_path / "forecast.json").place == HERE
+
+
+def test_the_altitude_is_sent_and_belongs_to_the_place(tmp_path, monkeypatch):
+    metno = FakeMetNo(monkeypatch)
+    metno.result = ok(step(0))
+    later = datetime.now(UTC) + timedelta(minutes=20)
+    # A forecast saved without altitude is for another place: it is downloaded again.
+    saved(tmp_path, timedelta(minutes=5), expires=later)
+    fetch(context(tmp_path, altitude=34))
+    assert metno.calls[0][0] == f"{met_no.URL}?lat=52.5200&lon=13.4000&altitude=34"
+    assert forecast.load(tmp_path / "forecast.json").place == f"{HERE},34"
+
+
+def test_the_place_search_fills_altitude_and_place(monkeypatch):
+    rio = places.Place(1, "Rio de Janeiro", "Rio de Janeiro", "Brazil", -22.9064, -43.1822, 4)
+    monkeypatch.setattr(places, "find_places", lambda text, language: [rio])
+    choices = PLUGIN.helper("lat").find(Query("Rio", Settings(), "pt"))
+    assert [c["fill"] for c in choices] == [
+        {"lat": -22.9064, "lon": -43.1822, "altitude": 4, "place": "Rio de Janeiro"}
+    ]
 
 
 def test_a_changed_place_doesnt_use_the_old_forecast_as_fallback(tmp_path, monkeypatch):

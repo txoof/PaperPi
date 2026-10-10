@@ -13,6 +13,7 @@ from PIL import Image
 
 from ... import webrequest
 from ...files import write_atomic
+from ...places import location_helper
 from ...plugin import Context, Plugin, PluginSettings, ready, setting
 from .layouts import LAYOUTS
 
@@ -42,7 +43,12 @@ NAMES = (
 
 class Settings(PluginSettings):
     lat: float | None = setting(
-        None, required=True, ge=-90, le=90, description="Latitude of the place, e.g. 52.52"
+        None,
+        required=True,
+        ge=-90,
+        le=90,
+        helper="location",
+        description="Latitude of the place, e.g. 52.52",
     )
     lon: float | None = setting(
         None, required=True, ge=-180, le=180, description="Longitude of the place, e.g. 13.40"
@@ -222,4 +228,5 @@ PLUGIN = Plugin(
     draw=draw,
     sample=SAMPLE,
     refresh=20 * 60,
+    helpers={"location": location_helper()},
 )

@@ -108,6 +108,9 @@ lat = 52.52
 lon = 13.4
 # Name shown on the screen, e.g. Berlin (else lat, lon)
 place = "Berlin"
+# Height of the ground at the place, in whole metres, e.g. 34. Makes the temperatures more exact in
+# hills and mountains (else met.no guesses it from its own map)
+# altitude =
 # Your own, real email address, sent only to met.no (their terms of service ask for one) (required)
 # email = ""
 # Degrees Celsius or Fahrenheit. One of: "C", "F"
@@ -132,6 +135,9 @@ lat = -22.91
 lon = -43.17
 # Name shown on the screen, e.g. Berlin (else lat, lon)
 place = "Rio"
+# Height of the ground at the place, in whole metres, e.g. 34. Makes the temperatures more exact in
+# hills and mountains (else met.no guesses it from its own map)
+# altitude =
 # Your own, real email address, sent only to met.no (their terms of service ask for one) (required)
 # email = ""
 # Degrees Celsius or Fahrenheit. One of: "C", "F"

@@ -38,7 +38,7 @@ def test_fields_are_in_groups_in_the_agreed_order():
     found = forms.fields(plugins.load("met_no"), WEATHER)
     assert [f.key for f in found] == [
         "name",
-        *["lat", "lon", "place", "email", "temperature", "rain"],
+        *["lat", "lon", "altitude", "place", "email", "temperature", "rain"],
         *["display_time", "refresh", "layout", "level"],
         *["time_limit", "alert_reminder", "alert_max_time", "storage_mb", "storage_days"],
     ]

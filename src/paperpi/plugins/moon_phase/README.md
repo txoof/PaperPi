@@ -31,6 +31,8 @@ met.no gives one answer per place and day. The plugin saves it in its storage fo
 | `lon` | none, required | longitude of the place, e.g. `13.40` |
 | `email` | none, required | your own, real email address, sent only to met.no. met.no's terms of service require contact details from every program, so it can ask before blocking one that misbehaves |
 
+You don't have to look up `lat` and `lon` yourself: on the plugin's settings page in the web interface, type the name of a town or city just above `lat` (e.g. `Addis Ababa`, or `Morrison, Colorado` when several places share a name), press Search, and **Use** next to the right place fills in both (Save keeps them). The search sends only the typed name to [Open-Meteo](https://open-meteo.com/en/docs/geocoding-api) (place data from GeoNames).
+
 It suggests a refresh every 20 minutes.
 
 In the config file (the rest of the file is shown in the main [README](../../../../README.md)):

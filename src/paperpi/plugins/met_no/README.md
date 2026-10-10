@@ -27,9 +27,9 @@ Feathers add up: a long and a short feather is 15 knots; a triangle and two long
 
 ## When met.no can't be reached
 
-"Updated 08:32" at the top is when met.no last confirmed the forecast. After every download the plugin saves the trimmed forecast in its storage folder. If met.no can't be reached, it draws from the saved forecast (still starting at the current hour), and the "Updated" time shows how old it is. A saved forecast older than 6 hours is not used; the update then fails as usual. After a change of `lat` or `lon` the saved forecast is not used: it is for the old place.
+"Updated 08:32" at the top is when met.no last confirmed the forecast. After every download the plugin saves the trimmed forecast in its storage folder. If met.no can't be reached, it draws from the saved forecast (still starting at the current hour), and the "Updated" time shows how old it is. A saved forecast older than 6 hours is not used; the update then fails as usual. After a change of `lat`, `lon` or `altitude` the saved forecast is not used: it is for the old place.
 
-The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfService): it sends your email address (only to met.no) as contact, rounds the coordinates to 4 decimals, asks "has anything changed since my last download?", and doesn't download again before the time met.no's answer gives (at most 1 hour). In practice that is one download about every hour.
+The plugin follows met.no's [terms of service](https://api.met.no/doc/TermsOfService): it sends your email address (only to met.no) as contact, rounds the coordinates to 4 decimals (and sends the altitude, if set), asks "has anything changed since my last download?", and doesn't download again before the time met.no's answer gives (at most 1 hour). In practice that is one download about every hour.
 
 ## Layouts
 
@@ -50,12 +50,15 @@ Every layout shows the place: the `place` setting, or the coordinates when it is
 |---|---|---|
 | `lat` | none, required | latitude of the place, e.g. `52.52` |
 | `lon` | none, required | longitude of the place, e.g. `13.40` |
+| `altitude` | none | height of the ground at the place, in whole metres (-500 to 9000). met.no then corrects the temperatures for it, which matters in hills and mountains; without it, met.no guesses the height from its own map, which is not detailed enough in hills and mountains |
 | `email` | none, required | your own, real email address, sent only to met.no. met.no's terms of service require contact details from every program, so it can ask before blocking one that misbehaves |
 | `place` | `""` | name shown at the top, e.g. `"Berlin"`. Without it, the coordinates are shown ("52.52, 13.40") |
 | `temperature` | `"C"` | `"C"` (Celsius) or `"F"` (Fahrenheit) |
 | `rain` | `"mm"` | `"mm"` or `"inch"` |
 
 Wind is always in knots, because the barbs are drawn in knots.
+
+You don't have to look up `lat`, `lon` and `altitude` yourself: on the plugin's settings page in the web interface, type the name of a town or city just above `lat` (e.g. `Addis Ababa`, or `Morrison, Colorado` when several places share a name), press Search, and **Use** next to the right place fills in `lat`, `lon`, `altitude` and `place` (Save keeps them; you can change the name before saving). The search sends only the typed name to [Open-Meteo](https://open-meteo.com/en/docs/geocoding-api) (place data from GeoNames).
 
 It suggests a refresh every 30 minutes. met.no updates its forecasts about once an hour.
 
