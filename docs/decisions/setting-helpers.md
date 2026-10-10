@@ -61,7 +61,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 
 | Kind | Where | What PaperPi does with it |
 |---|---|---|
-| `fill` | choice | Settings put into the form when the user presses **Use**. The keys are the plugin's own setting names. PaperPi checks them with the plugin's settings description, as Save does, so a wrong name or value is an error and never a broken setting. Only what is in `fill` changes, so a helper leaves a setting alone by leaving it out (e.g. the name shown on the screen, when the user has already typed one). Only settings the form shows as a field: not secrets, and not settings that are changed in the file. |
+| `fill` | choice | Settings put into the form when the user presses **Use**. The keys are the plugin's own setting names. PaperPi checks them with the plugin's settings description, as Save does, so a wrong name or value is an error and never a broken setting. Only what is in `fill` changes, so a helper leaves a setting alone by leaving it out. Only settings the form shows as a field: not secrets, and not settings that are changed in the file. |
 | `show` | choice | Information to help the user pick: label and text, shown in the order given. The first entry is the heading of the choice. |
 | `link` | choice | Web addresses the user can open in a new tab, e.g. "See on map". Only `http` and `https` addresses; others are left out and logged. |
 | `note` | result | A message for the whole result, e.g. "Only the first 10 matches are shown; type more to narrow it down". |
@@ -110,7 +110,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 - The place search uses **Open-Meteo** (`geocoding-api.open-meteo.com`), chosen with txoof on 2026-10-10. No key and no sign-up. It finds towns and cities (not street addresses) and returns region, country, latitude, longitude **and altitude**; Nominatim, which v1 used, returns no altitude. It understands "Morrison, Colorado"; a plain "Morrison" returns 10 towns in several countries, so region and country are shown with each choice.
 - Terms: free for non-commercial use, fewer than 10,000 requests a day. The data is CC BY 4.0 and the place data is from GeoNames, so the page shows "Search by Open-Meteo, place data from GeoNames" with links next to the list.
 - A choice:
-  - `fill`: `lat` and `lon` (4 decimals, about 10 m), `altitude` (whole metres, as met.no asks), and the name shown on the screen (`place` in `met_no`) only when it is still empty, so a name the user typed ("Home", "Cabin") is kept;
+  - `fill`: `lat` and `lon` (4 decimals, about 10 m), `altitude` (whole metres, as met.no asks), and the name shown on the screen (`place` in `met_no`). The name is always replaced: choosing a place is the point of the search, and the user can change the name afterwards (txoof, 2026-10-10, after trying the demo; the first plan filled it only while empty, so it was set once and never again);
   - `show`: place, region, country, altitude;
   - `link`: "See on map" (OpenStreetMap at that point), so the user can check the place without a map in PaperPi.
 - `met_no` gets an optional `altitude` setting (whole metres, -500 to 9000), sent to met.no when it is filled in. This closes issue #176. The example in #176 had a sign mistake: `lon = 84.31` is on the Tibetan plateau, where met.no's 4949 m is right; Atlanta is at `-84.31`.
@@ -126,4 +126,4 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 None. Answered with txoof on 2026-10-10:
 1. The search starts with the button or the Enter key, not while the user types.
 2. The command line comes later, as its own issue, as `paperpi helper met_no.location "Morrison, Colorado"` (see "Later").
-3. The name shown on the screen is filled in only when it is empty. This is decided by the helper (it leaves `place` out of `fill`), not by a rule in PaperPi (see "What a choice is").
+3. The name shown on the screen is always replaced by **Use** (changed after the demo: "only while it is empty" filled it once and never again). Either way it is decided by the helper (what it puts in `fill`), not by a rule in PaperPi (see "What a choice is").
