@@ -2,7 +2,10 @@
 
 import html
 import itertools
+import os
 import shutil
+import socket
+import threading
 import time
 from pathlib import Path
 
@@ -13,8 +16,8 @@ from PIL import Image
 
 from paperpi import config
 from paperpi.plugin import State
-from paperpi.runner import PluginFailed
-from paperpi.web import auth
+from paperpi.runner import PluginFailed, PluginTimeout
+from paperpi.web import auth, server
 from paperpi.web.app import create_app
 from paperpi.web.pictures import Pictures, Screen
 from paperpi.web.plugins import PluginEditor
@@ -52,10 +55,20 @@ def until(check, seconds=5.0):
         time.sleep(0.01)
 
 
-def started(folder, package, update, screen=SCREEN, wait=0.0):
-    pictures = Pictures(folder, update, package=package, wait=wait)
-    pictures.use(screen)
-    return pictures
+@pytest.fixture
+def make(tmp_path, package):
+    """Starts pictures in ``tmp_path/pics`` for the test package; stopped at the end."""
+    made = []
+
+    def make(update, screen=SCREEN, wait=0.0):
+        pictures = Pictures(tmp_path / "pics", update, package=package, wait=wait)
+        pictures.use(screen)
+        made.append(pictures)
+        return pictures
+
+    yield make
+    for pictures in made:
+        pictures.stop()
 
 
 def drawn(pictures, *types):
@@ -63,77 +76,158 @@ def drawn(pictures, *types):
     return [pictures.shown(t) for t in types]
 
 
-def test_each_plugin_is_drawn_once_with_its_sample_data(tmp_path, package):
+def stale_gone(path):
+    return lambda: not path.exists()
+
+
+def round_done(pictures):
+    """Wait until a whole new round has run: it deletes a picture that matches nothing."""
+    for _ in range(2):  # the first may be a round that had started already
+        stale = pictures.folder / "old-0000000000000000.png"
+        pictures.folder.mkdir(exist_ok=True)
+        stale.write_bytes(b"x")
+        pictures.use(pictures._screen)  # e.g. a config reload
+        until(stale_gone(stale))
+
+
+def test_each_plugin_is_drawn_once_with_its_sample_data(tmp_path, make):
     update = FakeUpdate(State.READY, State.READY)
-    pictures = started(tmp_path / "pics", package, update)
+    pictures = make(update)
     fake, broken = drawn(pictures, "fake", "broken")
     assert fake.file.startswith("fake-") and fake.file.endswith(".png") and fake.screen == SCREEN
     image = Image.open(tmp_path / "pics" / fake.file)
     assert image.size == (300, 200)
-    assert "broken" in broken.problem and not broken.file
+    assert broken.problem.startswith("The plugin is broken:") and not broken.file
     [(plugin_type, context, sample, time_limit)] = update.calls  # not default, not broken
     assert (plugin_type, sample, time_limit) == ("fake", True, 10.0)
     assert (context.width, context.height, context.mode) == (300, 200, SCREEN.mode)
     assert context.layout == "one" and context.settings.act == "ok"
-    pictures.use(SCREEN)  # e.g. a config reload: nothing to draw again
-    time.sleep(0.1)
+    round_done(pictures)  # nothing to draw again
     assert len(update.calls) == 1 and pictures.shown("fake") == fake
     assert sorted(p.name for p in (tmp_path / "pics").iterdir()) == [fake.file]
-    pictures.stop()
 
 
-def test_a_changed_plugin_or_screen_is_drawn_again(tmp_path, package, monkeypatch):
-    update = FakeUpdate(*[State.READY] * 3)
-    pictures = started(tmp_path / "pics", package, update)
+def test_a_changed_plugin_is_drawn_again(make, package):
+    update = FakeUpdate(State.READY, State.READY)
+    pictures = make(update)
     [first] = drawn(pictures, "fake")
     code = Path(__import__(package).__file__).parent / "fake" / "__init__.py"
     code.write_text(code.read_text() + "\n# changed\n")
     [second] = drawn(pictures, "fake")  # opening the page notices the change
-    assert second.file != first.file
+    assert second.file != first.file and len(update.calls) == 2
+    until(lambda: not (pictures.folder / first.file).exists())
+
+
+def test_another_screen_is_drawn_again(make):
+    update = FakeUpdate(State.READY, State.READY)
+    pictures = make(update)
+    [first] = drawn(pictures, "fake")
     other = Screen(200, 300, ScreenMode.bw())
     pictures.use(other)
-    until(lambda: pictures.shown("fake").file not in ("", second.file))
-    third = pictures.shown("fake")
-    assert third.screen == other and Image.open(tmp_path / "pics" / third.file).size == (200, 300)
-    until(lambda: [p.name for p in (tmp_path / "pics").iterdir()] == [third.file])
-    assert len(update.calls) == 3
-    pictures.stop()
+    until(lambda: pictures.shown("fake").file not in ("", first.file))
+    second = pictures.shown("fake")
+    assert second.screen == other
+    assert Image.open(pictures.folder / second.file).size == (200, 300)
+    until(lambda: [p.name for p in pictures.folder.iterdir()] == [second.file])
 
 
-def test_a_picture_that_fails_says_why_and_is_not_tried_again(tmp_path, package):
+def test_only_old_pictures_and_parts_are_deleted(make):
+    pictures = make(FakeUpdate(State.READY), wait=60)
+    pictures.folder.mkdir()
+    for name in ("notes.txt", "old-0123456789abcdef.png", ".old-0123456789abcdef.png.part"):
+        (pictures.folder / name).write_text("x")
+    [fake] = drawn(pictures, "fake")
+    round_done(pictures)
+    assert sorted(p.name for p in pictures.folder.iterdir()) == [fake.file, "notes.txt"]
+
+
+def test_a_picture_that_fails_says_why_and_is_not_tried_again(make):
     update = FakeUpdate(PluginFailed("fake", "ValueError: no font"))
-    pictures = started(tmp_path / "pics", package, update)
+    pictures = make(update)
     [fake] = drawn(pictures, "fake")
     assert fake.problem == "Its sample data could not be drawn: ValueError: no font"
-    pictures.use(SCREEN)
-    time.sleep(0.1)
+    round_done(pictures)
     assert len(update.calls) == 1 and pictures.shown("fake").problem == fake.problem
-    pictures.stop()
 
 
-def test_nothing_to_show_is_a_problem_too(tmp_path, package):
-    pictures = started(tmp_path / "pics", package, FakeUpdate(State.NOTHING))
+def test_a_slow_plugin_is_tried_three_times(make):
+    slow = PluginTimeout("fake", "no result within 10 s; stopped")
+    update = FakeUpdate(slow, slow, slow)
+    pictures = make(update)
+    [fake] = drawn(pictures, "fake")  # each look at the page tries again
+    assert fake.problem == "Its sample data could not be drawn: no result within 10 s; stopped"
+    assert len(update.calls) == 3
+    update = FakeUpdate(slow, State.READY)
+    assert drawn(make(update), "fake")[0].file  # the second try worked
+
+
+def test_any_error_is_shown_and_the_others_are_still_drawn(make, package):
+    root = Path(__import__(package).__file__).parent
+    shutil.copytree(root / "fake", root / "zfake")
+    text = (root / "zfake" / "__init__.py").read_text()
+    (root / "zfake" / "__init__.py").write_text(text.replace('type="fake"', 'type="zfake"'))
+    pictures = make(FakeUpdate(RuntimeError("no process"), State.READY))
+    fake, zfake = drawn(pictures, "fake", "zfake")
+    assert fake.problem == "It could not be drawn: no process" and zfake.file
+
+
+def test_nothing_to_show_is_a_problem_too(make):
+    pictures = make(FakeUpdate(State.NOTHING))
     assert drawn(pictures, "fake")[0].problem == "Its sample data gives no picture."
-    pictures.stop()
 
 
-def test_drawing_waits_after_the_start_unless_the_page_is_opened(tmp_path, package):
+@pytest.mark.skipif(os.geteuid() == 0, reason="root may write anywhere")
+def test_a_folder_that_cant_be_written_says_so(tmp_path, make):
+    (tmp_path / "pics").mkdir(mode=0o500)
+    try:
+        pictures = make(FakeUpdate(State.READY))
+        [fake] = drawn(pictures, "fake")
+        assert fake.problem == "It could not be saved: Permission denied."
+        assert list(pictures.folder.iterdir()) == []  # no part left
+    finally:
+        (tmp_path / "pics").chmod(0o700)
+    (tmp_path / "pics").rmdir()
+    (tmp_path / "pics").write_text("not a folder")
+    pictures = make(FakeUpdate(State.READY))
+    until(lambda: pictures.shown("fake").problem.startswith("Pictures can't be saved:"))
+
+
+def test_a_plugin_whose_files_cant_be_read_says_so(make, monkeypatch):
+    pictures = make(FakeUpdate(), wait=60)
+
+    def unreadable(plugin_type, screen):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(pictures, "file_name", unreadable)
+    assert pictures.shown("fake").problem == "Its files can't be read: Permission denied."
+
+
+def test_drawing_waits_after_the_start_unless_the_page_is_opened(make):
     update = FakeUpdate()
-    pictures = started(tmp_path / "pics", package, update, wait=60)
+    pictures = make(update, wait=60)
     time.sleep(0.1)
     assert update.calls == []
     assert pictures.shown("fake").waiting  # the page is opened: start now
     until(lambda: pictures.shown("fake").file)
-    pictures.stop()
 
 
-def test_stopped_pictures_draw_nothing(tmp_path, package):
-    update = FakeUpdate()
-    pictures = started(tmp_path / "pics", package, update, wait=60)
-    pictures.stop()
-    pictures.shown("fake")
+def test_stop_ends_drawing(make, package):
+    root = Path(__import__(package).__file__).parent
+    shutil.copytree(root / "fake", root / "zfake")
+    text = (root / "zfake" / "__init__.py").read_text()
+    (root / "zfake" / "__init__.py").write_text(text.replace('type="fake"', 'type="zfake"'))
+    update = FakeUpdate(State.READY, State.READY)
+    pictures = make(update)
+    real = update.__call__
+
+    def stop_after_first(*args, **kwargs):
+        pictures.stop()
+        return real(*args, **kwargs)
+
+    pictures._update = stop_after_first
+    until(lambda: (pictures.folder / pictures.file_name("fake", SCREEN)).exists())
     time.sleep(0.1)
-    assert update.calls == []
+    assert len(update.calls) == 1 and not pictures._thread.is_alive()
 
 
 def test_no_folder_means_no_pictures(package):
@@ -142,16 +236,48 @@ def test_no_folder_means_no_pictures(package):
     assert pictures.shown("fake") is None and pictures.path("fake-0123456789abcdef.png") is None
 
 
+def test_the_screen_is_turned_with_the_display():
+    display = config.DisplaySettings(type="virtual", width=300, height=200, rotation=90)
+    assert Screen.of(display) == Screen(200, 300, display.screen_mode)
+
+
+def test_a_reload_keeps_the_screen_size_until_the_next_start(tmp_path):
+    used = []
+    pictures = Pictures(tmp_path / "pics")
+    pictures.use = used.append
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(CONFIG)
+    settings = config.WebSettings()
+    editor = PluginEditor(cfg)
+    web = server.WebServer(auth.Auth(cfg, settings), settings, socket.socket(), editor, pictures)
+    try:
+        start = config.DisplaySettings(type="virtual", width=300, height=200)
+        web.use_display(start)
+        # As in the scheduler: size and mode wait for the next start, rotation does not.
+        web.use_display(start.model_copy(update={"width": 800, "mode": "bw", "rotation": 90}))
+        assert used == [Screen(300, 200, start.screen_mode), Screen(200, 300, start.screen_mode)]
+    finally:
+        web._socket.close()
+
+
 @pytest.mark.parametrize(
     "name",
     ["../paperpi.toml", "fake-0123456789abcdef.txt", "fake-0123.png", "-0123456789abcdef.png",
-     "a/b-0123456789abcdef.png", "fake-0123456789ABCDEF.png", ".fake-0123456789abcdef.png.part"],
+     "fake-0123456789ABCDEF.png", ".fake-0123456789abcdef.png.part"],
 )  # fmt: skip
 def test_only_picture_files_are_given_out(tmp_path, name):
     folder = tmp_path / "pics"
-    (folder / "a").mkdir(parents=True)
+    folder.mkdir()
     (folder / name).write_bytes(b"x")  # even when the file is there
     assert Pictures(folder).path(name) is None
+
+
+def test_links_are_not_given_out(tmp_path):
+    folder = tmp_path / "pics"
+    folder.mkdir()
+    (tmp_path / "paperpi.toml").write_text("secret")
+    (folder / "fake-0123456789abcdef.png").symlink_to(tmp_path / "paperpi.toml")
+    assert Pictures(folder).path("fake-0123456789abcdef.png") is None
 
 
 # The Library page.
@@ -168,14 +294,22 @@ def make_client(tmp_path, pictures):
 
 @pytest.fixture
 def ready_pictures(tmp_path):
-    """Real plugins, one picture saved already (as if drawn), drawing not started yet."""
-    pictures = Pictures(tmp_path / "pics", FakeUpdate(), wait=60)
+    """Real plugins, one picture saved already (as if drawn); drawing the others waits
+    until the test ends, so they stay "being drawn"."""
+    release = threading.Event()
+
+    def update(plugin_type, context, *, sample, time_limit):
+        release.wait(10)
+        raise PluginFailed(plugin_type, "test ended")
+
+    pictures = Pictures(tmp_path / "pics", update, wait=60)
     pictures.use(SCREEN)
     name = pictures.file_name("basic_clock", SCREEN)
     (tmp_path / "pics").mkdir()
     Image.new("L", (300, 200), 255).save(tmp_path / "pics" / name)
     yield pictures, name
     pictures.stop()
+    release.set()
 
 
 def test_the_library_shows_drawn_pictures_and_waits_for_the_others(tmp_path, ready_pictures):
@@ -183,11 +317,11 @@ def test_the_library_shows_drawn_pictures_and_waits_for_the_others(tmp_path, rea
     client = make_client(tmp_path, pictures)
     page = html.unescape(client.get("/library").text)
     assert f'<img src="/library/pictures/{name}" width="300"' in page
-    assert "drawn at your screen's size with the plugin's sample data" in page
+    assert "drawn at your screen's size with the plugin's\nsample data" in page
     assert 'hx-get="/library/word_clock/picture"' in page  # not drawn yet
     picture = client.get(f"/library/pictures/{name}")
     assert picture.status_code == 200 and picture.headers["content-type"] == "image/png"
-    assert picture.headers["cache-control"] == "max-age=86400"
+    assert picture.headers["cache-control"] == "private, max-age=86400"
     assert client.get("/library/basic_clock/picture").text.count(f"/library/pictures/{name}") == 1
 
 

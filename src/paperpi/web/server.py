@@ -43,6 +43,8 @@ class WebServer:
         self.editor = editor
         self.previewer = Previewer()
         self.pictures = pictures or Pictures(None)
+        self.display: config.DisplaySettings | None = None
+        """The ``[display]`` settings the screen uses now (see :meth:`use_display`)."""
         self.settings = settings
         """The settings it was started with; a change of address or port needs a restart."""
         self._socket = sock
@@ -73,12 +75,22 @@ class WebServer:
         settings = loaded.web
         self.auth.use(settings)
         self.editor.loaded(loaded.text)
-        self.pictures.use(Screen.of(loaded.display))
+        self.use_display(loaded.display)
         changed = [
             k for k in config.WEB_NEXT_START if getattr(settings, k) != getattr(self.settings, k)
         ]
         if changed:
             log.warning("[web] %s: changes apply at the next start of PaperPi", ", ".join(changed))
+
+    def use_display(self, display: config.DisplaySettings) -> None:
+        """Draw the Library pictures for ``display``. As in the scheduler, a change of the
+        screen's type, model, size or mode applies only at the next start, so the pictures
+        keep the values the screen started with."""
+        if self.display is not None:
+            started = {key: getattr(self.display, key) for key in config.NEXT_START}
+            display = display.model_copy(update=started)
+        self.display = display
+        self.pictures.use(Screen.of(display))
 
     @property
     def running(self) -> bool:
@@ -112,8 +124,8 @@ def start(
 
     ``reload`` makes PaperPi load the config file again (after a change in the web
     interface); ``text`` is the config file text PaperPi uses now. The Plugin Library's
-    example pictures are kept in ``state_dir`` and drawn for ``display`` (none without
-    them).
+    example pictures are kept in ``state_dir`` (without it there are none) and drawn for
+    ``display``, the screen's settings at the start.
     """
     try:
         sock = _listen(settings.address, settings.port)
@@ -132,7 +144,7 @@ def start(
     server = WebServer(Auth(config_file, settings), settings, sock, editor, pictures)
     server._thread.start()
     if display is not None:
-        pictures.use(Screen.of(display))
+        server.use_display(display)
     return server
 
 

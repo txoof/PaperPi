@@ -9,12 +9,18 @@ name, size and time of last change of each file in its folder, so a change to an
 counts), the screen's width, height and type, and the PaperPi and epdlib versions. When
 one of these changes, the old picture no longer matches and a new one is drawn; pictures
 that match no plugin any more are deleted. The files' contents are not read: moon_phase
-alone has 19 MB of images, too much to read at every opening of the page on a Pi 3.
+alone has 19 MB of images, too much to read at every opening of the page on a Pi 3. Only
+files in the plugin's own folder count: a change to PaperPi's shared code (or to epdlib
+without a new version number, as while developing) counts only through the version.
 
 Drawing starts :data:`~paperpi.limits.LIBRARY_PICTURES_WAIT` seconds after PaperPi starts
-(so the first screen update goes first), or at once when the Library page is opened. One
-picture is drawn at a time, each in its own plugin process, as a preview is
-(:func:`paperpi.runner.run_update`), with the plugin's default settings and first layout.
+(so the first screen update goes first), or at once when the Library page is opened or
+the config file is loaded again. One picture is drawn at a time, each in its own plugin
+process, as a preview is (:func:`paperpi.runner.run_update`), with the plugin's default
+settings and first layout, within :data:`~paperpi.limits.PREVIEW_SAMPLE` seconds. A plugin
+that takes longer is tried again, at most :data:`TRIES` times in all (the Pi may just have
+been busy). Any other picture that can't be drawn says why and is not tried again until its
+file name changes or PaperPi starts again, so an open Library page can't keep the Pi busy.
 """
 
 from __future__ import annotations
@@ -32,7 +38,7 @@ from epdlib import ScreenMode
 
 from .. import __version__, config, limits, plugins
 from ..plugin import Context, State
-from ..runner import PluginFailed, run_update
+from ..runner import PluginFailed, PluginTimeout, run_update
 from .plugins import HIDDEN
 from .preview import Update
 
@@ -40,6 +46,9 @@ log = logging.getLogger(__name__)
 
 #: The folder in the state folder that holds the pictures.
 FOLDER = "library-pictures"
+
+#: How often a picture is tried when the plugin takes too long.
+TRIES = 3
 
 
 @dataclass(frozen=True)
@@ -52,6 +61,7 @@ class Screen:
 
     @classmethod
     def of(cls, display: config.DisplaySettings) -> Screen:
+        """The screen plugins draw for with ``display`` (turned when it is rotated)."""
         return cls(*display.layout_size, display.screen_mode)
 
 
@@ -67,6 +77,7 @@ class Shown:
 
     @property
     def waiting(self) -> bool:
+        """Not drawn yet: the page asks again in a moment."""
         return not self.file and not self.problem
 
 
@@ -88,6 +99,8 @@ class Pictures:
         self._wait = wait
         self._screen: Screen | None = None
         self._failed: dict[str, str] = {}  # file name -> why it could not be drawn
+        self._timeouts: dict[str, int] = {}  # file name -> how often it took too long
+        self._problem = ""  # why no picture can be saved at all (the folder)
         self._lock = threading.Lock()
         self._wake = threading.Event()
         self._stopped = threading.Event()
@@ -119,6 +132,8 @@ class Pictures:
             screen = self._screen
         if self.folder is None or screen is None:
             return None
+        if self._problem:
+            return Shown(problem=self._problem, screen=screen)
         try:
             name = self.file_name(plugin_type, screen)
         except OSError as error:
@@ -135,7 +150,8 @@ class Pictures:
         if self.folder is None or not _good_name(name):
             return None
         found = self.folder / name
-        return found if found.is_file() else None
+        # Not a link to another file: only pictures PaperPi saved itself are given out.
+        return found if found.is_file() and not found.is_symlink() else None
 
     def file_name(self, plugin_type: str, screen: Screen) -> str:
         """The file name of ``plugin_type``'s picture for ``screen``: ``<type>-<16 hex
@@ -160,14 +176,16 @@ class Pictures:
             self._wake.clear()
             try:
                 self._draw_all()
-            except Exception:  # noqa: BLE001 - keep the thread; try again at the next wake
-                log.exception("library pictures")
+            except OSError as error:  # the folder can't be made or read
+                log.error("library pictures can't be saved in %s: %s", self.folder, error)
+                self._problem = f"Pictures can't be saved: {error.strerror or error}."
             self._wake.wait()
 
     def _draw_all(self) -> None:
         with self._lock:
             screen = self._screen
         self.folder.mkdir(parents=True, exist_ok=True)
+        self._problem = ""  # e.g. fixed before a config reload
         keep = set()
         for plugin_type in plugins.available(self._package):
             if plugin_type in HIDDEN:
@@ -176,12 +194,17 @@ class Pictures:
                 return
             try:
                 name = self.file_name(plugin_type, screen)
-            except OSError:
+            except OSError:  # keep what it has; the page says its files can't be read
+                keep.update(p.name for p in self.folder.glob(f"{plugin_type}-*.png"))
                 continue
             keep.add(name)
             if not (self.folder / name).is_file() and name not in self._failed:
-                self._draw(plugin_type, name, screen)
-        for old in self.folder.glob("*.png"):
+                try:
+                    self._draw(plugin_type, name, screen)
+                except Exception as error:  # noqa: BLE001 - say why; go on with the others
+                    log.exception("library picture of %s", plugin_type)
+                    self._failed[name] = f"It could not be drawn: {error}"
+        for old in [*self.folder.glob("*.png"), *self.folder.glob(".*.part")]:
             if old.name not in keep:
                 old.unlink(missing_ok=True)
 
@@ -207,14 +230,23 @@ class Pictures:
                 )
             except PluginFailed as error:
                 log.info("library picture of %s: %s", plugin_type, error)
+                tries = self._timeouts[name] = self._timeouts.get(name, 0) + 1
+                if isinstance(error, PluginTimeout) and tries < TRIES:
+                    return  # tried again at the next round (the page asks again)
                 self._failed[name] = f"Its sample data could not be drawn: {error.reason}"
                 return
         if result.state is State.NOTHING or result.image is None:
             self._failed[name] = "Its sample data gives no picture."
             return
         part = self.folder / f".{name}.part"
-        result.image.save(part, format="PNG")
-        part.replace(self.folder / name)  # the page never sees half a file
+        try:
+            result.image.save(part, format="PNG")
+            part.replace(self.folder / name)  # the page never sees half a file
+        except OSError as error:
+            part.unlink(missing_ok=True)
+            self._failed[name] = f"It could not be saved: {error.strerror or error}."
+            log.error("library picture of %s can't be saved: %s", plugin_type, error)
+            return
         log.debug("library picture of %s drawn in %.1f s", plugin_type, result.seconds)
 
 

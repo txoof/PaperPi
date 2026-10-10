@@ -15,7 +15,8 @@ PLUGIN_UPDATE_MAX = 600.0
 #: limit, if that is shorter). Then the preview draws the sample data instead.
 PREVIEW_LIVE = 45.0
 
-#: Longest drawing a plugin's sample data may take for a preview.
+#: Longest drawing a plugin's sample data may take for a preview or a Plugin Library example
+#: picture.
 PREVIEW_SAMPLE = 10.0
 
 #: How long the Plugin Library's example pictures wait after PaperPi starts before they are

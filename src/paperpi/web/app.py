@@ -328,7 +328,7 @@ def create_app(
             return Response("No such picture.", 404)
         # The name changes with the picture, so the browser may keep it.
         return FileResponse(
-            found, media_type="image/png", headers={"Cache-Control": "max-age=86400"}
+            found, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"}
         )
 
     @app.get("/library/{plugin_type}/picture", response_class=HTMLResponse)

@@ -7,7 +7,7 @@ picture is being drawn, it asks again every few seconds and replaces itself. -#}
     height="{{ picture.screen.height }}" alt="Example of {{ item.type }}, drawn with its sample data">
 </figure>
 {%- elif picture.problem %}
-<p class="hint picture">No example picture: {{ picture.problem|sentence }}</p>
+<p class="hint picture">No example picture. {{ picture.problem }}</p>
 {%- else %}
 <p class="hint picture" hx-get="/library/{{ item.type }}/picture" hx-trigger="load delay:3s"
   hx-swap="outerHTML">Drawing the example picture…</p>
