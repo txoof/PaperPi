@@ -61,6 +61,8 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
 
 ### Later (described so they fit, not built until a plugin needs them)
 
+- **On the command line** (txoof, 2026-10-10: later, as its own issue): `paperpi helper <plugin type>.<helper> "<text>"`, e.g. `paperpi helper met_no.location "Morrison, Colorado"`. It prints the choices with the lines to copy into the plugin's block in the config file. It names the plugin type, not a plugin `id`, so it works before the plugin is in the config file. To decide in that issue: how a helper that needs other settings first (the NS API key) gets them, e.g. from a plugin block in the config file or typed after the text.
+
 - **Logging in to an outside account:** a helper may return a **step** instead of choices: a message with a link and a code ("Open example.com/device on your phone and enter ABCD-1234"). PaperPi then calls the helper again every few seconds, each call in its own process with its own time limit, until it returns a choice (the token, which fills a secret setting) or stops with a message. The rest of the structure stays the same.
 - **Sandboxed plugin pages** (option 2 in its safe form), if a plugin ever needs more than a search box and a list.
 
@@ -81,5 +83,5 @@ v2 so far: a setting can name a helper (`setting(..., helper="location")`), and 
 
 To be answered with txoof one at a time:
 1. ~~Does the search start with the button (and Enter), or while the user types?~~ Button and Enter (txoof, 2026-10-10).
-2. Should helpers also work from the command line on the Pi (e.g. `paperpi find <plugin id> "Morrison, Colorado"`, printing the choices as lines to copy into the config file), and if so in these PRs or later?
+2. ~~Should helpers also work from the command line on the Pi, and if so in these PRs or later?~~ Later, as its own issue, in the form `paperpi helper met_no.location "Morrison, Colorado"` (txoof, 2026-10-10; see "Later").
 3. Should `location` fill in the name shown on the screen when it is empty, as proposed above?
