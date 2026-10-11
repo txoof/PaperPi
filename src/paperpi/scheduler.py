@@ -53,10 +53,26 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
 - When no plugin is ready to show (e.g. the first start after installing, with the default
   config), the splash screen stays on screen until one is, so the web address is there to
   set PaperPi up. If it fails, the ``default`` plugin says that no plugin is ready to show.
+- The web interface (and later buttons on the frame) can ask for:
+
+  =============  ======================================================================
+  Show now       One extra turn of the plugin's full ``display_time``, also over an alert
+                 or interrupt; then the order goes on as planned. Without a picture, it
+                 is updated at once and its turn starts when the picture is ready.
+  Skip to next   The turn on screen ends. An alert is dismissed; an interrupt stays away
+                 until its picture changes (e.g. the next song).
+  Refresh        The plugin on screen is updated at once, and its picture is drawn in full
+                 after a clear, also when it did not change.
+  Try again now  A failing plugin is updated at once; a paused screen is tried at once.
+  Dismiss        The alert of a plugin is dismissed.
+  =============  ======================================================================
+
+  :attr:`Scheduler.summary` tells what is on screen, what comes next and how each plugin
+  is doing.
 
 One loop (:meth:`Scheduler.run`) makes every decision, in one thread, so two decisions can
-never happen at the same moment. Finished updates and screen writes, "stop", "reload" and
-"dismiss" reach it as events in one queue. The loop sleeps until the next event or the next
+never happen at the same moment. Finished updates and screen writes, "stop", "reload" and the
+requests above reach it as events in one queue. The loop sleeps until the next event or the next
 moment something is due, and at least every :data:`~paperpi.limits.HEALTH_REPORT` seconds it
 reports "still running" (:mod:`paperpi.health`), so a stuck loop is noticed and PaperPi
 restarted. The clock, the executor (what runs the updates) and the writer (what runs the
@@ -75,7 +91,7 @@ import time
 from collections.abc import Callable
 from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
 
@@ -148,8 +164,67 @@ class _Dismiss:
     plugin_id: str
 
 
+@dataclass(frozen=True)
+class _ShowNow:
+    plugin_id: str
+
+
+@dataclass(frozen=True)
+class _TryAgain:
+    plugin_id: str | None
+    """``None``: the screen."""
+
+
 _STOP = "stop"
 _RELOAD = "reload"
+_SKIP = "skip"
+_REFRESH = "refresh"
+
+
+@dataclass(frozen=True)
+class PluginSummary:
+    """How one ``[[plugin]]`` block is doing, for the web interface."""
+
+    id: str
+    status: str
+    """"on_screen"; "next" and "rotation" (takes turns); "waiting" (nothing to show now: no
+    picture yet, or an alert or interrupt with nothing); "dismissed" (an alert dismissed,
+    or an interrupt skipped); "paused" (left out after failures); "off"; "needs_settings"."""
+    picture: Image.Image | None = None
+    """Its latest picture, kept after a failure."""
+    drawn_at: datetime | None = None
+    shows_at: datetime | None = None
+    """"next" and "rotation": about when its turn starts, when nothing comes in between."""
+    paused_until: datetime | None = None
+    error: str | None = None
+    """Why its last update failed (``None`` after one that worked)."""
+    missing: tuple[str, ...] = ()
+    """Required settings that are not set yet."""
+
+
+@dataclass(frozen=True)
+class Summary:
+    """What is on screen and what comes next. Made by the loop; other threads only read it."""
+
+    on_screen: str | None = None
+    """The ID of the plugin whose picture is on screen (the built-in ones: "built-in-splash",
+    "built-in-clock", "built-in-default")."""
+    since: datetime | None = None
+    """When the turn on screen started."""
+    picture: Image.Image | None = None
+    """The picture on screen, upright as people see it (before ``[display] rotation``)."""
+    extra: bool = False
+    """The turn on screen is an extra one (Show now)."""
+    alert: bool = False
+    """An alert is on screen (Skip and Dismiss alert dismiss it)."""
+    next: str | None = None
+    next_at: datetime | None = None
+    screen: str | None = None
+    """``None`` before the first write, then "ok", "failing" or "paused"."""
+    screen_retry_at: datetime | None = None
+    """While the screen is paused: when it is tried again."""
+    plugins: tuple[PluginSummary, ...] = ()
+    """Every ``[[plugin]]`` block but ``default``, in config order."""
 
 
 @dataclass(eq=False)
@@ -177,6 +252,13 @@ class _Slot:
     waits_for: _Slot | None = None
     """After a reload: the old version of this plugin, still updating. This one starts
     when that update has finished, so two updates never use the same storage folder."""
+    picture: Image.Image | None = None
+    """The latest image it made, kept when it has nothing or fails (for the web interface)."""
+    drawn_at: datetime | None = None
+    error: str | None = None
+    """Why its last update failed; ``None`` after one that worked."""
+    skipped: Image.Image | None = None
+    """Interrupt plugins: the image skipped (Skip to next); not shown until its image changes."""
 
     @property
     def id(self) -> str:
@@ -285,7 +367,27 @@ class Scheduler:
         self._reloading: threading.Thread | None = None
         """The thread reading the config, while it runs."""
         self._checked = False
+        self._extra: _Slot | None = None
+        """Show now: the plugin that gets an extra turn, once it has a picture."""
+        self._extra_on = False
+        """The extra turn has begun."""
+        self._skip = False
+        """Skip to next was asked for: done at the next choice."""
+        self._turn_over = False
+        """The turn on screen ends now (Skip, or the end of an extra turn)."""
+        self._refresh: _Slot | None = None
+        """Refresh was asked for: this plugin's next picture is drawn in full, after a clear."""
+        self._clean_next = False
+        """The next write clears the screen first."""
+        self._sending: tuple[str, Image.Image] | None = None
+        """The plugin and (upright) image of the running write."""
+        self._on_screen: tuple[str, Image.Image] | None = None
+        """The plugin and (upright) image of the last write that worked."""
+        self._plugins: list[PluginConfig] = []
+        """Every ``[[plugin]]`` block but ``default``, also the ones not shown."""
         self._apply(config)
+        self.summary = self._summarize(self.clock.monotonic())
+        """What is on screen and what comes next; replaced as a whole by the loop."""
 
     # Called from other threads or signal handlers: they only put an event in the queue.
     # SimpleQueue.put is safe to call from a signal handler.
@@ -299,8 +401,24 @@ class Scheduler:
         self._events.put(_RELOAD)
 
     def dismiss(self, plugin_id: str) -> None:
-        """Dismiss the alert of the plugin with ID ``plugin_id`` (from the web interface, M5)."""
+        """Dismiss the alert of the plugin with ID ``plugin_id``."""
         self._events.put(_Dismiss(plugin_id))
+
+    def show_now(self, plugin_id: str) -> None:
+        """Give the plugin with ID ``plugin_id`` one extra turn, as soon as it has a picture."""
+        self._events.put(_ShowNow(plugin_id))
+
+    def skip(self) -> None:
+        """End the turn on screen."""
+        self._events.put(_SKIP)
+
+    def refresh(self) -> None:
+        """Update the plugin on screen at once, and draw its picture in full."""
+        self._events.put(_REFRESH)
+
+    def try_again(self, plugin_id: str | None = None) -> None:
+        """Update a failing plugin at once; ``None``: try a paused screen at once."""
+        self._events.put(_TryAgain(plugin_id))
 
     @property
     def on_screen(self) -> str | None:
@@ -323,6 +441,7 @@ class Scheduler:
                 self._report(now)
                 self._start_due(now)
                 self._show(now)
+                self.summary = self._summarize(self.clock.monotonic())
                 event = self.clock.wait(self._events, self._wait_time(self.clock.monotonic()))
                 # Handle every event that is already waiting, then decide once, so updates
                 # that finish together don't each cause a screen write.
@@ -350,10 +469,18 @@ class Scheduler:
         elif isinstance(event, _Written):
             self._written(event, now)
         elif isinstance(event, _Dismiss):
-            for slot in self._slots:
-                if slot.id == event.plugin_id and slot.level == "alert":
-                    slot.dismissed_at = now
-                    log.info("alert %r dismissed", slot.id)
+            slot = self._find(event.plugin_id)
+            if slot is not None and slot.level == "alert":
+                slot.dismissed_at = now
+                log.info("alert %r dismissed", slot.id)
+        elif isinstance(event, _ShowNow):
+            self._show_now(event.plugin_id, now)
+        elif event == _SKIP:
+            self._skip = True
+        elif event == _REFRESH:
+            self._ask_refresh(now)
+        elif isinstance(event, _TryAgain):
+            self._try_again(event.plugin_id, now)
         elif event == _RELOAD and self._reload is not None:
             try:
                 new = self._load_with_time_limit()
@@ -364,6 +491,65 @@ class Scheduler:
                 log.error("config file can't be used; the old settings keep running")
                 return
             self._apply(new)
+
+    def _find(self, plugin_id: str) -> _Slot | None:
+        """The plugin with this ID, when it is shown (switched on, with its settings)."""
+        return next((slot for slot in self._slots if slot.id == plugin_id), None)
+
+    def _show_now(self, plugin_id: str, now: float) -> None:
+        slot = self._find(plugin_id)
+        if slot is None:
+            log.warning("show now: no plugin %r is switched on and ready to show", plugin_id)
+            return
+        log.info("show now: %r", slot.id)
+        self._extra, self._extra_on = slot, False
+        self._starting = False  # the splash screen at start ends
+        if not slot.has_image and not slot.running:
+            slot.due = now  # its picture first (also when it is left out after failures)
+
+    def _ask_refresh(self, now: float) -> None:
+        slot = self._current
+        if slot is None:
+            return
+        if slot in self._slots:
+            self._refresh = slot  # drawn in full when the update has finished
+            if not slot.running:
+                slot.due = now
+        else:
+            # A built-in one (splash screen, clock, default): draw its picture again.
+            self._redraw_in_full()
+            self._clean_next = True
+
+    def _try_again(self, plugin_id: str | None, now: float) -> None:
+        if plugin_id is None:
+            if self._retry_at is not None:
+                self._retry_at = None
+                self._change = partial(self.screen.retry_now, fresh=True)
+            if self._write_failures:
+                self._attempted = None  # write again at once
+            return
+        slot = self._find(plugin_id)
+        if slot is not None and slot.failures and not slot.running:
+            slot.due = now
+
+    def _skip_turn(self, now: float) -> None:
+        current = self._current
+        if current is None:
+            return
+        if current is self._extra:
+            self._end_extra()
+        elif current is self._splash:
+            self._starting = False  # stays while no plugin is ready to show
+        elif current.level == "alert" and current in self._slots:
+            current.dismissed_at = now
+            log.info("alert %r dismissed (skip)", current.id)
+        elif current.level == "interrupt" and current in self._slots:
+            current.skipped = current.image
+        else:
+            self._turn_over = True
+
+    def _end_extra(self) -> None:
+        self._extra, self._extra_on, self._turn_over = None, False, True
 
     def _report(self, now: float) -> None:
         # Only this loop reports, so the reports stop when the loop is stuck, for example
@@ -392,6 +578,8 @@ class Scheduler:
                     changed.state, changed.image = slot.state, slot.image
                     changed.alert_since, changed.dismissed_at = slot.alert_since, slot.dismissed_at
                     changed.expired, changed.reported = slot.expired, slot.reported
+                    changed.picture, changed.drawn_at = slot.picture, slot.drawn_at
+                    changed.error, changed.skipped = slot.error, slot.skipped
                     if redraw:
                         # The old image has the wrong size or colours. The screen keeps its
                         # picture until the new images are ready.
@@ -400,8 +588,13 @@ class Scheduler:
                         changed.due, changed.waits_for = math.inf, slot
                     if slot is self._current:
                         self._current = changed
+                    if slot is self._extra:
+                        self._extra = changed
                 slot = changed
             slots.append(slot)
+        if self._extra is not None and self._extra not in slots:
+            self._extra, self._extra_on = None, False  # switched off or removed
+        self._plugins = [p for p in config.plugins if p.plugin.type != "default"]
         ids = [slot.id for slot in slots]
         if self._last_rotation is not None and self._last_rotation not in ids:
             # The plugin shown last was removed: go on after the one before it.
@@ -556,9 +749,16 @@ class Scheduler:
                     waiting.waits_for, waiting.due = None, now
             return
         slot.reported = True
+        if slot is self._refresh:
+            self._refresh = None
+            if event.error is None and slot is self._current:
+                self._redraw_in_full()
+                self._clean_next = True
         if event.error is not None:
             slot.failures += 1
+            slot.error = str(event.error)
             slot.state, slot.image = State.NOTHING, None
+            self._extra_without_picture(slot)
             if slot.failures >= limits.FAILURES_BEFORE_LEFT_OUT:
                 slot.due = now + limits.LEFT_OUT
                 log.warning(
@@ -572,18 +772,28 @@ class Scheduler:
                 slot.due = self._next_update(slot, now)
                 log.warning("plugin %r failed: %s", slot.id, event.error)
             return
-        slot.failures = 0
+        slot.failures, slot.error = 0, None
         if slot is self._current and self._write_failures:
             self._attempted = None  # the last screen write failed: try again with this update
         slot.state = event.result.state
         slot.image = None if slot.state is State.NOTHING else event.result.image
         slot.due = self._next_update(slot, now)
+        if slot.has_image:
+            slot.picture, slot.drawn_at = slot.image, self.clock.now()
+        else:
+            slot.skipped = None
+            self._extra_without_picture(slot)
         if slot.level == "alert":
             if not slot.has_image:
                 slot.alert_since = slot.dismissed_at = None
                 slot.expired = False
             elif slot.alert_since is None:
                 slot.alert_since = now  # a new alert
+
+    def _extra_without_picture(self, slot: _Slot) -> None:
+        if slot is self._extra and not self._extra_on:
+            log.warning("show now: %r has no picture to show", slot.id)
+            self._extra = None
 
     def _next_update(self, slot: _Slot, now: float) -> float:
         refresh = slot.config.refresh
@@ -618,13 +828,16 @@ class Scheduler:
         if self._retry_at is not None and now >= self._retry_at:
             self._retry_at = None
             self._attempted = None  # the screen watchdog allows a new try
+        if self._skip:
+            self._skip = False
+            self._skip_turn(now)
         chosen, new_turn = self._choose(now)
         if chosen is None:
             return
         if not new_turn and self._near_end_of_turn(now):
             # The next plugin takes over before this image would be finished drawing.
             return
-        if chosen.level == "rotation" and chosen in self._slots:
+        if chosen.level == "rotation" and chosen in self._slots and chosen is not self._extra:
             self._last_rotation = chosen.id
         self._current = chosen
         paused = self._retry_at is not None
@@ -641,20 +854,47 @@ class Scheduler:
             chosen = self._choose_splash(now)
             if chosen is not None:
                 return chosen
+        extra = self._choose_extra(now)
+        if extra is not None:
+            return extra
+        over, self._turn_over = self._turn_over, False
+        current = None if over else self._current
         alerts = [s for s in self._slots if s.level == "alert" and self._alert_active(s, now)]
         if alerts:
-            return self._take_turns(alerts, now)
-        interrupts = [s for s in self._slots if s.level == "interrupt" and s.has_image]
+            return self._take_turns(alerts, now, current)
+        interrupts = [s for s in self._slots if s.level == "interrupt" and _interrupting(s)]
         if interrupts:
-            return self._take_turns(interrupts, now)
+            return self._take_turns(interrupts, now, current)
         rotation = [s for s in self._slots if s.level == "rotation" and s.has_image]
         if rotation:
-            if self._current not in rotation:
-                # Back from an interrupt, or the plugin on screen has nothing now: go on
-                # with the next plugin after the one shown last.
-                return self._next(rotation, self._last_rotation), True
-            return self._take_turns(rotation, now)
+            if current not in rotation:
+                # Back from an interrupt or an extra turn, after Skip, or the plugin on
+                # screen has nothing now: go on with the next plugin after the one shown last.
+                chosen = self._next(rotation, self._last_rotation)
+                if over and chosen is self._current and len(rotation) > 1:
+                    chosen = self._next(rotation, chosen.id)  # it just had its turn
+                return chosen, True
+            return self._take_turns(rotation, now, current)
         return self._choose_idle(now), True
+
+    def _choose_extra(self, now: float) -> tuple[_Slot, bool] | None:
+        """Show now: the extra turn, or ``None`` when there is none (or it just ended)."""
+        slot = self._extra
+        if slot is None:
+            return None
+        if self._extra_on:
+            if (
+                slot is self._current
+                and slot.has_image
+                and now - self._turn_start < slot.config.entry.display_time
+            ):
+                return slot, False
+            self._end_extra()
+            return None
+        if not slot.has_image:
+            return None  # waiting for its picture
+        self._extra_on = True
+        return slot, True
 
     def _choose_splash(self, now: float) -> tuple[_Slot | None, bool] | None:
         """The splash screen at start, or while no plugin is ready to show; ``None`` when
@@ -676,9 +916,10 @@ class Scheduler:
         self._starting = False
         return None
 
-    def _take_turns(self, group: list[_Slot], now: float) -> tuple[_Slot, bool]:
-        """Keep the plugin on screen until its turn is over, then the next one in ``group``."""
-        current = self._current
+    def _take_turns(
+        self, group: list[_Slot], now: float, current: _Slot | None
+    ) -> tuple[_Slot, bool]:
+        """Keep ``current`` on screen until its turn is over, then the next one in ``group``."""
         if current not in group:
             return group[0], True
         if now - self._turn_start < current.config.entry.display_time:
@@ -739,12 +980,14 @@ class Scheduler:
     def _write(self, chosen: _Slot, new_turn: bool, now: float) -> None:
         image = chosen.image
         self._attempted = image
+        self._sending = (chosen.id, image)
         self._writing = True
         rotation = self.display.rotation
         # Rotation turns the picture clockwise.
         image = image.rotate(-rotation, expand=True) if rotation else image
         every = self.display.clean_every
-        clean = bool(every) and now - self._last_clean >= every
+        clean = self._clean_next or (bool(every) and now - self._last_clean >= every)
+        self._clean_next = False
         fast = not clean and self._shown_by == chosen.id
         change, self._change = self._change, None
         job = (self.clock.monotonic(), new_turn, chosen.id, fast, clean, change, self._generation)
@@ -821,9 +1064,98 @@ class Scheduler:
             self._write_failures = 0
         self._retry_at = None
         self._last_written = now
+        self._on_screen = self._sending
         self.write_seconds = event.seconds
         if event.generation == self._generation:
             self._shown_by = event.plugin_id
+
+    def _summarize(self, now: float) -> Summary:
+        wall = self.clock.now()
+
+        def at(t: float | None) -> datetime | None:
+            return None if t is None or not math.isfinite(t) else wall + timedelta(seconds=t - now)
+
+        current = self._current
+        upcoming = self._upcoming(now)
+        shows_at = {slot.id: at(t) for slot, t in upcoming}
+        plugins = []
+        for found in self._plugins:
+            plugin_id = found.entry.id
+            slot = self._find(plugin_id)
+            if found.missing:
+                status = "needs_settings"
+            elif slot is None:
+                status = "off"
+            elif slot is current:
+                status = "on_screen"
+            elif slot.failures >= limits.FAILURES_BEFORE_LEFT_OUT and not slot.has_image:
+                status = "paused"
+            elif plugin_id in shows_at:
+                status = "next" if plugin_id == upcoming[0][0].id else "rotation"
+            elif slot.has_image and slot.level == "rotation":
+                status = "rotation"
+            elif slot.has_image and (
+                slot.dismissed_at is not None or slot.expired or slot.skipped is not None
+            ):
+                status = "dismissed"
+            elif slot.has_image:
+                status = "rotation"  # an alert or interrupt that takes turns with others
+            else:
+                status = "waiting"
+            plugins.append(
+                PluginSummary(
+                    plugin_id,
+                    status,
+                    picture=None if slot is None else slot.picture,
+                    drawn_at=None if slot is None else slot.drawn_at,
+                    shows_at=shows_at.get(plugin_id),
+                    paused_until=at(slot.due) if status == "paused" else None,
+                    error=None if slot is None else slot.error,
+                    missing=found.missing,
+                )
+            )
+        shown_id, picture = self._on_screen or (None, None)
+        on_turn = current is not None and current.id == shown_id
+        return Summary(
+            on_screen=shown_id,
+            since=at(self._turn_start) if on_turn else None,
+            picture=picture,
+            extra=on_turn and current is self._extra and self._extra_on,
+            alert=on_turn and current.level == "alert" and current in self._slots,
+            next=upcoming[0][0].id if upcoming else None,
+            next_at=at(upcoming[0][1]) if upcoming else None,
+            screen=self._screen_state,
+            screen_retry_at=at(self._retry_at),
+            plugins=tuple(plugins),
+        )
+
+    def _upcoming(self, now: float) -> list[tuple[_Slot, float]]:
+        """The rotation plugins in the order they come next, each with about when its turn
+        starts. Empty while an alert or interrupt is on screen: when it ends is not known."""
+        current = self._current
+        rotation = [s for s in self._slots if s.level == "rotation" and s.has_image]
+        if current is None or not rotation:
+            return []
+        extra = current is self._extra and self._extra_on
+        if current in self._slots and current.level != "rotation" and not extra:
+            return []
+        if current in rotation or extra:
+            end = self._turn_start + current.config.entry.display_time
+        elif current is self._splash and self._starting:
+            end = self._turn_start + self.display.splash_time
+        else:
+            end = now
+        after = current.id if current in rotation and not extra else self._last_rotation
+        names = [s.id for s in self._slots]
+        start = names.index(after) + 1 if after in names else 0
+        order = [s for s in self._slots[start:] + self._slots[:start] if s in rotation]
+        if len(order) > 1:
+            order = [s for s in order if s is not current]  # it just had its turn
+        times = []
+        for slot in order:
+            times.append((slot, max(end, now)))
+            end += slot.config.entry.display_time
+        return times
 
     def _wait_time(self, now: float) -> float | None:
         """Seconds until something is due; ``None`` when only an event can change anything."""
@@ -887,6 +1219,13 @@ def _splash_config(web_port: int) -> PluginConfig:
     # time limit: while its first picture is drawn, the screen waits for it.
     entry = PluginEntry(id="built-in-splash", type="splash_screen", time_limit=30)
     return PluginConfig(entry, plugin.settings(port=web_port), plugin)
+
+
+def _interrupting(slot: _Slot) -> bool:
+    """An interrupt plugin has something to show, and it was not skipped."""
+    if not slot.has_image:
+        return False
+    return slot.skipped is None or not _same_image(slot.image, slot.skipped)
 
 
 def _same_plugin(a: PluginConfig, b: PluginConfig) -> bool:
