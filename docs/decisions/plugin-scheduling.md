@@ -39,6 +39,20 @@ Examples: word clock, weather and moon phase are `rotation`. Music players are `
 - **Dismissed by someone, but the plugin still reports the same alert:** it comes back as a reminder after a set time. Setting: `alert_reminder` (default 1 hour).
 - **Safety limit:** an alert held longer than `alert_max_time` (default 24 hours) is dismissed automatically, in case the plugin is stuck. After that there are no reminders until the plugin reports a *new* alert, and the web interface shows a warning, e.g. "Leak alert was active for 24 hours and was dismissed".
 
+### Controls from the web interface
+
+Asked for on the web interface's Home page (M5 part 4), and later from buttons on the frame (issue #275). Agreed with txoof 2026-10-11.
+
+| Control | What happens |
+|---|---|
+| **Show now** | The plugin gets one extra turn of its full display time, also over an alert or interrupt (someone pressed the button on purpose, so they see the result). Then the alert or interrupt comes back, or the rotation goes on as planned: the plugin that was next is still next, unless that is the plugin that just had its extra turn. Without a picture (paused after failures, or its first update not done yet), it is updated at once and its turn starts when the picture is ready; when that update fails or has nothing, nothing changes on screen and the error is shown with the plugin. A Show now also ends the splash screen at start. |
+| **Skip to next** | The turn on screen ends. An alert is dismissed (its reminder comes as usual). An interrupt stays away until its picture changes (e.g. the next song) or it has nothing; the rotation shows meanwhile. An extra turn ends, and the order goes on as after Show now. |
+| **Refresh** | The plugin on screen is updated at once, and the new picture is drawn in full after a clear, also when it did not change: the button always does something visible, and it removes leftovers of earlier pictures. When the update fails, nothing changes on screen. |
+| **Try again now** | A failing plugin (also one left out for 30 minutes) is updated at once. A paused screen is tried at once, and its waits between tries start from zero. |
+| **Dismiss alert** | See "Alerts in detail". |
+
+The scheduler keeps a **summary** for the web interface, made again by the loop after every decision: what is on screen (the picture upright, as people see it), since when, whether it is an extra turn or an alert, what comes next and about when, the screen's state, and for each plugin its status (on screen, next, takes turns with "about when", waiting, dismissed, paused until, off, needs settings), its last picture (also after a failure), when it was drawn and its last error. Other threads only read it, so the web interface never waits for the loop.
+
 ### Refreshes near the end of a turn
 
 A rotation plugin keeps updating at its refresh rate while it is on screen (see `plugin-interface.md`). A refresh that starts just before the plugin's turn ends wastes a screen redraw, and on a slow screen the redraw may still be running when the next plugin wants the screen.
@@ -84,7 +98,7 @@ Added 2026-10-05 (M4, issue #205), agreed with txoof. Code: `src/paperpi/schedul
 
 - **Every plugin updates at its own refresh rate all the time**, on screen or not (see `plugin-interface.md`). A turn change shows the next plugin's newest image at once.
 - **At most 3 updates at the same time**, each in its own process. A music plugin's check then never waits behind a slow weather download. Plugins update rarely, so 3 is enough, and memory use stays low on a Pi 3.
-- Built from standard Python parts: a pool of 3 worker threads (`ThreadPoolExecutor`; a thread is a part of a program that runs at the same time as the rest) that start the plugin processes, and one queue (a list where messages wait until they are read, oldest first) that carries finished updates, "reload", "stop" and "dismiss" to the scheduler's loop. The loop sleeps until the next event or the next moment something is due; it does not wake up every few seconds to check. The clock is passed in, so tests use a fake clock.
+- Built from standard Python parts: a pool of 3 worker threads (`ThreadPoolExecutor`; a thread is a part of a program that runs at the same time as the rest) that start the plugin processes, and one queue (a list where messages wait until they are read, oldest first) that carries finished updates, "reload", "stop" and the controls (see above) to the scheduler's loop. The loop sleeps until the next event or the next moment something is due; it does not wake up every few seconds to check. The clock is passed in, so tests use a fake clock.
 - **The level decides.** A plugin's state only says whether it has something: for alert and interrupt plugins, "ready" and "alert" mean the same, and a rotation plugin that reports "alert" is shown in its normal turn. A warning that should take over the screen is a separate `[[plugin]]` block with level `alert`.
 - **The screen is written only when the picture changed.** The new image is compared with the last one sent to the screen, pixel by pixel (a few milliseconds for the 9.7" screen). A refresh that brings the same picture is not written.
 - **Refresh limits:** `refresh` is at least 5 seconds, both the user's setting and a plugin's suggestion. Faster is never wanted: slow screens take tens of seconds to minutes to redraw, and on fast screens it would flicker. At most 7 days, like `display_time`, `alert_reminder` and `alert_max_time`.
