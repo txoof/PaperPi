@@ -1,8 +1,10 @@
 {#- The screen part of the home page. While PaperPi runs, it asks for itself again every
-    3 seconds (only while the page is open), and brings the cards' states along. -#}
+    3 seconds (only while the page is open), and brings the cards' states along. `seen`
+    names what it shows: when nothing changed, the answer is empty and nothing is replaced
+    (so the button a keyboard user is on stays chosen). -#}
 {% from "_cards.html" import state, picture with context %}
 <section class="now" id="now" aria-label="On the screen now"
-  {%- if running %} hx-get="/now" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  {%- if running %} hx-get="/now" hx-trigger="every 3s" hx-swap="outerHTML" hx-vals='{"seen": "{{ seen }}"}'{% endif %}>
   <div class="now-grid">
     <div class="bezel">
       {%- if now.picture is not none %}

@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import io
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -247,7 +248,9 @@ class Snapshots:
     def __init__(self):
         self._lock = threading.Lock()
         self._kept: dict[str, tuple[Image.Image, int, bytes | None]] = {}
-        self._count = 0
+        # Counted on from the start time, so a picture a browser kept from an earlier run
+        # of PaperPi never has the same number as a new one.
+        self._count = int(time.time())
 
     def version(self, name: str, image: Image.Image) -> int:
         """The number of ``image``, the picture shown as ``name`` now: the same while it

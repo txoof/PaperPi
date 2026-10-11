@@ -1,4 +1,5 @@
 import io
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -9,6 +10,7 @@ from PIL import Image
 from paperpi import config
 from paperpi.scheduler import PluginSummary, Summary
 from paperpi.web import auth
+from paperpi.web import password as web_password
 from paperpi.web.app import create_app
 from paperpi.web.home import CARD_PICTURE, Snapshots, in_about
 from paperpi.web.plugins import PluginEditor
@@ -172,6 +174,26 @@ def test_the_screen_part_brings_the_cards_states_along(client, scheduler):
     assert "<h2>Words</h2>" in part and "Nothing else to show" in part
 
 
+def test_the_screen_part_is_sent_again_only_when_it_changed(client, scheduler):
+    scheduler.summary = on_screen()
+    seen = re.search(r'"seen": "(\w+)"', client.get("/").text).group(1)
+    assert client.get("/now", params={"seen": seen}).status_code == 204
+    scheduler.summary = on_screen(on_screen="Words")
+    part = client.get("/now", params={"seen": seen})
+    assert part.status_code == 200 and "<h2>Words</h2>" in part.text
+
+
+def test_a_move_after_the_log_in_ran_out_saves_nothing(cfg):
+    stored = web_password.hash_password("correct horse")
+    app = create_app(auth.Auth(cfg, config.WebSettings(password_hash=stored)), PluginEditor(cfg))
+    client = TestClient(app, follow_redirects=False, base_url=PI)
+    data = {"id": "Weather", "to": "0"}
+    response = client.post("/plugins/3/move", data=data, headers={"hx-request": "true"})
+    # home.js opens the log-in page instead of showing the move as saved.
+    assert response.status_code == 204 and response.headers["hx-redirect"] == "/login"
+    assert cfg.read_text() == CONFIG
+
+
 def test_pictures_are_kept_by_the_browser_until_they_change(client, scheduler):
     scheduler.summary = on_screen()
     page = client.get("/").text
@@ -230,6 +252,9 @@ def test_moving_a_card_to_any_place(client, cfg):
     response = client.post("/plugins/3/move", data={"id": "Weather", "to": "1"}, headers=htmx)
     assert response.status_code == 409 and "changed after this page was opened" in response.text
     assert response.headers["content-type"].startswith("text/plain")
+    # Only plain numbers ("²" counts as a digit in Python).
+    response = client.post("/plugins/0/move", data={"id": "Weather", "to": "²"}, headers=htmx)
+    assert response.status_code == 400
     # Without JavaScript, the arrows: back to the home page.
     response = client.post("/plugins/0/move", data={"id": "Weather", "step": "down"})
     assert response.headers["location"] == "/?done=saved"

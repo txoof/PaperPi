@@ -38,6 +38,7 @@ address or ``localhost``: a website could otherwise point a name of its own at t
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import logging
@@ -143,6 +144,8 @@ def create_app(
         response = await refused_or_page(request, call_next)
         path = request.url.path
         response.headers["X-Frame-Options"] = "DENY"
+        # Browsers never take a text or a picture for a page.
+        response.headers["X-Content-Type-Options"] = "nosniff"
         # Previews are pictures sent inside the page (data: addresses), never saved.
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; "
@@ -216,15 +219,12 @@ def create_app(
         # the page.
         plugin_id = request.query_params.get("id")
         name = next((row.name for row in rows if plugin_id and row.id == plugin_id), None)
-        now, shown = datetime.now(), summary()
-        examples = {row.type: pictures.shown(row.type) for row in rows}
         snapshots.keep_only({row.id for row in rows})
         return page(
             request,
             "home.html",
             status,
-            cards=cards(rows, shown, snapshots, examples, now),
-            now=now_part(shown, rows, snapshots, now),
+            **home_values(rows),
             running=controls is not None,
             problems=[p for p in dict.fromkeys(problems) if p != problem],
             problem=problem,
@@ -234,18 +234,29 @@ def create_app(
             hand_edits=request.query_params.get("hand") == "1",
         )
 
-    def now_page(request: Request, asked: str | None = None):
-        rows, _, _ = found_rows()
+    def home_values(rows: list) -> dict:
         now, shown = datetime.now(), summary()
         examples = {row.type: pictures.shown(row.type) for row in rows}
+        values = {
+            "now": now_part(shown, rows, snapshots, now),
+            "cards": cards(rows, shown, snapshots, examples, now),
+        }
+        # What the screen part shows; the same text when nothing changed.
+        values["seen"] = hashlib.sha256(repr(values).encode()).hexdigest()[:16]
+        return values
+
+    def now_page(request: Request, asked: str | None = None):
+        rows, _, _ = found_rows()
+        values = home_values(rows)
+        if asked is None and request.query_params.get("seen") == values["seen"]:
+            return Response(status_code=204)  # htmx then leaves the page as it is
         return page(
             request,
             "now.html",
-            now=now_part(shown, rows, snapshots, now),
-            cards=cards(rows, shown, snapshots, examples, now),
             running=controls is not None,
             asked=_DONE.get(asked or ""),
             live=True,
+            **values,
         )
 
     def saved(done: str, hand_edits: bool, plugin_id: str = "") -> RedirectResponse:
@@ -324,11 +335,12 @@ def create_app(
         step: str = Form(""),
         to: str = Form(""),
     ):
-        if not to.isdigit() and step not in ("up", "down"):
+        place = int(to) if to.isascii() and to.isdigit() else None
+        if place is None and step not in ("up", "down"):
             return refused(request, 400, "Choose up or down.")
         try:
-            if to.isdigit():
-                hand_edits = editor.move_to(index, plugin_id, int(to))
+            if place is not None:
+                hand_edits = editor.move_to(index, plugin_id, place)
             else:
                 hand_edits = editor.move(index, plugin_id, -1 if step == "up" else 1)
         except EditError as error:

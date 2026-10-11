@@ -92,7 +92,9 @@
     }
 
     function save(card, from, to) {
+      // One move at a time, so they reach PaperPi in order.
       busy = true;
+      if (sortable) sortable.option("disabled", true);
       var body = new URLSearchParams({ id: card.dataset.id, to: String(to) });
       fetch("/plugins/" + from + "/move", {
         method: "POST",
@@ -101,9 +103,18 @@
         credentials: "same-origin",
       })
         .then(function (response) {
+          // Logged out meanwhile: PaperPi asks to open the log-in page; nothing was saved.
+          var away = response.headers.get("HX-Redirect");
+          if (away) {
+            window.location.href = away;
+            return;
+          }
           if (response.status === 204) {
+            // A card without an ID is known by its place, which just changed.
+            if (!card.dataset.id) return window.location.reload();
             renumber();
             busy = false;
+            if (sortable) sortable.option("disabled", !cards.classList.contains("ordering"));
             return;
           }
           return response.text().then(function (text) {
@@ -157,4 +168,9 @@
     });
     check();
   }
+
+  // Nobody looks at a hidden tab: don't ask PaperPi for the screen part then.
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    if (document.hidden && event.detail.elt.id === "now") event.preventDefault();
+  });
 })();
