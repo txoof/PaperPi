@@ -28,6 +28,11 @@
   }
 
   document.addEventListener("DOMContentLoaded", label);
+  // The device may switch between light and dark while the page is open.
+  if (window.matchMedia) {
+    var query = window.matchMedia("(prefers-color-scheme: dark)");
+    if (query.addEventListener) query.addEventListener("change", label);
+  }
   document.addEventListener("click", function (event) {
     var button = event.target.closest && event.target.closest("[data-theme-toggle]");
     if (!button) return;

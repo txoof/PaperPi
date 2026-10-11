@@ -294,6 +294,15 @@ def test_every_page_has_the_menu_with_its_own_entry_marked(cfg, path, current):
         assert header.count(f'<a href="{href}"') == 2 and header.count(f">{label}</a>") == 2
     assert menu_marks(header) == [current, current]
     assert '<details class="fold">' in header
+    assert "Log out" not in html  # log-in is switched off
+
+
+def test_logged_in_pages_have_log_out_in_both_menus(cfg):
+    client = make_client(cfg)
+    set_up(client)
+    for path in ["/", "/plugins", "/library"]:
+        header = client.get(path).text.split("</header>")[0]
+        assert header.count(">Log out</button>") == 2
 
 
 def test_pages_one_step_down_say_how_to_go_back(cfg):
@@ -302,7 +311,7 @@ def test_pages_one_step_down_say_how_to_go_back(cfg):
     assert crumbs in client.get("/plugins/0/settings?id=Clock").text
     assert crumbs in client.get("/plugins/0/remove?id=Clock").text
     assert (
-        '<a href="/library">Plugin Library</a> › basic_clock'
+        '<p class="crumbs"><a href="/library">Plugin Library</a> › basic_clock</p>'
         in client.get("/library/basic_clock").text
     )
 
@@ -314,6 +323,12 @@ def test_the_log_in_pages_have_no_menu(cfg):
     client.post("/logout")
     html = client.get("/login").text
     assert "Log in" in html and 'aria-label="Main"' not in html and "fold" not in html
+    # Opened by a name instead of the IP address: no menu either, but the look still loads.
+    by_name = {"host": "paperpi.local:8080"}
+    html = client.get("/", headers=by_name).text
+    assert "Open PaperPi by its IP address" in html and 'aria-label="Main"' not in html
+    for name in ["style.css", "theme.js"]:
+        assert client.get(f"/static/{name}", headers=by_name).status_code == 200
 
 
 def test_the_look_works_within_the_pages_own_rules(cfg):
@@ -323,22 +338,21 @@ def test_the_look_works_within_the_pages_own_rules(cfg):
     for path in ["/", "/plugins", "/plugins/0/settings?id=Clock", "/library"]:
         html = client.get(path).text
         assert " style=" not in html and "<style" not in html
-        assert re.findall(r"<script[^>]*>", html) == [
-            '<script src="/static/theme.js">',
-            '<script src="/static/htmx.min.js">',
+        assert re.findall(r'<script\b[^>]*\bsrc="([^"]*)"[^>]*></script>', html) == [
+            "/static/theme.js",
+            "/static/htmx.min.js",
         ]
+        assert html.count("<script") == 2  # no inline scripts
         assert "http://" not in html.replace(PI, "") and "https://" not in html
-    theme = client.get("/static/theme.js")
+    theme = client.get("/static/theme.js")  # served (what it does is checked in a browser)
     assert theme.status_code == 200 and "paperpi-theme" in theme.text
     css = client.get("/static/style.css").text
     # The dark look follows the device, and the button can override it both ways.
     assert "@media (prefers-color-scheme: dark)" in css
     assert ':root:not([data-theme="light"])' in css and ':root[data-theme="dark"]' in css
     # Without JavaScript the button stays hidden (theme.js shows it).
-    assert (
-        '<button class="quiet theme" type="button" data-theme-toggle hidden>'
-        in client.get("/plugins").text
-    )
+    buttons = re.findall(r"<button[^>]*data-theme-toggle[^>]*>", client.get("/plugins").text)
+    assert len(buttons) == 2 and all(re.search(r"\bhidden\b", b) for b in buttons)
 
 
 def test_log_in_cookie_is_strict(cfg):

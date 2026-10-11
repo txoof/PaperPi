@@ -110,11 +110,14 @@ def create_app(
     async def refused_or_page(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if not _known_host(request.headers.get("host", "")):
+        path = request.url.path
+        # The look (style.css, theme.js) is the same for everyone, so the "open me by my
+        # address" page can use it too.
+        static = path.startswith("/static/") and request.method in ("GET", "HEAD")
+        if not static and not _known_host(request.headers.get("host", "")):
             return page(request, "by_address.html", 400, address=_own_address(request))
         if request.method not in ("GET", "HEAD") and not _same_site(request):
             return Response("Forms are only accepted from PaperPi's own pages.", 403)
-        path = request.url.path
         if auth.login and path not in _OPEN and not path.startswith("/static/"):
             if auth.password_hash is None:
                 return _go_to(request, "/setup")

@@ -11,7 +11,7 @@
   --chip: #e8eae6;
   --accent: #005f94;
   --accent-ink: #ffffff;
-  --ok: #0072b2;
+  --ok: #00669f;
   --ok-bg: #e3f0f8;
   --warn: #7a5000;
   --warn-bg: #fcefcf;
@@ -61,7 +61,7 @@ nav.menu a[aria-current="page"] { color: var(--ink); background: var(--chip); fo
 header form { margin: 0; }
 .top-inner > .theme { margin-left: auto; }
 nav.menu + .theme { margin-left: 0; }
-.fold { display: none; margin-left: auto; }
+.fold { display: none; margin: 0 0 0 auto; }
 .fold summary { list-style: none; cursor: pointer; padding: 0.25rem 0.7rem;
   border: 1px solid var(--line); border-radius: 6px; }
 .fold summary::before { content: "☰ "; }
@@ -75,7 +75,8 @@ nav.menu + .theme { margin-left: 0; }
 .fold-links a[aria-current="page"] { font-weight: 600; }
 .fold-row { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
 @media (max-width: 40rem) {
-  .top-inner > nav.menu, .top-inner > .theme, .top-inner > .logout { display: none; }
+  /* With a menu, these move into the folded menu; the log-in pages keep the Dark/Light button. */
+  .with-menu > nav.menu, .with-menu > .theme, .with-menu > .logout { display: none; }
   .fold { display: block; }
 }
 
@@ -104,7 +105,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 
 /* Messages: a symbol as well as a colour */
 .problem { color: var(--bad); font-weight: 500; }
-p.problem::before { content: "✕ "; }
+.problem:not(ul)::before { content: "✕ "; }
 .note, .saved { padding: 0.55rem 0.75rem; border-radius: 8px; }
 .note { background: var(--warn-bg); color: var(--warn); }
 p.note::before { content: "! "; font-weight: 700; }

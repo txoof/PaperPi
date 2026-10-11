@@ -16,7 +16,7 @@
   {% set menu = [("/", "home", "Home"), ("/plugins", "plugins", "Active Plugins"),
                  ("/library", "library", "Plugin Library")] %}
   <header class="top">
-    <div class="top-inner">
+    <div class="top-inner{% if logged_in %} with-menu{% endif %}">
       <a class="brand" href="/">PaperPi</a>
       {% if logged_in %}
       <nav class="menu" aria-label="Main">
