@@ -70,6 +70,7 @@ As in `plugin-scheduling.md`: a failed update is skipped and retried at the plug
 ### Logs
 
 - Logs go to the system log (`journalctl -u paperpi`), which has its own size limit. In Docker, logs are kept in at most 3 files of 10 MB.
+- *Update (M5 part 4, agreed with txoof on 2026-10-11):* Raspberry Pi OS keeps the system log in memory only, so it is gone after a restart of the Pi. PaperPi therefore also keeps warnings, errors, starts and stops, crash details and the hourly health line in a small file of its own in the state folder (at most about 2 MB), and the last lines in memory for the web interface's log page (see `web-interface.md`, "Look, menu and pages").
 - Default level: WARNING, as in v1.
 - An error that repeats is logged once. After that a summary line is written every 10 minutes, e.g. "same error repeated 40 times".
 - The web interface shows the last 100 warnings and errors.

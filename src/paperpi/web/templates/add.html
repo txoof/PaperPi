@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% set logged_in = true %}
+{% set page = "library" %}
 {% block title %}Add {{ item.type }} · PaperPi{% endblock %}
 {% block main %}
+<p class="crumbs"><a href="/library">Plugin Library</a> › {{ item.type }}</p>
 <h1>Add {{ item.type }}</h1>
 <p>{{ item.description }}</p>
 {% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
