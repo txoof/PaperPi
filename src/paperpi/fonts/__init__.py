@@ -7,7 +7,8 @@ Each name here is the full path of a font file in this folder, for example::
     {"name": "title", "type": "text", "font": fonts.LATO_BOLD}
 
 Without a ``font``, epdlib uses its own DejaVu Sans. Licences: ``Anton-OFL.txt``,
-``Dosis-OFL.txt``, ``Lato-OFL.txt``, ``LibreCaslonText-OFL.txt``.
+``Dosis-OFL.txt``, ``Lato-OFL.txt``, ``LibreCaslonText-OFL.txt``, ``Montserrat-OFL.txt``,
+``Oswald-OFL.txt``.
 """
 
 from pathlib import Path
@@ -30,3 +31,12 @@ LATO_ITALIC = str(FOLDER / "Lato-Italic.ttf")
 #: the SIL Open Font License 1.1, from Google Fonts (github.com/google/fonts, folder
 #: ofl/librecaslontext, commit 9bbee71).
 LIBRE_CASLON_TEXT = str(FOLDER / "LibreCaslonText-Regular.ttf")
+
+#: Montserrat SemiBold by The Montserrat Project Authors, under the SIL Open Font License 1.1,
+#: from Google Fonts: the static SemiBold file that PaperPi v1 shipped.
+MONTSERRAT_SEMIBOLD = str(FOLDER / "Montserrat-SemiBold.ttf")
+
+#: Oswald Regular and Oswald Medium by The Oswald Project Authors, under the SIL Open Font
+#: License 1.1, from Google Fonts: the static files that PaperPi v1 shipped.
+OSWALD_REGULAR = str(FOLDER / "Oswald-Regular.ttf")
+OSWALD_MEDIUM = str(FOLDER / "Oswald-Medium.ttf")
