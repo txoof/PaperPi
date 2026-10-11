@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% set logged_in = true %}
+{% set page = "plugins" %}
 {% block title %}Settings of {{ row.name }} · PaperPi{% endblock %}
 
 {% from "_field.html" import field %}
 
 {% block main %}
+<p class="crumbs"><a href="/plugins">Active Plugins</a> › {{ row.name }}</p>
 <h1>{{ row.name }}</h1>
 <p class="type">{{ row.type }}: {{ plugin.description }}</p>
 {% if done %}

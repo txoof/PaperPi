@@ -1,4 +1,5 @@
 import logging
+import re
 import socket
 import urllib.request
 from dataclasses import replace
@@ -263,6 +264,81 @@ def test_security_headers_also_on_redirects(cfg):
     assert response.headers["cache-control"] == "no-store"
     # The style sheet and htmx may be kept by the browser.
     assert "cache-control" not in client.get("/static/style.css").headers
+
+
+MENU = [("/", "Home"), ("/plugins", "Active Plugins"), ("/library", "Plugin Library")]
+
+
+def menu_marks(html: str) -> list[str]:
+    """The menu entries marked as the current page (once in the bar, once in the phone menu)."""
+    return re.findall(r'<a href="([^"]*)" aria-current="page">', html)
+
+
+@pytest.mark.parametrize(
+    "path, current",
+    [
+        ("/", "/"),
+        ("/plugins", "/plugins"),
+        ("/plugins/0/settings?id=Clock", "/plugins"),
+        ("/plugins/0/remove?id=Clock", "/plugins"),
+        ("/library", "/library"),
+        ("/library/basic_clock", "/library"),
+    ],
+)
+def test_every_page_has_the_menu_with_its_own_entry_marked(cfg, path, current):
+    client = make_client(cfg, login=False)
+    html = client.get(path).text
+    header = html[html.index("<header") : html.index("</header>")]
+    for href, label in MENU:
+        # In the menu bar, and in the folded menu for phones.
+        assert header.count(f'<a href="{href}"') == 2 and header.count(f">{label}</a>") == 2
+    assert menu_marks(header) == [current, current]
+    assert '<details class="fold">' in header
+
+
+def test_pages_one_step_down_say_how_to_go_back(cfg):
+    client = make_client(cfg, login=False)
+    crumbs = '<p class="crumbs"><a href="/plugins">Active Plugins</a> › Clock</p>'
+    assert crumbs in client.get("/plugins/0/settings?id=Clock").text
+    assert crumbs in client.get("/plugins/0/remove?id=Clock").text
+    assert (
+        '<a href="/library">Plugin Library</a> › basic_clock'
+        in client.get("/library/basic_clock").text
+    )
+
+
+def test_the_log_in_pages_have_no_menu(cfg):
+    client = make_client(cfg)
+    assert 'aria-label="Main"' not in client.get("/setup").text
+    set_up(client)
+    client.post("/logout")
+    html = client.get("/login").text
+    assert "Log in" in html and 'aria-label="Main"' not in html and "fold" not in html
+
+
+def test_the_look_works_within_the_pages_own_rules(cfg):
+    # The Content-Security-Policy allows only PaperPi's own files: no inline scripts or
+    # styles, nothing from other servers (no web fonts), so the pages work without internet.
+    client = make_client(cfg, login=False)
+    for path in ["/", "/plugins", "/plugins/0/settings?id=Clock", "/library"]:
+        html = client.get(path).text
+        assert " style=" not in html and "<style" not in html
+        assert re.findall(r"<script[^>]*>", html) == [
+            '<script src="/static/theme.js">',
+            '<script src="/static/htmx.min.js">',
+        ]
+        assert "http://" not in html.replace(PI, "") and "https://" not in html
+    theme = client.get("/static/theme.js")
+    assert theme.status_code == 200 and "paperpi-theme" in theme.text
+    css = client.get("/static/style.css").text
+    # The dark look follows the device, and the button can override it both ways.
+    assert "@media (prefers-color-scheme: dark)" in css
+    assert ':root:not([data-theme="light"])' in css and ':root[data-theme="dark"]' in css
+    # Without JavaScript the button stays hidden (theme.js shows it).
+    assert (
+        '<button class="quiet theme" type="button" data-theme-toggle hidden>'
+        in client.get("/plugins").text
+    )
 
 
 def test_log_in_cookie_is_strict(cfg):

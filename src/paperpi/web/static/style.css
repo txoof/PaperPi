@@ -1,49 +1,162 @@
-/* PaperPi web interface. Plain on purpose: black on white, like the e-paper screen. */
-body { font-family: system-ui, sans-serif; margin: 0; color: #111; background: #fff; }
-header { display: flex; justify-content: space-between; align-items: center;
-  padding: 0.5rem 1rem; border-bottom: 1px solid #ccc; }
-header .name { font-weight: bold; color: inherit; text-decoration: none; }
+/* PaperPi web interface (look agreed with txoof on 2026-10-11, M5 part 4).
+   Colours are named once here, for the light and the dark look. The status colours come from
+   the Okabe-Ito set, which people with colour blindness can tell apart; a status never relies
+   on colour alone (it also has a symbol or text). */
+:root {
+  --bg: #f3f4f1;
+  --panel: #ffffff;
+  --ink: #1c1e20;
+  --muted: #5f6468;
+  --line: #d5d8d3;
+  --chip: #e8eae6;
+  --accent: #005f94;
+  --accent-ink: #ffffff;
+  --ok: #0072b2;
+  --ok-bg: #e3f0f8;
+  --warn: #7a5000;
+  --warn-bg: #fcefcf;
+  --bad: #a33c00;
+  --bad-bg: #fbe4d8;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17191b; --panel: #212427; --ink: #e9ebe8; --muted: #a2a8ad; --line: #363a3e;
+    --chip: #2c3033; --accent: #8fd0f5; --accent-ink: #0b1d2a;
+    --ok: #56b4e9; --ok-bg: #16303f; --warn: #f0c060; --warn-bg: #3a2e10;
+    --bad: #f5a070; --bad-bg: #3d2216;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17191b; --panel: #212427; --ink: #e9ebe8; --muted: #a2a8ad; --line: #363a3e;
+  --chip: #2c3033; --accent: #8fd0f5; --accent-ink: #0b1d2a;
+  --ok: #56b4e9; --ok-bg: #16303f; --warn: #f0c060; --warn-bg: #3a2e10;
+  --bad: #f5a070; --bad-bg: #3d2216;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+h1 { font-size: 1.35rem; margin: 1.1rem 0 0.4rem; text-wrap: balance; }
+h2 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+code { font-family: var(--mono); font-size: 0.85em; background: var(--chip); padding: 0 0.25rem;
+  border-radius: 3px; }
+
+/* The menu bar */
+header.top { background: var(--panel); border-bottom: 1px solid var(--line); position: relative;
+  z-index: 10; }
+.top-inner { max-width: 46rem; margin: 0 auto; padding: 0.6rem 1rem; display: flex;
+  align-items: center; gap: 0.5rem 1.1rem; flex-wrap: wrap; }
+.brand { font-weight: 600; color: var(--ink); text-decoration: none; }
+nav.menu { display: flex; gap: 0.25rem; flex-wrap: wrap; flex: 1; }
+nav.menu a, .fold-links a { text-decoration: none; color: var(--muted); padding: 0.25rem 0.6rem;
+  border-radius: 6px; }
+nav.menu a[aria-current="page"] { color: var(--ink); background: var(--chip); font-weight: 500; }
 header form { margin: 0; }
-main { max-width: 40rem; margin: 0 auto; padding: 1rem; }
-footer { max-width: 40rem; margin: 2rem auto 1rem; padding: 0 1rem; color: #666;
+.top-inner > .theme { margin-left: auto; }
+nav.menu + .theme { margin-left: 0; }
+.fold { display: none; margin-left: auto; }
+.fold summary { list-style: none; cursor: pointer; padding: 0.25rem 0.7rem;
+  border: 1px solid var(--line); border-radius: 6px; }
+.fold summary::before { content: "☰ "; }
+.fold summary::-webkit-details-marker { display: none; }
+.fold[open] summary { background: var(--chip); }
+.fold-links { position: absolute; left: 0; right: 0; margin-top: 0.6rem; padding: 0.4rem 1rem 0.8rem;
+  display: grid; background: var(--panel); border-bottom: 1px solid var(--line);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12); }
+.fold-links a { color: var(--ink); padding: 0.65rem 0.25rem; border-bottom: 1px solid var(--line);
+  border-radius: 0; }
+.fold-links a[aria-current="page"] { font-weight: 600; }
+.fold-row { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+@media (max-width: 40rem) {
+  .top-inner > nav.menu, .top-inner > .theme, .top-inner > .logout { display: none; }
+  .fold { display: block; }
+}
+
+main { max-width: 46rem; margin: 0 auto; padding: 0.5rem 1rem 1rem; }
+footer { max-width: 46rem; margin: 2rem auto 1rem; padding: 0 1rem; color: var(--muted);
   font-size: 0.85rem; }
+.crumbs { margin: 1rem 0 0; font-size: 0.9rem; color: var(--muted); }
+.crumbs a { text-decoration: none; }
+
+/* Buttons and fields */
+button { font: inherit; font-size: 0.95rem; cursor: pointer; padding: 0.35rem 0.9rem;
+  border-radius: 6px; border: 1px solid var(--accent); background: var(--accent);
+  color: var(--accent-ink); font-weight: 500; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+/* The main button of a form is filled; the others (Preview, Up, Down, Use...) are quiet. */
+.buttons > button[type="button"], .buttons form button, .found button, .helper button,
+button.quiet { background: var(--panel); color: var(--ink); border-color: var(--line);
+  font-weight: 400; }
+button.quiet { color: var(--muted); padding: 0.2rem 0.65rem; }
 form label { display: block; margin: 0.75rem 0; }
-form input { display: block; width: 100%; max-width: 20rem; padding: 0.4rem;
-  font-size: 1rem; box-sizing: border-box; }
-button { padding: 0.4rem 0.9rem; font-size: 1rem; }
-.problem { color: #a00; font-weight: bold; }
-.note { padding: 0.5rem; border-left: 4px solid #a60; background: #fff6e5; }
-details { margin-top: 2rem; }
-code { background: #eee; padding: 0 0.2rem; }
-.saved { padding: 0.5rem; border-left: 4px solid #060; background: #eef8ee; }
-.plugins { padding-left: 1.5rem; }
-.plugins li { margin: 0.75rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid #ddd; }
-.plugins .type, .plugins .hint { color: #555; font-size: 0.9rem; }
-.buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
+input, select { font: inherit; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; }
+form input { display: block; width: 100%; max-width: 22rem; padding: 0.4rem 0.55rem;
+  margin-top: 0.2rem; }
+input[type="checkbox"] { accent-color: var(--accent); }
+
+/* Messages: a symbol as well as a colour */
+.problem { color: var(--bad); font-weight: 500; }
+p.problem::before { content: "✕ "; }
+.note, .saved { padding: 0.55rem 0.75rem; border-radius: 8px; }
+.note { background: var(--warn-bg); color: var(--warn); }
+p.note::before { content: "! "; font-weight: 700; }
+.saved { background: var(--ok-bg); color: var(--ok); }
+.saved::before { content: "✓ "; }
+.hint, .type, .required { color: var(--muted); font-size: 0.9rem; }
+details { margin-top: 1.5rem; }
+details > summary { cursor: pointer; }
+
+/* Active Plugins */
+.plugins { list-style: none; padding: 0; display: grid; gap: 0.5rem; counter-reset: place; }
+.plugins li { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 0.65rem 0.8rem; counter-increment: place; }
+.plugins li > div:first-child::before { content: counter(place); display: inline-grid;
+  place-items: center; min-width: 1.5rem; height: 1.5rem; margin-right: 0.45rem;
+  border: 1.5px solid var(--ink); border-radius: 50%; font-size: 0.75rem; font-weight: 600; }
+.plugins .type, .plugins .hint { color: var(--muted); font-size: 0.9rem; }
+.plugins .status { font-size: 0.9rem; color: var(--muted); margin-top: 0.15rem; }
+.buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
 .buttons form { margin: 0; display: flex; gap: 0.5rem; }
-.library li { margin: 0.5rem 0 1.25rem; }
-.picture { margin: 0.4rem 0 0; }
-.picture img { display: block; width: 18rem; max-width: 100%; height: auto; border: 1px solid #999; }
-.settings h2 { font-size: 1.1rem; margin-top: 1.5rem; }
+.buttons a { font-size: 0.95rem; }
+
+/* Plugin Library */
+.library { list-style: none; padding: 0; display: grid; gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+.library li { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 0.65rem 0.8rem; min-width: 0; }
+.picture { margin: 0.5rem 0 0; }
+.picture img { display: block; width: 100%; height: auto; border: 1px solid var(--line);
+  border-radius: 3px; }
+
+/* A plugin's settings */
+.settings h2 { font-size: 1.05rem; margin-top: 1.5rem; }
 .settings .field { margin: 0.9rem 0; }
 .settings .field > label { display: block; margin: 0 0 0.25rem; }
-.settings select { font-size: 1rem; padding: 0.3rem; }
+.settings select { padding: 0.3rem 0.4rem; }
 .settings label.check { display: flex; gap: 0.4rem; align-items: center; margin: 0.25rem 0; }
-.settings label.check input { width: auto; display: inline; }
-.settings .wrong input, .settings .wrong select { border: 2px solid #a00; }
+.settings label.check input { width: auto; display: inline; margin: 0; }
+.settings .wrong input, .settings .wrong select { border: 2px solid var(--bad); }
 .settings .problem { margin: 0.25rem 0 0; }
-.hint, .type, .required { color: #555; font-size: 0.9rem; }
-.technical dt { font-weight: bold; margin-top: 0.5rem; }
+.technical dt { font-weight: 600; margin-top: 0.5rem; }
 .technical dd { margin-left: 0; }
 .htmx-indicator { display: none; }
-.htmx-request.htmx-indicator { display: block; color: #555; }
+.htmx-request.htmx-indicator { display: block; color: var(--muted); }
 .preview { margin: 1rem 0; }
-.preview img { display: block; max-width: 100%; height: auto; border: 1px solid #999; }
-.preview figcaption { color: #555; font-size: 0.9rem; margin-top: 0.4rem; }
-.helper { margin: 0.9rem 0; padding: 0.5rem 0.75rem; border-left: 4px solid #ccc; background: #f6f6f6; }
+.preview img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); }
+.preview figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 0.4rem; }
+.helper { margin: 0.9rem 0; padding: 0.6rem 0.8rem; border-radius: 8px; background: var(--panel);
+  border: 1px solid var(--line); }
 .helper > label { display: block; margin: 0 0 0.25rem; }
 .helper .search { display: flex; gap: 0.5rem; }
-.helper .search input { flex: 1; }
+.helper .search input { flex: 1; margin: 0; }
 .found { padding-left: 1.25rem; }
 .found li { margin: 0.5rem 0; }
 .found button { margin-top: 0.25rem; }

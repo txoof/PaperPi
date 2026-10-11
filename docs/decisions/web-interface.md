@@ -75,9 +75,45 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
   - While a picture is missing, the page shows "Drawing the example picture…" and asks again every 3 seconds (htmx) until it is there. A plugin that takes longer than 10 seconds (the Pi may just be busy) is tried up to 3 times. Any other picture that can't be drawn says why, and is not tried again until the plugin, the screen or PaperPi changes (or PaperPi starts again), so an open Library page can't keep the Pi busy. If the folder can't be written, every plugin says so.
   - A plugin whose code is changed while PaperPi runs gets a new picture (each picture is drawn in a new process), but the Library's list and a plugin that was broken at the start only change after a restart, because the web interface loads each plugin's code once.
 
+### Look, menu and pages
+
+*Agreed with txoof on 2026-10-11 (M5 part 4), using clickable mockups of each page. Built over several PRs; see the parts list in issue #238.*
+
+**Look (every page)**
+- One set of colours, with a light and a dark version. The page follows the device's light or dark setting; a **Dark/Light** button in the menu overrides it, and the browser remembers the choice (`localStorage`). Without JavaScript the button is hidden and the page follows the device.
+- Status labels use colours from the Okabe-Ito set, which people with the common kinds of colour blindness can tell apart, and always have a symbol or text as well, so they can be read without colour.
+- System fonts only: nothing is loaded from other servers, so the pages work without internet and keep the strict `Content-Security-Policy` (no inline scripts or styles).
+- **Menu** on every page after logging in, with the current page marked: Home · Active Plugins · Plugin Library, later Warnings and Screen & system when those pages exist (no links to pages that aren't there). On a phone it folds into one **☰ Menu** button (built with `<details>`, so it needs no JavaScript), which also shows the number of warnings. A page one step down starts with a way back, e.g. "Active Plugins › Weather Berlin".
+
+**Home page** (replaces the Active Plugins page)
+- At the top, the picture that is on the e-paper screen now, upright as people see it (before rotation), with the plugin's name, since when it is shown and what comes next. It stays at the top while the plugin list scrolls, and shrinks to a slim bar (small picture and name, "Show bigger") while scrolling down. It asks for a new picture every few seconds only while the page is open, and downloads it only when it changed.
+- Buttons next to the picture: **Skip to next** (end this turn), **Refresh** (fetch new data and draw this plugin again), and **Dismiss alert** while an alert is shown.
+- Below it, a card for every plugin, as a list or as a grid (a switch; the browser remembers it). Each card shows its place in the order (1, 2, 3 …; in the grid it runs left to right, then on to the next row), the plugin's last picture (before it has one: the Library's example picture, faded and marked EXAMPLE), its name and type, and a status: ▶ On screen now, → Next, ↻ In rotation (with "shows in about N minutes"), ○ Off, ! Configuration Required, ⏸ Paused due to errors (with when it is tried again).
+- Card buttons: **Show now**, **Settings**, an on/off switch, and up/down arrows (left/right in the grid). **Change order** shows a drag handle on each card's left edge (SortableJS, shipped with PaperPi like htmx); each move is saved at once.
+- **Show now** gives the plugin one extra turn of its full display time; then the order goes on as planned (the plugin that was next is still next).
+
+**Warnings page**
+- **Needs attention now:** problems that are true now, each with a button that helps: a plugin paused due to errors (**Try again now**), Configuration Required (**Settings**), a mistake in the config file (with its line), the screen not answering (**Try again now**). The number in the menu counts only these, so it goes away by itself when they are fixed.
+- **Recent warnings and errors:** the last 100, grouped by day, in plain words, with a filter (errors, warnings, where they came from) and the exact log line under "Technical details".
+- A **Full log** tab: every log line, with a filter by level, search, new lines while the page is open, and **Download log** (a text file with every line). Warnings, errors, starts and stops, crash details and the hourly health line are also kept in a small file in the state folder (at most about 2 MB), so they survive a restart of the Pi; the other lines are kept in memory only (the last 5,000). This keeps SD card writes to a few kilobytes a day. Rejected: keeping the system log on the SD card (Raspberry Pi OS keeps it in memory on purpose, and it is shared by every program), and a log of PaperPi's own inside the system log (only works as a systemd service, and the web page can't easily read it). Passwords and secret settings never go into the log.
+
+**Hand edits to the config file**
+- A bar on every page: "The config file was changed outside the web interface. The changes are not used yet.", with **Review changes**.
+- The **Review changes** page lists the changes per plugin and for the screen settings (old → new), each with a link to its settings page, and offers **Apply changes** and **Undo hand edits** (after "Are you sure?"; the edited file is kept as `paperpi.toml.undone`). With a mistake in the file it shows the line and Apply is off. It also shows how to apply from the command line (`sudo systemctl reload paperpi`, or `kill -HUP <process id>`). A `paperpi reload` command is planned in issue #272.
+
+**Plugin Library**
+- A card per plugin: example picture, a plain name (a new `title` in the plugin's definition, e.g. "Weather"; the type is shown small), the description, labels ("Uses the internet", "Needs settings first", "For testing"), the names it was already added under, a search box, and **+ Add**.
+- **Look closer:** a larger view with a button for every layout. Layouts also get a plain title ("Next 12 hours"), shown in the Library and on the settings page, with the code name small. A picture is drawn ahead for every layout; a layout for upright screens says it isn't used on a landscape screen.
+- **+ Add** opens a small window (name, whether it needs settings first); without JavaScript it falls back to the Add page.
+
+**Screen & system page** (part 5)
+- Sections, each with its own Save, and every setting saying when it applies (at once, or at the next start): Screen (**Change screen…**: type, model and VCOM together, then the steps to swap it; the previous screen is kept, to go back if the new one doesn't answer), Picture (rotation as four small pictures, colour), Screen care, Splash Screen & Fallback Plugin, Web interface, and This Pi (version, running time, memory, disk, temperature).
+- **Restart PaperPi** button (PaperPi ends; the service or Docker starts it again). No button to shut down the Pi: that needs administrator rights, so the page shows `sudo shutdown now` to type on the Pi.
+- A wrong port or address can't lock the user out: before saving, PaperPi tries the new port and refuses one that is in use or below 1024; after the restart, the new settings must be confirmed with **Keep these settings** within 5 minutes or PaperPi goes back to the old ones; as a last resort, a command on the Pi puts the web settings back to their defaults.
+
 ### Other pages
 
-The web interface also shows the warnings decided in the other notes: the last 100 warnings and errors, plugins that are left out after failures, "screen not answering", config errors with their line, and "the config file was changed outside the web interface. Apply changes?".
+The web interface also shows the warnings decided in the other notes: the last 100 warnings and errors, plugins that are left out after failures, "screen not answering", config errors with their line, and "the config file was changed outside the web interface. Apply changes?". *(How they are shown: see "Look, menu and pages" above.)*
 
 ### Later
 

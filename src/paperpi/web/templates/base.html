@@ -6,14 +6,48 @@
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
   <title>{% block title %}PaperPi{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
+  {# Before the page is drawn, so a chosen light or dark look doesn't flash. #}
+  <script src="/static/theme.js"></script>
   <script src="/static/htmx.min.js"></script>
 </head>
 <body>
-  <header>
-    <a class="name" href="/">PaperPi</a>
-    {% if auth.login and logged_in %}
-    <form method="post" action="/logout"><button type="submit">Log out</button></form>
-    {% endif %}
+  {#- The menu: the pages a logged-in visitor can open. Each page sets `page` to its own
+      entry, which is marked as the current one. -#}
+  {% set menu = [("/", "home", "Home"), ("/plugins", "plugins", "Active Plugins"),
+                 ("/library", "library", "Plugin Library")] %}
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="/">PaperPi</a>
+      {% if logged_in %}
+      <nav class="menu" aria-label="Main">
+        {% for href, key, label in menu %}
+        <a href="{{ href }}"{% if page == key %} aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+      {% endif %}
+      {# Hidden until theme.js runs: without JavaScript the page follows the device. #}
+      <button class="quiet theme" type="button" data-theme-toggle hidden>Dark</button>
+      {% if auth.login and logged_in %}
+      <form class="logout" method="post" action="/logout"><button class="quiet" type="submit">Log out</button></form>
+      {% endif %}
+      {% if logged_in %}
+      {#- On a phone, the menu folds into one button (no JavaScript needed). -#}
+      <details class="fold">
+        <summary>Menu</summary>
+        <div class="fold-links">
+          {% for href, key, label in menu %}
+          <a href="{{ href }}"{% if page == key %} aria-current="page"{% endif %}>{{ label }}</a>
+          {% endfor %}
+          <div class="fold-row">
+            <button class="quiet theme" type="button" data-theme-toggle hidden>Dark</button>
+            {% if auth.login %}
+            <form method="post" action="/logout"><button class="quiet" type="submit">Log out</button></form>
+            {% endif %}
+          </div>
+        </div>
+      </details>
+      {% endif %}
+    </div>
   </header>
   <main>
     {% block main %}{% endblock %}
