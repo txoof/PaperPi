@@ -19,6 +19,7 @@ from .. import config
 from .app import create_app
 from .auth import Auth
 from .helpers import Searcher
+from .home import Controls
 from .pictures import FOLDER, Pictures, Screen
 from .plugins import PluginEditor
 from .preview import Previewer
@@ -39,6 +40,7 @@ class WebServer:
         sock: socket.socket,
         editor: PluginEditor,
         pictures: Pictures | None = None,
+        controls: Controls | None = None,
     ):
         self.auth = auth
         self.editor = editor
@@ -54,7 +56,9 @@ class WebServer:
         """The port it listens on (useful with ``port = 0`` in tests)."""
         self._server = uvicorn.Server(
             uvicorn.Config(
-                create_app(auth, self.editor, self.previewer, self.pictures, self.searcher),
+                create_app(
+                    auth, self.editor, self.previewer, self.pictures, self.searcher, controls
+                ),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
                 access_log=False,
@@ -122,13 +126,15 @@ def start(
     text: str | None = None,
     state_dir: Path | None = None,
     display: config.DisplaySettings | None = None,
+    controls: Controls | None = None,
 ) -> WebServer | None:
     """Start the web interface, or log why it can't start and return ``None``.
 
     ``reload`` makes PaperPi load the config file again (after a change in the web
     interface); ``text`` is the config file text PaperPi uses now. The Plugin Library's
     example pictures are kept in ``state_dir`` (without it there are none) and drawn for
-    ``display``, the screen's settings at the start.
+    ``display``, the screen's settings at the start. ``controls`` (the scheduler) tells
+    the home page what is on screen, and does what its buttons ask for.
     """
     try:
         sock = _listen(settings.address, settings.port)
@@ -144,7 +150,7 @@ def start(
     if text is not None:
         editor.loaded(text)
     pictures = Pictures(state_dir / FOLDER if state_dir is not None else None)
-    server = WebServer(Auth(config_file, settings), settings, sock, editor, pictures)
+    server = WebServer(Auth(config_file, settings), settings, sock, editor, pictures, controls)
     server._thread.start()
     if display is not None:
         server.use_display(display)

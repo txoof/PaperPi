@@ -63,8 +63,8 @@ def blocks(cfg):
     return tomllib.loads(cfg.read_text())["plugin"]
 
 
-def test_active_plugins_link_to_each_settings_page(client):
-    page = client.get("/plugins").text
+def test_the_home_page_links_to_each_settings_page(client):
+    page = client.get("/").text
     assert '<a href="/plugins/1/settings?id=Weather">Settings</a>' in page
     assert "type them into the config file" not in page
 
@@ -137,7 +137,7 @@ def test_adding_from_the_library_opens_the_settings(client, cfg):
     page = client.get(response.headers["location"]).text
     assert "Added. Fill in its settings here, then Save." in page
     assert "Not shown until these settings are filled in: lat, lon, email." in page
-    assert "Then switch it on in" in page
+    assert "Then switch it on on the" in page
 
 
 def test_a_plugin_moved_meanwhile_shows_the_list(client, cfg):

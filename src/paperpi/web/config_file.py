@@ -4,11 +4,11 @@
   file's permissions (and owner, when run as root). Hold :data:`LOCK` from reading to
   saving, so two changes at the same moment (a plugin and the password) can't undo each
   other. :func:`saved_here` tells whether a text is the one the web interface saved last.
-- The plugin changes (:func:`move`, :func:`remove`, :func:`set_enabled`, :func:`set_settings`,
-  :func:`add`) work on the file's text, one ``[[plugin]]`` block at a time. The comment lines
-  just above a ``[[plugin]]`` line (with a blank line above them) belong to that block: they
-  move with it and are removed with it. A comment at the end of a setting's line (such as
-  ``enabled =``) is lost when that setting is changed.
+- The plugin changes (:func:`move`, :func:`move_to`, :func:`remove`, :func:`set_enabled`,
+  :func:`set_settings`, :func:`add`) work on the file's text, one ``[[plugin]]`` block at a
+  time. The comment lines just above a ``[[plugin]]`` line (with a blank line above them)
+  belong to that block: they move with it and are removed with it. A comment at the end of
+  a setting's line (such as ``enabled =``) is lost when that setting is changed.
 - Every change is checked before it is saved: PaperPi must read the new text back as exactly
   the old settings plus the change. A file written in a way these functions don't
   understand (for example a ``[[plugin]]`` line written differently, or a value line
@@ -217,6 +217,18 @@ def move(text: str, index: int, plugin_id: str, step: int) -> str:
     expected = plugin_blocks(data)
     expected[first], expected[second] = expected[second], expected[first]
     return _checked("".join(new), data | {"plugin": expected})
+
+
+def move_to(text: str, index: int, plugin_id: str, place: int) -> str:
+    """``text`` with plugin block ``index`` moved to ``place`` (counted from 0), one step at
+    a time, so each step is checked as :func:`move` checks it."""
+    _, scan = _check(text, index, plugin_id)
+    if not 0 <= place < len(scan.blocks):
+        raise EditError("This plugin can't move there.")
+    step = 1 if place > index else -1
+    for at in range(index, place, step):
+        text = move(text, at, plugin_id, step)
+    return text
 
 
 def remove(text: str, index: int, plugin_id: str) -> str:

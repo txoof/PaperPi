@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% set logged_in = true %}
-{% set page = "plugins" %}
+{% set page = "home" %}
 {% block title %}Remove {{ row.name }} · PaperPi{% endblock %}
 {% block main %}
-<p class="crumbs"><a href="/plugins">Active Plugins</a> › {{ row.name or "(no id)" }}</p>
+<p class="crumbs"><a href="/">Home</a> › {{ row.name or "(no id)" }}</p>
 <h1>Remove {{ row.name or "(no id)" }}?</h1>
 <p>This removes the <code>{{ row.type }}</code> plugin <strong>{{ row.name or "(no id)" }}</strong>
 and all its settings from the config file. To only stop showing it, switch it off instead.</p>
 <form method="post" action="/plugins/{{ row.index }}/remove">
   <input type="hidden" name="id" value="{{ row.id }}">
   <button type="submit">Remove</button>
-  <a href="/plugins">Cancel</a>
+  <a href="/">Cancel</a>
 </form>
 {% endblock %}

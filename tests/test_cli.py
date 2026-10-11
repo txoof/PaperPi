@@ -569,5 +569,7 @@ def test_run_starts_the_web_interface_unless_asked_not_to(
         ((_, kw),) = calls
         assert kw["text"] == text
         assert kw["state_dir"] == tmp_path and kw["display"].type == "virtual"
+        # The home page shows what the scheduler has on screen, and asks it for Skip...
+        assert isinstance(kw["controls"], cli.Scheduler)
         kw["reload"]()
         assert reloads == [1]

@@ -122,7 +122,7 @@ def setting(
     ``required``: the plugin can't work until the user fills it in (a place, an email
     address, an API key). Its default must be "not set" (see :func:`is_set`). A plugin
     with a required setting that is not set is not shown; the config check and
-    ``paperpi list`` and the web interface's Active Plugins page say which settings it needs.
+    ``paperpi list`` and the web interface's home page say which settings it needs.
 
     ``helper``: the name of one of the plugin's ``helpers`` (a search, such as finding a
     place's latitude and longitude), shown just before this setting's field on the settings page.

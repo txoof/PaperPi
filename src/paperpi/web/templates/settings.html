@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% set logged_in = true %}
-{% set page = "plugins" %}
+{% set page = "home" %}
 {% block title %}Settings of {{ row.name }} · PaperPi{% endblock %}
 
 {% from "_field.html" import field %}
 
 {% block main %}
-<p class="crumbs"><a href="/plugins">Active Plugins</a> › {{ row.name }}</p>
+<p class="crumbs"><a href="/">Home</a> › {{ row.name }}</p>
 <h1>{{ row.name }}</h1>
 <p class="type">{{ row.type }}: {{ plugin.description }}</p>
 {% if done %}
@@ -18,7 +18,7 @@
 {% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
 {% if row.missing %}
 <p class="note">Not shown until these settings are filled in: {{ row.missing|join(", ") }}.
-{%- if not row.enabled %} Then switch it on in <a href="/plugins">Active Plugins</a>.{% endif %}</p>
+{%- if not row.enabled %} Then switch it on on the <a href="/">Home</a> page.{% endif %}</p>
 {% endif %}
 {% for found in row.errors %}<p class="problem">{{ found }}</p>{% endfor %}
 
@@ -46,7 +46,7 @@
     {# htmx sends this form's values; the answer replaces the picture below. #}
     <button type="button" hx-post="/plugins/{{ row.index }}/preview" hx-target="#preview"
       hx-indicator="#preview-wait" hx-disabled-elt="this">Preview</button>
-    <a href="/plugins">Back to Active Plugins</a>
+    <a href="/">Back to Home</a>
   </div>
   <p id="preview-wait" class="htmx-indicator">Drawing the preview. This can take about a
     minute.</p>

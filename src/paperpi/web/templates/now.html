@@ -1,0 +1,58 @@
+{#- The screen part of the home page. While PaperPi runs, it asks for itself again every
+    3 seconds (only while the page is open), and brings the cards' states along. -#}
+{% from "_cards.html" import state, picture with context %}
+<section class="now" id="now" aria-label="On the screen now"
+  {%- if running %} hx-get="/now" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  <div class="now-grid">
+    <div class="bezel">
+      {%- if now.picture is not none %}
+      <img src="/screen/picture?v={{ now.picture }}" width="{{ now.width }}" height="{{ now.height }}" alt="The picture on the screen now: {{ now.name }}">
+      {%- else %}
+      <div class="empty">No picture on the screen yet</div>
+      {%- endif %}
+    </div>
+    <div class="now-text">
+      {% if now.id %}
+      <h2>{{ now.name }}</h2>
+      <div class="type">{{ now.type }}{% if now.extra %} · extra turn (Show now){% endif %}</div>
+      <dl class="facts">
+        {% if now.since %}<dt>On screen since</dt><dd>{{ now.since }}</dd>{% endif %}
+        <dt>Next</dt><dd>{{ now.next or "Nothing else to show" }}</dd>
+      </dl>
+      {% elif running %}
+      <h2>Starting</h2>
+      <p class="type">PaperPi has not drawn a picture yet.</p>
+      {% else %}
+      <h2>The screen</h2>
+      <p class="type">What is on the screen is not known here.</p>
+      {% endif %}
+      {% if now.screen_problem %}
+      <div class="note">{{ now.screen_problem }}
+        <form method="post" action="/screen/try-again" hx-post="/screen/try-again" hx-target="#now" hx-swap="outerHTML">
+          <button class="quiet" type="submit">Try again now</button>
+        </form>
+      </div>
+      {% endif %}
+      {% if running and now.id %}
+      <div class="now-actions">
+        {% if now.alert %}
+        <form method="post" action="/screen/dismiss" hx-post="/screen/dismiss" hx-target="#now" hx-swap="outerHTML">
+          <input type="hidden" name="id" value="{{ now.id }}">
+          <button class="dismiss" type="submit">Dismiss alert</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/screen/skip" hx-post="/screen/skip" hx-target="#now" hx-swap="outerHTML">
+          <button class="quiet" type="submit" title="End this turn and show the next plugin">Skip to next</button>
+        </form>
+        <form method="post" action="/screen/refresh" hx-post="/screen/refresh" hx-target="#now" hx-swap="outerHTML">
+          <button class="quiet" type="submit" title="Fetch new data and draw this plugin again">Refresh ⟳</button>
+        </form>
+      </div>
+      {% endif %}
+      {% if asked %}<p class="saved asked" role="status">{{ asked }}</p>{% endif %}
+      {% if running %}<p class="live"><i></i>Updates by itself while this page is open</p>{% endif %}
+      <a class="bigger" href="#top" data-bigger>Show bigger</a>
+    </div>
+  </div>
+</section>
+{% if live %}{% for card in cards %}{{ state(card, running) }}{{ picture(card) }}{% endfor %}{% endif %}
