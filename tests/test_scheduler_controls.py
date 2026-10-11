@@ -294,3 +294,66 @@ def test_summary_keeps_the_last_picture_after_a_failure(tmp_path):
     assert b.status == "waiting"
     assert sim.labels.label(b.picture) == "B" and b.drawn_at == at_seconds(sim, 1)
     assert "fake failure" in b.error
+
+
+# Found in review
+
+
+def test_show_now_that_fails_during_the_splash_screen_keeps_the_splash_screen(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), rotation("b"), display="splash_time = 60")
+    sim.plan(b="fail")
+    sim.at(10, sim.scheduler.show_now, "b")
+    sim.run(until=100)
+    assert sim.writes == [(1, "BUILT-IN-SPLASH"), (61, "A")]
+
+
+def test_skip_during_a_write_does_not_skip_the_plugin_being_written(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=1000), rotation("b", refresh=1000))
+    sim.screen.write_seconds = 20
+    sim.at(125, sim.scheduler.skip)  # A is seen; B is being written (121 to 141)
+    sim.run(until=250)
+    assert sim.writes == [(1, "A"), (121, "B"), (241, "A")]
+
+
+def test_skipped_interrupt_comes_back_when_its_old_picture_comes_back(tmp_path):
+    sim = Sim(tmp_path, interrupt("m"), rotation("a", refresh=1000))
+    sim.plan(m=lambda t: "M2" if 200 <= t < 300 else "M1")
+    sim.at(100, sim.scheduler.skip)
+    sim.run(until=400)
+    assert sim.shown == ["M1", "A", "M2", "M1"]
+
+
+def test_refresh_with_nothing_to_show_does_not_clear_for_the_next_plugin(tmp_path):
+    sim = Sim(
+        tmp_path,
+        rotation("a", display_time=1000, refresh=300),
+        rotation("b", refresh=1000),
+        display="clean_every = 0",
+    )
+    sim.plan(a=lambda t: "nothing" if t > 10 else "A")
+    sim.at(50, sim.scheduler.refresh)
+    sim.run(until=100)
+    assert sim.writes == [(1, "A"), (51, "B")]
+    assert sim.screen.clears == []
+
+
+def test_refresh_across_a_reload_that_changes_the_plugin(tmp_path):
+    sim = Sim(tmp_path, rotation("a", display_time=1000, refresh=300), display="clean_every = 0")
+    sim.next_config = make_config(
+        rotation("a", display_time=900, refresh=300), display="clean_every = 0"
+    )
+    sim.at(50, sim.scheduler.refresh)
+    sim.at(50.5, sim.scheduler.reload)
+    sim.run(until=100)
+    # The changed plugin updates after the old update, and is drawn in full after a clear.
+    assert sim.writes == [(1, "A"), (52, "A")]
+    assert sim.screen.clears == [52]
+
+
+def test_summary_while_the_screen_is_paused_agrees_with_itself(tmp_path):
+    sim = Sim(tmp_path, rotation("a", refresh=1000), rotation("b", refresh=1000))
+    sim.at(50, setattr, sim.screen, "fail", ScreenResting("paused", wait=600))
+    sim.run(until=150)  # B's write at 101 failed: A is still seen
+    summary = sim.scheduler.summary
+    assert (summary.on_screen, summary.next, summary.screen) == ("a", "b", "paused")
+    assert [p.status for p in summary.plugins] == ["on_screen", "next"]

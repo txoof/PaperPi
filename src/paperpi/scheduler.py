@@ -371,8 +371,9 @@ class Scheduler:
         """Show now: the plugin that gets an extra turn, once it has a picture."""
         self._extra_on = False
         """The extra turn has begun."""
-        self._skip = False
-        """Skip to next was asked for: done at the next choice."""
+        self._skip: str | None = None
+        """Skip to next was asked for while this plugin was seen on screen: done at the next
+        choice, unless another plugin's turn has started by then (e.g. during a write)."""
         self._turn_over = False
         """The turn on screen ends now (Skip, or the end of an extra turn)."""
         self._refresh: _Slot | None = None
@@ -476,7 +477,9 @@ class Scheduler:
         elif isinstance(event, _ShowNow):
             self._show_now(event.plugin_id, now)
         elif event == _SKIP:
-            self._skip = True
+            seen = self._on_screen if self._writing else None
+            current = self._current
+            self._skip = seen[0] if seen else None if current is None else current.id
         elif event == _REFRESH:
             self._ask_refresh(now)
         elif isinstance(event, _TryAgain):
@@ -503,7 +506,6 @@ class Scheduler:
             return
         log.info("show now: %r", slot.id)
         self._extra, self._extra_on = slot, False
-        self._starting = False  # the splash screen at start ends
         if not slot.has_image and not slot.running:
             slot.due = now  # its picture first (also when it is left out after failures)
 
@@ -590,6 +592,8 @@ class Scheduler:
                         self._current = changed
                     if slot is self._extra:
                         self._extra = changed
+                    if slot is self._refresh:
+                        self._refresh = changed
                 slot = changed
             slots.append(slot)
         if self._extra is not None and self._extra not in slots:
@@ -749,11 +753,9 @@ class Scheduler:
                     waiting.waits_for, waiting.due = None, now
             return
         slot.reported = True
-        if slot is self._refresh:
+        refreshed = slot is self._refresh
+        if refreshed:
             self._refresh = None
-            if event.error is None and slot is self._current:
-                self._redraw_in_full()
-                self._clean_next = True
         if event.error is not None:
             slot.failures += 1
             slot.error = str(event.error)
@@ -780,6 +782,11 @@ class Scheduler:
         slot.due = self._next_update(slot, now)
         if slot.has_image:
             slot.picture, slot.drawn_at = slot.image, self.clock.now()
+            if slot.skipped is not None and not _same_image(slot.image, slot.skipped):
+                slot.skipped = None  # e.g. the next song
+            if refreshed and slot is self._current:
+                self._redraw_in_full()
+                self._clean_next = True
         else:
             slot.skipped = None
             self._extra_without_picture(slot)
@@ -828,9 +835,10 @@ class Scheduler:
         if self._retry_at is not None and now >= self._retry_at:
             self._retry_at = None
             self._attempted = None  # the screen watchdog allows a new try
-        if self._skip:
-            self._skip = False
-            self._skip_turn(now)
+        if self._skip is not None:
+            if self._current is not None and self._current.id == self._skip:
+                self._skip_turn(now)
+            self._skip = None
         chosen, new_turn = self._choose(now)
         if chosen is None:
             return
@@ -850,13 +858,13 @@ class Scheduler:
 
     def _choose(self, now: float) -> tuple[_Slot | None, bool]:
         """The plugin to show, and whether a new turn starts."""
+        extra = self._choose_extra(now)
+        if extra is not None:
+            return extra
         if self._starting or not self._slots:
             chosen = self._choose_splash(now)
             if chosen is not None:
                 return chosen
-        extra = self._choose_extra(now)
-        if extra is not None:
-            return extra
         over, self._turn_over = self._turn_over, False
         current = None if over else self._current
         alerts = [s for s in self._slots if s.level == "alert" and self._alert_active(s, now)]
@@ -894,6 +902,7 @@ class Scheduler:
         if not slot.has_image:
             return None  # waiting for its picture
         self._extra_on = True
+        self._starting = False  # it ends the splash screen at start
         return slot, True
 
     def _choose_splash(self, now: float) -> tuple[_Slot | None, bool] | None:
@@ -986,7 +995,9 @@ class Scheduler:
         # Rotation turns the picture clockwise.
         image = image.rotate(-rotation, expand=True) if rotation else image
         every = self.display.clean_every
-        clean = self._clean_next or (bool(every) and now - self._last_clean >= every)
+        # After Refresh; not when another plugin's turn has started since.
+        refresh = self._clean_next and not new_turn
+        clean = refresh or (bool(every) and now - self._last_clean >= every)
         self._clean_next = False
         fast = not clean and self._shown_by == chosen.id
         change, self._change = self._change, None
@@ -1075,33 +1086,36 @@ class Scheduler:
         def at(t: float | None) -> datetime | None:
             return None if t is None or not math.isfinite(t) else wall + timedelta(seconds=t - now)
 
+        # What people see: the last write that worked (a write may be running, or failing).
+        shown_id, picture = self._on_screen or (None, None)
         current = self._current
-        upcoming = self._upcoming(now)
+        on_turn = current is not None and current.id == shown_id
+        upcoming = self._upcoming(now, shown_id)
         shows_at = {slot.id: at(t) for slot, t in upcoming}
+        slots = {slot.id: slot for slot in self._slots}
         plugins = []
         for found in self._plugins:
             plugin_id = found.entry.id
-            slot = self._find(plugin_id)
+            slot = slots.get(plugin_id)
             if found.missing:
                 status = "needs_settings"
             elif slot is None:
                 status = "off"
-            elif slot is current:
+            elif plugin_id == shown_id:
                 status = "on_screen"
             elif slot.failures >= limits.FAILURES_BEFORE_LEFT_OUT and not slot.has_image:
                 status = "paused"
             elif plugin_id in shows_at:
                 status = "next" if plugin_id == upcoming[0][0].id else "rotation"
-            elif slot.has_image and slot.level == "rotation":
-                status = "rotation"
             elif slot.has_image and (
                 slot.dismissed_at is not None or slot.expired or slot.skipped is not None
             ):
                 status = "dismissed"
             elif slot.has_image:
-                status = "rotation"  # an alert or interrupt that takes turns with others
+                status = "rotation"  # also alerts or interrupts that take turns
             else:
                 status = "waiting"
+            paused = status == "paused" and not slot.running
             plugins.append(
                 PluginSummary(
                     plugin_id,
@@ -1109,13 +1123,11 @@ class Scheduler:
                     picture=None if slot is None else slot.picture,
                     drawn_at=None if slot is None else slot.drawn_at,
                     shows_at=shows_at.get(plugin_id),
-                    paused_until=at(slot.due) if status == "paused" else None,
+                    paused_until=at(slot.due) if paused else None,
                     error=None if slot is None else slot.error,
                     missing=found.missing,
                 )
             )
-        shown_id, picture = self._on_screen or (None, None)
-        on_turn = current is not None and current.id == shown_id
         return Summary(
             on_screen=shown_id,
             since=at(self._turn_start) if on_turn else None,
@@ -1129,31 +1141,38 @@ class Scheduler:
             plugins=tuple(plugins),
         )
 
-    def _upcoming(self, now: float) -> list[tuple[_Slot, float]]:
-        """The rotation plugins in the order they come next, each with about when its turn
-        starts. Empty while an alert or interrupt is on screen: when it ends is not known."""
+    def _upcoming(self, now: float, shown_id: str | None) -> list[tuple[_Slot, float]]:
+        """The plugins in the order they come next, each with about when its turn starts.
+        First the plugin being written (or failing to be), when it is not ``shown_id``; then
+        the rotation. Only that first one while an alert or interrupt has its turn: when it
+        ends is not known."""
         current = self._current
+        if current is None:
+            return []
+        first = [(current, now)] if current.id != shown_id and current in self._slots else []
         rotation = [s for s in self._slots if s.level == "rotation" and s.has_image]
-        if current is None or not rotation:
-            return []
         extra = current is self._extra and self._extra_on
-        if current in self._slots and current.level != "rotation" and not extra:
-            return []
+        if not rotation or (current in self._slots and current.level != "rotation" and not extra):
+            return first
         if current in rotation or extra:
             end = self._turn_start + current.config.entry.display_time
         elif current is self._splash and self._starting:
             end = self._turn_start + self.display.splash_time
         else:
             end = now
+        if first:
+            end = now + current.config.entry.display_time  # its turn starts when it is written
         after = current.id if current in rotation and not extra else self._last_rotation
         names = [s.id for s in self._slots]
         start = names.index(after) + 1 if after in names else 0
         order = [s for s in self._slots[start:] + self._slots[:start] if s in rotation]
         if len(order) > 1:
-            order = [s for s in order if s is not current]  # it just had its turn
-        times = []
+            # It just had its turn (or has it now).
+            order = [s for s in order if s is not current and s.id != shown_id] or order
+        times = first
         for slot in order:
-            times.append((slot, max(end, now)))
+            if slot is not current or not first:
+                times.append((slot, max(end, now)))
             end += slot.config.entry.display_time
         return times
 
@@ -1223,9 +1242,7 @@ def _splash_config(web_port: int) -> PluginConfig:
 
 def _interrupting(slot: _Slot) -> bool:
     """An interrupt plugin has something to show, and it was not skipped."""
-    if not slot.has_image:
-        return False
-    return slot.skipped is None or not _same_image(slot.image, slot.skipped)
+    return slot.has_image and slot.skipped is None
 
 
 def _same_plugin(a: PluginConfig, b: PluginConfig) -> bool:
