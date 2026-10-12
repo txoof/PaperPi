@@ -1,4 +1,4 @@
-"""What the Active Plugins and Plugin Library pages show, and the changes they make.
+"""What the home page's plugin list and the Plugin Library show, and the changes they make.
 
 - :class:`PluginEditor` reads the plugin list from the config file and makes one change at a
   time (:mod:`paperpi.web.config_file`). After each change it asks PaperPi to load the file
@@ -44,7 +44,7 @@ class FormErrors(config_file.EditError):
 
 @dataclass(frozen=True)
 class Row:
-    """One ``[[plugin]]`` block, as the Active Plugins page shows it."""
+    """One ``[[plugin]]`` block, as the home page shows it."""
 
     index: int
     """Its place in the file, counted from 0."""
@@ -144,6 +144,9 @@ class PluginEditor:
 
     def move(self, index: int, plugin_id: str, step: int) -> bool:
         return self.change(lambda text: config_file.move(text, index, plugin_id, step))
+
+    def move_to(self, index: int, plugin_id: str, place: int) -> bool:
+        return self.change(lambda text: config_file.move_to(text, index, plugin_id, place))
 
     def set_enabled(self, index: int, plugin_id: str, enabled: bool) -> bool:
         def switch(text: str) -> str:

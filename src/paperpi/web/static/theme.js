@@ -5,6 +5,8 @@
   "use strict";
   var KEY = "paperpi-theme";
   var root = document.documentElement;
+  // Parts of the look that only work with JavaScript (the home page's sticky screen).
+  root.classList.add("js");
   try {
     var saved = localStorage.getItem(KEY);
     if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);

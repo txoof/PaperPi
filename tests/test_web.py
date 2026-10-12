@@ -266,7 +266,7 @@ def test_security_headers_also_on_redirects(cfg):
     assert "cache-control" not in client.get("/static/style.css").headers
 
 
-MENU = [("/", "Home"), ("/plugins", "Active Plugins"), ("/library", "Plugin Library")]
+MENU = [("/", "Home"), ("/library", "Plugin Library")]
 
 
 def menu_marks(html: str) -> list[str]:
@@ -278,9 +278,8 @@ def menu_marks(html: str) -> list[str]:
     "path, current",
     [
         ("/", "/"),
-        ("/plugins", "/plugins"),
-        ("/plugins/0/settings?id=Clock", "/plugins"),
-        ("/plugins/0/remove?id=Clock", "/plugins"),
+        ("/plugins/0/settings?id=Clock", "/"),
+        ("/plugins/0/remove?id=Clock", "/"),
         ("/library", "/library"),
         ("/library/basic_clock", "/library"),
     ],
@@ -300,14 +299,14 @@ def test_every_page_has_the_menu_with_its_own_entry_marked(cfg, path, current):
 def test_logged_in_pages_have_log_out_in_both_menus(cfg):
     client = make_client(cfg)
     set_up(client)
-    for path in ["/", "/plugins", "/library"]:
+    for path in ["/", "/library"]:
         header = client.get(path).text.split("</header>")[0]
         assert header.count(">Log out</button>") == 2
 
 
 def test_pages_one_step_down_say_how_to_go_back(cfg):
     client = make_client(cfg, login=False)
-    crumbs = '<p class="crumbs"><a href="/plugins">Active Plugins</a> › Clock</p>'
+    crumbs = '<p class="crumbs"><a href="/">Home</a> › Clock</p>'
     assert crumbs in client.get("/plugins/0/settings?id=Clock").text
     assert crumbs in client.get("/plugins/0/remove?id=Clock").text
     assert (
@@ -335,14 +334,17 @@ def test_the_look_works_within_the_pages_own_rules(cfg):
     # The Content-Security-Policy allows only PaperPi's own files: no inline scripts or
     # styles, nothing from other servers (no web fonts), so the pages work without internet.
     client = make_client(cfg, login=False)
-    for path in ["/", "/plugins", "/plugins/0/settings?id=Clock", "/library"]:
+    home = ["/static/Sortable.min.js", "/static/home.js"]
+    for path in ["/", "/plugins/0/settings?id=Clock", "/library"]:
         html = client.get(path).text
         assert " style=" not in html and "<style" not in html
-        assert re.findall(r'<script\b[^>]*\bsrc="([^"]*)"[^>]*></script>', html) == [
+        scripts = re.findall(r'<script\b[^>]*\bsrc="([^"]*)"[^>]*></script>', html)
+        assert scripts == [
             "/static/theme.js",
             "/static/htmx.min.js",
+            *(home if path == "/" else []),
         ]
-        assert html.count("<script") == 2  # no inline scripts
+        assert html.count("<script") == len(scripts)  # no inline scripts
         assert "http://" not in html.replace(PI, "") and "https://" not in html
     theme = client.get("/static/theme.js")  # served (what it does is checked in a browser)
     assert theme.status_code == 200 and "paperpi-theme" in theme.text
@@ -351,7 +353,7 @@ def test_the_look_works_within_the_pages_own_rules(cfg):
     assert "@media (prefers-color-scheme: dark)" in css
     assert ':root:not([data-theme="light"])' in css and ':root[data-theme="dark"]' in css
     # Without JavaScript the button stays hidden (theme.js shows it).
-    buttons = re.findall(r"<button[^>]*data-theme-toggle[^>]*>", client.get("/plugins").text)
+    buttons = re.findall(r"<button[^>]*data-theme-toggle[^>]*>", client.get("/").text)
     assert len(buttons) == 2 and all(re.search(r"\bhidden\b", b) for b in buttons)
 
 

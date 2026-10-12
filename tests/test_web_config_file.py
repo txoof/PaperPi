@@ -65,6 +65,20 @@ def test_a_block_cant_move_past_the_ends():
         config_file.move(CONFIG, 1, "Words", 1)
 
 
+def test_a_block_can_move_to_any_place():
+    three = CONFIG + '\n[[plugin]]\nid = "Moon"\ntype = "moon_phase"\n'
+    first = config_file.move_to(three, 2, "Moon", 0)
+    assert names(first) == ["Moon", "Clock", "Words"]
+    assert first.index("# the clock in the kitchen") < first.index('id = "Clock"')
+    last = config_file.move_to(first, 0, "Moon", 2)
+    assert tomllib.loads(last) == tomllib.loads(three)
+    assert config_file.move_to(three, 1, "Words", 1) == three
+    with pytest.raises(EditError, match="can't move there"):
+        config_file.move_to(three, 1, "Words", 3)
+    with pytest.raises(EditError, match="changed after this page was opened"):
+        config_file.move_to(three, 1, "Clock", 0)
+
+
 def test_removing_a_block_removes_its_comments():
     removed = config_file.remove(CONFIG, 0, "Clock")
     assert names(removed) == ["Words"]

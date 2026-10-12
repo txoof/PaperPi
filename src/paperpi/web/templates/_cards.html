@@ -1,0 +1,70 @@
+{#- The parts of a plugin card. `state` and `picture` are also sent alone, with the screen
+    part (now.html), so the cards show what changed without loading the page again. -#}
+
+{% macro state(card, running) -%}
+<div class="state" id="state-{{ card.key }}"{% if live %} hx-swap-oob="true"{% endif %}>
+  <span class="chip {{ card.style }}">{{ card.symbol }} {{ card.label }}</span>
+  {% if card.note %}<span class="detail">{{ card.note }}</span>{% endif %}
+  {% if running and card.row.id %}
+  <div class="state-buttons">
+    {% if card.can_show %}
+    <form method="post" action="/screen/show" hx-post="/screen/show" hx-target="#now" hx-swap="outerHTML">
+      <input type="hidden" name="id" value="{{ card.row.id }}">
+      <button class="quiet" type="submit">Show now</button>
+    </form>
+    {% endif %}
+    {% if card.paused %}
+    <form method="post" action="/screen/try-again" hx-post="/screen/try-again" hx-target="#now" hx-swap="outerHTML">
+      <input type="hidden" name="id" value="{{ card.row.id }}">
+      <button class="quiet" type="submit">Try again now</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro picture(card) -%}
+<div class="thumb" id="pic-{{ card.key }}"{% if live %} hx-swap-oob="true"{% endif %}>
+  {%- if card.picture is not none %}
+  <img src="/screen/picture?id={{ card.row.id|urlencode }}&amp;v={{ card.picture }}" alt="Latest picture of {{ card.row.name }}">
+  {%- elif card.example and card.example.file %}
+  <div class="example"><img src="/library/pictures/{{ card.example.file }}" alt=""><span>Example</span></div>
+  {%- else %}
+  <div class="empty">No picture yet</div>
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{% macro card_item(card, running, first, last) -%}
+<li class="card{% if card.status == 'on_screen' %} on-screen{% endif %}{% if card.status in ('off', 'errors', 'needs_settings') %} off{% endif %}"
+  id="{{ card.key }}" data-id="{{ card.row.id }}">
+  <span class="handle" aria-hidden="true" title="Drag to move">⠿</span>
+  {{ picture(card) }}
+  <div class="card-body">
+    <div class="title">
+      <span class="pos" aria-label="Place {{ card.number }}">{{ card.number }}</span>
+      <strong>{{ card.row.name or "(no id)" }}</strong>
+      <span class="type">{{ card.row.type }}{% if card.row.id and card.row.id != card.row.name %} · {{ card.row.id }}{% endif %}</span>
+    </div>
+    {{ state(card, running) }}
+    <div class="actions">
+      <form method="post" action="/plugins/{{ card.row.index }}/enabled">
+        <input type="hidden" name="id" value="{{ card.row.id }}">
+        <input type="hidden" name="on" value="{{ '0' if card.row.enabled else '1' }}">
+        <button class="switch" type="submit" role="switch" aria-checked="{{ 'true' if card.row.enabled else 'false' }}"
+          {%- if not card.row.enabled and card.row.missing %} disabled{% endif %}
+          title="{{ 'Switch off' if card.row.enabled else 'Switch on' }}"><i></i>{{ "On" if card.row.enabled else "Off" }}</button>
+      </form>
+      {% if card.row.id %}<a href="/plugins/{{ card.row.index }}/settings?id={{ card.row.id|urlencode }}">Settings</a>{% endif %}
+      <a href="/plugins/{{ card.row.index }}/remove?id={{ card.row.id|urlencode }}">Remove</a>
+      <form class="order" method="post" action="/plugins/{{ card.row.index }}/move">
+        <input type="hidden" name="id" value="{{ card.row.id }}">
+        <button class="quiet" type="submit" name="step" value="up" aria-label="Move earlier"{% if first %} disabled{% endif %}><span class="in-list">↑</span><span class="in-grid">←</span></button>
+        <button class="quiet" type="submit" name="step" value="down" aria-label="Move later"{% if last %} disabled{% endif %}><span class="in-list">↓</span><span class="in-grid">→</span></button>
+      </form>
+    </div>
+    {% for error in card.row.errors %}<div class="problem">{{ error }}</div>{% endfor %}
+  </div>
+</li>
+{%- endmacro %}

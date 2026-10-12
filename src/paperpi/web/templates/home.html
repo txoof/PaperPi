@@ -1,13 +1,48 @@
 {% extends "base.html" %}
 {% set logged_in = true %}
 {% set page = "home" %}
+{% from "_cards.html" import card_item with context %}
+{% block head %}
+  <script src="/static/Sortable.min.js" defer></script>
+  <script src="/static/home.js" defer></script>
+{% endblock %}
+{% block main_class %}wide{% endblock %}
 {% block main %}
-<h1>PaperPi</h1>
-<p>PaperPi is running.</p>
-<ul>
-  <li><a href="/plugins">Active Plugins</a>: switch plugins on or off and change their order.</li>
-  <li><a href="/library">Plugin Library</a>: add a plugin.</li>
-</ul>
+<h1 class="sr-only">PaperPi</h1>
+{% if done %}
+<p class="saved">
+  {%- if done == "added" %}{% if name %}Added {{ name }}.{% else %}Plugin added.{% endif %} PaperPi applies the change now.
+  {%- else %}{{ message }}{% endif %}
+  {%- if hand_edits %} Your hand edits to the config file were applied too.{% endif %}</p>
+{% endif %}
+{% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
+{% for found in problems %}<p class="problem">{{ found|sentence }}</p>{% endfor %}
+{% include "now.html" %}
+
+<div class="list-head">
+  <div>
+    <h2>Your plugins</h2>
+    <p>Switched-on plugins take turns on the screen, in this order.</p>
+  </div>
+  <div class="head-right">
+    {#- These two need JavaScript (home.js shows them). -#}
+    <div class="style-pick" role="group" aria-label="Card style" hidden>
+      <button type="button" data-style="list" aria-pressed="true">List</button>
+      <button type="button" data-style="grid" aria-pressed="false">Grid</button>
+    </div>
+    <button class="quiet order-btn" type="button" data-order aria-pressed="false" hidden>Change order</button>
+    <a class="add" href="/library">Add a plugin</a>
+  </div>
+</div>
+<p class="order-hint" hidden>Drag a card by the handle on its left edge (⠿), or use the
+arrows. The numbers show the order: in the grid it runs left to right, then on to the next
+row. Each move is saved at once. Press <strong>Done</strong> when finished.</p>
+{% if not cards and not problems %}<p>No plugins yet. <a href="/library">Add one</a> from the Plugin Library.</p>{% endif %}
+<ol class="cards" id="cards">
+{% for card in cards %}
+  {{ card_item(card, running, loop.first, loop.last) }}
+{% endfor %}
+</ol>
 {% if not auth.login %}
 <p class="note">Log-in is switched off (<code>login = false</code> in <code>[web]</code> of the
 config file): anyone on your home network can change PaperPi's settings.</p>

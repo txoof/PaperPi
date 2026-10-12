@@ -5,7 +5,7 @@ the values a sent form holds, checked the same way as the config file.
   own settings, the shared ones people change most (:data:`COMMON`), and the rest
   ("More settings"). Each field shows the setting's value, or its default when the config
   file doesn't set it. ``id`` and ``type`` can't change; ``enabled`` is switched on the
-  Active Plugins page.
+  home page.
 - :func:`read` turns a sent form into the changes to save, or an error per field (then
   nothing is saved). An empty field means "the default" (for a check box: off; for a list:
   nothing picked). A value changed to its default is taken out of the file, which only holds

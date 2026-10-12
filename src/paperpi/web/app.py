@@ -3,14 +3,20 @@
 =================  ==============================================================
 Address            What it does
 =================  ==============================================================
-``/``              the home page
+``/``              the home page: the picture on the screen now (``/now`` is that part
+                   of the page, asked for again every few seconds; ``/screen/picture``
+                   the picture, ``?id=<id>`` a plugin's latest), and a card for each
+                   plugin in the config file: switch on or off, change the order, remove,
+                   settings (``/plugins/<n>/...?id=<id>``, n = place in the file,
+                   counted from 0, and the plugin's id to check it is still there)
+``/screen/...``    ask the screen for something: ``skip``, ``refresh``, ``dismiss``,
+                   ``show`` (Show now) and ``try-again`` (see :mod:`paperpi.scheduler`)
 ``/setup``         the first visitor sets the password (only while none is set)
 ``/login``         log in; also says how to reset a forgotten password
 ``/logout``        log out (a button on every page)
-``/plugins``       Active Plugins: the plugins in the config file; switch on or off, move
-                   up or down, remove, settings (``/plugins/<n>/...?id=<id>``, n = place
-                   in the file, counted from 0, and the plugin's id to check it is
-                   still there); ``/plugins/<n>/preview`` draws the settings form's
+``/plugins/...``   a plugin's settings page, and the changes the home page makes;
+                   ``/plugins`` (the old Active Plugins page) opens the home page;
+                   ``/plugins/<n>/preview`` draws the settings form's
                    values without saving them; ``/plugins/<n>/search/<setting>`` runs
                    that setting's helper and ``/plugins/<n>/use/<setting>`` puts a
                    choice into the form (all three are parts of the settings page)
@@ -18,8 +24,9 @@ Address            What it does
                    (``/library/pictures/<file>``; ``/library/<type>/picture`` is the
                    picture's part of the page, asked for again until it is drawn);
                    ``/library/<type>`` adds one and opens its settings
-``/static/...``    the style sheet and htmx (a small JavaScript file that updates
-                   one part of a page without loading the whole page again)
+``/static/...``    the style sheet, the home page's script, SortableJS (drag to change
+                   the order) and htmx (a small JavaScript file that updates one part of
+                   a page without loading the whole page again)
 =================  ==============================================================
 
 Every other page needs a log-in, unless ``login = false`` in ``[web]``. Forms are only
@@ -31,10 +38,12 @@ address or ``localhost``: a website could otherwise point a name of its own at t
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import logging
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlencode, urlsplit
@@ -51,6 +60,7 @@ from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
+from .home import Controls, Snapshots, card_key, cards, now_part
 from .password import PasswordError, password_problem
 from .pictures import Pictures
 from .plugins import FormErrors, PluginEditor, library, library_item
@@ -72,15 +82,18 @@ def create_app(
     previewer: Previewer | None = None,
     pictures: Pictures | None = None,
     searcher: Searcher | None = None,
+    controls: Controls | None = None,
 ) -> FastAPI:
     """The web interface, using ``auth`` for the password and log-in, ``editor`` to
     change the plugins in the config file, ``previewer`` to draw previews, ``pictures``
-    for the Plugin Library's example pictures (default: none) and ``searcher`` for the
-    settings helpers' searches."""
+    for the Plugin Library's example pictures (default: none), ``searcher`` for the
+    settings helpers' searches and ``controls`` (the scheduler) for what is on screen
+    (without it, the home page shows only the config file)."""
     editor = editor or PluginEditor(auth.config_file)
     previewer = previewer or Previewer()
     pictures = pictures or Pictures(None)
     searcher = searcher or Searcher()
+    snapshots = Snapshots()
     app = FastAPI(title="PaperPi", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
@@ -92,6 +105,7 @@ def create_app(
     )
     templates.env.filters["number"] = _number
     templates.env.filters["sentence"] = lambda text: text[:1].upper() + text[1:]
+    templates.env.filters["card_key"] = card_key
 
     def page(request: Request, template: str, status: int = 200, **values) -> HTMLResponse:
         return templates.TemplateResponse(request, template, values, status_code=status)
@@ -130,19 +144,17 @@ def create_app(
         response = await refused_or_page(request, call_next)
         path = request.url.path
         response.headers["X-Frame-Options"] = "DENY"
+        # Browsers never take a text or a picture for a page.
+        response.headers["X-Content-Type-Options"] = "nosniff"
         # Previews are pictures sent inside the page (data: addresses), never saved.
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; "
             "form-action 'self'; base-uri 'none'"
         )
         response.headers["Referrer-Policy"] = "same-origin"
-        if not path.startswith(("/static/", "/library/pictures/")):
+        if not path.startswith(("/static/", "/library/pictures/", "/screen/picture")):
             response.headers["Cache-Control"] = "no-store"
         return response
-
-    @app.get("/", response_class=HTMLResponse)
-    def home(request: Request):
-        return page(request, "home.html")
 
     @app.get("/setup", response_class=HTMLResponse)
     def setup_page(request: Request):
@@ -187,56 +199,160 @@ def create_app(
             return logged_in(request, stored)
         return page(request, "login.html", 401, problem="Wrong password.")
 
-    def plugin_list(request: Request, status: int = 200, problem: str | None = None):
+    def found_rows() -> tuple[list, list[str], bool]:
+        """The config file's plugin blocks, the file's problems, and whether it was read."""
         try:
             found = editor.plugin_list()
         except EditError as error:
-            rows, problems = [], [str(error)]
-            status = 500 if status == 200 else status
-        else:
-            rows, problems = found.rows, found.problems
+            return [], [str(error)], False
+        return found.rows, found.problems, True
+
+    def summary():
+        return controls.summary if controls is not None else None
+
+    def home_page(request: Request, status: int = 200, problem: str | None = None):
+        rows, problems, read = found_rows()
+        if not read and status == 200:
+            status = 500
         done = request.query_params.get("done")
         # The name is looked up by the ID in the address: a link can't put other text on
         # the page.
         plugin_id = request.query_params.get("id")
         name = next((row.name for row in rows if plugin_id and row.id == plugin_id), None)
+        snapshots.keep_only({row.id for row in rows})
         return page(
             request,
-            "plugins.html",
+            "home.html",
             status,
-            rows=rows,
+            **home_values(rows),
+            running=controls is not None,
             problems=[p for p in dict.fromkeys(problems) if p != problem],
             problem=problem,
-            done=done if done in ("saved", "added", "removed") else None,
+            done=done if done in _DONE else None,
+            message=_DONE.get(done or ""),
             name=name,
             hand_edits=request.query_params.get("hand") == "1",
+        )
+
+    def home_values(rows: list) -> dict:
+        now, shown = datetime.now(), summary()
+        examples = {row.type: pictures.shown(row.type) for row in rows}
+        values = {
+            "now": now_part(shown, rows, snapshots, now),
+            "cards": cards(rows, shown, snapshots, examples, now),
+        }
+        # What the screen part shows; the same text when nothing changed.
+        values["seen"] = hashlib.sha256(repr(values).encode()).hexdigest()[:16]
+        return values
+
+    def now_page(request: Request, asked: str | None = None):
+        rows, _, _ = found_rows()
+        values = home_values(rows)
+        if asked is None and request.query_params.get("seen") == values["seen"]:
+            return Response(status_code=204)  # htmx then leaves the page as it is
+        return page(
+            request,
+            "now.html",
+            running=controls is not None,
+            asked=_DONE.get(asked or ""),
+            live=True,
+            **values,
         )
 
     def saved(done: str, hand_edits: bool, plugin_id: str = "") -> RedirectResponse:
         values = {"done": done} | ({"id": plugin_id} if plugin_id else {})
         query = urlencode(values | ({"hand": "1"} if hand_edits else {}))
-        return RedirectResponse(f"/plugins?{query}", status_code=303)
+        return RedirectResponse(f"/?{query}", status_code=303)
 
-    @app.get("/plugins", response_class=HTMLResponse)
+    # The pages answer a part of the page (htmx) or a form sent without JavaScript.
+    def changed(request: Request, done: str, hand_edits: bool) -> Response:
+        if request.headers.get("hx-request") == "true":
+            return Response(status_code=204)
+        return saved(done, hand_edits)
+
+    def refused(request: Request, status: int, problem: str) -> Response:
+        if request.headers.get("hx-request") == "true":
+            return Response(problem, status, media_type="text/plain")
+        return home_page(request, status, problem)
+
+    @app.get("/", response_class=HTMLResponse)
+    def home(request: Request):
+        return home_page(request)
+
+    @app.get("/now", response_class=HTMLResponse)
+    def now_part_page(request: Request):
+        return now_page(request)
+
+    @app.get("/screen/picture")
+    def screen_picture(plugin_id: _QueryId = "", v: int = 0):
+        found = snapshots.png(plugin_id)
+        if found is None:
+            return Response("No such picture.", 404)
+        number, png = found
+        # The address holds the picture's number, so the browser may keep it; a picture
+        # that changed meanwhile is sent as it is now, but not kept.
+        keep = "private, max-age=86400" if number == v else "no-store"
+        return Response(png, media_type="image/png", headers={"Cache-Control": keep})
+
+    def asked(request: Request, what: str, ask: Callable[[], None]) -> Response:
+        if controls is None:
+            return refused(request, 409, "PaperPi's screen is not running.")
+        ask()
+        if request.headers.get("hx-request") == "true":
+            return now_page(request, what)
+        return RedirectResponse(f"/?done={what}", status_code=303)
+
+    @app.post("/screen/skip", response_class=HTMLResponse)
+    def skip(request: Request):
+        return asked(request, "skip", lambda: controls.skip())
+
+    @app.post("/screen/refresh", response_class=HTMLResponse)
+    def refresh(request: Request):
+        return asked(request, "refresh", lambda: controls.refresh())
+
+    @app.post("/screen/dismiss", response_class=HTMLResponse)
+    def dismiss(request: Request, plugin_id: _FormId = ""):
+        return asked(request, "dismiss", lambda: controls.dismiss(plugin_id))
+
+    @app.post("/screen/show", response_class=HTMLResponse)
+    def show_now(request: Request, plugin_id: _FormId = ""):
+        return asked(request, "show", lambda: controls.show_now(plugin_id))
+
+    @app.post("/screen/try-again", response_class=HTMLResponse)
+    def try_again(request: Request, plugin_id: _FormId = ""):
+        return asked(request, "again", lambda: controls.try_again(plugin_id or None))
+
+    @app.get("/plugins")
     def plugins_page(request: Request):
-        return plugin_list(request)
+        query = request.url.query
+        return RedirectResponse("/" + (f"?{query}" if query else ""), status_code=303)
 
     @app.post("/plugins/{index}/move", response_class=HTMLResponse)
-    def move(request: Request, index: int, plugin_id: _FormId = "", step: str = Form("")):
-        if step not in ("up", "down"):
-            return plugin_list(request, 400, "Choose up or down.")
+    def move(
+        request: Request,
+        index: int,
+        plugin_id: _FormId = "",
+        step: str = Form(""),
+        to: str = Form(""),
+    ):
+        place = int(to) if to.isascii() and to.isdigit() else None
+        if place is None and step not in ("up", "down"):
+            return refused(request, 400, "Choose up or down.")
         try:
-            hand_edits = editor.move(index, plugin_id, -1 if step == "up" else 1)
+            if place is not None:
+                hand_edits = editor.move_to(index, plugin_id, place)
+            else:
+                hand_edits = editor.move(index, plugin_id, -1 if step == "up" else 1)
         except EditError as error:
-            return plugin_list(request, 409, str(error))
-        return saved("saved", hand_edits)
+            return refused(request, 409, str(error))
+        return changed(request, "saved", hand_edits)
 
     @app.post("/plugins/{index}/enabled", response_class=HTMLResponse)
     def switch(request: Request, index: int, plugin_id: _FormId = "", on: str = Form("")):
         try:
             hand_edits = editor.set_enabled(index, plugin_id, on == "1")
         except EditError as error:
-            return plugin_list(request, 409, str(error))
+            return home_page(request, 409, str(error))
         return saved("saved", hand_edits)
 
     @app.get("/plugins/{index}/remove", response_class=HTMLResponse)
@@ -244,7 +360,7 @@ def create_app(
         try:
             row = editor.row(index, plugin_id)
         except EditError as error:
-            return plugin_list(request, 409, str(error))
+            return home_page(request, 409, str(error))
         return page(request, "remove.html", row=row)
 
     @app.post("/plugins/{index}/remove", response_class=HTMLResponse)
@@ -252,7 +368,7 @@ def create_app(
         try:
             hand_edits = editor.remove(index, plugin_id)
         except EditError as error:
-            return plugin_list(request, 409, str(error))
+            return home_page(request, 409, str(error))
         return saved("removed", hand_edits)
 
     def settings_page(
@@ -266,7 +382,7 @@ def create_app(
             plugin, block = editor.settings(index, plugin_id)
             row = editor.row(index, plugin_id)
         except EditError as error:
-            return plugin_list(request, 409, str(error))
+            return home_page(request, 409, str(error))
         errors = found.errors if found else {}
         shown = fields(plugin, block, found.sent if found else None, errors)
         groups = {g: [f for f in shown if f.group == g] for g in ("name", "own", "common", "more")}
@@ -301,7 +417,7 @@ def create_app(
                 settings_page, request, index, plugin_id, 400, error.found
             )
         except EditError as error:
-            return await run_in_threadpool(plugin_list, request, 409, str(error))
+            return await run_in_threadpool(home_page, request, 409, str(error))
         return settings_saved(index, plugin_id, "saved", hand_edits)
 
     @app.post("/plugins/{index}/preview", response_class=HTMLResponse)
@@ -434,6 +550,19 @@ def create_app(
         return response
 
     return app
+
+
+#: What the home page says after a change or a request (``?done=...``).
+_DONE = {
+    "saved": "Saved. PaperPi applies the change now.",
+    "added": "",
+    "removed": "Plugin removed. PaperPi applies the change now.",
+    "skip": "Asked PaperPi to show the next plugin.",
+    "refresh": "Asked PaperPi to fetch new data and draw the picture again.",
+    "dismiss": "Asked PaperPi to dismiss the alert.",
+    "show": "Asked PaperPi to show the plugin now, for one extra turn.",
+    "again": "Asked PaperPi to try again now.",
+}
 
 
 def _go_to(request: Request, path: str) -> Response:
