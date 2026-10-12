@@ -79,7 +79,8 @@ def test_block_lists_every_setting_of_the_plugin(plugin_type):
     block = plugin_block(plugin, "Test")
     for key in plugin.settings.model_fields:
         assert re.search(rf"^# {key} =", block, re.MULTILINE), key
-    assert f'# Layouts (values for "layout"): {", ".join(plugin.layouts)}' in block
+    comments = " ".join(line[2:] for line in block.splitlines() if line.startswith("# "))
+    assert f'Layouts (values for "layout"): {", ".join(plugin.layouts)}' in comments  # wrapped
     assert "# refresh =" in block and "# layout =" in block
     assert "display_time" not in block  # the other shared settings only with shared=True
     full = plugin_block(plugin, "Test", shared=True)

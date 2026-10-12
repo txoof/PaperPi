@@ -113,6 +113,7 @@ def get(
     retry_wait: float = limits.WEB_RETRY_WAIT,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
+    _post: tuple[bytes, str] | None = None,
 ) -> Answer:
     """Download ``url`` (``http`` or ``https``) and return the answer.
 
@@ -125,6 +126,8 @@ def get(
     Raises :class:`WebError` with a plain message when the request fails.
     """
     own = {"User-Agent": user_agent(contact), "Accept-Encoding": "gzip"}
+    if _post:
+        own["Content-Type"] = _post[1]
     if if_modified_since:
         own["If-Modified-Since"] = if_modified_since
     # Header names don't depend on upper or lower case, so a plugin's "accept-encoding"
@@ -135,7 +138,7 @@ def get(
     deadline = clock() + total
 
     def attempt() -> Answer:
-        return _follow(url, sent, own, deadline, connect_timeout, total, max_bytes, clock)
+        return _follow(url, sent, own, deadline, connect_timeout, total, max_bytes, clock, _post)
 
     try:
         return attempt()
@@ -150,14 +153,25 @@ def get(
             raise WebError(f"{first} (on the retry: {second})") from None
 
 
-def _follow(url, sent, own, deadline, connect_timeout, total, max_bytes, clock) -> Answer:
-    """One attempt, following up to :data:`MAX_REDIRECTS` redirects."""
+def post(url: str, data: bytes, *, content_type: str = "application/json", **options) -> Answer:
+    """Send ``data`` to ``url`` (a POST request, for example a JSON-RPC call) and return the
+    answer. Takes the same ``options`` as :func:`get`, with the same limits and retry. A
+    redirect is not followed: it fails, because it would lose ``data``."""
+    return get(url, _post=(data, content_type), **options)
+
+
+def _follow(url, sent, own, deadline, connect_timeout, total, max_bytes, clock, post) -> Answer:
+    """One attempt, following up to :data:`MAX_REDIRECTS` redirects (none for ``post``)."""
     first = _origin(url)
     for _ in range(MAX_REDIRECTS + 1):
         headers = sent if _origin(url) == first else own
-        answer = _once(url, headers, deadline, connect_timeout, total, max_bytes, clock)
+        data = post[0] if post else None
+        answer = _once(url, headers, deadline, connect_timeout, total, max_bytes, clock, data)
         if isinstance(answer, Answer):
             return answer
+        if post:
+            # Following it would send a GET without the data.
+            raise WebError(f"{_where(url)} redirected a POST request")
         new = urljoin(url, answer)
         if urlsplit(url).scheme == "https" and urlsplit(new).scheme != "https":
             raise WebError(f"{_where(url)} redirected from https to an unsafe address")
@@ -165,8 +179,9 @@ def _follow(url, sent, own, deadline, connect_timeout, total, max_bytes, clock) 
     raise WebError(f"{_where(url)}: more than {MAX_REDIRECTS} redirects")
 
 
-def _once(url, sent, deadline, connect_timeout, total, max_bytes, clock) -> Answer | str:
-    """One request. Returns the answer, or the new address for a redirect."""
+def _once(url, sent, deadline, connect_timeout, total, max_bytes, clock, data=None) -> Answer | str:
+    """One request (a POST of ``data`` when given). Returns the answer, or the new address
+    for a redirect."""
     try:
         parts = urlsplit(url)
         port = parts.port
@@ -194,7 +209,7 @@ def _once(url, sent, deadline, connect_timeout, total, max_bytes, clock) -> Answ
         sock = connection.sock  # kept: http.client drops it once the answer is read
         watch = _shut_at(sock, deadline - clock())
         _limit(sock, deadline, clock)
-        connection.request("GET", target, headers=sent)
+        connection.request("GET" if data is None else "POST", target, data, headers=sent)
         response = connection.getresponse()
         status = response.status
         if status in _REDIRECTS:

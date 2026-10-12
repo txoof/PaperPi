@@ -21,6 +21,7 @@ class Server:
     def __init__(self):
         self.answers = {}
         self.requests = []  # (path, headers) of every request; headers keep repeated names
+        self.bodies = []  # (method, body) of every POST request
         server = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -41,6 +42,11 @@ class Server:
                     self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", 0))
+                server.bodies.append((self.command, self.rfile.read(length)))
+                self.do_GET()
 
             def log_message(self, *args):
                 pass
@@ -446,3 +452,27 @@ def test_messages_name_only_the_server(server):
 def test_only_web_addresses(url):
     with pytest.raises(WebError, match="not a web address"):
         webrequest.get(url)
+
+
+def test_post_sends_its_data(server):
+    server.answers["/rpc"] = [(200, {}, b'{"result": {}}')]
+    answer = webrequest.post(server.url + "/rpc", b'{"id": 1}', headers={"X-Key": "k"})
+    assert answer.json() == {"result": {}}
+    assert server.bodies == [("POST", b'{"id": 1}')]
+    headers = server.requests[0][1]
+    assert headers["Content-Type"] == "application/json"
+    assert headers["X-Key"] == "k"
+
+
+def test_post_does_not_follow_redirects(server):
+    server.answers["/rpc"] = [(302, {"Location": "/other"}, b"")]
+    with pytest.raises(WebError, match="redirected a POST request"):
+        webrequest.post(server.url + "/rpc", b"{}")
+    assert [path for path, _ in server.requests] == ["/rpc"]
+
+
+def test_post_is_retried_like_get(server):
+    server.answers["/rpc"] = [(503, {}, b""), (200, {}, b"ok")]
+    answer = webrequest.post(server.url + "/rpc", b"{}", sleep=lambda s: None)
+    assert answer.body == b"ok"
+    assert server.bodies == [("POST", b"{}"), ("POST", b"{}")]
