@@ -1,0 +1,11 @@
+<p class="hint" id="log-count"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {%- with counted = counted or shown %}
+  {%- if counted.matching > counted.rows|length %}The newest {{ counted.rows|length|thousands }} of {{ counted.matching|thousands }} matching lines are shown ({{ counted.total|thousands }} kept).
+  {%- else %}{{ counted.matching|thousands }} of {{ counted.total|thousands }} kept lines match.{% endif %}
+  {%- endwith -%}
+</p>
+{%- if oob %}<div id="no-lines" hx-swap-oob="delete"></div>{% endif %}
+{%- if follow %}
+<div id="log-more"{% if oob %} hx-swap-oob="true"{% endif %} hx-get="/log/new" hx-trigger="every 3s"
+  hx-vals='{{ {"after": shown.newest, "level": level, "q": search}|tojson }}' hx-target="#lines" hx-swap="beforeend"></div>
+{%- endif %}

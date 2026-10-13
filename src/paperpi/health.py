@@ -40,7 +40,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path
 
-from . import limits
+from . import limits, logbook
 from .files import write_atomic
 
 log = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class Health:
         if self.path is not None:
             self._write(measured)
         if measured.monotonic >= self._next_log:
-            log.info("health: %s", details(asdict(measured)))
+            log.info("health: %s", details(asdict(measured)), extra=logbook.KEEP)
             self._next_log = measured.monotonic + limits.HEALTH_LOG
         if not self._ready:
             # Tried again with every report until it works: systemd waits for it.

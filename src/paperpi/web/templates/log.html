@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "warnings" %}
+{% block title %}Full log · PaperPi{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block head %}<script src="/static/log.js" defer></script>{% endblock %}
+{% block main %}
+<h1>Warnings</h1>
+{#- The Warnings tab joins in part 4, PR 4b. -#}
+<nav class="tabs" aria-label="Warnings pages">
+  <a href="/log" aria-current="page">Full log</a>
+</nav>
+{% if not running %}
+<p class="note">The log is only kept while PaperPi shows the plugins (<code>paperpi run</code>).</p>
+{% else %}
+<form class="logbar" id="log-form" method="get" action="/log" hx-get="/log" hx-target="#log-part"
+  hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, change, input delay:400ms from:#q">
+  <div class="filters" role="group" aria-label="Show">
+    {% for value, label, _ in filters %}
+    <label class="pick"><input type="radio" name="level" value="{{ value }}"{% if value == level %} checked{% endif %}> {{ label }}</label>
+    {% endfor %}
+  </div>
+  <input type="search" id="q" name="q" value="{{ search }}" maxlength="{{ longest_search }}"
+    placeholder="Find in the log" aria-label="Find in the log">
+  <label class="follow"><input type="checkbox" name="follow" value="1"{% if follow %} checked{% endif %}> New lines as they come</label>
+  <button type="submit" class="no-js">Show</button>
+  <span class="spacer"></span>
+  <a class="button" href="/log/download" download>⤓ Download log</a>
+</form>
+{% include "_log.html" %}
+<p class="hint">Warnings, errors, starts and stops, and the hourly health line are also kept in
+a small file in the state folder (at most about 2 MB), so they survive a restart of the Pi. The
+other lines are kept in memory only, since PaperPi started (the last {{ kept|thousands }}). The
+page shows the newest {{ most|thousands }} lines that match; the download is a text file with
+every kept line. Passwords and secret settings are never in the log.</p>
+{% endif %}
+{% endblock %}

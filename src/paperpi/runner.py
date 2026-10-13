@@ -8,6 +8,10 @@ stopped without affecting PaperPi or other plugins.
 To keep starts quick, processes are started by Python's "forkserver": one ready copy of
 Python that has already loaded epdlib, Pillow and pydantic. Each update is a copy of it, so
 these packages are not loaded again every time.
+
+Log lines of the plugin process are sent to PaperPi with the result (at most
+:data:`~paperpi.limits.PLUGIN_LOG_LINES` per update, secret settings replaced with ``****``)
+and logged there, so they are in PaperPi's log like its own (see :mod:`paperpi.logbook`).
 """
 
 from __future__ import annotations
@@ -129,9 +133,10 @@ def _run(plugin_type: str, target: Callable, args: tuple, time_limit: float) -> 
     ``("ok", ...)``. Raises for the others: ``("error", reason, details)`` and
     ``("problem", message)`` (a helper's message for the user)."""
     receiver, sender = _context.Pipe(duplex=False)
+    level = logging.getLogger().getEffectiveLevel()
     process = _context.Process(
         target=target,
-        args=(sender, *args),
+        args=(sender, level, *args),
         name=f"paperpi-plugin-{plugin_type}",
         daemon=True,
     )
@@ -142,9 +147,7 @@ def _run(plugin_type: str, target: Callable, args: tuple, time_limit: float) -> 
             _running.add(process)
         sender.close()  # the child has its own copy; closing ours lets us notice a crash
         try:
-            if not receiver.poll(time_limit):
-                raise PluginTimeout(plugin_type, f"no result within {time_limit:g} s; stopped")
-            message = receiver.recv()
+            message = _receive(receiver, plugin_type, time_limit)
             finished = True
         except (EOFError, OSError):
             process.join(limits.PLUGIN_EXIT)
@@ -163,6 +166,19 @@ def _run(plugin_type: str, target: Callable, args: tuple, time_limit: float) -> 
     if message[0] == "problem":
         raise HelperProblem(message[1])
     return message
+
+
+def _receive(receiver: Connection, plugin_type: str, time_limit: float) -> tuple:
+    """The plugin process's result. The log lines it sends before it are logged here."""
+    end = time.monotonic() + time_limit
+    while True:
+        if not receiver.poll(max(0.0, end - time.monotonic())):
+            raise PluginTimeout(plugin_type, f"no result within {time_limit:g} s; stopped")
+        message = receiver.recv()
+        if message[0] != "log":
+            return message
+        _, level, name, text = message
+        logging.getLogger(str(name)).log(int(level), "%s", text)
 
 
 def stop_all() -> None:
@@ -217,6 +233,7 @@ def _group_alive(pgid: int) -> bool:
 
 def _child(
     sender: Connection,
+    level: int,
     plugin_type: str,
     package: str,
     context: Context,
@@ -224,7 +241,7 @@ def _child(
     sample: bool,
 ) -> None:
     """Runs in the plugin process: one update, then send the result and exit."""
-    with _reporting(sender) as secrets:
+    with _reporting(sender, level) as secrets:
         from .plugin import draw_update
 
         plugin, checked = _load(plugin_type, package, settings, secrets)
@@ -235,6 +252,7 @@ def _child(
 
 def _helper_child(
     sender: Connection,
+    level: int,
     plugin_type: str,
     package: str,
     name: str,
@@ -243,7 +261,7 @@ def _helper_child(
     language: str,
 ) -> None:
     """Runs in the plugin process: one search of a helper, then send the result and exit."""
-    with _reporting(sender) as secrets:
+    with _reporting(sender, level) as secrets:
         from .helper import clean
 
         plugin, checked = _load(plugin_type, package, settings, secrets)
@@ -259,18 +277,51 @@ def _helper_child(
 
 
 @contextlib.contextmanager
-def _reporting(sender: Connection) -> Iterator[list[str]]:
-    """In the plugin process: send any error as a message, with secret settings (filled into
-    the list it gives) replaced with ``****``. Also closes ``sender``."""
+def _reporting(sender: Connection, level: int) -> Iterator[list[str]]:
+    """In the plugin process: send log lines of ``level`` and up, and any error, as messages,
+    with secret settings (filled into the list it gives) replaced with ``****``. Also closes
+    ``sender``."""
     os.setpgrp()  # own process group, so the parent can stop everything this plugin starts
     secrets: list[str] = []
+    root = logging.getLogger()
+    handler = _LogSender(sender, secrets)
+    root.addHandler(handler)
+    root.setLevel(level)
     try:
         yield secrets
     except BaseException as error:  # noqa: BLE001 - report everything, then exit
         reason = _hide(f"{type(error).__name__}: {error}", secrets)
         sender.send(("error", reason, _hide(traceback.format_exc(), secrets)))
     finally:
+        root.removeHandler(handler)
         sender.close()
+
+
+class _LogSender(logging.Handler):
+    """In the plugin process: sends each log line to PaperPi, at most
+    :data:`~paperpi.limits.PLUGIN_LOG_LINES`, then one that says the rest are left out."""
+
+    def __init__(self, sender: Connection, secrets: list[str]) -> None:
+        super().__init__()
+        self.sender = sender
+        self.secrets = secrets
+        self.sent = 0
+        self.setFormatter(logging.Formatter("%(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        # logging calls this with the handler's lock held, also when a plugin uses threads.
+        try:
+            if self.sent > limits.PLUGIN_LOG_LINES:
+                return
+            self.sent += 1
+            if self.sent > limits.PLUGIN_LOG_LINES:
+                level = logging.WARNING
+                text = f"more than {limits.PLUGIN_LOG_LINES} log lines; the rest are left out"
+            else:
+                level, text = record.levelno, _hide(self.format(record), self.secrets)
+            self.sender.send(("log", level, record.name, text))
+        except Exception:  # noqa: BLE001 - a log line must never break the update
+            self.handleError(record)
 
 
 def _load(plugin_type: str, package: str, settings: dict, secrets: list[str]):

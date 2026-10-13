@@ -110,6 +110,17 @@ HEALTH_STALE = 2 * 60.0
 #: weeks (the health file only holds the newest).
 HEALTH_LOG = 60 * 60.0
 
+#: Log lines kept in memory for the web interface's Full log (see :mod:`paperpi.logbook`).
+LOG_LINES = 5_000
+
+#: Size at which the log file in the state folder is replaced by a new one (the old one is
+#: kept as ``paperpi.log.1``), so both together stay under about 2 MB.
+LOG_FILE_BYTES = 1_000_000
+
+#: Log lines one plugin update or helper search may send to PaperPi; the rest are left out,
+#: so a plugin that logs in a loop can't fill the log.
+PLUGIN_LOG_LINES = 100
+
 #: Longest sending one message to systemd may take.
 SYSTEMD_MESSAGE = 5.0
 

@@ -1,0 +1,6 @@
+{% for row in shown.rows -%}
+{% if row.started %}<div class="sep">PaperPi started again on {{ row.line.time.strftime("%Y-%m-%d at %H:%M") }}. The lines above are from the log file (only warnings, errors, starts, stops and health lines).</div>{% endif -%}
+<div class="ln {{ row.line.level }}"><span class="t" title="{{ row.line.time.strftime('%Y-%m-%d %H:%M:%S') }}" data-short="{{ row.line.time.strftime('%H:%M:%S') }}">{{ row.line.time.strftime("%d %b %H:%M:%S") }}</span><span class="lv">{{ row.line.level }}</span><span class="m">
+{%- for part, hit in row.parts %}{% if hit %}<mark>{{ part }}</mark>{% else %}{{ part }}{% endif %}{% endfor -%}
+<span class="src"> {{ row.line.source }}</span></span></div>
+{% endfor %}

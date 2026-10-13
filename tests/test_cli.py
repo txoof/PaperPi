@@ -383,9 +383,14 @@ def test_run_does_not_clear_the_screen_after_an_error(tmp_path, monkeypatch):
     cfg = tmp_path / "paperpi.toml"
     cfg.write_text(IT8951_CONFIG.format(extra=""))
     args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
-    with pytest.raises(RuntimeError, match="a bug"):
-        main([*args, "--health-file", str(tmp_path / "health")])
+    assert main([*args, "--health-file", str(tmp_path / "health")]) == 1
     assert [what for _, what in notes(tmp_path)] == ["init", "close"]
+    # The crash is in the log file, with its traceback, between the start and the stop.
+    kept = (tmp_path / "paperpi.log").read_text()
+    assert "starts, process id" in kept
+    assert "CRITICAL paperpi: PaperPi crashed\n    Traceback" in kept
+    assert "RuntimeError: a bug" in kept
+    assert "PaperPi stops (exit status 1)" in kept
 
 
 def test_health_command(tmp_path, capsys):

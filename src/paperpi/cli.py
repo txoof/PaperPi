@@ -31,7 +31,7 @@ from pathlib import Path
 from epdlib import ScreenMode
 from pydantic import ValidationError
 
-from . import __version__, config, example, health, limits, plugins, storage
+from . import __version__, config, example, health, limits, logbook, plugins, storage
 from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
@@ -275,6 +275,19 @@ def _render(args: argparse.Namespace) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
+    book = logbook.start(args.state_dir, verbose=args.verbose)
+    log.info("PaperPi %s starts, process id %d", __version__, os.getpid(), extra=logbook.KEEP)
+    try:
+        status = _keep_running(args, book)
+    except Exception:
+        log.critical("PaperPi crashed", exc_info=True)
+        status = 1
+    log.info("PaperPi stops (exit status %d)", status, extra=logbook.KEEP)
+    logbook.stop(book)
+    return status
+
+
+def _keep_running(args: argparse.Namespace, book: logbook.Logbook) -> int:
     # A reload signal during start-up would otherwise end the program.
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
@@ -307,8 +320,6 @@ def _run(args: argparse.Namespace) -> int:
     # Taken out of the environment, so plugin processes can't send "still running" for a
     # stuck loop.
     notify_socket = os.environ.pop("NOTIFY_SOCKET", None)
-    # The hourly health line is shown, like warnings.
-    logging.getLogger(health.__name__).setLevel(logging.INFO)
     reports = health.Health(args.health_file, disk=args.state_dir, notify_socket=notify_socket)
     scheduler = Scheduler(
         loaded,
@@ -333,6 +344,7 @@ def _run(args: argparse.Namespace) -> int:
             state_dir=args.state_dir,
             display=display,
             controls=scheduler,
+            logbook=book,
         )
         if web is not None:
             print(f"web interface on port {web.port}")
