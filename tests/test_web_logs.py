@@ -139,3 +139,35 @@ def test_parts_mark_every_match():
     )
     # A letter whose lower-case form is longer marks nothing, rather than the wrong letters.
     assert logs._parts("Straße", "ss") == (("Straße", False),)
+
+
+def test_new_lines_never_bring_the_file_lines_again(tmp_path, book):
+    only_file = Logbook(tmp_path)
+    assert client(tmp_path, only_file).get("/log/new?after=0").status_code == 204
+
+
+def test_the_first_new_line_after_the_file_lines_marks_the_start(tmp_path):
+    first = Logbook(tmp_path)
+    add(first, "WARNING", "old warning")
+    first.close()
+    book = Logbook(tmp_path)
+    add(book, "INFO", "not shown at this level")
+    web = client(tmp_path, book)
+    page = web.get("/log?level=WARNING&follow=1").text
+    assert "PaperPi started again" not in page
+    assert '"earlier": "1"' in page
+    add(book, "WARNING", "new warning")
+    new = web.get("/log/new?after=1&level=WARNING&earlier=1").text
+    assert new.index("PaperPi started again") < new.index("new warning")
+    # After that, what asks for the next lines no longer says the last line is from the file.
+    assert '"earlier": ""' in new
+
+
+def test_a_new_line_takes_away_no_lines_match(tmp_path, book):
+    web = client(tmp_path, book)
+    assert "No lines match." in web.get("/log?q=screen&follow=1").text
+    add(book, "ERROR", "the screen does not answer")
+    assert (
+        '<div id="no-lines" hx-swap-oob="delete"></div>'
+        in web.get("/log/new?after=3&q=screen").text
+    )

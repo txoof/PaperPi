@@ -177,8 +177,19 @@ def _receive(receiver: Connection, plugin_type: str, time_limit: float) -> tuple
         message = receiver.recv()
         if message[0] != "log":
             return message
-        _, level, name, text = message
-        logging.getLogger(str(name)).log(int(level), "%s", text)
+        try:
+            _, level, name, text, created = message
+            level = min(max(int(level), logging.DEBUG), logging.CRITICAL)
+            created = float(created)
+        except (TypeError, ValueError):
+            raise PluginFailed(plugin_type, "sent a log line that can't be read") from None
+        logger = logging.getLogger(str(name))
+        if logger.isEnabledFor(level):
+            # With the time the plugin logged it, which may be a while before it arrives.
+            values = {"name": logger.name, "levelno": level, "msg": str(text), "created": created}
+            logger.handle(
+                logging.makeLogRecord(values | {"levelname": logging.getLevelName(level)})
+            )
 
 
 def stop_all() -> None:
@@ -241,6 +252,7 @@ def _child(
     sample: bool,
 ) -> None:
     """Runs in the plugin process: one update, then send the result and exit."""
+    sender = _OneAtATime(sender)
     with _reporting(sender, level) as secrets:
         from .plugin import draw_update
 
@@ -261,6 +273,7 @@ def _helper_child(
     language: str,
 ) -> None:
     """Runs in the plugin process: one search of a helper, then send the result and exit."""
+    sender = _OneAtATime(sender)
     with _reporting(sender, level) as secrets:
         from .helper import clean
 
@@ -277,7 +290,7 @@ def _helper_child(
 
 
 @contextlib.contextmanager
-def _reporting(sender: Connection, level: int) -> Iterator[list[str]]:
+def _reporting(sender: _OneAtATime, level: int) -> Iterator[list[str]]:
     """In the plugin process: send log lines of ``level`` and up, and any error, as messages,
     with secret settings (filled into the list it gives) replaced with ``****``. Also closes
     ``sender``."""
@@ -297,11 +310,28 @@ def _reporting(sender: Connection, level: int) -> Iterator[list[str]]:
         sender.close()
 
 
+class _OneAtATime:
+    """In the plugin process: the pipe to PaperPi, for one message at a time. A log line from
+    another thread of the plugin must not be written into the middle of the result."""
+
+    def __init__(self, sender: Connection) -> None:
+        self._sender = sender
+        self._lock = threading.Lock()
+
+    def send(self, message: tuple) -> None:
+        with self._lock:
+            self._sender.send(message)
+
+    def close(self) -> None:
+        with self._lock:
+            self._sender.close()
+
+
 class _LogSender(logging.Handler):
     """In the plugin process: sends each log line to PaperPi, at most
     :data:`~paperpi.limits.PLUGIN_LOG_LINES`, then one that says the rest are left out."""
 
-    def __init__(self, sender: Connection, secrets: list[str]) -> None:
+    def __init__(self, sender: _OneAtATime, secrets: list[str]) -> None:
         super().__init__()
         self.sender = sender
         self.secrets = secrets
@@ -319,7 +349,7 @@ class _LogSender(logging.Handler):
                 text = f"more than {limits.PLUGIN_LOG_LINES} log lines; the rest are left out"
             else:
                 level, text = record.levelno, _hide(self.format(record), self.secrets)
-            self.sender.send(("log", level, record.name, text))
+            self.sender.send(("log", level, record.name, text, record.created))
         except Exception:  # noqa: BLE001 - a log line must never break the update
             self.handleError(record)
 

@@ -6,6 +6,9 @@
 </p>
 {%- if oob %}<div id="no-lines" hx-swap-oob="delete"></div>{% endif %}
 {%- if follow %}
+{#- A filter change cancels a request for new lines that is still on its way (hx-sync),
+    so its answer can't bring back the old filter. -#}
 <div id="log-more"{% if oob %} hx-swap-oob="true"{% endif %} hx-get="/log/new" hx-trigger="every 3s"
-  hx-vals='{{ {"after": shown.newest, "level": level, "q": search}|tojson }}' hx-target="#lines" hx-swap="beforeend"></div>
+  hx-sync="#log-form:drop"
+  hx-vals='{{ {"after": shown.newest, "level": level, "q": search, "earlier": "1" if shown.ends_earlier else ""}|tojson }}' hx-target="#lines" hx-swap="beforeend"></div>
 {%- endif %}

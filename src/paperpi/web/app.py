@@ -327,11 +327,15 @@ def create_app(
     def try_again(request: Request, plugin_id: _FormId = ""):
         return asked(request, "again", lambda: controls.try_again(plugin_id or None))
 
-    def log_values(level: str, search: str, follow: str, after: int = 0) -> dict:
+    def log_values(
+        level: str, search: str, follow: str, after: int | None = None, earlier: bool = False
+    ) -> dict:
         level = logs.level_of(level)
         search = search[: logs.LONGEST_SEARCH]
         return {
-            "shown": logs.show(logbook, level, search, after) if logbook is not None else None,
+            "shown": (
+                logs.show(logbook, level, search, after, earlier) if logbook is not None else None
+            ),
             "level": level,
             "search": search,
             "follow": follow == "1",
@@ -352,11 +356,12 @@ def create_app(
         )
 
     @app.get("/log/new", response_class=HTMLResponse)
-    def log_new(request: Request, after: int = 0, level: str = "", q: str = ""):
-        """The lines after line ``after``, for "New lines as they come"."""
+    def log_new(request: Request, after: int = 0, level: str = "", q: str = "", earlier: str = ""):
+        """The lines after line ``after``, for "New lines as they come"; ``earlier`` says the
+        page's last line is from the file."""
         if logbook is None:
             return Response(status_code=204)
-        values = log_values(level, q, "1", after)
+        values = log_values(level, q, "1", after, earlier == "1")
         new = values["shown"]
         if not new.rows:
             return Response(status_code=204)  # htmx then leaves the page as it is

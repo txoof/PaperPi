@@ -67,14 +67,21 @@ def test_verbose_keeps_debug_lines_too(tmp_path, system_log):
     assert not (tmp_path / "paperpi.log").exists()
 
 
-def test_stop_puts_everything_back(tmp_path, system_log):
+def test_stop_puts_everything_back(tmp_path, system_log, monkeypatch):
+    def hook(args):
+        pass
+
+    monkeypatch.setattr(threading, "excepthook", hook)
     book = logbook.start(tmp_path)
     logbook.stop(book)
-    log.info("after the stop")
-    log.warning("seen")
-    assert texts(book) == []
-    assert system_log == ["seen"]
+    assert threading.excepthook is hook
     assert logging.getLogger().level == logging.WARNING
+    log.warning("seen")
+    # The system log's filter is gone too: with a lower level, it gets INFO lines again.
+    logging.getLogger().setLevel(logging.INFO)
+    log.info("after the stop")
+    assert texts(book) == []
+    assert system_log == ["seen", "after the stop"]
 
 
 def test_only_the_last_lines_are_kept_in_memory():
@@ -108,7 +115,7 @@ def test_entries_from_before_the_start_come_first(tmp_path):
     second.add(logging.makeLogRecord({"msg": "x", "levelno": 20, "levelname": "INFO"}), "new")
     assert [(line.text, line.number) for line in second.lines()] == [("old", 0), ("new", 1)]
     # Asking for the new lines after a number leaves the earlier ones out.
-    assert texts_after(second, 0) == ["old", "new"]
+    assert texts_after(second, 0) == ["new"]
     assert texts_after(second, 1) == []
 
 
@@ -163,3 +170,41 @@ def test_a_crash_in_a_thread_is_logged_with_its_traceback(started):
     assert line.level == "CRITICAL"
     assert line.text.startswith("thread worker crashed\nTraceback")
     assert line.text.endswith("RuntimeError: thread bug")
+
+
+def test_a_level_of_its_own_counts_as_the_standard_one_below(started):
+    log.log(25, "a library's NOTICE level")
+    log.log(5, "below DEBUG")
+    assert [line.level for line in started.lines()] == ["INFO"]
+    assert logbook.level_name(5) == "DEBUG"
+    assert logbook.level_name(60) == "CRITICAL"
+
+
+def test_a_huge_line_is_cut(started, monkeypatch):
+    monkeypatch.setattr(logbook.limits, "LOG_LINE_CHARS", 10)
+    log.warning("x" * 25)
+    assert started.lines()[0].text == "xxxxxxxxxx … (15 more characters left out)"
+
+
+def test_a_message_cant_plant_an_entry_in_the_file(started, tmp_path):
+    log.warning("odd answer\r2020-01-01 00:00:00 CRITICAL paperpi: FORGED")
+    (line,) = logbook.read(tmp_path / "paperpi.log")
+    assert line.level == "WARNING"
+    assert "FORGED" in line.text
+
+
+def test_only_the_end_of_a_too_large_file_is_read(tmp_path, monkeypatch):
+    monkeypatch.setattr(logbook.limits, "LOG_FILE_BYTES", 200)
+    rows = [f"2026-10-12 14:00:{n:02} WARNING paperpi.test: line {n}" for n in range(20)]
+    (tmp_path / "paperpi.log").write_text("\n".join(rows) + "\n")
+    read = [line.text for line in logbook.read(tmp_path / "paperpi.log")]
+    assert read[-1] == "line 19"
+    assert 1 < len(read) < 5
+
+
+def test_the_health_line_goes_to_the_file_and_the_system_log(started, system_log, tmp_path):
+    from paperpi.health import Health
+
+    Health(None, disk=tmp_path).report(None)
+    assert any(text.startswith("health: ") for text in system_log)
+    assert " INFO paperpi.health: health: " in (tmp_path / "paperpi.log").read_text()

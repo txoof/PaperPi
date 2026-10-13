@@ -17,7 +17,7 @@ from paperpi.plugin import NOTHING, Helper, HelperProblem, Plugin, PluginSetting
 
 Act = Literal[
     "ok", "nothing", "alert", "raise", "hang", "exit", "crash", "kill", "child", "leave_child",
-    "secret", "wrong", "problem", "log", "chatty",
+    "secret", "wrong", "problem", "log", "chatty", "log_and_hang",
 ]  # fmt: skip
 
 log = logging.getLogger(__name__)
@@ -63,6 +63,10 @@ def fetch(context):
     if act == "chatty":
         for number in range(500):
             log.info("line %d", number)
+    if act == "log_and_hang":
+        for number in range(1000):
+            log.info("line %d", number)
+            time.sleep(0.01)
     if act == "problem":  # meant for helpers; in an update it is an ordinary error
         raise HelperProblem("only for searches")
     return ready("OK")

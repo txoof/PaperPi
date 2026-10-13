@@ -99,19 +99,24 @@ class Logbook:
         self.handler = _Handler(self)
         self._filtered: list[tuple[logging.Handler, logging.Filter]] = []
         self._level = logging.WARNING
+        self._hook = threading.__excepthook__
 
-    def lines(self, after: int = 0) -> list[Line]:
-        """The entries from the file (only when ``after`` is 0), then the ones kept in
-        memory with a :attr:`Line.number` above ``after``, oldest first."""
+    def lines(self, after: int | None = None) -> list[Line]:
+        """The entries from the file, then the ones kept in memory, oldest first. With
+        ``after``, only the ones in memory with a :attr:`Line.number` above it."""
         with self._lock:
-            new = [line for line in self._lines if line.number > after]
-            return (self._earlier if after == 0 else []) + new
+            if after is None:
+                return self._earlier + list(self._lines)
+            return [line for line in self._lines if line.number > after]
 
     def add(self, record: logging.LogRecord, text: str) -> None:
         when = datetime.fromtimestamp(record.created)
+        if len(text) > limits.LOG_LINE_CHARS:
+            left_out = len(text) - limits.LOG_LINE_CHARS
+            text = f"{text[: limits.LOG_LINE_CHARS]} … ({left_out} more characters left out)"
         with self._lock:
             self._number += 1
-            line = Line(self._number, when, record.levelname, record.name, text)
+            line = Line(self._number, when, level_name(record.levelno), record.name, text)
             self._lines.append(line)
             if record.levelno >= logging.WARNING or getattr(record, "keep", False):
                 self._write(line)
@@ -130,7 +135,9 @@ class Logbook:
         try:
             if self._file is None:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
-                fd = os.open(self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+                flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW
+                fd = os.open(self.path, flags, 0o600)
+                os.fchmod(fd, 0o600)  # also when the file was there already
                 self._file = open(fd, "a", encoding="utf-8", buffering=1)  # noqa: SIM115
             self._file.write(line.as_text() + "\n")
             if self._file.tell() >= self._file_bytes:
@@ -146,6 +153,13 @@ class Logbook:
             self._file_failed = True
         else:
             self._file_failed = False
+
+
+def level_name(level: int) -> str:
+    """The name of ``level``, or of the standard level below it (a library's own level 25
+    counts as INFO), so every line has one of :data:`LEVELS`."""
+    names = [name for name in LEVELS if logging.getLevelName(name) <= level]
+    return names[-1] if names else LEVELS[0]
 
 
 class _Handler(logging.Handler):
@@ -175,14 +189,21 @@ class _SystemLog(logging.Filter):
 
 def read(path: Path) -> list[Line]:
     """The entries in ``path`` and the file before it (``.1``), oldest first. Lines that
-    can't be read are left out; a missing file has none."""
+    can't be read are left out; a missing file has none. Of a file larger than
+    :data:`~paperpi.limits.LOG_FILE_BYTES`, only the end is read."""
     found: list[Line] = []
     for part in (path.with_name(path.name + ".1"), path):
         try:
-            text = part.read_text(encoding="utf-8", errors="replace")
+            with part.open("rb") as file:
+                size = file.seek(0, os.SEEK_END)
+                file.seek(max(0, size - limits.LOG_FILE_BYTES))
+                if size > limits.LOG_FILE_BYTES:
+                    file.readline()  # the row the cut landed in
+                text = file.read().decode("utf-8", "replace")
         except OSError:
             continue
-        for row in text.splitlines():
+        # Only "\n" ends a line, as in as_text: a "\r" in a message can't start a new entry.
+        for row in text.split("\n"):
             if row.startswith(_MORE) and found:
                 last = found[-1]
                 found[-1] = Line(0, last.time, last.level, last.source, last.text + "\n" + row[4:])
@@ -208,6 +229,7 @@ def start(folder: Path | None, *, verbose: bool = False) -> Logbook:
     book._level = root.level
     root.setLevel(logging.DEBUG if verbose else logging.INFO)
     root.addHandler(book.handler)
+    book._hook = threading.excepthook
     threading.excepthook = _thread_crashed
     return book
 
@@ -219,7 +241,7 @@ def stop(book: Logbook) -> None:
     for handler, system_log in book._filtered:
         handler.removeFilter(system_log)
     root.setLevel(book._level)
-    threading.excepthook = threading.__excepthook__
+    threading.excepthook = book._hook
     book.close()
 
 

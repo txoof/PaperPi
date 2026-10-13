@@ -320,7 +320,8 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 .sep { margin: 0.4rem 0.6rem; padding: 0.25rem 0.5rem; border-radius: 4px; background: var(--chip);
   color: var(--muted); font-family: system-ui, sans-serif; }
 @media (max-width: 40rem) {
-  .filters .pick { padding: 0.25rem 0.45rem; font-size: 0.85rem; }
+  .filters { display: flex; width: 100%; }
+  .filters .pick { flex: 1; white-space: normal; padding: 0.25rem 0.45rem; font-size: 0.85rem; }
   .ln { grid-template-columns: 4.6rem minmax(0, 1fr); }
   .ln .lv { display: none; }
   .ln .t { font-size: 0; }

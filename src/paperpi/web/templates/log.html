@@ -14,7 +14,7 @@
 <p class="note">The log is only kept while PaperPi shows the plugins (<code>paperpi run</code>).</p>
 {% else %}
 <form class="logbar" id="log-form" method="get" action="/log" hx-get="/log" hx-target="#log-part"
-  hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, change, input delay:400ms from:#q">
+  hx-swap="outerHTML" hx-sync="this:replace" hx-push-url="true" hx-trigger="submit, change, input delay:400ms from:#q">
   <div class="filters" role="group" aria-label="Show">
     {% for value, label, _ in filters %}
     <label class="pick"><input type="radio" name="level" value="{{ value }}"{% if value == level %} checked{% endif %}> {{ label }}</label>

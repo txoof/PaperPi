@@ -42,18 +42,27 @@ class Shown:
     newest: int
     """The number of the newest line, so the page can ask for the lines after it."""
 
+    @property
+    def ends_earlier(self) -> bool:
+        """The last line shown is from the file (logged before this start)."""
+        return bool(self.rows) and self.rows[-1].line.earlier
+
 
 def level_of(text: str | None) -> str:
     """A level filter from the address; an unknown one is the default."""
     return text if text in {value for value, _, _ in FILTERS} else DEFAULT
 
 
-def show(book: Logbook, level: str, search: str, after: int = 0) -> Shown:
+def show(
+    book: Logbook, level: str, search: str, after: int | None = None, earlier: bool = False
+) -> Shown:
     """The lines of ``book`` at ``level`` and up that contain ``search`` (any case), the
-    newest :data:`SHOWN`; with ``after``, only the ones after that line number."""
+    newest :data:`SHOWN`. With ``after``, only the new ones after that line number;
+    ``earlier`` says the page's last line is from the file, so the first new one is marked
+    as the start."""
     lines = book.lines(after)
     # Taken from the lines themselves: a line logged meanwhile comes with the next request.
-    newest = max(after, lines[-1].number) if lines else after
+    newest = max(after or 0, lines[-1].number if lines else 0)
     lowest = next(number for value, _, number in FILTERS if value == level)
     search = search.strip()[:LONGEST_SEARCH]
     found = [
@@ -62,11 +71,10 @@ def show(book: Logbook, level: str, search: str, after: int = 0) -> Shown:
         if logging.getLevelName(line.level) >= lowest
         and (not search or search.casefold() in line.text.casefold())
     ]
-    rows, before = [], None
+    rows, before_earlier = [], earlier
     for line in found[-SHOWN:]:
-        started = before is not None and before.earlier and not line.earlier
-        rows.append(Row(line, _parts(line.text, search), started))
-        before = line
+        rows.append(Row(line, _parts(line.text, search), before_earlier and not line.earlier))
+        before_earlier = line.earlier
     return Shown(tuple(rows), len(found), len(lines), newest)
 
 

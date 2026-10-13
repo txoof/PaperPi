@@ -117,6 +117,10 @@ LOG_LINES = 5_000
 #: kept as ``paperpi.log.1``), so both together stay under about 2 MB.
 LOG_FILE_BYTES = 1_000_000
 
+#: Longest log line kept (in characters); the rest of a longer one is left out, so a
+#: huge error text from a server can't fill the memory or the log file.
+LOG_LINE_CHARS = 10_000
+
 #: Log lines one plugin update or helper search may send to PaperPi; the rest are left out,
 #: so a plugin that logs in a loop can't fill the log.
 PLUGIN_LOG_LINES = 100

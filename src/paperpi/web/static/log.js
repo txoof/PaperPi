@@ -16,6 +16,12 @@
     atBottom = !lines || lines.scrollHeight - lines.scrollTop - lines.clientHeight < 40;
   });
   document.addEventListener("htmx:afterSettle", function (event) {
+    var lines = box();
+    // Hours of new lines: the oldest go, so the page keeps no more than it shows at first.
+    var most = lines ? Number(lines.dataset.most) || 0 : 0;
+    while (lines && most && lines.querySelectorAll(".ln").length > most) {
+      lines.removeChild(lines.firstElementChild);
+    }
     // A new filter or search shows the newest lines; new lines only when nobody scrolled up.
     var target = event.detail.target;
     if (atBottom || (target && target.id !== "lines")) down();

@@ -108,6 +108,15 @@ def test_a_chatty_plugin_sends_only_so_many_lines(tmp_path, caplog):
     )
 
 
+def test_the_time_limit_holds_while_log_lines_come_in(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+    start = time.monotonic()
+    with pytest.raises(PluginTimeout):
+        run(tmp_path, "log_and_hang", time_limit=1)
+    assert time.monotonic() - start < 3
+    assert len(plugin_lines(caplog)) > 10
+
+
 def test_wrong_return_value_is_reported(tmp_path):
     with pytest.raises(PluginFailed, match="use NOTHING, ready"):
         run(tmp_path, "wrong")

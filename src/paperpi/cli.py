@@ -277,13 +277,14 @@ def _render(args: argparse.Namespace) -> int:
 def _run(args: argparse.Namespace) -> int:
     book = logbook.start(args.state_dir, verbose=args.verbose)
     log.info("PaperPi %s starts, process id %d", __version__, os.getpid(), extra=logbook.KEEP)
+    status = 1
     try:
         status = _keep_running(args, book)
     except Exception:
         log.critical("PaperPi crashed", exc_info=True)
-        status = 1
-    log.info("PaperPi stops (exit status %d)", status, extra=logbook.KEEP)
-    logbook.stop(book)
+    finally:
+        log.info("PaperPi stops (exit status %d)", status, extra=logbook.KEEP)
+        logbook.stop(book)
     return status
 
 
