@@ -16,6 +16,7 @@ from pathlib import Path
 import uvicorn
 
 from .. import config
+from ..logbook import Logbook
 from .app import create_app
 from .auth import Auth
 from .helpers import Searcher
@@ -41,6 +42,7 @@ class WebServer:
         editor: PluginEditor,
         pictures: Pictures | None = None,
         controls: Controls | None = None,
+        logbook: Logbook | None = None,
     ):
         self.auth = auth
         self.editor = editor
@@ -57,7 +59,13 @@ class WebServer:
         self._server = uvicorn.Server(
             uvicorn.Config(
                 create_app(
-                    auth, self.editor, self.previewer, self.pictures, self.searcher, controls
+                    auth,
+                    self.editor,
+                    self.previewer,
+                    self.pictures,
+                    self.searcher,
+                    controls,
+                    logbook,
                 ),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
@@ -127,6 +135,7 @@ def start(
     state_dir: Path | None = None,
     display: config.DisplaySettings | None = None,
     controls: Controls | None = None,
+    logbook: Logbook | None = None,
 ) -> WebServer | None:
     """Start the web interface, or log why it can't start and return ``None``.
 
@@ -134,7 +143,8 @@ def start(
     interface); ``text`` is the config file text PaperPi uses now. The Plugin Library's
     example pictures are kept in ``state_dir`` (without it there are none) and drawn for
     ``display``, the screen's settings at the start. ``controls`` (the scheduler) tells
-    the home page what is on screen, and does what its buttons ask for.
+    the home page what is on screen, and does what its buttons ask for. ``logbook`` holds
+    the log lines for the Full log page.
     """
     try:
         sock = _listen(settings.address, settings.port)
@@ -150,7 +160,8 @@ def start(
     if text is not None:
         editor.loaded(text)
     pictures = Pictures(state_dir / FOLDER if state_dir is not None else None)
-    server = WebServer(Auth(config_file, settings), settings, sock, editor, pictures, controls)
+    auth = Auth(config_file, settings)
+    server = WebServer(auth, settings, sock, editor, pictures, controls, logbook)
     server._thread.start()
     if display is not None:
         server.use_display(display)

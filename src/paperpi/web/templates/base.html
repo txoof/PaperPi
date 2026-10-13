@@ -14,7 +14,7 @@
 <body>
   {#- The menu: the pages a logged-in visitor can open. Each page sets `page` to its own
       entry, which is marked as the current one. -#}
-  {% set menu = [("/", "home", "Home"), ("/library", "library", "Plugin Library")] %}
+  {% set menu = [("/", "home", "Home"), ("/library", "library", "Plugin Library"), ("/log", "warnings", "Warnings")] %}
   <header class="top">
     <div class="top-inner{% if logged_in %} with-menu{% endif %} {{ self.main_class() }}">
       <a class="brand" href="/">PaperPi</a>

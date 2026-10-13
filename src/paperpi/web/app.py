@@ -56,6 +56,8 @@ from starlette.concurrency import run_in_threadpool
 
 from .. import __version__, limits
 from ..config import folder_name
+from ..logbook import Logbook
+from . import logs
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError
 from .forms import Read, fields, form_texts
@@ -83,12 +85,14 @@ def create_app(
     pictures: Pictures | None = None,
     searcher: Searcher | None = None,
     controls: Controls | None = None,
+    logbook: Logbook | None = None,
 ) -> FastAPI:
     """The web interface, using ``auth`` for the password and log-in, ``editor`` to
     change the plugins in the config file, ``previewer`` to draw previews, ``pictures``
     for the Plugin Library's example pictures (default: none), ``searcher`` for the
-    settings helpers' searches and ``controls`` (the scheduler) for what is on screen
-    (without it, the home page shows only the config file)."""
+    settings helpers' searches, ``controls`` (the scheduler) for what is on screen
+    (without it, the home page shows only the config file) and ``logbook`` for the Full
+    log (without it, the page says the log is not kept)."""
     editor = editor or PluginEditor(auth.config_file)
     previewer = previewer or Previewer()
     pictures = pictures or Pictures(None)
@@ -104,6 +108,7 @@ def create_app(
         time_limit=limits.HELPER_SEARCH,
     )
     templates.env.filters["number"] = _number
+    templates.env.filters["thousands"] = "{:,}".format
     templates.env.filters["sentence"] = lambda text: text[:1].upper() + text[1:]
     templates.env.filters["card_key"] = card_key
 
@@ -321,6 +326,58 @@ def create_app(
     @app.post("/screen/try-again", response_class=HTMLResponse)
     def try_again(request: Request, plugin_id: _FormId = ""):
         return asked(request, "again", lambda: controls.try_again(plugin_id or None))
+
+    def log_values(
+        level: str, search: str, follow: str, after: int | None = None, earlier: bool = False
+    ) -> dict:
+        level = logs.level_of(level)
+        search = search[: logs.LONGEST_SEARCH]
+        return {
+            "shown": (
+                logs.show(logbook, level, search, after, earlier) if logbook is not None else None
+            ),
+            "level": level,
+            "search": search,
+            "follow": follow == "1",
+        }
+
+    @app.get("/log", response_class=HTMLResponse)
+    def log_page(request: Request, level: str = "", q: str = "", follow: str = ""):
+        part = request.headers.get("hx-request") == "true" and logbook is not None
+        return page(
+            request,
+            "_log.html" if part else "log.html",
+            **log_values(level, q, follow),
+            running=logbook is not None,
+            filters=logs.FILTERS,
+            longest_search=logs.LONGEST_SEARCH,
+            kept=limits.LOG_LINES,
+            most=logs.SHOWN,
+        )
+
+    @app.get("/log/new", response_class=HTMLResponse)
+    def log_new(request: Request, after: int = 0, level: str = "", q: str = "", earlier: str = ""):
+        """The lines after line ``after``, for "New lines as they come"; ``earlier`` says the
+        page's last line is from the file."""
+        if logbook is None:
+            return Response(status_code=204)
+        values = log_values(level, q, "1", after, earlier == "1")
+        new = values["shown"]
+        if not new.rows:
+            return Response(status_code=204)  # htmx then leaves the page as it is
+        # The count below the list is of all lines, as after loading the page.
+        counted = logs.show(logbook, values["level"], values["search"])
+        return page(request, "_log_new.html", **values, counted=counted, oob=True)
+
+    @app.get("/log/download")
+    def log_download():
+        text = logs.as_text(logbook) if logbook is not None else ""
+        name = logs.file_name(datetime.now())
+        return Response(
+            text,
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{name}"'},
+        )
 
     @app.get("/plugins")
     def plugins_page(request: Request):

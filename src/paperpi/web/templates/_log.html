@@ -1,0 +1,8 @@
+{#- The lines of the Full log, and what asks for new ones while "New lines as they come" is on. -#}
+<div id="log-part">
+  <div class="term" id="lines" role="log" aria-label="PaperPi log" data-most="{{ most }}">
+    {%- include "_log_lines.html" -%}
+    {%- if not shown.rows %}<div class="ln" id="no-lines"><span></span><span></span><span class="m">No lines match.</span></div>{% endif -%}
+  </div>
+  {% include "_log_more.html" %}
+</div>

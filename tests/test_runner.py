@@ -1,5 +1,6 @@
 """Each update runs in its own process with a time limit (paperpi.runner)."""
 
+import logging
 import os
 import signal
 import time
@@ -8,6 +9,7 @@ import pytest
 from epdlib import ScreenMode
 from pydantic import SecretStr
 
+from paperpi import limits
 from paperpi.plugin import Context, PluginSettings, State
 from paperpi.runner import PluginFailed, PluginTimeout, run_update
 
@@ -74,6 +76,45 @@ def test_secret_settings_are_hidden_in_errors(tmp_path):
     assert error.value.reason == "ValueError: server refused key ****"
     assert secret not in error.value.details
     assert secret not in str(error.value)
+
+
+def plugin_lines(caplog) -> list[tuple[str, str]]:
+    return [(r.levelname, r.getMessage()) for r in caplog.records if r.name.endswith(".fake")]
+
+
+def test_log_lines_of_the_plugin_reach_paperpi_without_secrets(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+    secret = "sk-123456789"
+    found = run_update("fake", context(tmp_path, "log", key=SecretStr(secret)), package=FAKES)
+    assert found.state is State.READY
+    # Logged in PaperPi under the plugin's own logger, at PaperPi's level (no DEBUG).
+    assert plugin_lines(caplog) == [("INFO", "using key ****"), ("WARNING", "the data is old")]
+
+
+def test_debug_lines_come_with_a_debug_level(tmp_path, caplog):
+    caplog.set_level(logging.DEBUG)
+    run(tmp_path, "log")
+    assert ("DEBUG", "details nobody asked for") in plugin_lines(caplog)
+
+
+def test_a_chatty_plugin_sends_only_so_many_lines(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+    run(tmp_path, "chatty")
+    lines = plugin_lines(caplog)
+    assert len(lines) == limits.PLUGIN_LOG_LINES + 1
+    assert lines[-1] == (
+        "WARNING",
+        f"more than {limits.PLUGIN_LOG_LINES} log lines; the rest are left out",
+    )
+
+
+def test_the_time_limit_holds_while_log_lines_come_in(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+    start = time.monotonic()
+    with pytest.raises(PluginTimeout):
+        run(tmp_path, "log_and_hang", time_limit=1)
+    assert time.monotonic() - start < 3
+    assert len(plugin_lines(caplog)) > 10
 
 
 def test_wrong_return_value_is_reported(tmp_path):

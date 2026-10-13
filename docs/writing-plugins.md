@@ -234,6 +234,7 @@ Any file may have been removed since the last update (over a limit, or by hand):
 - **Don't start programs that detach themselves** from the plugin (for example with `start_new_session=True`): PaperPi can't stop those. A plugin also can't use Python's `multiprocessing` to start its own worker processes.
 - **Make `__init__.py` quick to import.** PaperPi imports it in its main program to check the config file. Import large packages inside `fetch` or `draw`.
 - **Never use the screen or its driver.** Only PaperPi does that.
+- **Log with `logging.getLogger(__name__)`.** The lines go to PaperPi's log (the web interface's Full log) under that logger's name, e.g. `paperpi.plugins.met_no`, with secret settings replaced by `****`. Info lines and up are kept in memory (debug lines only when PaperPi runs with `-v`), warnings and errors also in PaperPi's log file. Lines of the libraries the plugin uses come too. At most 100 lines per update or helper search are kept (then one line says the rest were left out), so don't log in a loop.
 
 ## Try it and test it
 
