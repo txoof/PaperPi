@@ -11,7 +11,15 @@ from PIL import Image
 import paperpi.plugins.xkcd_comic as xkcd
 from paperpi import fonts, webrequest
 from paperpi.plugin import Context, State
-from paperpi.plugins.xkcd_comic import PLUGIN, Comic, NoComicFound, Settings, fetch, keep_size
+from paperpi.plugins.xkcd_comic import (
+    PLUGIN,
+    Comic,
+    NoComicFound,
+    Settings,
+    fetch,
+    fit,
+    keep_size,
+)
 
 
 def png(width, height) -> bytes:
@@ -210,6 +218,98 @@ def test_safe_title_is_used_not_title(tmp_path, monkeypatch, pick):
     assert fetch(context(tmp_path)).data.title == "Plain"
 
 
+# --- The double-size picture -----------------------------------------------------------------
+
+DOUBLE = "https://imgs.xkcd.com/comics/2_2x.png"
+
+
+class DoubleXkcd(FakeXkcd):
+    """Also has xkcd's double-size pictures: ``doubles`` maps an address to picture bytes."""
+
+    def __init__(self, monkeypatch, doubles, **options):
+        super().__init__(monkeypatch, **options)
+        self.doubles = doubles
+
+    def __call__(self, url, **options):
+        if url in self.doubles:
+            self.urls.append(url)
+            return self.answer(url, self.doubles[url])
+        return super().__call__(url, **options)
+
+
+def big_screen(tmp_path, **settings):
+    # The comic's space on a 1200x825 screen with the default layout is 1200x619.
+    return context(tmp_path, size=(1200, 825), **settings)
+
+
+def test_a_much_enlarged_comic_comes_from_the_double_picture(tmp_path, monkeypatch, pick):
+    site = DoubleXkcd(monkeypatch, {DOUBLE: png(599, 401)}, comics={2: (info(2), png(300, 200))})
+    pick.append(2)
+    comic = fetch(big_screen(tmp_path)).data
+    assert comic == Comic(2, "Comic 2", "Hover text 2", png(599, 401), double=True)
+    assert site.urls[-1] == DOUBLE
+
+
+def test_without_a_double_picture_the_normal_one_is_used(tmp_path, monkeypatch, pick):
+    site = FakeXkcd(monkeypatch, comics={2: (info(2), png(300, 200))})  # the double: "404"
+    pick.append(2)
+    comic = fetch(big_screen(tmp_path)).data
+    assert comic == Comic(2, "Comic 2", "Hover text 2", png(300, 200))
+    assert site.urls[-1] == DOUBLE
+
+
+@pytest.mark.parametrize("double", [png(500, 400), b"not a picture"])
+def test_a_double_picture_of_the_wrong_size_or_damaged_is_not_used(
+    tmp_path, monkeypatch, pick, double
+):
+    DoubleXkcd(monkeypatch, {DOUBLE: double}, comics={2: (info(2), png(300, 200))})
+    pick.append(2)
+    assert not fetch(big_screen(tmp_path)).data.double
+
+
+@pytest.mark.parametrize(
+    ("size", "settings"),
+    [
+        ((600, 420), {}),  # enlarged less than 1.5 times: the normal picture is good enough
+        ((300, 200), {"enlarge": False}),
+    ],
+)
+def test_no_double_picture_is_asked_for(tmp_path, monkeypatch, pick, size, settings):
+    site = DoubleXkcd(monkeypatch, {DOUBLE: png(1, 1)}, comics={2: (info(2), png(*size))})
+    pick.append(2)
+    fetch(big_screen(tmp_path, **settings))
+    assert DOUBLE not in site.urls
+
+
+@pytest.mark.parametrize(("width", "used"), [(612, True), (613, False), (588, True), (587, False)])
+def test_a_double_picture_may_be_two_percent_off(tmp_path, monkeypatch, pick, width, used):
+    DoubleXkcd(monkeypatch, {DOUBLE: png(width, 400)}, comics={2: (info(2), png(300, 200))})
+    pick.append(2)
+    assert fetch(big_screen(tmp_path)).data.double is used
+
+
+def test_the_double_picture_has_a_shorter_time_limit(tmp_path, monkeypatch, pick):
+    site = DoubleXkcd(monkeypatch, {DOUBLE: png(600, 400)}, comics={2: (info(2), png(300, 200))})
+    limits = []
+    original = site.__call__
+    monkeypatch.setattr(
+        xkcd.webrequest, "get", lambda url, **options: limits.append(options) or original(url)
+    )
+    pick.append(2)
+    fetch(big_screen(tmp_path))
+    assert limits[-1] == {"total": xkcd.DOUBLE_TIME} and limits[:-1] == [{}, {}, {}]
+
+
+def test_double_address():
+    assert xkcd.double_address("https://imgs.xkcd.com/comics/a.b.png") == (
+        "https://imgs.xkcd.com/comics/a.b_2x.png"
+    )
+    # Without a file extension, the address stays on the picture server.
+    assert xkcd.double_address("https://imgs.xkcd.com/comics/name") == (
+        "https://imgs.xkcd.com/comics/name_2x"
+    )
+
+
 # --- Drawing ---------------------------------------------------------------------------------
 
 
@@ -229,6 +329,29 @@ def test_keep_size_makes_transparent_parts_white():
     assert keep_size(picture, 8, 8).getpixel((4, 4)) == (255, 255, 255)
 
 
+def test_fit_enlarges_at_most_twice():
+    page = fit(Image.new("L", (100, 50), 0), False, 1000, 300, 2)
+    assert page.size == (1000, 300)
+    assert Image.eval(page.convert("L"), lambda v: 255 - v).getbbox() == (400, 100, 600, 200)
+
+
+def test_fit_fills_the_space_when_less_than_twice():
+    page = fit(Image.new("L", (100, 50), 0), False, 150, 300, 2)
+    assert Image.eval(page.convert("L"), lambda v: 255 - v).getbbox() == (0, 112, 150, 187)
+
+
+def test_fit_counts_a_double_picture_at_half_its_size():
+    page = fit(Image.new("L", (200, 100), 0), True, 1000, 300, 2)
+    assert Image.eval(page.convert("L"), lambda v: 255 - v).getbbox() == (400, 100, 600, 200)
+    page = fit(Image.new("L", (200, 100), 0), True, 1000, 300, 1)  # enlarge off: own size
+    assert Image.eval(page.convert("L"), lambda v: 255 - v).getbbox() == (450, 125, 550, 175)
+
+
+def test_fit_leaves_a_large_comic_to_the_layout():
+    picture = Image.new("L", (400, 100))
+    assert fit(picture, False, 300, 300, 2) is picture
+
+
 def comic_width(image) -> int:
     left, _, right, _ = Image.eval(image.convert("L"), lambda v: 255 - v).getbbox()
     return right - left
@@ -242,6 +365,15 @@ def test_small_comics_keep_their_size_unless_enlarged(tmp_path, enlarge, wider):
     layout = PLUGIN.layout("comic_only", ctx.settings).prepare(800, 600, ctx.mode)
     image = layout.render(values)
     assert (comic_width(image) > 100) is wider
+
+
+@pytest.mark.parametrize(("enlarge", "width"), [(True, 200), (False, 100)])
+def test_draw_counts_a_double_picture_at_half_its_size(tmp_path, enlarge, width):
+    # Also when enlarge was switched off after the double picture was downloaded.
+    comic = Comic(1, "Title", "Hover", png(200, 160), double=True)
+    ctx = context(tmp_path, "comic_only", size=(800, 600), enlarge=enlarge)
+    layout = PLUGIN.layout("comic_only", ctx.settings).prepare(800, 600, ctx.mode)
+    assert comic_width(layout.render(xkcd.draw(comic, ctx))) == width
 
 
 @pytest.mark.parametrize(

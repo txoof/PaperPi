@@ -4,9 +4,9 @@ A random comic (or the newest one) from [xkcd.com](https://xkcd.com) by Randall 
 
 At each update it picks a random comic, from the first one to the newest. With `comic = "newest"` it shows the newest comic instead; when the newest comic is too large or has no picture, that update shows a random comic, and the next update tries the newest again. Some comics are too large to read on an e-paper screen, and some are interactive pages without a picture. Those are skipped and another comic is picked, up to `tries` times. If none of them is suitable, the update fails, and PaperPi tries again at the next update.
 
-Comics smaller than the space on the screen keep their own size, so their lines stay sharp. With `enlarge = true` they are enlarged to fill the space. Comics larger than the space are always made smaller to fit.
+Comics smaller than the space on the screen are enlarged to fill it, but at most to twice their own size, so their lines don't get blocky. A comic that would be enlarged more than 1.5 times (on large screens, such as the 9.7" one) is downloaded from xkcd's double-size picture instead (`name_2x.png`, which xkcd has for many comics), so it stays sharp; when there is none, the normal picture is used. With `enlarge = false` comics keep their own size. Comics larger than the space are always made smaller to fit.
 
-The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small file per comic that lists its number, title, hover text and picture). Each update downloads two small files, the newest comic's number and the chosen comic's details, and then the comic's picture (at most 5 MB; usually tens to a few hundred kB). For the newest comic, one small file is enough. Skipped comics add more downloads. Pictures come only from xkcd's picture server (`imgs.xkcd.com`, over https), and only PNG, JPEG and GIF files are used. It saves nothing in its storage folder.
+The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small file per comic that lists its number, title, hover text and picture). Each update downloads two small files, the newest comic's number and the chosen comic's details, and then the comic's picture (at most 5 MB; usually tens to a few hundred kB). For the newest comic, one small file is enough. Skipped comics add more downloads, and so does looking for the double-size picture (one more download, only for comics enlarged more than 1.5 times). Pictures come only from xkcd's picture server (`imgs.xkcd.com`, over https), and only PNG, JPEG and GIF files are used. It saves nothing in its storage folder.
 
 ## Layouts
 
@@ -26,7 +26,7 @@ The title is in Lato Bold and the hover text in Lato Italic. Long titles and hov
 | `max_width` | `800` | comics wider than this many pixels are skipped (at most 4000) |
 | `max_height` | `600` | comics taller than this many pixels are skipped (at most 4000) |
 | `tries` | `10` | how many random comics to try (1 to 20) before the update fails, when they are too large or have no picture |
-| `enlarge` | `false` | `true` enlarges comics that are smaller than the space on the screen |
+| `enlarge` | `true` | enlarge comics that are smaller than the space on the screen, at most to twice their size; `false`: they keep their own size |
 
 It suggests a refresh every 20 minutes.
 
@@ -50,8 +50,8 @@ The comics are Randall Munroe's work, under the [Creative Commons Attribution-No
 
 ## Sample images
 
-All sample images are in [`tests/images/`](../../../../tests/images/), named `xkcd_comic-<layout>[-enlarge]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours). `enlarge` shows `enlarge = true`.
+All sample images are in [`tests/images/`](../../../../tests/images/), named `xkcd_comic-<layout>[-own-size]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours). `own-size` shows `enlarge = false`.
 
-| `comic_title_alttext`, 9.7" | `comic_title`, 9.7" | `comic_only`, 9.7" | `comic_title_alttext`, enlarged, 9.7" |
+| `comic_title_alttext`, 9.7" | `comic_title`, 9.7" | `comic_only`, 9.7" | `comic_title_alttext`, own size, 9.7" |
 |---|---|---|---|
-| ![comic_title_alttext](../../../../tests/images/xkcd_comic-comic_title_alttext-9in7.png) | ![comic_title](../../../../tests/images/xkcd_comic-comic_title-9in7.png) | ![comic_only](../../../../tests/images/xkcd_comic-comic_only-9in7.png) | ![enlarge](../../../../tests/images/xkcd_comic-comic_title_alttext-enlarge-9in7.png) |
+| ![comic_title_alttext](../../../../tests/images/xkcd_comic-comic_title_alttext-9in7.png) | ![comic_title](../../../../tests/images/xkcd_comic-comic_title-9in7.png) | ![comic_only](../../../../tests/images/xkcd_comic-comic_only-9in7.png) | ![own size](../../../../tests/images/xkcd_comic-comic_title_alttext-own-size-9in7.png) |

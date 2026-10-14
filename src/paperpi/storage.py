@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import limits
+from .config import BUILT_IN
 
 log = logging.getLogger(__name__)
 
@@ -256,7 +257,8 @@ def clean_all(plugins, state_dir: Path) -> None:
     switched off. Runs when PaperPi starts, at most
     :data:`~paperpi.limits.STORAGE_CLEAN_START` seconds in all; the rest are cleaned after
     their next update (or at the next start). Folders no block uses (e.g. after a plugin was
-    renamed) are left alone, as they may hold photos, but they are named in the log."""
+    renamed) are left alone, as they may hold photos, but they are named in the log. PaperPi's
+    own plugins (``built-in-*``) have no block, so their folders are not named."""
     root = Path(state_dir) / "plugins"
     deadline = time.monotonic() + limits.STORAGE_CLEAN_START
     for found in plugins:
@@ -267,7 +269,8 @@ def clean_all(plugins, state_dir: Path) -> None:
         limit = min(limits.STORAGE_CLEAN, left)
         clean(root / found.folder_name, found.storage_mb, found.storage_days, time_limit=limit)
     try:
-        unused = sorted({p.name for p in root.iterdir()} - {f.folder_name for f in plugins})
+        names = {p.name for p in root.iterdir() if not p.name.startswith(BUILT_IN)}
+        unused = sorted(names - {f.folder_name for f in plugins})
     except OSError:
         return
     if unused:
