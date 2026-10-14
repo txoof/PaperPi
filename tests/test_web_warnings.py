@@ -294,7 +294,8 @@ def test_old_lines_say_their_date(cfg):
 def test_a_file_the_web_interface_cant_change_is_no_mistake(cfg, scheduler):
     # PaperPi uses this file; only the web interface can't change it safely.
     cfg.write_text(
-        'config_version = 1\n[display]\ntype = "virtual"\n\n[["plugin"]]\nid = "Clock"\ntype = "basic_clock"\n'
+        'config_version = 1\n[display]\ntype = "virtual"\n\n'
+        '[["plugin"]]\nid = "Clock"\ntype = "basic_clock"\n'
     )
     assert PluginEditor(cfg).plugin_list().problems  # the web interface's own problem
     page = client(cfg, scheduler).get("/warnings").text
