@@ -21,9 +21,7 @@ def _comic(size: float) -> dict:
     return {"name": "comic", "type": "image", "size": size, "fit": "contain"}
 
 
-def _text(
-    name: str, sample: str, size: float, max_lines: int, font: str, align: str = "center"
-) -> dict:
+def _text(name: str, sample: str, size: float, max_lines: int, font: str, **extra) -> dict:
     return {
         "name": name,
         "type": "text",
@@ -32,19 +30,20 @@ def _text(
         "sample": sample,
         "max_lines": max_lines,
         "shrink": True,
-        "align": align,
+        "align": "center",
         "padding": PAD,
+        **extra,
     }
 
 
 LAYOUTS = {
-    # The comic, its title on one line and the hover text on up to 3 lines,
-    # lines starting at the left like v1 (v1's default layout).
+    # The comic, its title on one line and the hover text on up to 3 lines (v1's default
+    # layout). The hover text sits centered as a group, its lines starting at the same left edge.
     "comic_title_alttext": {
         "column": [
             _comic(7.5),
             _text("title", TITLE, 1, 1, fonts.LATO_BOLD),
-            _text("alt", ALT, 1.5, 3, fonts.LATO_ITALIC, "left"),
+            _text("alt", ALT, 1.5, 3, fonts.LATO_ITALIC, line_align="left"),
         ],
         "gap": 0,
     },
