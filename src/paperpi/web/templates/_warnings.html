@@ -1,0 +1,66 @@
+{#- What needs attention now, and the recent warnings and errors. Asked for again every few
+    seconds while the page is open; with `live`, the menu's counts change along. -#}
+{% from "_count.html" import badge %}
+<div id="warnings-part" hx-get="/warnings?show={{ shown }}&amp;seen={{ seen }}" hx-trigger="every 10s"
+  hx-swap="outerHTML">
+  <h2 class="sec">Needs attention now</h2>
+  <ul class="issues">
+    {% for item in items %}
+    <li class="issue {{ item.style }}"><span class="sym" aria-hidden="true">{{ item.symbol }}</span>
+      <div>
+        <h3>{{ item.title }}</h3>
+        {% if item.text %}<p>{{ item.text }}</p>{% endif %}
+        {% if item.lines %}<ul class="mistakes">{% for line in item.lines %}<li><code>{{ line }}</code></li>{% endfor %}</ul>{% endif %}
+        <div class="actions">
+          {% if item.again is not none and running %}
+          <form method="post" action="/screen/try-again">
+            <input type="hidden" name="back" value="warnings">
+            {% if item.again %}<input type="hidden" name="id" value="{{ item.again }}">{% endif %}
+            <button class="quiet" type="submit">Try again now</button>
+          </form>
+          {% endif %}
+          {% if item.reload %}
+          <form method="post" action="/warnings/reload"><button class="quiet" type="submit">Load the file again</button></form>
+          {% endif %}
+          {% if item.settings %}<a href="{{ item.settings }}">Settings</a>{% endif %}
+        </div>
+      </div>
+    </li>
+    {% else %}
+    <li class="all-good">✓ Nothing needs your attention.</li>
+    {% endfor %}
+  </ul>
+
+  <h2 class="sec">Recent warnings and errors</h2>
+  <form class="logbar" method="get" action="/warnings" hx-get="/warnings" hx-target="#warnings-part"
+    hx-swap="outerHTML" hx-push-url="true" hx-trigger="submit, change">
+    <div class="filters" role="group" aria-label="Show in the recent list">
+      {% for value, label, _ in filters %}
+      <label class="pick"><input type="radio" name="show" value="{{ value }}"{% if value == shown %} checked{% endif %}> {{ label }}</label>
+      {% endfor %}
+    </div>
+    <button type="submit" class="no-js">Show</button>
+  </form>
+  {% if days is none %}
+  <p class="note">The log is only kept while PaperPi shows the plugins (<code>paperpi run</code>).</p>
+  {% else %}
+  <ol class="recent">
+    {% for day in days %}
+    <li class="day">{{ day.label }}</li>
+    {% for entry in day.entries %}
+    {% set symbol, label, style = entry.chip %}
+    <li class="entry">
+      <time datetime="{{ entry.line.time.isoformat() }}">{{ entry.line.time.strftime("%H:%M:%S") }}</time>
+      <span class="chip {{ style }}">{{ symbol }} {{ label }}</span>
+      <div class="msg"><code>{{ entry.first }}</code> <span class="src">{{ entry.line.source }}</span>
+        {% if entry.more %}<details><summary>Traceback</summary><pre>{{ entry.more }}</pre></details>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+    {% else %}
+    <li class="entry none">No warnings or errors of this kind.</li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+  {% if live %}{{ badge("menu", attention, true) }}{{ badge("fold", attention, true) }}{% endif %}
+</div>

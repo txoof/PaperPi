@@ -24,6 +24,9 @@ Address            What it does
                    (``/library/pictures/<file>``; ``/library/<type>/picture`` is the
                    picture's part of the page, asked for again until it is drawn);
                    ``/library/<type>`` adds one and opens its settings
+``/warnings``      what needs attention now (``/warnings/reload`` loads the config file
+                   again), and the recent warnings and errors; ``/log`` is the Full log
+                   (``/log/new`` the lines after a number, ``/log/download`` all of them)
 ``/static/...``    the style sheet, the home page's script, SortableJS (drag to change
                    the order) and htmx (a small JavaScript file that updates one part of
                    a page without loading the whole page again)
@@ -43,7 +46,7 @@ import ipaddress
 import json
 import logging
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlencode, urlsplit
@@ -57,7 +60,7 @@ from starlette.concurrency import run_in_threadpool
 from .. import __version__, limits
 from ..config import folder_name
 from ..logbook import Logbook
-from . import logs
+from . import logs, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError
 from .forms import Read, fields, form_texts
@@ -299,13 +302,13 @@ def create_app(
         keep = "private, max-age=86400" if number == v else "no-store"
         return Response(png, media_type="image/png", headers={"Cache-Control": keep})
 
-    def asked(request: Request, what: str, ask: Callable[[], None]) -> Response:
+    def asked(request: Request, what: str, ask: Callable[[], None], back: str = "/") -> Response:
         if controls is None:
             return refused(request, 409, "PaperPi's screen is not running.")
         ask()
         if request.headers.get("hx-request") == "true":
             return now_page(request, what)
-        return RedirectResponse(f"/?done={what}", status_code=303)
+        return RedirectResponse(f"{back}?done={what}", status_code=303)
 
     @app.post("/screen/skip", response_class=HTMLResponse)
     def skip(request: Request):
@@ -324,8 +327,55 @@ def create_app(
         return asked(request, "show", lambda: controls.show_now(plugin_id))
 
     @app.post("/screen/try-again", response_class=HTMLResponse)
-    def try_again(request: Request, plugin_id: _FormId = ""):
-        return asked(request, "again", lambda: controls.try_again(plugin_id or None))
+    def try_again(request: Request, plugin_id: _FormId = "", back: str = Form("")):
+        """``back=warnings``: sent from the Warnings tab, which is opened again."""
+        back = "/warnings" if back == "warnings" else "/"
+        return asked(request, "again", lambda: controls.try_again(plugin_id or None), back)
+
+    def attention() -> list[warnings.Item]:
+        rows, problems, _ = found_rows()
+        return warnings.needs_attention(summary(), rows, problems, datetime.now())
+
+    # The menu shows how many things need attention, on every page.
+    templates.env.globals["attention_count"] = lambda: len(attention())
+
+    def warnings_values(shown: str) -> dict:
+        today = date.today()
+        values = {
+            "items": attention(),
+            "days": warnings.recent(logbook, shown, today) if logbook is not None else None,
+            "shown": shown,
+            "filters": warnings.FILTERS,
+        }
+        # What the page shows; the same text when nothing changed.
+        values["seen"] = hashlib.sha256(repr(values).encode()).hexdigest()[:16]
+        return values
+
+    @app.get("/warnings", response_class=HTMLResponse)
+    def warnings_page(request: Request, show: str = "", seen: str = ""):
+        values = warnings_values(warnings.filter_of(show))
+        values |= {"attention": len(values["items"]), "running": controls is not None}
+        if request.headers.get("hx-request") == "true":
+            # Asked again every few seconds while the page is open.
+            if seen == values["seen"]:
+                return Response(status_code=204)  # htmx then leaves the page as it is
+            return page(request, "_warnings.html", **values, live=True)
+        done = request.query_params.get("done")
+        return page(
+            request,
+            "warnings.html",
+            **values,
+            most=warnings.RECENT,
+            message=_DONE.get(done or "") if done in ("again", "reload") else None,
+        )
+
+    @app.post("/warnings/reload")
+    def reload_config():
+        """Load the config file again (after a mistake in it was fixed)."""
+        if controls is None:
+            return Response("PaperPi's screen is not running.", 409, media_type="text/plain")
+        controls.reload()
+        return RedirectResponse("/warnings?done=reload", status_code=303)
 
     def log_values(
         level: str, search: str, follow: str, after: int | None = None, earlier: bool = False
@@ -619,6 +669,7 @@ _DONE = {
     "dismiss": "Asked PaperPi to dismiss the alert.",
     "show": "Asked PaperPi to show the plugin now, for one extra turn.",
     "again": "Asked PaperPi to try again now.",
+    "reload": "Asked PaperPi to load the config file again.",
 }
 
 

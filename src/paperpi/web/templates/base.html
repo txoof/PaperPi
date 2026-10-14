@@ -14,14 +14,17 @@
 <body>
   {#- The menu: the pages a logged-in visitor can open. Each page sets `page` to its own
       entry, which is marked as the current one. -#}
-  {% set menu = [("/", "home", "Home"), ("/library", "library", "Plugin Library"), ("/log", "warnings", "Warnings")] %}
+  {% set menu = [("/", "home", "Home"), ("/library", "library", "Plugin Library"), ("/warnings", "warnings", "Warnings")] %}
+  {% from "_count.html" import badge %}
+  {#- Next to Warnings: how many things need attention (the Warnings page passes the number). -#}
+  {% set attention_number = (attention if attention is defined else attention_count()) if logged_in else 0 %}
   <header class="top">
     <div class="top-inner{% if logged_in %} with-menu{% endif %} {{ self.main_class() }}">
       <a class="brand" href="/">PaperPi</a>
       {% if logged_in %}
       <nav class="menu" aria-label="Main">
         {% for href, key, label in menu %}
-        <a href="{{ href }}"{% if page == key %} aria-current="page"{% endif %}>{{ label }}</a>
+        <a href="{{ href }}"{% if page == key %} aria-current="page"{% endif %}>{{ label }}{% if key == "warnings" %}{{ badge("menu", attention_number) }}{% endif %}</a>
         {% endfor %}
       </nav>
       {% endif %}
@@ -33,7 +36,7 @@
       {% if logged_in %}
       {#- On a phone, the menu folds into one button (no JavaScript needed). -#}
       <details class="fold">
-        <summary>Menu</summary>
+        <summary>Menu{{ badge("fold", attention_number) }}</summary>
         <div class="fold-links">
           {% for href, key, label in menu %}
           <a href="{{ href }}"{% if page == key %} aria-current="page"{% endif %}>{{ label }}</a>

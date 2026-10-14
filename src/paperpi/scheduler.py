@@ -225,6 +225,9 @@ class Summary:
     """While the screen is paused: when it is tried again."""
     plugins: tuple[PluginSummary, ...] = ()
     """Every ``[[plugin]]`` block but ``default``, in config order."""
+    config_errors: tuple[str, ...] = ()
+    """Why the config file could not be used at its last load (PaperPi keeps the settings
+    it had); empty after a load that worked."""
 
 
 @dataclass(eq=False)
@@ -308,6 +311,8 @@ class Scheduler:
         self.state_dir = Path(state_dir)
         self.display = config.display
         self._reload = reload
+        self._config_errors = _errors_of(config)
+        """See :attr:`Summary.config_errors`."""
         self.clock = clock or Clock()
         self.executor = executor or ThreadPoolExecutor(
             max_workers=limits.PARALLEL_UPDATES, thread_name_prefix="paperpi-update"
@@ -489,10 +494,15 @@ class Scheduler:
                 new = self._load_with_time_limit()
             except Exception as error:  # noqa: BLE001 - a broken file keeps the old settings
                 log.error("config not applied, the old settings keep running: %s", error)
+                self._config_errors = tuple(filter(None, str(error).split("\n"))) or (
+                    type(error).__name__,
+                )
                 return
             if new.from_last_good:
                 log.error("config file can't be used; the old settings keep running")
+                self._config_errors = _errors_of(new)
                 return
+            self._config_errors = ()
             self._apply(new)
 
     def _find(self, plugin_id: str) -> _Slot | None:
@@ -1139,6 +1149,7 @@ class Scheduler:
             screen=self._screen_state,
             screen_retry_at=at(self._retry_at),
             plugins=tuple(plugins),
+            config_errors=self._config_errors,
         )
 
     def _upcoming(self, now: float, shown_id: str | None) -> list[tuple[_Slot, float]]:
@@ -1255,3 +1266,10 @@ def _same_image(a: Image.Image, b: Image.Image) -> bool:
     if a.size != b.size or a.mode != b.mode:
         return False
     return ImageChops.difference(a, b).getbbox() is None
+
+
+def _errors_of(config: Config) -> tuple[str, ...]:
+    """Why the config file could not be used (empty when it could)."""
+    if not config.from_last_good:
+        return ()
+    return tuple(str(p) for p in config.errors) or ("the config file can't be used",)

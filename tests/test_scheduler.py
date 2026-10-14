@@ -898,15 +898,38 @@ def test_reload_adds_a_new_plugin(tmp_path):
 def test_broken_config_on_reload_keeps_the_old_settings(tmp_path, broken):
     sim = Sim(tmp_path, rotation("a"), rotation("b"))
     sim.run(until=50)
+    problem = config.Problem("error", "not valid TOML", "paperpi.toml", line=3)
     if broken == "error":
-        sim.next_config = config.ConfigError([config.Problem("error", "not valid TOML")])
+        sim.next_config = config.ConfigError([problem])
     else:
         # What config.load gives for a broken file when a last good copy exists.
         sim.next_config = make_config(rotation("z"))
         sim.next_config.from_last_good = True
+        sim.next_config.problems = [problem, config.Problem("warning", "running on the copy")]
     sim.scheduler.reload()
     sim.run(until=250)
     assert sim.shown == ["A", "B", "A"]
+    assert sim.scheduler.summary.config_errors == ("paperpi.toml line 3: not valid TOML",)
+
+
+def test_a_reload_that_works_clears_the_config_errors(tmp_path):
+    sim = Sim(tmp_path, rotation("a"))
+    sim.next_config = config.ConfigError([])
+    sim.at(10, sim.scheduler.reload)
+    sim.run(until=20)
+    # An error without a message still says something.
+    assert sim.scheduler.summary.config_errors == ("ConfigError",)
+    sim.next_config = make_config(rotation("a"))
+    sim.scheduler.reload()
+    sim.run(until=40)
+    assert sim.scheduler.summary.config_errors == ()
+
+
+def test_a_start_on_the_last_good_copy_has_config_errors(tmp_path):
+    started = make_config(rotation("a"))
+    started.from_last_good = True
+    scheduler = Scheduler(started, FakeScreen(FakeTime(), Labels()), state_dir=tmp_path)
+    assert scheduler._config_errors == ("the config file can't be used",)
 
 
 def test_screen_size_takes_effect_at_the_next_start(tmp_path, caplog):
