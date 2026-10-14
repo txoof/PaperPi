@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "warnings" %}
+{% block title %}Warnings · PaperPi{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block main %}
+<h1>Warnings</h1>
+<nav class="tabs" aria-label="Warnings pages">
+  <a href="/warnings" aria-current="page">Warnings</a>
+  <a href="/log">Full log</a>
+</nav>
+{% if message %}<p class="saved">{{ message }}</p>{% endif %}
+{% include "_warnings.html" %}
+<p class="hint">The recent list holds the newest {{ most }} warnings and errors, as they are in
+the log. They are also kept in a small file in the state folder, so they survive a restart of
+the Pi. The Full log tab has every line, and a search.</p>
+{% endblock %}

@@ -61,6 +61,7 @@ class Controls(Protocol):
     def refresh(self) -> None: ...
     def try_again(self, plugin_id: str | None = None) -> None: ...
     def dismiss(self, plugin_id: str) -> None: ...
+    def reload(self) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -142,7 +143,7 @@ def cards(
     made = []
     for row in rows:
         plugin = found.get(row.id) if row.id else None
-        status, note = _status(row, plugin, summary is not None, now)
+        status, note = plugin_status(row, plugin, summary is not None, now)
         picture = None
         if plugin is not None and plugin.picture is not None:
             picture = snapshots.version(row.id, plugin.picture)
@@ -160,9 +161,10 @@ def cards(
     return made
 
 
-def _status(
+def plugin_status(
     row: Row, plugin: PluginSummary | None, running: bool, now: datetime
 ) -> tuple[str, str]:
+    """A card's status (a key of :data:`STATUS`) and the note about it."""
     if not row.known:
         return "unknown", ""
     if row.errors:
@@ -190,7 +192,7 @@ def _status(
 def now_part(summary: Summary | None, rows: list[Row], snapshots: Snapshots, now: datetime) -> Now:
     """The screen part: what is on screen, since when, and what comes next."""
     if summary is None or summary.on_screen is None:
-        return Now(screen_problem=_screen_problem(summary))
+        return Now(screen_problem=screen_problem(summary))
     names = {row.id: (row.name, row.type) for row in rows if row.id}
     name, plugin_type = names.get(summary.on_screen) or BUILT_IN.get(
         summary.on_screen, (summary.on_screen, "")
@@ -212,11 +214,12 @@ def now_part(summary: Summary | None, rows: list[Row], snapshots: Snapshots, now
         height=picture.height if picture is not None else 0,
         extra=summary.extra,
         alert=summary.alert,
-        screen_problem=_screen_problem(summary),
+        screen_problem=screen_problem(summary),
     )
 
 
-def _screen_problem(summary: Summary | None) -> str:
+def screen_problem(summary: Summary | None) -> str:
+    """What the pages say about a screen that does not answer ("": it answers)."""
     if summary is None or summary.screen in (None, "ok"):
         return ""
     if summary.screen == "paused" and summary.screen_retry_at is not None:

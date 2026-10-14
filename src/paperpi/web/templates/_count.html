@@ -1,0 +1,7 @@
+{#- The number of things that need attention, next to Warnings in the menu (`where`:
+    "menu") and in the folded menu ("fold"). With `live`, it is sent along with a part of a
+    page, to replace the one there. -#}
+{% macro badge(where, number, live=false) -%}
+<span class="count" id="{{ where }}-count"{% if live %} hx-swap-oob="true"{% endif %}{% if not number %} hidden{% endif %}
+  title="{{ number }} need{% if number == 1 %}s{% endif %} attention">{{ number }}<span class="sr-only"> need{% if number == 1 %}s{% endif %} attention</span></span>
+{%- endmacro %}

@@ -6,8 +6,8 @@
 {% block head %}<script src="/static/log.js" defer></script>{% endblock %}
 {% block main %}
 <h1>Warnings</h1>
-{#- The Warnings tab joins in part 4, PR 4b. -#}
 <nav class="tabs" aria-label="Warnings pages">
+  <a href="/warnings">Warnings</a>
   <a href="/log" aria-current="page">Full log</a>
 </nav>
 {% if not running %}
