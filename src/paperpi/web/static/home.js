@@ -171,6 +171,14 @@
       main.style.paddingBottom = lost > 0 ? "calc(1rem + " + lost + "px)" : "";
     }
     window.addEventListener("scroll", check, { passive: true });
+    // Another window size: the slim bar's height changes, so it is measured again.
+    window.addEventListener("resize", function () {
+      var panel = document.getElementById("now");
+      if (panel && small) {
+        panel.classList.remove("compact"); // the page only grows meanwhile
+        check();
+      }
+    });
     document.body.addEventListener("htmx:load", check); // a new panel came in
     document.body.addEventListener("click", function (event) {
       if (!event.target.closest("[data-bigger]")) return;

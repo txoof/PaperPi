@@ -88,7 +88,7 @@ nav.menu + .theme { margin-left: 0; }
    of forms or text keeps its lines short with a narrower content (all but main.wide: Home,
    Plugin Library, Warnings), and so does running text on the wide pages. */
 main { max-width: 64rem; margin: 0 auto; padding: 0.5rem 1rem 1rem; }
-main:not(.wide) > *, main > p { max-width: 46rem; }
+main:not(.wide) > *, main > p:not(.saved, .note) { max-width: 46rem; }
 footer { max-width: 64rem; margin: 2rem auto 1rem; padding: 0 1rem; color: var(--muted);
   font-size: 0.85rem; }
 .crumbs { margin: 1rem 0 0; font-size: 0.9rem; color: var(--muted); }
