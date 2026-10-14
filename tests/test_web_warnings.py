@@ -289,3 +289,14 @@ def test_old_lines_say_their_date(cfg):
     add(book, "WARNING", "long ago", datetime.now() - timedelta(days=3))
     page = client(cfg, book=book).get("/warnings").text
     assert '<li class="day">Today</li>' not in page and "long ago" in page
+
+
+def test_a_file_the_web_interface_cant_change_is_no_mistake(cfg, scheduler):
+    # PaperPi uses this file; only the web interface can't change it safely.
+    cfg.write_text(
+        'config_version = 1\n[display]\ntype = "virtual"\n\n[["plugin"]]\nid = "Clock"\ntype = "basic_clock"\n'
+    )
+    assert PluginEditor(cfg).plugin_list().problems  # the web interface's own problem
+    page = client(cfg, scheduler).get("/warnings").text
+    assert "Nothing needs your attention." in page
+    assert re.search(r'id="menu-count" hidden', page)

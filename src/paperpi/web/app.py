@@ -62,7 +62,7 @@ from ..config import folder_name
 from ..logbook import Logbook
 from . import logs, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
-from .config_file import EditError
+from .config_file import EditError, UnknownForm
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Snapshots, card_key, cards, now_part
@@ -332,8 +332,22 @@ def create_app(
         back = "/warnings" if back == "warnings" else "/"
         return asked(request, "again", lambda: controls.try_again(plugin_id or None), back)
 
+    # The config file's plugin blocks for the menu's count, read again only when the file
+    # changed (every page shows the count).
+    attention_found: dict = {}
+
     def attention() -> list[warnings.Item]:
-        rows, problems, _ = found_rows()
+        try:
+            stat = editor.path.stat()
+            key = (stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            key = None
+        if key is None or attention_found.get("key") != key:
+            rows, problems, _ = found_rows()
+            # A file the web interface can't change safely is still one PaperPi can use.
+            problems = [p for p in problems if p != str(UnknownForm())]
+            attention_found.update(key=key, found=(rows, problems))
+        rows, problems = attention_found["found"]
         return warnings.needs_attention(summary(), rows, problems, datetime.now())
 
     # The menu shows how many things need attention, on every page.

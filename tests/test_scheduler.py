@@ -900,7 +900,7 @@ def test_broken_config_on_reload_keeps_the_old_settings(tmp_path, broken):
     sim.run(until=50)
     problem = config.Problem("error", "not valid TOML", "paperpi.toml", line=3)
     if broken == "error":
-        sim.next_config = config.ConfigError([problem])
+        sim.next_config = config.ConfigError([problem, config.Problem("warning", "just a hint")])
     else:
         # What config.load gives for a broken file when a last good copy exists.
         sim.next_config = make_config(rotation("z"))

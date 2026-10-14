@@ -98,7 +98,14 @@ from pathlib import Path
 from PIL import Image, ImageChops
 
 from . import limits, plugins
-from .config import DRIVER_SETTINGS, NEXT_START, Config, DisplaySettings, PluginConfig
+from .config import (
+    DRIVER_SETTINGS,
+    NEXT_START,
+    Config,
+    ConfigError,
+    DisplaySettings,
+    PluginConfig,
+)
 from .plugin import Context, PluginEntry, PluginsStatus, State
 from .runner import UpdateResult, run_update, stop_all
 from .screen import MakeDriver, Screen, ScreenResting, ScreenStuck
@@ -494,9 +501,7 @@ class Scheduler:
                 new = self._load_with_time_limit()
             except Exception as error:  # noqa: BLE001 - a broken file keeps the old settings
                 log.error("config not applied, the old settings keep running: %s", error)
-                self._config_errors = tuple(filter(None, str(error).split("\n"))) or (
-                    type(error).__name__,
-                )
+                self._config_errors = _errors_of_exception(error)
                 return
             if new.from_last_good:
                 log.error("config file can't be used; the old settings keep running")
@@ -1273,3 +1278,13 @@ def _errors_of(config: Config) -> tuple[str, ...]:
     if not config.from_last_good:
         return ()
     return tuple(str(p) for p in config.errors) or ("the config file can't be used",)
+
+
+def _errors_of_exception(error: Exception) -> tuple[str, ...]:
+    """Why loading the config failed: the errors of a :class:`ConfigError` (not its
+    warnings), or the text of another exception."""
+    if isinstance(error, ConfigError):
+        found = tuple(str(p) for p in error.problems if p.level == "error")
+    else:
+        found = tuple(filter(None, str(error).split("\n")))
+    return found or (type(error).__name__,)
