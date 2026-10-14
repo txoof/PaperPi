@@ -235,6 +235,13 @@ def test_folders_no_block_uses_are_named_but_not_cleaned(tmp_path, caplog):
     assert "no [[plugin]] block uses" in caplog.text and "renamed-photos" in caplog.text
 
 
+def test_built_in_plugin_folders_are_not_named(tmp_path, caplog):
+    for name in ["built-in-splash", "built-in-clock", "renamed-photos"]:
+        (tmp_path / "plugins" / name).mkdir(parents=True)
+    storage.clean_all([], tmp_path)
+    assert "['renamed-photos']" in caplog.text and "built-in" not in caplog.text
+
+
 def test_clean_all_uses_each_blocks_own_values(tmp_path):
     loaded = config.parse(
         'config_version = 1\n[display]\ntype = "virtual"\n'

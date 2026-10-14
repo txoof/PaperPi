@@ -124,10 +124,10 @@ def test_check_boxes_go_on_and_off(client, cfg):
     page = client.get("/plugins/2/settings", params={"id": "Comic"}).text
     # A box that is off sends nothing, so the page sends "false" before it.
     assert '<input type="hidden" name="enlarge" value="false">' in page
-    client.post("/plugins/2/settings", data={"id": "Comic", "enlarge": ["false", "true"]})
-    assert blocks(cfg)[2]["enlarge"] is True
     client.post("/plugins/2/settings", data={"id": "Comic", "enlarge": ["false"]})
-    assert "enlarge" not in blocks(cfg)[2]
+    assert blocks(cfg)[2]["enlarge"] is False
+    client.post("/plugins/2/settings", data={"id": "Comic", "enlarge": ["false", "true"]})
+    assert "enlarge" not in blocks(cfg)[2]  # on is the default
 
 
 def test_adding_from_the_library_opens_the_settings(client, cfg):
