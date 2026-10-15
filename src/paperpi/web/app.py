@@ -24,6 +24,9 @@ Address            What it does
                    (``/library/pictures/<file>``; ``/library/<type>/picture`` is the
                    picture's part of the page, asked for again until it is drawn);
                    ``/library/<type>`` adds one and opens its settings
+``/changes``       Review changes: hand edits to the config file that PaperPi does not
+                   use yet (``/changes/apply`` loads the file again); a bar on every
+                   page links here while there are some
 ``/warnings``      what needs attention now (``/warnings/reload`` loads the config file
                    again), and the recent warnings and errors; ``/log`` is the Full log
                    (``/log/new`` the lines after a number, ``/log/download`` all of them)
@@ -41,10 +44,13 @@ address or ``localhost``: a website could otherwise point a name of its own at t
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import ipaddress
 import json
 import logging
+import os
+import time
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime
 from pathlib import Path
@@ -58,11 +64,11 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from .. import __version__, limits
-from ..config import folder_name
+from ..config import ConfigError, folder_name, read_text
 from ..logbook import Logbook
-from . import logs, warnings
+from . import changes, logs, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
-from .config_file import EditError, UnknownForm
+from .config_file import EditError, UnknownForm, saved_here
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Snapshots, card_key, cards, now_part
@@ -383,6 +389,78 @@ def create_app(
             message=_DONE.get(done or "") if done in ("again", "reload") else None,
         )
 
+    # Hand edits: read again only when the file or the text PaperPi uses changed (every
+    # page shows the bar).
+    edits_found: dict = {}
+
+    def hand_edits() -> str | None:
+        """The config file's text, when it holds settings PaperPi does not use yet."""
+        applied = editor.applied
+        if controls is None or applied is None:
+            return None  # nothing to apply them to
+        try:
+            stat = editor.path.stat()
+        except OSError:
+            return None
+        key = (stat.st_mtime_ns, stat.st_size, applied)
+        if edits_found.get("key") != key:
+            try:
+                text = read_text(editor.path)
+            except ConfigError:
+                text = None  # the Warnings page names it
+            if text is not None and not changes.waiting(applied, text):
+                text = None
+            edits_found.update(key=key, text=text)
+        text = edits_found["text"]
+        # Checked every time: the web interface may have saved this text a moment ago.
+        return None if text is None or saved_here(editor.path, text) else text
+
+    templates.env.globals["hand_edits_waiting"] = lambda: hand_edits() is not None
+
+    @app.get("/changes", response_class=HTMLResponse)
+    async def changes_page(request: Request, done: str = ""):
+        edited = await run_in_threadpool(hand_edits)
+        found = None
+        if edited is not None:
+            found = await run_in_threadpool(
+                changes.review, editor.applied or "", edited, editor.path.name
+            )
+        try:
+            changed_at = datetime.fromtimestamp(editor.path.stat().st_mtime)
+        except OSError:
+            changed_at = None
+        return page(
+            request,
+            "changes.html",
+            review=found,
+            running=controls is not None,
+            path=editor.path,
+            changed_at=changed_at,
+            today=date.today(),
+            command=_reload_command(),
+            message=_DONE.get(done) if done in ("applied", "applying") else None,
+        )
+
+    @app.post("/changes/apply")
+    async def apply_changes():
+        if controls is None:
+            return Response("PaperPi's screen is not running.", 409, media_type="text/plain")
+        edited = await run_in_threadpool(hand_edits)
+        if edited is not None:
+            found = await run_in_threadpool(
+                changes.review, editor.applied or "", edited, editor.path.name
+            )
+            if found.mistakes:  # the page names them; PaperPi would keep the old settings
+                return RedirectResponse("/changes", status_code=303)
+        controls.reload()
+        # PaperPi loads the file between two screen writes: wait a moment, so the page
+        # can mostly say it is done.
+        end = time.monotonic() + limits.APPLY_WAIT
+        while await run_in_threadpool(hand_edits) is not None and time.monotonic() < end:
+            await asyncio.sleep(0.1)
+        done = "applying" if await run_in_threadpool(hand_edits) is not None else "applied"
+        return RedirectResponse(f"/changes?done={done}", status_code=303)
+
     @app.post("/warnings/reload")
     def reload_config():
         """Load the config file again (after a mistake in it was fixed)."""
@@ -684,7 +762,18 @@ _DONE = {
     "show": "Asked PaperPi to show the plugin now, for one extra turn.",
     "again": "Asked PaperPi to try again now.",
     "reload": "Asked PaperPi to load the config file again.",
+    "applied": "Applied. PaperPi uses the changed config file now.",
+    "applying": "Asked PaperPi to load the config file again. It does so between two "
+    "screen writes, in a moment.",
 }
+
+
+def _reload_command() -> tuple[str, bool]:
+    """How to apply the config file from the command line, and whether PaperPi runs as a
+    service (systemd sets ``INVOCATION_ID`` for the programs it starts)."""
+    if os.environ.get("INVOCATION_ID"):
+        return "sudo systemctl reload paperpi", True
+    return f"kill -HUP {os.getpid()}", False
 
 
 def _go_to(request: Request, path: str) -> Response:

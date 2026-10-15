@@ -28,6 +28,7 @@ Already decided in `config-format.md`: a broken file falls back to the last good
 | Edited by hand | When the user presses **Apply changes** in the web interface, or runs `paperpi reload` (or `sudo systemctl reload paperpi`, the standard Linux way to tell a service to reread its settings). |
 
 - The web interface notices when the file was changed outside it and shows: "The config file was changed outside the web interface. Apply changes?"
+  *Update (M5 part 4, 2026-10-15):* a bar on every page links to a **Review changes** page, which lists the changes and has the **Apply changes** button (see "Hand edits to the config file" in `web-interface.md`). `paperpi reload` does not exist yet (issue #272); until then the command is `kill -HUP <process id>`.
 - Before applying, the new file is checked as in `config-format.md`. If it is broken, nothing changes, the old settings keep running, and the web interface (or the command's output) names the wrong line.
 - The change is handed to the scheduler, the one part of PaperPi that decides what is shown (see `plugin-scheduling.md`). It applies the change between two screen writes, never during one.
 

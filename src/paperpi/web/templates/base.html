@@ -52,6 +52,10 @@
       {% endif %}
     </div>
   </header>
+  {% if logged_in and page != "changes" and hand_edits_waiting() %}
+  <div class="edits-bar" role="status"><p>The config file was changed outside the web interface, and
+    PaperPi does not use the changes yet. <a href="/changes">Review changes</a></p></div>
+  {% endif %}
   <main id="top" class="{% block main_class %}{% endblock %}">
     {% block main %}{% endblock %}
   </main>
