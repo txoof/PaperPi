@@ -6,10 +6,13 @@
 {% block main %}
 <h1>Review changes</h1>
 {% if message %}<p class="saved">{{ message }}</p>{% endif %}
+{% if undone %}<p class="saved">Hand edits undone. Your edited file is saved as
+  <code>{{ undone }}</code>, next to the config file.</p>{% endif %}
+{% if problem %}<p class="note">Nothing was undone: {{ problem }}</p>{% endif %}
 {% if review is none %}
   {% if not running %}
   <p class="note">PaperPi's screen is not running (<code>paperpi run</code>), so there is nothing to apply changes to.</p>
-  {% elif not message %}
+  {% elif not message and not undone %}
   <p class="all-good">✓ No hand edits are waiting: PaperPi uses the config file as it is.</p>
   {% endif %}
   <p><a href="/">Back to Home</a></p>
@@ -67,10 +70,22 @@ applied yet. Check the settings here, adjust and accept them in this interface.<
 {% if not review.mistakes %}<p class="hint">Only settings count here: the edits change no setting PaperPi uses.</p>{% endif %}
 {% endfor %}
 
+{% if asking %}
+<div class="confirm" id="undo">
+  <p><strong>Undo the hand edits?</strong> The config file goes back to the version PaperPi
+  uses now. Your edited file is kept as <code>{{ path.name }}.undone</code>, so nothing is lost.</p>
+  <form method="post" action="/changes/undo">
+    <button type="submit">Undo hand edits</button>
+    <a href="/changes">Keep them</a>
+  </form>
+</div>
+{% else %}
 <form class="decide" method="post" action="/changes/apply">
   <button type="submit"{% if review.mistakes %} disabled{% endif %}>Apply changes</button>
+  <a class="button" href="/changes?undo=1#undo">Undo hand edits…</a>
 </form>
-{% if not review.mistakes %}
+{% endif %}
+{% if not review.mistakes and not asking %}
 <p class="hint">Saving on any settings page applies these changes too.</p>
 {% set command, service = command %}
 <p class="hint">Or apply them from the command line on the Pi: <code>{{ command }}</code>

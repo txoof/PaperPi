@@ -81,15 +81,28 @@ def write(path: Path, text: str) -> None:
             f"The config file would be larger than {limits.CONFIG_FILE_BYTES} bytes, which "
             "PaperPi can't read. Remove a plugin first."
         )
-    try:
-        # The new file keeps the old one's permissions and, when run with sudo, its owner,
-        # so the PaperPi service can still read it.
-        info = os.stat(path)
-        owner = (info.st_uid, info.st_gid) if os.geteuid() == 0 else None
-        write_atomic(path, data, mode=stat.S_IMODE(info.st_mode), owner=owner)
-    except OSError as error:
-        raise EditError(f"can't save {path}: {error}") from None
+    _write_like(path, data, path)
     _saved[path] = text
+
+
+def keep(path: Path, text: str) -> Path:
+    """Save ``text`` next to the config file ``path`` (a real path, from :func:`read`) as
+    ``<name>.undone``, replacing an older one. Returns the path of the kept file."""
+    kept = path.with_name(f"{path.name}.undone")
+    _write_like(kept, text.encode("utf-8"), path)
+    return kept
+
+
+def _write_like(target: Path, data: bytes, config_path: Path) -> None:
+    """Save ``data`` as ``target`` with the config file's permissions."""
+    try:
+        # The new file keeps the config file's permissions and, when run with sudo, its
+        # owner, so the PaperPi service can still read it.
+        info = os.stat(config_path)
+        owner = (info.st_uid, info.st_gid) if os.geteuid() == 0 else None
+        write_atomic(target, data, mode=stat.S_IMODE(info.st_mode), owner=owner)
+    except OSError as error:
+        raise EditError(f"can't save {target}: {error}") from None
 
 
 def saved_here(path: Path, text: str) -> bool:
