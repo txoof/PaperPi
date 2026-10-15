@@ -175,6 +175,10 @@ def is_set(value: Any) -> bool:
     return value is not None
 
 
+#: When a plugin is shown (see :mod:`paperpi.scheduler`).
+Level = Literal["alert", "interrupt", "rotation"]
+LEVELS: tuple[Level, ...] = get_args(Level)
+
 #: The longest plugin ID (``id`` in a ``[[plugin]]`` block).
 ID_LENGTH = 40
 #: Characters a plugin's name may not hold: control characters, the ones Python counts
@@ -205,8 +209,10 @@ class PluginEntry(BaseModel):
     )
     type: str = Field(description="Which plugin, e.g. basic_clock")
     enabled: bool = Field(True, description="Show this plugin")
-    level: Literal["alert", "interrupt", "rotation"] = Field(
-        "rotation", description="When it is shown: alert, interrupt or rotation"
+    level: Level | None = Field(
+        None,
+        description="When it is shown: alert, interrupt or rotation. Leave it out to use the "
+        "plugin's suggestion (shown below)",
     )
     display_time: float = Field(
         120,
@@ -363,6 +369,8 @@ class Plugin:
     """Suggested seconds between updates."""
     refresh_on_minute: bool = False
     """Updates should start just after the minute changes (for clocks)."""
+    level: Level = "rotation"
+    """Suggested level, e.g. ``interrupt`` for a plugin that only has something now and then."""
     storage_mb: int = limits.STORAGE_MB
     """Suggested most megabytes in its storage folder (e.g. more for a photo album)."""
     storage_days: int = limits.STORAGE_DAYS
@@ -398,6 +406,8 @@ class Plugin:
                 f"refresh must be between {limits.SHORTEST_REFRESH:g} "
                 f"and {limits.LONGEST_SETTING:g} seconds"
             )
+        if self.level not in LEVELS:
+            problems.append(f"level must be one of: {', '.join(LEVELS)}")
         if not 1 <= self.storage_mb <= limits.STORAGE_MB_MAX:
             problems.append(f"storage_mb must be between 1 and {limits.STORAGE_MB_MAX}")
         if not 0 <= self.storage_days <= limits.STORAGE_DAYS_MAX:

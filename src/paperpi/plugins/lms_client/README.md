@@ -2,7 +2,7 @@
 
 The song a [Lyrion Music Server](https://lyrion.org/) (LMS, formerly Logitech Media Server) player is playing: its title, artist, album and cover. The player can be any LMS player, such as a Squeezebox or Squeezelite on a Raspberry Pi, on this device or anywhere on the network. For several players, add one `[[plugin]]` block per player.
 
-Use it with `level = "interrupt"`: while the player plays, it takes over the screen; when it stops (or is switched off), the other plugins are shown again. A paused song stays on the screen for `idle_timeout` seconds (default 15), so a short pause doesn't change the screen.
+It is an interrupt plugin (`level = "interrupt"`, its default): while the player plays, it takes over the screen; when it stops (or is switched off), the other plugins are shown again. A paused song stays on the screen for `idle_timeout` seconds (default 15), so a short pause doesn't change the screen.
 
 At each update the plugin asks the LMS server, through its JSON-RPC interface (`http://<server>/jsonrpc.js`), for its players, finds the one with the name in `player` (upper and lower case don't matter), and asks for its status. When the server has a password, the `user` and `password` settings are sent with every request (HTTP basic auth), and only to the LMS server.
 
@@ -45,7 +45,6 @@ In the config file (the rest of the file is shown in the main [README](../../../
 id = "kitchen"
 name = "Kitchen music"
 type = "lms_client"
-level = "interrupt"
 server = "192.168.1.9:9000"
 player = "Kitchen"
 ```

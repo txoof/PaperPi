@@ -74,7 +74,8 @@ type = "basic_clock"
 # --- Settings every plugin has ---
 # Show this plugin
 # enabled = true
-# When it is shown: alert, interrupt or rotation
+# When it is shown: alert, interrupt or rotation. Leave it out to use the plugin's suggestion (shown
+# below)
 # level = "rotation"
 # Seconds on screen per turn, when several plugins take turns
 # display_time = 120
@@ -120,6 +121,9 @@ place = "Berlin"
 # --- Settings every plugin has (all of them are in the first block) ---
 # Seconds between updates (at least 5). Leave it out to use the plugin's suggestion (shown below)
 # refresh = 1800
+# When it is shown: alert, interrupt or rotation. Leave it out to use the plugin's suggestion (shown
+# below)
+# level = "rotation"
 # Which layout (see "Layouts" above). Leave it out to use the first
 # layout = "hours_12"
 
@@ -147,5 +151,8 @@ place = "Rio"
 # --- Settings every plugin has (all of them are in the first block) ---
 # Seconds between updates (at least 5). Leave it out to use the plugin's suggestion (shown below)
 # refresh = 1800
+# When it is shown: alert, interrupt or rotation. Leave it out to use the plugin's suggestion (shown
+# below)
+# level = "rotation"
 # Which layout (see "Layouts" above). Leave it out to use the first
 # layout = "hours_12"

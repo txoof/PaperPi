@@ -77,6 +77,7 @@ class RequiredWithValue(PluginSettings):
         ({"layouts": {}}, "at least one layout"),
         ({"refresh": 0}, "refresh must be between 5 and 604800 seconds"),
         ({"refresh": 4.9}, "refresh must be between 5 and 604800 seconds"),
+        ({"level": "sometimes"}, "level must be one of: alert, interrupt, rotation"),
     ],
 )
 def test_plugin_rules(changes, message):

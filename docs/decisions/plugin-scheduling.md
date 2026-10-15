@@ -126,9 +126,11 @@ The file format is decided in #186. Whatever the format, a plugin entry has thes
 ```
 plugin:       word_clock
 enabled:      true
-level:        rotation      # alert | interrupt | rotation
+level:        rotation      # alert | interrupt | rotation; left out: the plugin's suggestion
 display_time: 255           # seconds per turn, when plugins take turns
 ```
+
+*Added on 2026-10-15 (issue #284):* a plugin suggests its own level (`rotation` unless it says otherwise), in the same way it suggests `refresh`. A block without `level` uses the suggestion; the music plugins `lms_client` and `librespot_client` suggest `interrupt`.
 
 ## Open questions
 

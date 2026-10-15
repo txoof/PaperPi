@@ -207,6 +207,17 @@ def test_a_plugin_with_required_settings_is_added_switched_off(client, cfg):
     assert config.parse(cfg.read_text()).plugin(added["id"]).missing == ("lat", "lon", "email")
 
 
+def test_a_music_plugin_is_added_as_an_interrupt(client, cfg):
+    form = client.get("/library/librespot_client").text
+    assert "Shown only while music plays (interrupt)" in form
+    client.post("/library/librespot_client", data={"name": "Spotify"})
+    added = blocks(cfg)[-1]
+    assert "level" not in added  # the plugin's suggestion
+    assert config.parse(cfg.read_text()).plugin(added["id"]).level == "interrupt"
+    page = client.get(f"/plugins/3/settings?id={added['id']}").text
+    assert "Shown only while music plays (interrupt)" in page
+
+
 @pytest.mark.parametrize(
     ("name", "problem"),
     [

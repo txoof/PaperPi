@@ -279,7 +279,8 @@ def find(query: Query, folders: Callable[[], list[Path]] = running_config_folder
 
 PLUGIN = Plugin(
     type="librespot_client",
-    description="The song Spotify is playing on this device, with its album cover.",
+    description="The song Spotify is playing on this device, with its album cover. "
+    "Shown only while music plays (interrupt); the other plugins are shown when it stops.",
     settings=Settings,
     layouts=LAYOUTS,
     fetch=fetch,
@@ -288,6 +289,7 @@ PLUGIN = Plugin(
         "Morning Light Over the Harbour", "The Sample Band", "Songs for Paper Screens", SAMPLE
     ),
     refresh=10,
+    level="interrupt",
     helpers={
         "find": Helper(
             find,

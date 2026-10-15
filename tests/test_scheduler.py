@@ -391,6 +391,19 @@ def test_interrupt_takes_over_at_once_and_rotation_goes_on_with_the_next(tmp_pat
     assert 250 <= c_start <= 257
 
 
+@pytest.mark.parametrize("level", ["", 'level = "rotation"\n'])
+def test_music_plugin_interrupts_unless_its_block_says_rotation(tmp_path, level):
+    # lms_client suggests level "interrupt" (the updates here are pretend ones).
+    music = f'id = "m"\ntype = "lms_client"\n{level}server = "lms:9000"\nplayer = "Kitchen"\n'
+    sim = Sim(tmp_path, rotation("a"), rotation("b"), music + "refresh = 5\ndisplay_time = 100")
+    sim.plan(m=between(150, 250, "M"))
+    sim.run(until=400)
+    assert sim.shown == ["A", "B", "M", "A", "B"]
+    m_start = sim.writes[2][0]
+    # An interrupt takes over as soon as it finds the song; in the rotation it waits for its turn.
+    assert 200 <= m_start <= 201 if level else 150 <= m_start <= 157
+
+
 def test_several_interrupts_take_turns(tmp_path):
     sim = Sim(tmp_path, rotation("a"), interrupt("m"), interrupt("n"))
     sim.plan(m="M", n="N")

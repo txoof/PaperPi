@@ -370,13 +370,15 @@ def find(query: Query, servers: Callable[[], list[tuple[str, str]]] = discover) 
 
 PLUGIN = Plugin(
     type="lms_client",
-    description="The song a Lyrion Music Server (LMS) player is playing, with its cover.",
+    description="The song a Lyrion Music Server (LMS) player is playing, with its cover. "
+    "Shown only while music plays (interrupt); the other plugins are shown when it stops.",
     settings=Settings,
     layouts=LAYOUTS,
     fetch=fetch,
     draw=draw,
     sample=Song("Night Train to the Coast", "The Paper Orchestra", "Late Signals", SAMPLE),
     refresh=5,
+    level="interrupt",
     helpers={
         "find": Helper(
             find,
