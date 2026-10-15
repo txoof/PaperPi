@@ -155,8 +155,44 @@ def test_hand_edits_are_kept_and_the_page_says_so(client, cfg, editor):
 def test_the_library_lists_plugins_to_add(client):
     page = client.get("/library").text
     assert "basic_clock" in page and "met_no" in page
-    assert "debugging" not in page and "default</strong>" not in page
+    assert "debugging" not in page and "<code>default</code>" not in page
     assert "/library/basic_clock" in page
+
+
+def test_library_cards_have_a_title_labels_and_the_names_added():
+    found = {item.type: item for item in web_plugins.library()}
+    titles = [item.title for item in web_plugins.library()]
+    assert titles == sorted(titles, key=str.casefold)  # sorted by title, not by type
+    assert found["met_no"].title == "Weather"
+    assert found["met_no"].labels == ["Requires setup", "Requires internet"]
+    assert found["lms_client"].labels == ["Requires setup", "Uses home network"]
+    assert found["librespot_client"].labels == ["Uses home network"]
+    assert found["basic_clock"].labels == []
+
+
+def test_the_library_page_shows_titles_labels_and_names_added(client):
+    page = client.get("/library").text
+    assert '<h2><a href="/library/met_no">Weather</a></h2>' in page
+    assert '<code>met_no</code> <span class="chip warn">Requires setup</span>' in page
+    assert '<span class="chip">Requires internet</span>' in page
+    assert "Added: Clock, Broken</span>" in page and "Added: Weather</span>" in page
+    assert page.count("Added: ") == 2
+    # Every word of the search is looked for in the title, type, description and labels.
+    assert 'data-search="weather met_no the weather for the next 12 hours' in page
+    assert 'wind. requires setup requires internet"' in page
+    assert '<div class="search" hidden>' in page  # library.js shows it
+
+
+def test_the_library_works_while_the_config_file_cant_be_read(client, cfg):
+    cfg.write_text("[[plugin]\n")
+    page = client.get("/library").text
+    assert '<h2><a href="/library/basic_clock">Clock</a></h2>' in page and "Added:" not in page
+
+
+def test_the_add_page_uses_the_title(client):
+    form = client.get("/library/met_no").text
+    assert "<h1>Add Weather</h1>" in form and '<code class="hint">met_no</code>' in form
+    assert 'value="Weather 2"' in form  # "Weather" is in use (as an ID)
 
 
 def test_adding_a_plugin(client, cfg, reloads):

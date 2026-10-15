@@ -127,6 +127,7 @@ LAYOUTS = {
 
 PLUGIN = Plugin(
     type="debugging",
+    title="Debugging",
     description="Misbehaves on request (crashes, hangs, changing states), to test PaperPi.",
     settings=Settings,
     layouts=LAYOUTS,

@@ -89,6 +89,23 @@ class LibraryItem:
     """``None`` when the plugin itself is broken (``description`` says why)."""
 
     @property
+    def title(self) -> str:
+        """The plain name shown in the Library, e.g. ``Weather``."""
+        return self.plugin.shown_title if self.plugin else self.type
+
+    @property
+    def labels(self) -> list[str]:
+        """The small labels on its Library card."""
+        if self.plugin is None:
+            return []
+        found = ["Requires setup"] if self.plugin.required else []
+        if self.plugin.network == "internet":
+            found.append("Requires internet")
+        elif self.plugin.network == "home":
+            found.append("Uses home network")
+        return found
+
+    @property
     def required(self) -> list[tuple[str, str]]:
         """The settings the user has to fill in, with their help text."""
         if self.plugin is None:
@@ -323,7 +340,8 @@ class PluginEditor:
             used = _used_names(config_file.read(self.path)[1])
         except config_file.EditError:
             used = set()
-        base = item.type.replace("_", " ").capitalize()
+        base = item.plugin.title if item.plugin and item.plugin.title else ""
+        base = base or item.type.replace("_", " ").capitalize()
         name, number = base, 1
         while name.casefold() in used:
             number += 1
@@ -424,7 +442,7 @@ def _row(found: PluginList, index: int, plugin_id: str) -> Row:
 
 
 def library() -> list[LibraryItem]:
-    """The plugin types the Plugin Library offers, sorted by type."""
+    """The plugin types the Plugin Library offers, sorted by title."""
     items = []
     for plugin_type in plugins.available():
         if plugin_type in HIDDEN:
@@ -435,7 +453,15 @@ def library() -> list[LibraryItem]:
             items.append(LibraryItem(plugin_type, f"This plugin is broken: {error}"))
         else:
             items.append(LibraryItem(plugin_type, plugin.description, plugin))
-    return items
+    return sorted(items, key=lambda item: (item.title.casefold(), item.type))
+
+
+def added_names(rows: Sequence[Row]) -> dict[str, list[str]]:
+    """The names of the plugins in the config file, per type, in their order."""
+    found: dict[str, list[str]] = {}
+    for row in rows:
+        found.setdefault(row.type, []).append(row.name or "(no id)")
+    return found
 
 
 def library_item(plugin_type: str) -> LibraryItem | None:

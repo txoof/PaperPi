@@ -38,6 +38,7 @@ def draw(now: datetime, context: Context) -> dict:
 
 PLUGIN = Plugin(
     type="basic_clock",
+    title="Clock",
     description="The time, and optionally the date, in large text.",
     settings=Settings,
     layouts=LAYOUTS,
@@ -48,6 +49,8 @@ PLUGIN = Plugin(
     refresh_on_minute=True,
 )
 ```
+
+`title` is the plain name the Plugin Library shows (at most 40 characters; the type is shown small below it), and the start of the name a new plugin gets ("Clock", "Clock 2"). A plugin that connects to something says so with `network="internet"` (a website or online service) or `network="home"` (a device on the home network, such as a music server); the Library shows "Requires internet" or "Uses home network". A plugin with required settings gets "Requires setup" by itself.
 
 ## One update, step by step
 

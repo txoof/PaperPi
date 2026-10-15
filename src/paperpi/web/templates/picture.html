@@ -5,7 +5,7 @@ picture is being drawn, it asks again every few seconds and replaces itself. -#}
 <figure class="picture">
   <a href="/library/{{ item.type }}"><img src="/library/pictures/{{ picture.file }}"
     width="{{ picture.screen.width }}" height="{{ picture.screen.height }}"
-    alt="Add {{ item.type }} (example drawn with its sample data)"></a>
+    alt="Add {{ item.title }} (example drawn with its sample data)"></a>
 </figure>
 {%- elif picture.problem %}
 <p class="hint picture">No example picture. {{ picture.problem }}</p>

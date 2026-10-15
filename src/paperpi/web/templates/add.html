@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% set logged_in = true %}
 {% set page = "library" %}
-{% block title %}Add {{ item.type }} · PaperPi{% endblock %}
+{% block title %}Add {{ item.title }} · PaperPi{% endblock %}
 {% block main %}
-<p class="crumbs"><a href="/library">Plugin Library</a> › {{ item.type }}</p>
-<h1>Add {{ item.type }}</h1>
-<p>{{ item.description }}</p>
+<p class="crumbs"><a href="/library">Plugin Library</a> › {{ item.title }}</p>
+<h1>Add {{ item.title }}</h1>
+<p>{{ item.description }} <code class="hint">{{ item.type }}</code></p>
 {% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
 {% if item.required %}
 <div class="note">
@@ -13,8 +13,8 @@
   <ul>
   {% for key, help in item.required %}<li><code>{{ key }}</code>: {{ help }}</li>{% endfor %}
   </ul>
-  <p>Its settings page opens next: fill them in there, then switch the plugin on in Active
-  Plugins.</p>
+  <p>Its settings page opens next: fill them in there, then switch the plugin on in the
+  list on the Home page.</p>
 </div>
 {% endif %}
 <form method="post" action="/library/{{ item.type }}">

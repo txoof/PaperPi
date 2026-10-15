@@ -75,7 +75,7 @@ from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Snapshots, card_key, cards, now_part
 from .password import PasswordError, password_problem
 from .pictures import Pictures
-from .plugins import FormErrors, PluginEditor, library, library_item
+from .plugins import FormErrors, PluginEditor, added_names, library, library_item
 from .preview import Busy, Previewer, PreviewFailed
 
 COOKIE = "paperpi_login"
@@ -714,7 +714,19 @@ def create_app(
     def library_page(request: Request, status: int = 200, problem: str | None = None):
         items = library()
         shown = {item.type: pictures.shown(item.type) for item in items}
-        return page(request, "library.html", status, items=items, shown=shown, problem=problem)
+        try:
+            added = added_names(editor.plugin_list().rows)
+        except EditError:
+            added = {}  # the page still lists the plugins; Home names the problem
+        return page(
+            request,
+            "library.html",
+            status,
+            items=items,
+            shown=shown,
+            added=added,
+            problem=problem,
+        )
 
     @app.get("/library", response_class=HTMLResponse)
     def library_list(request: Request):

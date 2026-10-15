@@ -221,6 +221,8 @@ SAMPLE = Moon(
 
 PLUGIN = Plugin(
     type="moon_phase",
+    title="Moon phase",
+    network="internet",
     description="Today's moon: its phase, and the times it rises and sets, from met.no.",
     settings=Settings,
     layouts=LAYOUTS,

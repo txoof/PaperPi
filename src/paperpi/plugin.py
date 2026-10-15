@@ -304,6 +304,12 @@ SHARED_SETTINGS = frozenset(PluginEntry.model_fields)
 
 _TYPE_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
+#: Most characters in a plugin's ``title``.
+TITLE_LENGTH = 40
+
+Network = Literal["internet", "home"]
+NETWORKS: tuple[Network, ...] = get_args(Network)
+
 #: A layout is an epdlib layout dictionary, or a function that makes one from the settings
 #: (for layouts that depend on a setting, such as a 12- or 24-hour clock).
 LayoutSource = Mapping[str, Any] | Callable[[PluginSettings], Mapping[str, Any]]
@@ -377,6 +383,16 @@ class Plugin:
     """Suggested days after which its saved files are removed (0 = keep them)."""
     helpers: Mapping[str, Helper] = dataclasses.field(default_factory=dict)
     """Searches for the settings page, by name (see :mod:`paperpi.helper`)."""
+    title: str = ""
+    """A plain name for the web interface, e.g. ``Weather`` (empty: the type is shown)."""
+    network: Network | None = None
+    """What it connects to: ``internet``, ``home`` (a device on the home network, such as
+    a music server), or ``None`` (nothing)."""
+
+    @property
+    def shown_title(self) -> str:
+        """``title``, or the type when there is none."""
+        return self.title or self.type
 
     def __post_init__(self) -> None:
         problems = []
@@ -406,6 +422,13 @@ class Plugin:
                 f"refresh must be between {limits.SHORTEST_REFRESH:g} "
                 f"and {limits.LONGEST_SETTING:g} seconds"
             )
+        if len(self.title) > TITLE_LENGTH or self.title != " ".join(self.title.split()):
+            problems.append(
+                f"title must be one line of at most {TITLE_LENGTH} characters, "
+                "without spaces at the ends"
+            )
+        if self.network not in (None, *NETWORKS):
+            problems.append(f"network must be None or one of: {', '.join(NETWORKS)}")
         if self.level not in LEVELS:
             problems.append(f"level must be one of: {', '.join(LEVELS)}")
         if not 1 <= self.storage_mb <= limits.STORAGE_MB_MAX:

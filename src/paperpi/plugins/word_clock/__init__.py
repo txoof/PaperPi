@@ -110,6 +110,7 @@ def draw(now: datetime, context: Context) -> Drawn:
 
 PLUGIN = Plugin(
     type="word_clock",
+    title="Word clock",
     description='The time in words, such as "It\'s roughly Twenty After Eight".',
     settings=Settings,
     layouts=LAYOUTS,

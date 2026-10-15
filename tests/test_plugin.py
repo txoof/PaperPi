@@ -78,6 +78,10 @@ class RequiredWithValue(PluginSettings):
         ({"refresh": 0}, "refresh must be between 5 and 604800 seconds"),
         ({"refresh": 4.9}, "refresh must be between 5 and 604800 seconds"),
         ({"level": "sometimes"}, "level must be one of: alert, interrupt, rotation"),
+        ({"title": "x" * 41}, "title must be one line of at most 40 characters"),
+        ({"title": "Two\nlines"}, "title must be one line"),
+        ({"title": " Clock"}, "without spaces at the ends"),
+        ({"network": "wifi"}, "network must be None or one of: internet, home"),
     ],
 )
 def test_plugin_rules(changes, message):
@@ -250,3 +254,8 @@ def test_missing_lists_the_required_settings_that_are_not_set():
 def test_met_no_plugins_need_a_place_and_an_email_address(plugin_type):
     # met.no's terms of service ask for a real way to contact the user.
     assert plugins.load(plugin_type).required == ("lat", "lon", "email")
+
+
+def test_without_a_title_the_type_is_shown():
+    assert make().shown_title == make().type
+    assert make(title="Clock").shown_title == "Clock"
