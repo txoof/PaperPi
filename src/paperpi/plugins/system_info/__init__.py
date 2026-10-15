@@ -145,6 +145,7 @@ def draw(info: Info, context: Context) -> Drawn:
 
 PLUGIN = Plugin(
     type="system_info",
+    title="System info",
     description="Hostname, network address, disk, processor and memory use of this Pi.",
     settings=Settings,
     layouts=LAYOUTS,

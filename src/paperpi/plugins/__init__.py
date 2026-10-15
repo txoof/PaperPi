@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from importlib import resources
 
 from ..plugin import Plugin, PluginDefinitionError
 
@@ -35,3 +36,14 @@ def load(plugin_type: str, package: str = __name__) -> Plugin:
             f"plugin {plugin_type!r}: PLUGIN.type is {plugin.type!r}, must match the folder"
         )
     return plugin
+
+
+def readme(plugin_type: str, package: str = __name__) -> str | None:
+    """The text of the plugin's ``README.md``, or ``None`` when it has none (or the type is
+    unknown)."""
+    if plugin_type not in available(package):
+        return None
+    try:
+        return (resources.files(package) / plugin_type / "README.md").read_text("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None

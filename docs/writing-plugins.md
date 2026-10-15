@@ -10,7 +10,7 @@ A folder `src/paperpi/plugins/<type>/`. `<type>` is the plugin's name in the con
 |---|---|
 | `__init__.py` | the settings, `fetch`, `draw`, the sample data, and `PLUGIN` |
 | `layouts.py` | the layouts: what goes where on the screen |
-| `README.md` | what it shows, where the data comes from, its settings |
+| `README.md` | what it shows, where the data comes from, its settings; also shown in the web interface (each Plugin Library card links to it) |
 
 A shortened version of `basic_clock/__init__.py` (the real one also formats 12-hour times and the date):
 
@@ -38,6 +38,7 @@ def draw(now: datetime, context: Context) -> dict:
 
 PLUGIN = Plugin(
     type="basic_clock",
+    title="Clock",
     description="The time, and optionally the date, in large text.",
     settings=Settings,
     layouts=LAYOUTS,
@@ -48,6 +49,8 @@ PLUGIN = Plugin(
     refresh_on_minute=True,
 )
 ```
+
+`title` is the plain name the Plugin Library shows (at most 40 characters; the type is shown small below it), and the start of the name a new plugin gets ("Clock", "Clock 2"). A plugin that connects to something says so with `network="internet"` (a website or online service) or `network="home"` (a device on the home network, such as a music server); the Library shows "Requires internet" or "Uses home network". A plugin with required settings gets "Requires setup" by itself. A plugin that needs something set up outside PaperPi first, such as another program, says so in one sentence with `setup="..."` (at most 200 characters); it then gets "Requires setup" too, and the sentence is shown on its card and its Add page, with a link to its README: explain the setup there. In the web interface the README's first heading, its pictures and its "Sample images" section are left out (the pictures are not installed), links to other plugins' READMEs open their page there, links to websites stay, and other links become plain text.
 
 ## One update, step by step
 

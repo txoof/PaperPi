@@ -310,7 +310,7 @@ def test_pages_one_step_down_say_how_to_go_back(cfg):
     assert crumbs in client.get("/plugins/0/settings?id=Clock").text
     assert crumbs in client.get("/plugins/0/remove?id=Clock").text
     assert (
-        '<p class="crumbs"><a href="/library">Plugin Library</a> › basic_clock</p>'
+        '<p class="crumbs"><a href="/library">Plugin Library</a> › Clock</p>'
         in client.get("/library/basic_clock").text
     )
 
@@ -343,6 +343,7 @@ def test_the_look_works_within_the_pages_own_rules(cfg):
             "/static/theme.js",
             "/static/htmx.min.js",
             *(home if path == "/" else []),
+            *(["/static/library.js"] if path == "/library" else []),
         ]
         assert html.count("<script") == len(scripts)  # no inline scripts
         assert "http://" not in html.replace(PI, "") and "https://" not in html

@@ -164,6 +164,7 @@ def draw(about: About, context: Context) -> dict:
 
 PLUGIN = Plugin(
     type="splash_screen",
+    title="Splash screen",
     description="PaperPi's name, version and web address; shown at start, and while no plugin "
     "is ready to show.",
     settings=Settings,

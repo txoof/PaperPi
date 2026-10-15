@@ -253,6 +253,8 @@ def draw(comic: Comic, context: Context) -> dict:
 
 PLUGIN = Plugin(
     type="xkcd_comic",
+    title="xkcd",
+    network="internet",
     description="A random comic from xkcd.com, with its title and hover text.",
     settings=Settings,
     layouts=LAYOUTS,

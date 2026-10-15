@@ -31,6 +31,7 @@ def draw(now: datetime, context: Context) -> Drawn:
 
 PLUGIN = Plugin(
     type="dec_binary_clock",
+    title="Binary clock",
     description="The time as binary dots: one column of 4 dots for each digit.",
     settings=Settings,
     layouts=LAYOUTS,

@@ -370,6 +370,12 @@ def find(query: Query, servers: Callable[[], list[tuple[str, str]]] = discover) 
 
 PLUGIN = Plugin(
     type="lms_client",
+    title="Music server (LMS)",
+    network="home",
+    setup=(
+        "Needs a Lyrion Music Server (LMS) on your home network, and the name "
+        "of one of its players."
+    ),
     description="The song a Lyrion Music Server (LMS) player is playing, with its cover. "
     "Shown only while music plays (interrupt); the other plugins are shown when it stops.",
     settings=Settings,

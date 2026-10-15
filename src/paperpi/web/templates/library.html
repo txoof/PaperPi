@@ -2,28 +2,45 @@
 {% set logged_in = true %}
 {% set page = "library" %}
 {% block title %}Plugin Library · PaperPi{% endblock %}
+{% block head %}<script src="/static/library.js" defer></script>{% endblock %}
 {% block main_class %}wide{% endblock %}
 {% block main %}
 <h1>Plugin Library</h1>
 {% if problem %}<p class="problem">{{ problem }}</p>{% endif %}
-<p>Every plugin that comes with PaperPi. Choose a name or picture to add it at the end of
-the list on the <a href="/">Home</a> page. The same plugin can be added more than once, with
-different settings (for example the weather for two places).</p>
+<p>Every plugin that comes with PaperPi. Add one and it joins the end of your list on
+<a href="/">Home</a>. You can add the same plugin more than once with different settings,
+for example the weather for two places.</p>
+{#- Needs JavaScript (library.js shows it). -#}
+<div class="search" hidden>
+  <input type="search" id="search" placeholder="Search plugins" aria-label="Search plugins"
+    aria-describedby="search-count" autocomplete="off">
+  <span class="hint" id="search-count" aria-live="polite"></span>
+</div>
 {% if shown.values()|select|first %}
 <p class="hint">Each example picture is drawn at your screen's size with the plugin's
 sample data and default settings, so it doesn't show your own data. Black-and-white and gray
 screens show fewer shades than the example.</p>
 {% endif %}
-<ul class="library">
+<ul class="library" id="library">
 {% for item in items %}
-  <li>
+  <li data-search="{{ ([item.title, item.type, item.description] + item.labels)|join(' ')|lower }}">
     {% if item.plugin %}
-    <a href="/library/{{ item.type }}"><strong>{{ item.type }}</strong></a>: {{ item.description }}
     {% with picture = shown[item.type] %}{% include "picture.html" %}{% endwith %}
+    <h2><a href="/library/{{ item.type }}">{{ item.title }}</a></h2>
+    <p>{{ item.description }}</p>
+    <p class="labels"><code>{{ item.type }}</code>
+      {%- for text in item.labels %} <span class="chip{% if text == 'Requires setup' %} warn{% endif %}">{{ text }}</span>{% endfor %}</p>
+    {% if item.plugin.setup %}<p class="hint setup">{{ item.plugin.setup }}
+      <a href="/library/{{ item.type }}/readme">How to set it up</a></p>{% endif %}
+    <p class="add-row"><a class="add" href="/library/{{ item.type }}">+ Add</a>
+      <a href="/library/{{ item.type }}/readme">README</a>
+      {%- if added[item.type] %} <span class="hint">Added: {{ added[item.type]|join(", ") }}</span>{% endif %}</p>
     {% else %}
-    <strong>{{ item.type }}</strong>: {{ item.description }}
+    <h2>{{ item.title }}</h2>
+    <p>{{ item.description }}</p>
     {% endif %}
   </li>
 {% endfor %}
 </ul>
+<p class="hint" id="no-match" hidden>No plugin matches your search.</p>
 {% endblock %}

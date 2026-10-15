@@ -349,6 +349,8 @@ def draw(cartoon: Cartoon, context: Context) -> dict:
 
 PLUGIN = Plugin(
     type="newyorker",
+    title="New Yorker cartoon",
+    network="internet",
     description="A random cartoon from The New Yorker's Daily Cartoon, with its caption.",
     settings=Settings,
     layouts=LAYOUTS,

@@ -328,10 +328,10 @@ def test_the_library_shows_drawn_pictures_and_waits_for_the_others(tmp_path, rea
     pictures, name = ready_pictures
     client = make_client(tmp_path, pictures)
     page = html.unescape(client.get("/library").text)
-    # The name and the picture open the Add page; there is no separate Add link.
+    # The title, the picture and + Add open the Add page.
     assert f'<a href="/library/basic_clock"><img src="/library/pictures/{name}"' in page
-    assert '<a href="/library/basic_clock"><strong>basic_clock</strong></a>' in page
-    assert ">Add<" not in page
+    assert '<h2><a href="/library/basic_clock">Clock</a></h2>' in page
+    assert '<a class="add" href="/library/basic_clock">+ Add</a>' in page
     assert "drawn at your screen's size with the plugin's\nsample data" in page
     assert 'hx-get="/library/word_clock/picture"' in page  # not drawn yet
     picture = client.get(f"/library/pictures/{name}")

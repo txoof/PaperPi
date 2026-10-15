@@ -39,6 +39,7 @@ def draw(now: datetime, context: Context) -> dict:
 
 PLUGIN = Plugin(
     type="basic_clock",
+    title="Clock",
     description="The time, and optionally the date, in large text.",
     settings=Settings,
     layouts=LAYOUTS,

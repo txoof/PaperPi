@@ -1,3 +1,4 @@
+import html
 import re
 import tomllib
 import urllib.request
@@ -155,8 +156,56 @@ def test_hand_edits_are_kept_and_the_page_says_so(client, cfg, editor):
 def test_the_library_lists_plugins_to_add(client):
     page = client.get("/library").text
     assert "basic_clock" in page and "met_no" in page
-    assert "debugging" not in page and "default</strong>" not in page
+    assert "debugging" not in page and "<code>default</code>" not in page
     assert "/library/basic_clock" in page
+
+
+def test_library_cards_have_a_title_labels_and_the_names_added():
+    found = {item.type: item for item in web_plugins.library()}
+    titles = [item.title for item in web_plugins.library()]
+    assert titles == sorted(titles, key=str.casefold)  # sorted by title, not by type
+    assert found["met_no"].title == "Weather"
+    assert found["met_no"].labels == ["Requires setup", "Requires internet"]
+    assert found["lms_client"].labels == ["Requires setup", "Uses home network"]
+    # No setting to fill in, but go-librespot must run first; covers come from Spotify.
+    assert found["librespot_client"].labels == ["Requires setup", "Requires internet"]
+    assert found["basic_clock"].labels == []
+
+
+def test_the_library_page_shows_titles_labels_and_names_added(client):
+    page = client.get("/library").text
+    assert '<h2><a href="/library/met_no">Weather</a></h2>' in page
+    assert '<code>met_no</code> <span class="chip warn">Requires setup</span>' in page
+    assert '<span class="chip">Requires internet</span>' in page
+    assert "Added: Clock, Broken</span>" in page and "Added: Weather</span>" in page
+    assert page.count("Added: ") == 2
+    # Every word of the search is looked for in the title, type, description and labels.
+    assert 'data-search="weather met_no the weather for the next 12 hours' in page
+    assert 'wind. requires setup requires internet"' in page
+    assert '<div class="search" hidden>' in page  # library.js shows it
+
+
+def test_the_library_works_while_the_config_file_cant_be_read(client, cfg):
+    cfg.write_text("[[plugin]\n")
+    page = client.get("/library").text
+    assert '<h2><a href="/library/basic_clock">Clock</a></h2>' in page and "Added:" not in page
+
+
+def test_a_setup_note_is_on_the_card_and_the_add_page(client):
+    note = web_plugins.library_item("librespot_client").plugin.setup
+    assert "go-librespot" in note
+    link = '<a href="/library/librespot_client/readme">How to set it up</a></p>'
+    page = html.unescape(client.get("/library").text)
+    assert f'<p class="hint setup">{note}\n      {link}' in page
+    form = html.unescape(client.get("/library/librespot_client").text)
+    assert f'<p class="note">Before it works: {note}\n  {link}' in form
+    assert "added switched off" not in form  # nothing to fill in
+
+
+def test_the_add_page_uses_the_title(client):
+    form = client.get("/library/met_no").text
+    assert "<h1>Add Weather</h1>" in form and '<code class="hint">met_no</code>' in form
+    assert 'value="Weather 2"' in form  # "Weather" is in use (as an ID)
 
 
 def test_adding_a_plugin(client, cfg, reloads):
@@ -447,3 +496,25 @@ def test_settings_of_an_unknown_plugin_type_cant_be_saved(editor, cfg):
     cfg.write_text(CONFIG.replace('type = "basic_clock"\n\n', 'type = "nothing"\n\n', 1))
     with pytest.raises(EditError, match="its plugin type 'nothing' can't be used"):
         editor.save_settings(0, "Clock", {"hours": ["12"]})
+
+
+def test_every_card_links_to_the_plugins_readme(client):
+    page = client.get("/library").text
+    for item in web_plugins.library():
+        assert f'<a href="/library/{item.type}/readme">README</a>' in page, item.type
+
+
+def test_the_readme_page(client):
+    page = client.get("/library/librespot_client/readme").text
+    assert "<h1>Spotify</h1>" in page and "<h1>librespot_client</h1>" not in page
+    assert '<a href="https://github.com/devgianlu/go-librespot">go-librespot</a>' in page
+    assert "enabled: true" in page  # the config.yml example
+    assert "<img" not in page and "Sample images" not in page
+    assert '<a class="add" href="/library/librespot_client">+ Add</a>' in page
+
+
+@pytest.mark.parametrize("plugin_type", ["nope", "debugging"])
+def test_no_readme_page_for_unknown_or_hidden_plugins(client, plugin_type):
+    response = client.get(f"/library/{plugin_type}/readme")
+    assert response.status_code == 404 and "No README for this plugin." in response.text
+    assert client.get("/library/..%2F..%2Fconfig/readme").status_code == 404

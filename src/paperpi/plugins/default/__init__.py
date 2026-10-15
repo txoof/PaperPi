@@ -56,6 +56,7 @@ LAYOUTS = {
 
 PLUGIN = Plugin(
     type="default",
+    title="Nothing to show",
     description="Says how many plugins are not working, when nothing else can be shown.",
     settings=Settings,
     layouts=LAYOUTS,

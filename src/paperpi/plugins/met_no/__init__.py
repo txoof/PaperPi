@@ -326,6 +326,8 @@ def _sample() -> Weather:
 
 PLUGIN = Plugin(
     type="met_no",
+    title="Weather",
+    network="internet",
     description="The weather for the next 12 hours from met.no: temperature, rain and wind.",
     settings=Settings,
     layouts=LAYOUTS,
