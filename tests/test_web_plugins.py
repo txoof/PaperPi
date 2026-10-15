@@ -1,3 +1,4 @@
+import html
 import re
 import tomllib
 import urllib.request
@@ -166,7 +167,8 @@ def test_library_cards_have_a_title_labels_and_the_names_added():
     assert found["met_no"].title == "Weather"
     assert found["met_no"].labels == ["Requires setup", "Requires internet"]
     assert found["lms_client"].labels == ["Requires setup", "Uses home network"]
-    assert found["librespot_client"].labels == ["Requires internet"]  # covers, Spotify itself
+    # No setting to fill in, but go-librespot must run first; covers come from Spotify.
+    assert found["librespot_client"].labels == ["Requires setup", "Requires internet"]
     assert found["basic_clock"].labels == []
 
 
@@ -187,6 +189,15 @@ def test_the_library_works_while_the_config_file_cant_be_read(client, cfg):
     cfg.write_text("[[plugin]\n")
     page = client.get("/library").text
     assert '<h2><a href="/library/basic_clock">Clock</a></h2>' in page and "Added:" not in page
+
+
+def test_a_setup_note_is_on_the_card_and_the_add_page(client):
+    note = web_plugins.library_item("librespot_client").plugin.setup
+    assert "go-librespot" in note
+    assert f'<p class="hint setup">{note}</p>' in html.unescape(client.get("/library").text)
+    form = html.unescape(client.get("/library/librespot_client").text)
+    assert f'<p class="note">Before it works: {note}</p>' in form
+    assert "added switched off" not in form  # nothing to fill in
 
 
 def test_the_add_page_uses_the_title(client):

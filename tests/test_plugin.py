@@ -82,6 +82,7 @@ class RequiredWithValue(PluginSettings):
         ({"title": "Two\nlines"}, "title must be one line"),
         ({"title": " Clock"}, "none at the ends"),
         ({"title": "Big  clock"}, "single spaces between words"),
+        ({"setup": "x" * 201}, "setup must be one line of at most 200 characters"),
         ({"network": "wifi"}, "network must be None or one of: internet, home"),
     ],
 )

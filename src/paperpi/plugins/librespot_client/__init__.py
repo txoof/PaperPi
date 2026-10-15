@@ -281,6 +281,10 @@ PLUGIN = Plugin(
     type="librespot_client",
     title="Spotify",
     network="internet",
+    setup=(
+        "Needs go-librespot running on this Pi, with its API server "
+        "switched on (see the plugin's README)."
+    ),
     description="The song Spotify is playing on this device, with its album cover. "
     "Shown only while music plays (interrupt); the other plugins are shown when it stops.",
     settings=Settings,

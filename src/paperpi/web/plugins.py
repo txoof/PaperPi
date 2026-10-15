@@ -98,7 +98,7 @@ class LibraryItem:
         """The small labels on its Library card."""
         if self.plugin is None:
             return []
-        found = ["Requires setup"] if self.plugin.required else []
+        found = ["Requires setup"] if self.plugin.required or self.plugin.setup else []
         if self.plugin.network == "internet":
             found.append("Requires internet")
         elif self.plugin.network == "home":

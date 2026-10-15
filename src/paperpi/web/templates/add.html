@@ -7,6 +7,7 @@
 <h1>Add {{ item.title }}</h1>
 <p>{{ item.description }} <code class="hint">{{ item.type }}</code></p>
 {% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
+{% if item.plugin.setup %}<p class="note">Before it works: {{ item.plugin.setup }}</p>{% endif %}
 {% if item.required %}
 <div class="note">
   <p>This plugin is not shown until these settings are filled in, so it is added switched off:</p>

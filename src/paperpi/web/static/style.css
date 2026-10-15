@@ -271,6 +271,7 @@ button.switch[aria-checked="true"] i::after { left: 14px; }
 .library p { margin: 0 0 0.45rem; }
 .library .labels { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 .library .labels code { font-size: 0.8rem; background: none; padding: 0; color: var(--muted); }
+.library .setup { font-size: 0.85rem; }
 .library .add-row { margin: auto 0 0; padding-top: 0.2rem; display: flex; flex-wrap: wrap;
   gap: 0.3rem 0.6rem; align-items: center; }
 .library .add-row .hint { font-size: 0.85rem; }

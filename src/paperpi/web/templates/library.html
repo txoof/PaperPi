@@ -30,6 +30,7 @@ screens show fewer shades than the example.</p>
     <p>{{ item.description }}</p>
     <p class="labels"><code>{{ item.type }}</code>
       {%- for text in item.labels %} <span class="chip{% if text == 'Requires setup' %} warn{% endif %}">{{ text }}</span>{% endfor %}</p>
+    {% if item.plugin.setup %}<p class="hint setup">{{ item.plugin.setup }}</p>{% endif %}
     <p class="add-row"><a class="add" href="/library/{{ item.type }}">+ Add</a>
       {%- if added[item.type] %} <span class="hint">Added: {{ added[item.type]|join(", ") }}</span>{% endif %}</p>
     {% else %}

@@ -306,6 +306,8 @@ _TYPE_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
 #: Most characters in a plugin's ``title``.
 TITLE_LENGTH = 40
+#: Most characters in a plugin's ``setup`` note.
+SETUP_LENGTH = 200
 
 Network = Literal["internet", "home"]
 NETWORKS: tuple[Network, ...] = get_args(Network)
@@ -389,6 +391,10 @@ class Plugin:
     """What it connects to: ``internet``, ``home`` (a device on the home network, such as
     a music server), or ``None`` (nothing)."""
 
+    setup: str = ""
+    """One sentence about what must be set up outside PaperPi first, e.g. another program
+    (empty: nothing)."""
+
     @property
     def shown_title(self) -> str:
         """``title``, or the type when there is none."""
@@ -425,6 +431,11 @@ class Plugin:
         if len(self.title) > TITLE_LENGTH or self.title != " ".join(self.title.split()):
             problems.append(
                 f"title must be one line of at most {TITLE_LENGTH} characters, "
+                "with single spaces between words and none at the ends"
+            )
+        if len(self.setup) > SETUP_LENGTH or self.setup != " ".join(self.setup.split()):
+            problems.append(
+                f"setup must be one line of at most {SETUP_LENGTH} characters, "
                 "with single spaces between words and none at the ends"
             )
         if self.network not in (None, *NETWORKS):

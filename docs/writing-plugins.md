@@ -50,7 +50,7 @@ PLUGIN = Plugin(
 )
 ```
 
-`title` is the plain name the Plugin Library shows (at most 40 characters; the type is shown small below it), and the start of the name a new plugin gets ("Clock", "Clock 2"). A plugin that connects to something says so with `network="internet"` (a website or online service) or `network="home"` (a device on the home network, such as a music server); the Library shows "Requires internet" or "Uses home network". A plugin with required settings gets "Requires setup" by itself.
+`title` is the plain name the Plugin Library shows (at most 40 characters; the type is shown small below it), and the start of the name a new plugin gets ("Clock", "Clock 2"). A plugin that connects to something says so with `network="internet"` (a website or online service) or `network="home"` (a device on the home network, such as a music server); the Library shows "Requires internet" or "Uses home network". A plugin with required settings gets "Requires setup" by itself. A plugin that needs something set up outside PaperPi first, such as another program, says so in one sentence with `setup="..."` (at most 200 characters); it then gets "Requires setup" too, and the sentence is shown on its card and its Add page.
 
 ## One update, step by step
 
