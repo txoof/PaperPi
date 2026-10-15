@@ -249,8 +249,9 @@ def test_no_bar_and_nothing_to_review_without_hand_edits(setup):
     assert "No hand edits are waiting" in page and "Apply changes" not in page
 
 
-def test_hand_edits_show_the_bar_on_every_page_but_the_review_page(setup, cfg):
+def test_hand_edits_show_the_bar_on_every_page_but_the_review_page(setup, cfg, monkeypatch):
     client, _ = setup
+    monkeypatch.delenv("INVOCATION_ID", raising=False)  # set when tests run in a service
     cfg.write_text(edited(('name = "Clock"', 'name = "Big clock"')))
     for address in ("/", "/library", "/warnings", "/plugins/0/settings?id=clock"):
         assert 'href="/changes">Review changes</a>' in client.get(address).text, address
