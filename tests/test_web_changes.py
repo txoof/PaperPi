@@ -88,6 +88,67 @@ def test_secrets_are_not_shown():
     assert (music.key, music.old, music.new) == ("password", changes.HIDDEN, changes.HIDDEN)
 
 
+def test_a_secret_stays_hidden_when_the_type_changes():
+    found = groups(
+        edited(('"lms_client"', '"lms_clientt"'), ('password = "one"', 'password = "two"'))
+    )
+    music = {c.key: c for c in found["music"].changes}
+    assert (music["type"].old, music["type"].new) == ('"lms_client"', '"lms_clientt"')
+    assert (music["password"].old, music["password"].new) == (changes.HIDDEN, changes.HIDDEN)
+    # A type that is not known: only the shared settings are shown.
+    unknown = CONFIG + '\n[[plugin]]\nid = "x"\ntype = "nothing"\napi_key = "abc"\nrefresh = 5\n'
+    added = {c.key: c.new for c in groups(unknown)["x"].changes}
+    assert added == {"api_key": changes.HIDDEN, "refresh": "5"}
+
+
+def test_an_id_written_another_way_is_the_same_plugin():
+    found = groups(edited(('id = "clock"', 'id = "CLOCK"')))
+    (change,) = found["Clock"].changes
+    assert (change.key, change.old, change.new, change.note) == ("id", '"clock"', '"CLOCK"', "")
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "moved"),
+    [
+        ("abc", "cab", {"c"}),
+        ("abc", "bca", {"a"}),
+        ("abcd", "abdc", {"c"}),  # c or d: both change their place
+        ("aDbc", "abDc", set()),  # D is a default block: it takes no place
+        ("abc", "bc", set()),  # removed: the others are pushed along
+    ],
+)
+def test_only_plugins_that_moved_among_the_others_are_moved(before, after, moved):
+    def text(order):
+        blocks = [
+            f'[[plugin]]\nid = "{n}"\ntype = "{"default" if n == "D" else "basic_clock"}"\n'
+            for n in order
+        ]
+        return "config_version = 1\n" + "\n".join(blocks)
+
+    found = changes.compare(changes._toml(text(before)), changes._toml(text(after)))
+    assert {g.title for g in found if g.note.startswith("Moves")} == moved
+
+
+def test_blocks_without_an_id_or_with_the_same_id_and_tables_inside_blocks():
+    old = 'config_version = 1\n[[plugin]]\ntype = "basic_clock"\n'
+    old += '[[plugin]]\nid = "a"\ntype = "basic_clock"\n'
+    old += '[[plugin]]\nid = "a"\ntype = "basic_clock"\n[plugin.layout_settings]\nsize = 1\n'
+    new = old.replace("size = 1", "size = 2").replace(
+        'type = "basic_clock"\n[[plugin]]', 'type = "basic_clock"\nrefresh = 9\n[[plugin]]', 1
+    )
+    found = changes.compare(changes._toml(old), changes._toml(new))
+    assert [(g.title, [(c.key, c.old, c.new) for c in g.changes]) for g in found] == [
+        ("A plugin without an ID", [("refresh", None, "9")]),
+        ("a", [("layout_settings.size", "1", "2")]),  # the second "a", matched by its place
+    ]
+
+
+def test_dates_are_shown_as_written():
+    found = groups(CONFIG.replace("config_version = 1", "config_version = 1\nsince = 1979-05-27"))
+    (change,) = found["Other settings"].changes
+    assert change.new == "1979-05-27"
+
+
 def test_a_changed_plugin_links_to_its_settings_page():
     found = groups(edited(('name = "Clock"', 'name = "Clock"\nenabled = false\nrefresh = 30')))
     clock = found["Clock"]
@@ -114,7 +175,8 @@ def test_added_removed_and_moved_plugins():
         ("old", "removed"),
     ]
     added, moved, removed = found
-    assert added.note == "Joins the order at place 1 (where it is in the file)."
+    assert added.note.startswith("Joins the order at place 1 (where it is in the file).")
+    assert "empty storage folder" in added.note
     assert added.changes == ()  # only its ID and type
     assert moved.note == "Moves to place 3 in the order." and moved.changes == ()
     assert "storage folder is kept" in removed.note and removed.index is None
@@ -123,7 +185,7 @@ def test_added_removed_and_moved_plugins():
 def test_an_added_plugin_shows_its_settings_without_old_values():
     new = CONFIG + '\n[[plugin]]\nid = "x"\ntype = "basic_clock"\nenabled = false\n'
     added = groups(new)["x"]
-    assert added.note == "Switched off."
+    assert added.note.startswith("Switched off.")
     assert [(c.key, c.old, c.new) for c in added.changes] == [("enabled", None, "false")]
 
 
@@ -231,12 +293,16 @@ def test_apply_says_when_paperpi_is_still_busy(setup, cfg, monkeypatch):
 
 
 def test_a_mistake_in_the_file_turns_apply_off(setup, cfg):
-    client, _ = setup
+    client, scheduler = setup
     cfg.write_text(CONFIG + "\n[display\n")
     page = client.get("/changes").text
     assert "The edited file has a mistake" in page
     assert '<button type="submit" disabled>Apply changes</button>' in page
     assert "kill -HUP" not in page
+    # Sent anyway: nothing is asked of PaperPi.
+    response = client.post("/changes/apply")
+    assert response.headers["location"] == "/changes"
+    assert scheduler.reloads == 0
 
 
 def test_as_a_service_the_page_shows_systemctl(setup, cfg, monkeypatch):

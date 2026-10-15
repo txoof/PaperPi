@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import tomllib
 from dataclasses import dataclass
+from datetime import date, datetime, time
 from typing import Any, Literal
 
 from .. import config, example, plugins
@@ -128,27 +129,28 @@ _OWN_PARTS = ("plugin", "display", "web")
 
 def _plugins(old: list[dict], new: list[dict]) -> list[Group]:
     keys_old, keys_new = _keys(old), _keys(new)
-    places_old = {k: n for n, k in enumerate(k for k in keys_old if k in keys_new)}
-    places_new = {k: n for n, k in enumerate(k for k in keys_new if k in keys_old)}
+    moved = _moved(keys_old, old, keys_new, new)
     groups = []
     for index, (key, block) in enumerate(zip(keys_new, new, strict=True)):
         before = old[keys_old.index(key)] if key in keys_old else None
         title, kind = _title(block), str(block.get("type", ""))
         plugin_id = block.get("id") if isinstance(block.get("id"), str) else ""
         secret, shown = _plugin_info(kind)
+        if before is not None:
+            # A secret of the old type stays hidden, also when the type changed.
+            was = _plugin_info(str(before.get("type", "")))[0]
+            secret = None if secret is None or was is None else secret | was
         place = _place(index, new)
         if before is None:
             note = f"Joins the order at place {place} (where it is in the file)."
             if block.get("enabled", True) is False:
                 note = "Switched off."
+            note += " " + _EMPTY_FOLDER
             changes = _changes({}, _without(block, "id", "type"), secret)  # no old values
             groups.append(Group(title, kind, changes, "added", note, index, plugin_id))
             continue
-        changes = _changes(before, block, secret, {"id": _NEW_ID}, shown)
-        note = ""
-        # Moved among the other plugins, not only pushed along by an added or removed one.
-        if places_old[key] != places_new[key] and _place(keys_old.index(key), old) != place:
-            note = f"Moves to place {place} in the order."
+        changes = _changes(before, block, secret, shown=shown)
+        note = f"Moves to place {place} in the order." if key in moved else ""
         if changes or note:
             groups.append(Group(title, kind, changes, "", note, index, plugin_id))
     for key, block in zip(keys_old, old, strict=True):
@@ -158,7 +160,44 @@ def _plugins(old: list[dict], new: list[dict]) -> list[Group]:
     return groups
 
 
-_NEW_ID = "A new ID starts with an empty storage folder."
+_EMPTY_FOLDER = "Its ID is new, so it starts with an empty storage folder."
+
+
+def _moved(keys_old: list, old: list[dict], keys_new: list, new: list[dict]) -> set:
+    """The plugins that moved among the others: the fewest that, taken out and put back,
+    give the new order (an added or removed plugin only pushes the others along). Of two
+    answers, the one that keeps the plugins whose place number stays the same. The
+    ``default`` block takes no place in the order."""
+
+    def order(keys: list, blocks: list[dict], others: list) -> list:
+        pairs = zip(keys, blocks, strict=True)
+        return [k for k, b in pairs if k in others and b.get("type") != "default"]
+
+    def places(keys: list, blocks: list[dict]) -> dict:
+        return {k: _place(n, blocks) for n, k in enumerate(keys)}
+
+    before, after = order(keys_old, old, keys_new), order(keys_new, new, keys_old)
+    was, now = places(keys_old, old), places(keys_new, new)
+    # The longest run of plugins in the same order (each counts 2, or 3 when its place
+    # number stays the same); a table of the best for each start in both lists.
+    best = [[0] * (len(after) + 1) for _ in range(len(before) + 1)]
+    for i in reversed(range(len(before))):
+        for j in reversed(range(len(after))):
+            best[i][j] = max(best[i + 1][j], best[i][j + 1])
+            if before[i] == after[j]:
+                worth = 3 if was[before[i]] == now[before[i]] else 2
+                best[i][j] = max(best[i][j], worth + best[i + 1][j + 1])
+    kept, i, j = set(), 0, 0
+    while i < len(before) and j < len(after):
+        worth = 3 if was[before[i]] == now[before[i]] else 2
+        if before[i] == after[j] and best[i][j] == worth + best[i + 1][j + 1]:
+            kept.add(before[i])
+            i, j = i + 1, j + 1
+        elif best[i][j] == best[i + 1][j]:
+            i += 1
+        else:
+            j += 1
+    return set(after) - kept
 
 
 def _blocks(data: dict[str, Any]) -> list[dict]:
@@ -191,15 +230,16 @@ def _place(index: int, blocks: list[dict]) -> int:
     return 1 + sum(1 for b in blocks[:index] if b.get("type") != "default")
 
 
-def _plugin_info(plugin_type: str) -> tuple[set[str], dict[str, Any]]:
-    """The settings of ``plugin_type`` that hold a secret (an API key, ...), and the value
-    of each setting when it is not set."""
+def _plugin_info(plugin_type: str) -> tuple[set[str] | None, dict[str, Any]]:
+    """The settings of ``plugin_type`` that hold a secret (an API key, ...; ``None``: the
+    type is not known, so any of its own settings may), and the value of each setting when
+    it is not set."""
     if plugin_type not in plugins.available():
-        return set(), {}
+        return None, {}
     try:
         plugin = plugins.load(plugin_type)
     except Exception:  # noqa: BLE001 - a plugin that can't be loaded is named elsewhere
-        return set(), {}
+        return None, {}
     found = plugin.settings.model_fields
     secret = {k for k, info in found.items() if holds_secret(info.annotation)}
     return secret, _model(PluginEntry) | defaults(plugin)
@@ -221,18 +261,21 @@ def _without(block: dict, *keys: str) -> dict:
 def _changes(
     old: Any,
     new: Any,
-    secret: set[str] = frozenset(),
+    secret: set[str] | None = frozenset(),
     notes: dict[str, str] | None = None,
     shown: dict[str, Any] | None = None,
 ) -> tuple[Change, ...]:
-    """The changed settings; ``shown``: the value of each when it is not set."""
+    """The changed settings. ``secret``: the ones whose values are hidden (``None``: all
+    but the shared plugin settings, for a plugin type that is not known); ``shown``: the
+    value of each when it is not set."""
     old, new = _flat(old), _flat(new)
     notes, shown = notes or {}, shown or {}
     found = []
     for key in dict.fromkeys([*new, *old]):
         if old.get(key, _UNSET) == new.get(key, _UNSET):
             continue
-        hidden = key.partition(".")[0] in secret
+        name = key.partition(".")[0]
+        hidden = name not in PluginEntry.model_fields if secret is None else name in secret
         found.append(
             Change(
                 key,
@@ -266,7 +309,10 @@ def _shown(value: Any, hidden: bool) -> str | None:
         return None
     if hidden:
         return HIDDEN
-    text = example.toml_value(value)
+    if isinstance(value, (datetime, date, time)):
+        text = value.isoformat()  # as written in the file, not as text in quotes
+    else:
+        text = example.toml_value(value)
     return text if len(text) <= LONGEST_VALUE else text[: LONGEST_VALUE - 1] + "…"
 
 

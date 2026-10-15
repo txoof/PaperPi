@@ -408,12 +408,12 @@ def create_app(
                 text = read_text(editor.path)
             except ConfigError:
                 text = None  # the Warnings page names it
-            if text is not None and (
-                saved_here(editor.path, text) or not changes.waiting(applied, text)
-            ):
+            if text is not None and not changes.waiting(applied, text):
                 text = None
             edits_found.update(key=key, text=text)
-        return edits_found["text"]
+        text = edits_found["text"]
+        # Checked every time: the web interface may have saved this text a moment ago.
+        return None if text is None or saved_here(editor.path, text) else text
 
     templates.env.globals["hand_edits_waiting"] = lambda: hand_edits() is not None
 
@@ -445,13 +445,20 @@ def create_app(
     async def apply_changes():
         if controls is None:
             return Response("PaperPi's screen is not running.", 409, media_type="text/plain")
+        edited = await run_in_threadpool(hand_edits)
+        if edited is not None:
+            found = await run_in_threadpool(
+                changes.review, editor.applied or "", edited, editor.path.name
+            )
+            if found.mistakes:  # the page names them; PaperPi would keep the old settings
+                return RedirectResponse("/changes", status_code=303)
         controls.reload()
         # PaperPi loads the file between two screen writes: wait a moment, so the page
         # can mostly say it is done.
         end = time.monotonic() + limits.APPLY_WAIT
-        while hand_edits() is not None and time.monotonic() < end:
+        while await run_in_threadpool(hand_edits) is not None and time.monotonic() < end:
             await asyncio.sleep(0.1)
-        done = "applying" if hand_edits() is not None else "applied"
+        done = "applying" if await run_in_threadpool(hand_edits) is not None else "applied"
         return RedirectResponse(f"/changes?done={done}", status_code=303)
 
     @app.post("/warnings/reload")
