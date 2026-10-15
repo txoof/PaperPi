@@ -24,8 +24,8 @@
       none.hidden = shown > 0;
     }
 
-    input.addEventListener("input", filter);
-    box.hidden = false;
     filter(); // the browser may have kept a search from before
+    box.hidden = false; // shown after the count is written, so it isn't read out at once
+    input.addEventListener("input", filter);
   });
 })();

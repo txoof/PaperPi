@@ -80,7 +80,8 @@ class RequiredWithValue(PluginSettings):
         ({"level": "sometimes"}, "level must be one of: alert, interrupt, rotation"),
         ({"title": "x" * 41}, "title must be one line of at most 40 characters"),
         ({"title": "Two\nlines"}, "title must be one line"),
-        ({"title": " Clock"}, "without spaces at the ends"),
+        ({"title": " Clock"}, "none at the ends"),
+        ({"title": "Big  clock"}, "single spaces between words"),
         ({"network": "wifi"}, "network must be None or one of: internet, home"),
     ],
 )

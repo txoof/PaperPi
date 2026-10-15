@@ -280,7 +280,7 @@ def find(query: Query, folders: Callable[[], list[Path]] = running_config_folder
 PLUGIN = Plugin(
     type="librespot_client",
     title="Spotify",
-    network="home",
+    network="internet",
     description="The song Spotify is playing on this device, with its album cover. "
     "Shown only while music plays (interrupt); the other plugins are shown when it stops.",
     settings=Settings,

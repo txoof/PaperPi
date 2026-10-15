@@ -166,7 +166,7 @@ def test_library_cards_have_a_title_labels_and_the_names_added():
     assert found["met_no"].title == "Weather"
     assert found["met_no"].labels == ["Requires setup", "Requires internet"]
     assert found["lms_client"].labels == ["Requires setup", "Uses home network"]
-    assert found["librespot_client"].labels == ["Uses home network"]
+    assert found["librespot_client"].labels == ["Requires internet"]  # covers, Spotify itself
     assert found["basic_clock"].labels == []
 
 

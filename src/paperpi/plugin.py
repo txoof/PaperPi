@@ -425,7 +425,7 @@ class Plugin:
         if len(self.title) > TITLE_LENGTH or self.title != " ".join(self.title.split()):
             problems.append(
                 f"title must be one line of at most {TITLE_LENGTH} characters, "
-                "without spaces at the ends"
+                "with single spaces between words and none at the ends"
             )
         if self.network not in (None, *NETWORKS):
             problems.append(f"network must be None or one of: {', '.join(NETWORKS)}")
