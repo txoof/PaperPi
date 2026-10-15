@@ -147,6 +147,29 @@ class PluginEditor:
             self._reload()
         return hand_edits
 
+    def undo(self, seen: str) -> Path:
+        """Undo the hand edits: put the text PaperPi uses now back in the config file.
+
+        ``seen`` is the :func:`config_file.fingerprint` of the edited text the page showed.
+        The edited file is kept as ``<name>.undone`` next to it; returns that path. Nothing
+        needs to load again, as PaperPi already uses this text. Raises
+        :class:`config_file.EditError` when there are no hand edits, the file changed after
+        the page showed it, or a file can't be saved.
+        """
+        with config_file.LOCK:
+            path, text = config_file.read(self.path)
+            applied = self._applied
+            if applied is None or text == applied or config_file.saved_here(path, text):
+                raise config_file.EditError("There are no hand edits to undo.")
+            if config_file.fingerprint(text) != seen:
+                raise config_file.EditError(
+                    "The config file changed after this page was opened. Check the changes "
+                    "and try again."
+                )
+            kept = config_file.keep(path, text)  # first, so the edits are never lost
+            config_file.write(path, applied)
+        return kept
+
     def move(self, index: int, plugin_id: str, step: int) -> bool:
         return self.change(lambda text: config_file.move(text, index, plugin_id, step))
 

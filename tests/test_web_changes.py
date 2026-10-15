@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from paperpi import config, limits
 from paperpi.scheduler import Summary
-from paperpi.web import auth, changes
+from paperpi.web import auth, changes, config_file
 from paperpi.web.app import create_app
 from paperpi.web.plugins import PluginEditor
 
@@ -323,3 +323,147 @@ def test_without_the_screen_running_there_is_nothing_to_apply(cfg):
     assert "edits-bar" not in client.get("/").text
     assert "screen is not running" in client.get("/changes").text
     assert client.post("/changes/apply").status_code == 409
+
+
+# Undo hand edits
+
+
+def undo(client, text):
+    """Send Undo as the confirm box does, for the file ``text`` it showed."""
+    return client.post("/changes/undo", data={"seen": config_file.fingerprint(text)})
+
+
+def test_undo_asks_first_and_works_without_javascript(setup, cfg):
+    client, _ = setup
+    cfg.write_text(edited(('name = "Clock"', 'name = "Big clock"')))
+    page = client.get("/changes").text
+    assert 'href="/changes?undo=1#undo">Undo hand edits…</a>' in page
+    assert 'action="/changes/undo"' not in page
+    page = client.get("/changes?undo=1").text
+    assert "Undo the hand edits?" in page and "paperpi.toml.undone" in page
+    assert 'action="/changes/undo"' in page and 'href="/changes">Keep them</a>' in page
+    assert "Apply changes" not in page and "<h2>Big clock</h2>" in page
+    assert cfg.read_text() != CONFIG  # asking changes nothing
+
+
+def test_undo_puts_back_the_applied_file_and_keeps_the_edited_one(setup, cfg):
+    client, scheduler = setup
+    cfg.chmod(0o640)
+    hand = edited(('name = "Clock"', 'name = "Big clock"'))
+    cfg.write_text(hand)
+    (cfg.parent / "paperpi.toml.undone").write_text("an older one")
+    response = undo(client, hand)
+    assert response.headers["location"] == "/changes?done=undone"
+    assert cfg.read_text() == CONFIG and cfg.stat().st_mode & 0o777 == 0o640
+    kept = cfg.parent / "paperpi.toml.undone"
+    assert kept.read_text() == hand and kept.stat().st_mode & 0o777 == 0o640
+    assert scheduler.reloads == 0  # PaperPi uses this text already
+    page = client.get(response.headers["location"]).text
+    assert f"Hand edits undone. Your edited file is saved as\n  <code>{kept}</code>." in page
+    assert "No hand edits are waiting" not in page
+    assert "edits-bar" not in client.get("/").text
+
+
+def test_a_file_with_a_mistake_can_be_undone(setup, cfg):
+    client, _ = setup
+    cfg.write_text(CONFIG + "\n[display\n")
+    assert "Undo hand edits…" in client.get("/changes").text
+    undo(client, CONFIG + "\n[display\n")
+    assert cfg.read_text() == CONFIG
+
+
+def test_a_config_file_link_keeps_the_undone_file_next_to_the_real_file(tmp_path):
+    real = tmp_path / "etc" / "paperpi.toml"
+    real.parent.mkdir()
+    real.write_text(CONFIG)
+    link = tmp_path / "main.toml"
+    link.symlink_to(real)
+    editor = PluginEditor(link)
+    editor.loaded(CONFIG)
+    scheduler = FakeScheduler(editor)
+    app = create_app(auth.Auth(link, config.WebSettings(login=False)), editor, controls=scheduler)
+    client = TestClient(app, follow_redirects=False, base_url=PI)
+    hand = edited(('name = "Clock"', 'name = "Big clock"'))
+    real.write_text(hand)
+    kept = real.parent / "paperpi.toml.undone"
+    assert f"<code>{kept}</code>" in client.get("/changes?undo=1").text
+    undo(client, hand)
+    assert link.is_symlink() and real.read_text() == CONFIG and kept.read_text() == hand
+    assert not (tmp_path / "main.toml.undone").exists()
+
+
+def test_nothing_to_undo(setup, cfg):
+    client, _ = setup
+    assert client.post("/changes/undo").headers["location"] == "/changes"
+    assert not (cfg.parent / "paperpi.toml.undone").exists()
+    assert "Undo the hand edits?" not in client.get("/changes?undo=1").text
+    # Only a comment changed: no hand edit.
+    cfg.write_text(CONFIG + "# a note\n")
+    assert undo(client, CONFIG + "# a note\n").headers["location"] == "/changes"
+    assert cfg.read_text() == CONFIG + "# a note\n"
+
+
+def test_undo_says_when_a_file_cant_be_saved(setup, cfg, monkeypatch):
+    client, _ = setup
+    hand = edited(('name = "Clock"', 'name = "Big clock"'))
+    cfg.write_text(hand)
+
+    def fail(*args, **kwargs):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr("paperpi.web.config_file.write_atomic", fail)
+    response = undo(client, hand)
+    assert response.status_code == 409
+    assert "Nothing was undone: can&#39;t save" in response.text
+    assert "paperpi.toml.undone: [Errno 13] Permission denied" in response.text
+    assert cfg.read_text() == hand
+
+
+def test_undo_never_loses_the_edits_when_the_config_file_cant_be_saved(tmp_path, monkeypatch):
+    path = tmp_path / "paperpi.toml"
+    hand = edited(('name = "Clock"', 'name = "Big clock"'))
+    path.write_text(hand)
+    editor = PluginEditor(path)
+    editor.loaded(CONFIG)
+    real_write = config_file.write_atomic
+
+    def fail_for_config(target, data, **kwargs):
+        if target == path:
+            raise OSError(28, "No space left on device")
+        real_write(target, data, **kwargs)
+
+    monkeypatch.setattr(config_file, "write_atomic", fail_for_config)
+    with pytest.raises(config_file.EditError, match="No space left"):
+        editor.undo(config_file.fingerprint(hand))
+    assert path.read_text() == hand and (tmp_path / "paperpi.toml.undone").read_text() == hand
+
+
+def test_without_the_screen_running_there_is_nothing_to_undo(cfg):
+    editor = PluginEditor(cfg)
+    editor.loaded(CONFIG)
+    app = create_app(auth.Auth(cfg, config.WebSettings(login=False)), editor)
+    client = TestClient(app, follow_redirects=False, base_url=PI)
+    cfg.write_text(edited(('name = "Clock"', 'name = "Big clock"')))
+    assert client.post("/changes/undo").headers["location"] == "/changes"
+    assert cfg.read_text() != CONFIG
+
+
+def test_undo_refuses_when_the_file_changed_after_the_page_was_opened(setup, cfg):
+    client, _ = setup
+    shown = edited(('name = "Clock"', 'name = "Big clock"'))
+    cfg.write_text(shown)
+    assert f'value="{config_file.fingerprint(shown)}"' in client.get("/changes?undo=1").text
+    later = edited(('name = "Clock"', 'name = "Huge clock"'))
+    cfg.write_text(later)
+    response = undo(client, shown)
+    assert response.status_code == 409 and "changed after this page was opened" in response.text
+    assert cfg.read_text() == later and not (cfg.parent / "paperpi.toml.undone").exists()
+
+
+def test_undo_from_another_site_is_refused(setup, cfg):
+    client, _ = setup
+    hand = edited(('name = "Clock"', 'name = "Big clock"'))
+    cfg.write_text(hand)
+    seen = {"seen": config_file.fingerprint(hand)}
+    response = client.post("/changes/undo", data=seen, headers={"origin": "http://evil.example"})
+    assert response.status_code == 403 and cfg.read_text() == hand

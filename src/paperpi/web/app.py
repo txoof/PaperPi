@@ -25,8 +25,9 @@ Address            What it does
                    picture's part of the page, asked for again until it is drawn);
                    ``/library/<type>`` adds one and opens its settings
 ``/changes``       Review changes: hand edits to the config file that PaperPi does not
-                   use yet (``/changes/apply`` loads the file again); a bar on every
-                   page links here while there are some
+                   use yet (``/changes/apply`` loads the file again, ``/changes/undo``
+                   puts back the file PaperPi uses); a bar on every page links here while
+                   there are some
 ``/warnings``      what needs attention now (``/warnings/reload`` loads the config file
                    again), and the recent warnings and errors; ``/log`` is the Full log
                    (``/log/new`` the lines after a number, ``/log/download`` all of them)
@@ -68,7 +69,7 @@ from ..config import ConfigError, folder_name, read_text
 from ..logbook import Logbook
 from . import changes, logs, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
-from .config_file import EditError, UnknownForm, saved_here
+from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_here
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Snapshots, card_key, cards, now_part
@@ -402,7 +403,8 @@ def create_app(
             stat = editor.path.stat()
         except OSError:
             return None
-        key = (stat.st_mtime_ns, stat.st_size, applied)
+        # A save makes a new file (new inode), even within the same timestamp step.
+        key = (stat.st_ino, stat.st_mtime_ns, stat.st_size, applied)
         if edits_found.get("key") != key:
             try:
                 text = read_text(editor.path)
@@ -417,14 +419,17 @@ def create_app(
 
     templates.env.globals["hand_edits_waiting"] = lambda: hand_edits() is not None
 
-    @app.get("/changes", response_class=HTMLResponse)
-    async def changes_page(request: Request, done: str = ""):
-        edited = await run_in_threadpool(hand_edits)
+    def changes_view(
+        request: Request,
+        status: int = 200,
+        done: str = "",
+        asking: bool = False,
+        problem: str | None = None,
+    ) -> HTMLResponse:
+        edited = hand_edits()
         found = None
         if edited is not None:
-            found = await run_in_threadpool(
-                changes.review, editor.applied or "", edited, editor.path.name
-            )
+            found = changes.review(editor.applied or "", edited, editor.path.name)
         try:
             changed_at = datetime.fromtimestamp(editor.path.stat().st_mtime)
         except OSError:
@@ -432,6 +437,7 @@ def create_app(
         return page(
             request,
             "changes.html",
+            status,
             review=found,
             running=controls is not None,
             path=editor.path,
@@ -439,7 +445,16 @@ def create_app(
             today=date.today(),
             command=_reload_command(),
             message=_DONE.get(done) if done in ("applied", "applying") else None,
+            kept=kept_path(editor.path),
+            undone=done == "undone" and found is None,
+            asking=asking and found is not None,
+            seen=fingerprint(edited) if edited is not None else "",
+            problem=problem,
         )
+
+    @app.get("/changes", response_class=HTMLResponse)
+    def changes_page(request: Request, done: str = "", undo: str = ""):
+        return changes_view(request, done=done, asking=undo == "1")
 
     @app.post("/changes/apply")
     async def apply_changes():
@@ -460,6 +475,16 @@ def create_app(
             await asyncio.sleep(0.1)
         done = "applying" if await run_in_threadpool(hand_edits) is not None else "applied"
         return RedirectResponse(f"/changes?done={done}", status_code=303)
+
+    @app.post("/changes/undo", response_class=HTMLResponse)
+    def undo_changes(request: Request, seen: str = Form("")):
+        if hand_edits() is None:  # undone already, or applied
+            return RedirectResponse("/changes", status_code=303)
+        try:
+            editor.undo(seen)
+        except EditError as error:
+            return changes_view(request, 409, problem=str(error))
+        return RedirectResponse("/changes?done=undone", status_code=303)
 
     @app.post("/warnings/reload")
     def reload_config():
