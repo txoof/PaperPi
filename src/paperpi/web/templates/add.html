@@ -5,9 +5,11 @@
 {% block main %}
 <p class="crumbs"><a href="/library">Plugin Library</a> › {{ item.title }}</p>
 <h1>Add {{ item.title }}</h1>
-<p>{{ item.description }} <code class="hint">{{ item.type }}</code></p>
+<p>{{ item.description }} <code class="hint">{{ item.type }}</code>
+  · <a href="/library/{{ item.type }}/readme">README</a></p>
 {% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
-{% if item.plugin.setup %}<p class="note">Before it works: {{ item.plugin.setup }}</p>{% endif %}
+{% if item.plugin.setup %}<p class="note">Before it works: {{ item.plugin.setup }}
+  <a href="/library/{{ item.type }}/readme">How to set it up</a></p>{% endif %}
 {% if item.required %}
 <div class="note">
   <p>This plugin is not shown until these settings are filled in, so it is added switched off:</p>

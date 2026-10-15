@@ -23,7 +23,8 @@ Address            What it does
 ``/library``       Plugin Library: every plugin type with an example picture
                    (``/library/pictures/<file>``; ``/library/<type>/picture`` is the
                    picture's part of the page, asked for again until it is drawn);
-                   ``/library/<type>`` adds one and opens its settings
+                   ``/library/<type>`` adds one and opens its settings;
+                   ``/library/<type>/readme`` shows its README
 ``/changes``       Review changes: hand edits to the config file that PaperPi does not
                    use yet (``/changes/apply`` loads the file again, ``/changes/undo``
                    puts back the file PaperPi uses); a bar on every page links here while
@@ -67,7 +68,8 @@ from starlette.concurrency import run_in_threadpool
 from .. import __version__, limits
 from ..config import ConfigError, folder_name, read_text
 from ..logbook import Logbook
-from . import changes, logs, warnings
+from ..plugins import readme as readme_text
+from . import changes, logs, readme, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_here
 from .forms import Read, fields, form_texts
@@ -755,6 +757,15 @@ def create_app(
             return library_page(request, 404, "No such plugin.")
         values.setdefault("name", editor.suggested_name(item))
         return page(request, "add.html", status, item=item, **values)
+
+    @app.get("/library/{plugin_type}/readme", response_class=HTMLResponse)
+    def readme_page(request: Request, plugin_type: str):
+        item = library_item(plugin_type)
+        text = readme_text(plugin_type) if item is not None and item.plugin else None
+        if text is None:
+            return library_page(request, 404, "No README for this plugin.")
+        body = readme.to_html(text, [i.type for i in library() if i.plugin])
+        return page(request, "readme.html", item=item, body=body)
 
     @app.get("/library/{plugin_type}", response_class=HTMLResponse)
     def add_form(request: Request, plugin_type: str):

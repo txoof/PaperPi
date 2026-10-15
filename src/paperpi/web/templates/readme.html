@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "library" %}
+{% block title %}{{ item.title }} README · PaperPi{% endblock %}
+{% block main %}
+<p class="crumbs"><a href="/library">Plugin Library</a> › {{ item.title }}</p>
+<h1>{{ item.title }}</h1>
+<p class="hint"><code>{{ item.type }}</code>: the plugin's README, as it comes with this
+version of PaperPi.</p>
+<div class="readme">{{ body|safe }}</div>
+<p><a class="add" href="/library/{{ item.type }}">+ Add</a> <a href="/library">Back to the Plugin Library</a></p>
+{% endblock %}

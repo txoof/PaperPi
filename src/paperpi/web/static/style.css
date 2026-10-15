@@ -272,6 +272,16 @@ button.switch[aria-checked="true"] i::after { left: 14px; }
 .library .labels { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 .library .labels code { font-size: 0.8rem; background: none; padding: 0; color: var(--muted); }
 .library .setup { font-size: 0.85rem; }
+.readme { overflow-wrap: anywhere; }
+.readme h2 { font-size: 1.05rem; margin-top: 1.5rem; }
+.readme table { border-collapse: collapse; display: block; overflow-x: auto; margin: 0.5rem 0; }
+.readme th, .readme td { border: 1px solid var(--line); padding: 0.3rem 0.5rem; text-align: left;
+  vertical-align: top; overflow-wrap: normal; min-width: 7rem; }
+/* The first column holds names (layouts, settings): kept whole; a wide table scrolls. */
+.readme td:first-child, .readme th:first-child { white-space: nowrap; min-width: 0; }
+.readme pre { background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 0.5rem 0.65rem; overflow-x: auto; }
+.readme pre code { background: none; padding: 0; }
 .library .add-row { margin: auto 0 0; padding-top: 0.2rem; display: flex; flex-wrap: wrap;
   gap: 0.3rem 0.6rem; align-items: center; }
 .library .add-row .hint { font-size: 0.85rem; }

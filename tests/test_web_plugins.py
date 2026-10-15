@@ -194,9 +194,11 @@ def test_the_library_works_while_the_config_file_cant_be_read(client, cfg):
 def test_a_setup_note_is_on_the_card_and_the_add_page(client):
     note = web_plugins.library_item("librespot_client").plugin.setup
     assert "go-librespot" in note
-    assert f'<p class="hint setup">{note}</p>' in html.unescape(client.get("/library").text)
+    link = '<a href="/library/librespot_client/readme">How to set it up</a></p>'
+    page = html.unescape(client.get("/library").text)
+    assert f'<p class="hint setup">{note}\n      {link}' in page
     form = html.unescape(client.get("/library/librespot_client").text)
-    assert f'<p class="note">Before it works: {note}</p>' in form
+    assert f'<p class="note">Before it works: {note}\n  {link}' in form
     assert "added switched off" not in form  # nothing to fill in
 
 
@@ -494,3 +496,25 @@ def test_settings_of_an_unknown_plugin_type_cant_be_saved(editor, cfg):
     cfg.write_text(CONFIG.replace('type = "basic_clock"\n\n', 'type = "nothing"\n\n', 1))
     with pytest.raises(EditError, match="its plugin type 'nothing' can't be used"):
         editor.save_settings(0, "Clock", {"hours": ["12"]})
+
+
+def test_every_card_links_to_the_plugins_readme(client):
+    page = client.get("/library").text
+    for item in web_plugins.library():
+        assert f'<a href="/library/{item.type}/readme">README</a>' in page, item.type
+
+
+def test_the_readme_page(client):
+    page = client.get("/library/librespot_client/readme").text
+    assert "<h1>Spotify</h1>" in page and "<h1>librespot_client</h1>" not in page
+    assert '<a href="https://github.com/devgianlu/go-librespot">go-librespot</a>' in page
+    assert "enabled: true" in page  # the config.yml example
+    assert "<img" not in page and "Sample images" not in page
+    assert '<a class="add" href="/library/librespot_client">+ Add</a>' in page
+
+
+@pytest.mark.parametrize("plugin_type", ["nope", "debugging"])
+def test_no_readme_page_for_unknown_or_hidden_plugins(client, plugin_type):
+    response = client.get(f"/library/{plugin_type}/readme")
+    assert response.status_code == 404 and "No README for this plugin." in response.text
+    assert client.get("/library/..%2F..%2Fconfig/readme").status_code == 404
