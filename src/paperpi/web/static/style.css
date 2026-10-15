@@ -40,6 +40,8 @@
 }
 
 * { box-sizing: border-box; }
+/* Room for the scroll bar on every page, so a page without one does not move sideways. */
+html { scrollbar-gutter: stable; }
 body { margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 a { color: var(--accent); }
@@ -53,7 +55,7 @@ code { font-family: var(--mono); font-size: 0.85em; background: var(--chip); pad
 /* The menu bar */
 header.top { background: var(--panel); border-bottom: 1px solid var(--line); position: relative;
   z-index: 10; }
-.top-inner { max-width: 46rem; margin: 0 auto; padding: 0.6rem 1rem; display: flex;
+.top-inner { max-width: 64rem; margin: 0 auto; padding: 0.6rem 1rem; display: flex;
   align-items: center; gap: 0.5rem 1.1rem; flex-wrap: wrap; }
 .brand { font-weight: 600; color: var(--ink); text-decoration: none; }
 nav.menu { display: flex; gap: 0.25rem; flex-wrap: wrap; flex: 1; }
@@ -82,8 +84,12 @@ nav.menu + .theme { margin-left: 0; }
   .fold { display: block; }
 }
 
-main { max-width: 46rem; margin: 0 auto; padding: 0.5rem 1rem 1rem; }
-footer { max-width: 46rem; margin: 2rem auto 1rem; padding: 0 1rem; color: var(--muted);
+/* One width on every page, so the menu bar and the left edge stay in place (#282); a page
+   of forms or text keeps its lines short with a narrower content (all but main.wide: Home,
+   Plugin Library, Warnings), and so does running text on the wide pages. */
+main { max-width: 64rem; margin: 0 auto; padding: 0.5rem 1rem 1rem; }
+main:not(.wide) > *, main > p:not(.saved, .note) { max-width: 46rem; }
+footer { max-width: 64rem; margin: 2rem auto 1rem; padding: 0 1rem; color: var(--muted);
   font-size: 0.85rem; }
 .crumbs { margin: 1rem 0 0; font-size: 0.9rem; color: var(--muted); }
 .crumbs a { text-decoration: none; }
@@ -122,7 +128,6 @@ details > summary { cursor: pointer; }
 .buttons a { font-size: 0.95rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
   white-space: nowrap; }
-main.wide, .top-inner.wide, footer.wide { max-width: 64rem; }
 
 /* Home: the screen now. It stays at the top while the cards scroll (with JavaScript, which
    also makes it a slim bar while scrolling down). */
@@ -153,6 +158,10 @@ button.dismiss { background: var(--bad); border-color: var(--bad); color: var(--
   margin: 0.6rem 0 0; }
 .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
 .bigger { display: none; font-size: 0.85rem; }
+/* The browser must not move the page itself when the panel becomes the slim bar (home.js
+   keeps the page's height; the browser's "scroll anchoring" would scroll it up by the
+   height the panel lost, back to the top on a short page: #285). */
+html:has(#now) { overflow-anchor: none; }
 .now.compact { padding-block: 0.4rem; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); }
 .now.compact .now-grid { grid-template-columns: 7rem minmax(0, 1fr); gap: 0.75rem; }
 .now.compact .bezel { padding: 0.25rem; border-radius: 6px; }

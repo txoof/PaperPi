@@ -19,7 +19,7 @@
   {#- Next to Warnings: how many things need attention (the Warnings page passes the number). -#}
   {% set attention_number = (attention if attention is defined else attention_count()) if logged_in else 0 %}
   <header class="top">
-    <div class="top-inner{% if logged_in %} with-menu{% endif %} {{ self.main_class() }}">
+    <div class="top-inner{% if logged_in %} with-menu{% endif %}">
       <a class="brand" href="/">PaperPi</a>
       {% if logged_in %}
       <nav class="menu" aria-label="Main">
@@ -55,6 +55,6 @@
   <main id="top" class="{% block main_class %}{% endblock %}">
     {% block main %}{% endblock %}
   </main>
-  <footer class="{{ self.main_class() }}">PaperPi {{ version }}</footer>
+  <footer>PaperPi {{ version }}</footer>
 </body>
 </html>

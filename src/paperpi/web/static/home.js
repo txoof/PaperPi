@@ -149,17 +149,36 @@
   }
 
   // The screen panel becomes a slim bar while scrolling down; "Show bigger" goes back up.
+  // The height the panel loses is added below the page, so the page keeps its height: else
+  // a page only a little taller than the window gets too short to stay scrolled, jumps back
+  // to the top, the panel grows again, and so on (#285).
   function setUpShrink() {
     var small = false;
+    var main = document.querySelector("main");
     function check() {
       var panel = document.getElementById("now"); // replaced every few seconds
       if (!panel) return;
       // Two limits, so the bar doesn't flicker when its own size change moves the page.
       if (!small && window.scrollY > 120) small = true;
       else if (small && window.scrollY < 20) small = false;
+      if (panel.classList.contains("compact") === small) return;
+      var before = panel.offsetHeight;
+      // The room first (as much as the whole panel): the browser must never see the
+      // shorter page, not even while measuring the slim bar.
+      if (small) main.style.paddingBottom = "calc(1rem + " + before + "px)";
       panel.classList.toggle("compact", small);
+      var lost = small ? before - panel.offsetHeight : 0;
+      main.style.paddingBottom = lost > 0 ? "calc(1rem + " + lost + "px)" : "";
     }
     window.addEventListener("scroll", check, { passive: true });
+    // Another window size: the slim bar's height changes, so it is measured again.
+    window.addEventListener("resize", function () {
+      var panel = document.getElementById("now");
+      if (panel && small) {
+        panel.classList.remove("compact"); // the page only grows meanwhile
+        check();
+      }
+    });
     document.body.addEventListener("htmx:load", check); // a new panel came in
     document.body.addEventListener("click", function (event) {
       if (!event.target.closest("[data-bigger]")) return;
