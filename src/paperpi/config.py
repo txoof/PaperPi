@@ -39,7 +39,14 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from . import limits, plugins
 from .files import write_atomic
-from .plugin import SHARED_SETTINGS, Plugin, PluginDefinitionError, PluginEntry, PluginSettings
+from .plugin import (
+    SHARED_SETTINGS,
+    Level,
+    Plugin,
+    PluginDefinitionError,
+    PluginEntry,
+    PluginSettings,
+)
 
 log = logging.getLogger(__name__)
 
@@ -271,6 +278,11 @@ class PluginConfig:
         return self.entry.refresh if self.entry.refresh is not None else self.plugin.refresh
 
     @property
+    def level(self) -> Level:
+        """When it is shown: the user's choice, or the plugin's suggestion."""
+        return self.entry.level or self.plugin.level
+
+    @property
     def layout(self) -> str:
         return self.entry.layout or self.plugin.default_layout
 
@@ -340,6 +352,7 @@ class PluginRow:
     type: str
     enabled: bool
     level: str
+    """As used: the setting, or the plugin's suggestion."""
     display_time: float
     refresh: float
     """As used: the setting, or the plugin's suggestion."""
@@ -363,7 +376,7 @@ def plugin_rows(config: Config) -> list[PluginRow]:
             name=p.entry.label,
             type=p.plugin.type,
             enabled=p.entry.enabled,
-            level=p.entry.level,
+            level=p.level,
             display_time=p.entry.display_time,
             refresh=p.refresh,
             layout=p.layout,
@@ -799,7 +812,7 @@ class _Checker:
                 next((k for k in checked.missing if k in block), None),
                 where,
             )
-        if entry.level == "rotation" and checked.refresh == entry.display_time:
+        if checked.level == "rotation" and checked.refresh == entry.display_time:
             key = "refresh" if "refresh" in block else "display_time"
             self.add(
                 "hint",

@@ -85,8 +85,8 @@ def plugin_block(
 
     ``values`` are the settings that are set (the plugin's own or shared ones, also the
     ``name`` it is shown with); ``None`` means "not set". Every other setting of the plugin
-    follows as a comment with its default. With ``shared``, all shared settings (level,
-    display time, ...) are listed too; otherwise only ``refresh`` and ``layout``, whose
+    follows as a comment with its default. With ``shared``, all shared settings (display
+    time, ...) are listed too; otherwise only ``refresh``, ``level`` and ``layout``, whose
     defaults depend on the plugin.
 
     Raises ``ValueError`` for an unknown setting or a value the plugin would not accept, so
@@ -124,23 +124,29 @@ def plugin_block(
         if key == "name":
             continue
         lines += _setting(key, (own | entry)[key], value)
-    shown = {
-        "refresh": plugin.refresh,
-        "layout": plugin.default_layout,
-        "storage_mb": plugin.storage_mb,
-        "storage_days": plugin.storage_days,
-    }
+    shown = suggested(plugin)
     lines += _settings(own, values, {})
     if shared:
         keys = [k for k in entry if k not in (*_FIXED, "name")]
         lines.append("# --- Settings every plugin has ---")
     else:
-        keys = ["refresh", "layout"]
+        keys = ["refresh", "level", "layout"]
         lines.append("# --- Settings every plugin has (all of them are in the first block) ---")
     lines += _settings({k: entry[k] for k in keys}, values, shown)
     text = "\n".join(lines) + "\n"
     _check_reads_back(text, {"id": plugin_id, "type": plugin.type} | values)
     return text
+
+
+def suggested(plugin: Plugin) -> dict[str, Any]:
+    """The shared settings whose default is the plugin's suggestion, with that suggestion."""
+    return {
+        "refresh": plugin.refresh,
+        "level": plugin.level,
+        "layout": plugin.default_layout,
+        "storage_mb": plugin.storage_mb,
+        "storage_days": plugin.storage_days,
+    }
 
 
 def display_part(values: Mapping[str, Any]) -> str:

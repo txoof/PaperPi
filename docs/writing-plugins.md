@@ -217,6 +217,10 @@ What it does when something goes wrong:
 
 `refresh` is the suggested number of seconds between updates, at least 5; the user can change it. Set `refresh_on_minute=True` for clocks, so updates start just after the minute changes.
 
+## Level
+
+`level` is the suggested level: `"rotation"` (the default: it takes turns with the other plugins), `"interrupt"` (it takes over the screen while it has something to show) or `"alert"` (see `docs/decisions/plugin-scheduling.md`). A plugin that only has something now and then, such as a music player, suggests `level="interrupt"` and says so in its `description`. The user's `level` setting always wins.
+
 ## Storage
 
 `context.storage` has two limits, which PaperPi applies at start and after an update (at most once every 5 minutes):

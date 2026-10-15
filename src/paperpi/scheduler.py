@@ -276,7 +276,7 @@ class _Slot:
 
     @property
     def level(self) -> str:
-        return self.config.entry.level
+        return self.config.level
 
     @property
     def has_image(self) -> bool:

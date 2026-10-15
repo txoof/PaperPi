@@ -59,8 +59,9 @@ def test_every_default_shown_is_a_valid_setting(plugin_type):
     assert found.settings == plugin.settings()
     assert found.refresh == plugin.refresh
     assert found.layout == plugin.default_layout
+    assert found.level == plugin.level
     assert (found.storage_mb, found.storage_days) == (plugin.storage_mb, plugin.storage_days)
-    skip = {"id", "type", "refresh", "layout", "storage_mb", "storage_days"}
+    skip = {"id", "type", "refresh", "level", "layout", "storage_mb", "storage_days"}
     default = PluginEntry(id="Test", type=plugin_type)
     assert found.entry.model_dump(exclude=skip) == default.model_dump(exclude=skip)
 
@@ -82,6 +83,7 @@ def test_block_lists_every_setting_of_the_plugin(plugin_type):
     comments = " ".join(line[2:] for line in block.splitlines() if line.startswith("# "))
     assert f'Layouts (values for "layout"): {", ".join(plugin.layouts)}' in comments  # wrapped
     assert "# refresh =" in block and "# layout =" in block
+    assert f"# level = {plugin.level!r}".replace("'", '"') in block
     assert "display_time" not in block  # the other shared settings only with shared=True
     full = plugin_block(plugin, "Test", shared=True)
     for key in set(PluginEntry.model_fields) - {"id", "type"}:
@@ -180,7 +182,7 @@ def test_values_without_default_long_help_secrets_lists_and_groups():
 def test_choices_are_listed_when_the_help_does_not_name_them():
     text = example_config()
     assert "# Turn the picture, in degrees. One of: 0, 90, 180, 270\n# rotation = 0" in text
-    assert "# When it is shown: alert, interrupt or rotation\n" in text  # named already
+    assert "# When it is shown: alert, interrupt or rotation. Leave it" in text  # named already
     assert 'what it can show. One of: "bw", "gray4", "gray16", "7color", "rgb"\n' in text
     # "C" is in "Celsius", but not as a word of its own.
     assert '# Degrees Celsius or Fahrenheit. One of: "C", "F"\n' in text

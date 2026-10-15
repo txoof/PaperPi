@@ -93,15 +93,10 @@ class Read:
 
 def defaults(plugin: Plugin) -> dict[str, Any]:
     """The value each setting has when the file doesn't set it: the shared settings' and
-    the plugin's own defaults, and the plugin's suggestions (``refresh``, the first layout,
-    the storage limits)."""
+    the plugin's own defaults, and the plugin's suggestions (``refresh``, ``level``, the
+    first layout, the storage limits)."""
     found = {key: info.default for key, info in _infos(plugin).items()}
-    return found | {
-        "refresh": plugin.refresh,
-        "layout": plugin.default_layout,
-        "storage_mb": plugin.storage_mb,
-        "storage_days": plugin.storage_days,
-    }
+    return found | example.suggested(plugin)
 
 
 def fields(

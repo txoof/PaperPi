@@ -186,6 +186,18 @@ def test_defaults_include_the_plugins_suggestions():
     assert shown["display_time"] == 120 and shown["lat"] is None
 
 
+def test_level_shows_and_keeps_the_plugins_suggestion():
+    music = plugins.load("lms_client")
+    block = {"id": "music", "type": "lms_client"}
+    level = next(f for f in forms.fields(music, block) if f.key == "level")
+    assert level.value == level.default == "interrupt" and not level.changed
+    assert forms.read(music, block, {"level": ["interrupt"]}).changes == {}
+    assert forms.read(music, block, {"level": ["rotation"]}).changes == {"level": "rotation"}
+    assert forms.read(music, block | {"level": "rotation"}, {"level": [""]}).changes == {
+        "level": None
+    }
+
+
 def test_unchanged_values_are_no_change():
     # The file gives a list and whole numbers; the form a tuple and text.
     block = T | {"words": ["b", "c"], "loud": True}

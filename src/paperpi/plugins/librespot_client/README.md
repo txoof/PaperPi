@@ -2,7 +2,7 @@
 
 The song Spotify is playing on this device: its title, artist, album and album cover. It works with [go-librespot](https://github.com/devgianlu/go-librespot), a program that makes the device a Spotify speaker: in the Spotify app, pick the device (go-librespot's `device_name`) as the speaker.
 
-Use it with `level = "interrupt"`: while a song plays, it takes over the screen; when the music stops, the other plugins are shown again. A paused song stays on the screen for `idle_timeout` seconds (default 10), so a short pause doesn't change the screen.
+It is an interrupt plugin (`level = "interrupt"`, its default): while a song plays, it takes over the screen; when the music stops, the other plugins are shown again. A paused song stays on the screen for `idle_timeout` seconds (default 10), so a short pause doesn't change the screen.
 
 At each update the plugin reads go-librespot's status (`http://localhost:<port>/status`). go-librespot's API server (the part that answers these questions) must be switched on in its `config.yml`:
 
@@ -50,7 +50,6 @@ In the config file (the rest of the file is shown in the main [README](../../../
 id = "spotify"
 name = "Spotify"
 type = "librespot_client"
-level = "interrupt"
 port = 24879
 idle_timeout = 30
 ```

@@ -47,7 +47,7 @@ def test_good_file_uses_defaults():
     (clock,) = cfg.plugins
     assert clock.entry.id == "Clock"
     assert clock.entry.enabled
-    assert clock.entry.level == "rotation"
+    assert clock.entry.level is None and clock.level == "rotation"  # the plugin's suggestion
     assert clock.entry.time_limit == limits.PLUGIN_UPDATE
     assert clock.refresh == 60  # the plugin's suggestion
     assert clock.layout == "time"  # the plugin's first layout
@@ -427,6 +427,15 @@ def test_unknown_settings_are_warnings_with_suggestions():
         "(did you mean 'display_time'?)",
         "config line 11 [[plugin]] 'Clock': unknown setting 'colour'",
     ]
+
+
+@pytest.mark.parametrize("plugin_type", ["lms_client", "librespot_client"])
+def test_music_plugins_are_interrupts_unless_the_block_says_otherwise(plugin_type):
+    music = f'\n[[plugin]]\nid = "music"\ntype = "{plugin_type}"\n'
+    cfg = parse(GOOD + music)
+    assert [p.level for p in cfg.plugins] == ["rotation", "interrupt"]
+    assert [row.level for row in config.plugin_rows(cfg)] == ["rotation", "interrupt"]
+    assert parse(GOOD + music + 'level = "rotation"\n').plugins[1].level == "rotation"
 
 
 def test_hint_when_refresh_equals_display_time():
