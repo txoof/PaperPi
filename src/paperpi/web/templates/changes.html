@@ -7,7 +7,7 @@
 <h1>Review changes</h1>
 {% if message %}<p class="saved">{{ message }}</p>{% endif %}
 {% if undone %}<p class="saved">Hand edits undone. Your edited file is saved as
-  <code>{{ undone }}</code>, next to the config file.</p>{% endif %}
+  <code>{{ kept }}</code>.</p>{% endif %}
 {% if problem %}<p class="note">Nothing was undone: {{ problem }}</p>{% endif %}
 {% if review is none %}
   {% if not running %}
@@ -73,8 +73,10 @@ applied yet. Check the settings here, adjust and accept them in this interface.<
 {% if asking %}
 <div class="confirm" id="undo">
   <p><strong>Undo the hand edits?</strong> The config file goes back to the version PaperPi
-  uses now. Your edited file is kept as <code>{{ path.name }}.undone</code>, so nothing is lost.</p>
+  uses now. Your edited file is kept as <code>{{ kept }}</code>, so nothing is lost
+  (an older file there is replaced).</p>
   <form method="post" action="/changes/undo">
+    <input type="hidden" name="seen" value="{{ seen }}">
     <button type="submit">Undo hand edits</button>
     <a href="/changes">Keep them</a>
   </form>

@@ -69,7 +69,7 @@ from ..config import ConfigError, folder_name, read_text
 from ..logbook import Logbook
 from . import changes, logs, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
-from .config_file import EditError, UnknownForm, saved_here
+from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_here
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Snapshots, card_key, cards, now_part
@@ -403,7 +403,8 @@ def create_app(
             stat = editor.path.stat()
         except OSError:
             return None
-        key = (stat.st_mtime_ns, stat.st_size, applied)
+        # A save makes a new file (new inode), even within the same timestamp step.
+        key = (stat.st_ino, stat.st_mtime_ns, stat.st_size, applied)
         if edits_found.get("key") != key:
             try:
                 text = read_text(editor.path)
@@ -444,10 +445,10 @@ def create_app(
             today=date.today(),
             command=_reload_command(),
             message=_DONE.get(done) if done in ("applied", "applying") else None,
-            undone=Path(os.path.realpath(editor.path)).name + ".undone"
-            if done == "undone" and found is None
-            else None,
+            kept=kept_path(editor.path),
+            undone=done == "undone" and found is None,
             asking=asking and found is not None,
+            seen=fingerprint(edited) if edited is not None else "",
             problem=problem,
         )
 
@@ -476,11 +477,11 @@ def create_app(
         return RedirectResponse(f"/changes?done={done}", status_code=303)
 
     @app.post("/changes/undo", response_class=HTMLResponse)
-    def undo_changes(request: Request):
+    def undo_changes(request: Request, seen: str = Form("")):
         if hand_edits() is None:  # undone already, or applied
             return RedirectResponse("/changes", status_code=303)
         try:
-            editor.undo()
+            editor.undo(seen)
         except EditError as error:
             return changes_view(request, 409, problem=str(error))
         return RedirectResponse("/changes?done=undone", status_code=303)
