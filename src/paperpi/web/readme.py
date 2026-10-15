@@ -20,6 +20,8 @@ from markdown_it.token import Token
 
 _MD = MarkdownIt("commonmark", {"html": False}).enable("table")
 _OTHER_README = re.compile(r"(?:\.\./)?([a-z][a-z0-9_]*)/README\.md(?:#.*)?")
+_EMPTY_LINK = re.compile(r"<a href=\"[^\"]*\">(?:\s|<(em|strong)>\s*</\1>)*</a>")
+_EMPTY_PARAGRAPH = re.compile(r"<p>\s*</p>\n?")
 _EMPTY_ROW = re.compile(r"<tr>(?:\s*<t[dh](?: [^>]*)?>\s*</t[dh]>)+\s*</tr>\s*")
 _EMPTY_BODY = re.compile(r"<tbody>\s*</tbody>\s*")
 _HEAD_ONLY = re.compile(r"<table>\s*<thead>(?:(?!</table>).)*</thead>\s*</table>\s*", re.DOTALL)
@@ -36,7 +38,8 @@ def to_html(text: str, plugin_types: Collection[str]) -> str:
         if token.type == "inline" and token.children:
             token.children = _inline(token.children, plugin_types)
     found = _MD.renderer.render(tokens, _MD.options, {})
-    found = found.replace("<p></p>\n", "")  # a paragraph that only had a picture
+    found = _EMPTY_LINK.sub("", found)  # a link that only held a picture
+    found = _EMPTY_PARAGRAPH.sub("", found)  # a paragraph that only had pictures
     found = _EMPTY_ROW.sub("", found)
     found = _EMPTY_BODY.sub("", found)
     found = _HEAD_ONLY.sub("", found)
@@ -49,7 +52,8 @@ def _without_section(tokens: list[Token], title: str) -> list[Token]:
     skipping = False
     for index, token in enumerate(tokens):
         if token.type == "heading_open" and token.tag in ("h1", "h2"):
-            skipping = token.tag == "h2" and tokens[index + 1].content.strip() == title
+            heading = "".join(t.content for t in tokens[index + 1].children or [])
+            skipping = token.tag == "h2" and heading.strip().casefold() == title.casefold()
         if not skipping:
             kept.append(token)
     return kept

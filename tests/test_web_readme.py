@@ -51,3 +51,23 @@ def test_every_plugins_readme_can_be_shown():
         found = to_html(plugins.readme(plugin_type), types)
         assert "<h2>Layouts</h2>" in found and "<img" not in found, plugin_type
         assert "Sample images" not in found
+
+
+def test_links_and_paragraphs_left_empty_without_their_pictures_are_left_out():
+    text = "[![badge](x.png)](https://ci.example) [*![i](y.png)*](https://x.example)\n\n"
+    text += "![a](a.png) ![b](b.png)\n\n![c](c.png)\n![d](d.png)\n\nText.\n"
+    assert to_html(text, TYPES) == "<p>Text.</p>\n"
+
+
+def test_the_sample_images_heading_may_be_written_another_way():
+    text = "## **Sample Images**\n\nPictures.\n\n### 9.7 inch\n\nMore.\n\n## Licence\n\nFree.\n"
+    assert to_html(text, TYPES) == "<h2>Licence</h2>\n<p>Free.</p>\n"
+
+
+def test_links_that_run_scripts_never_become_links():
+    text = (
+        "<javascript:alert(1)> [a](JavaScript:alert(1)) [b][ref] [c](data:text/html,x) "
+        '[d](https://example.com/"onmouseover="x)\n\n[ref]: javascript:alert(1)\n'
+    )
+    found = to_html(text, TYPES)
+    assert found.count("href=") == 1 and 'href="https://example.com/%22onmouseover=%22x"' in found
