@@ -23,6 +23,10 @@ PREVIEW_SAMPLE = 10.0
 #: drawn, so the first screen update goes first. Opening the Library page starts them at once.
 LIBRARY_PICTURES_WAIT = 60.0
 
+#: How long Apply changes on the Review changes page waits for PaperPi to load the config
+#: file, in seconds, before the page says it is still busy.
+APPLY_WAIT = 3.0
+
 #: Longest one search of a setting helper may take: one web request with its retry
 #: (``docs/decisions/setting-helpers.md``).
 HELPER_SEARCH = 30.0

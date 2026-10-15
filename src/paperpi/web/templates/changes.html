@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "changes" %}
+{% block title %}Review changes · PaperPi{% endblock %}
+{% macro default(change) %}(default{% if change.default is not none %}: <code>{{ change.default }}</code>{% endif %}){% endmacro %}
+{% block main %}
+<h1>Review changes</h1>
+{% if message %}<p class="saved">{{ message }}</p>{% endif %}
+{% if review is none %}
+  {% if not running %}
+  <p class="note">PaperPi's screen is not running (<code>paperpi run</code>), so there is nothing to apply changes to.</p>
+  {% elif not message %}
+  <p class="all-good">✓ No hand edits are waiting: PaperPi uses the config file as it is.</p>
+  {% endif %}
+  <p><a href="/">Back to Home</a></p>
+{% else %}
+<p>The configuration file changed outside the web interface. These changes have not been
+applied yet. Check the settings here, adjust and accept them in this interface.</p>
+<p class="hint">File: <code>{{ path }}</code>{% if changed_at %}, changed
+  {% if changed_at.date() == today %}today{% else %}on {{ changed_at.strftime("%Y-%m-%d") }}{% endif %}
+  at {{ changed_at.strftime("%H:%M") }}{% endif %}.</p>
+
+{% if review.mistakes %}
+<div class="mistake">
+  <p class="problem">The edited file has a mistake, so it can't be applied.</p>
+  <p>Fix it on the Pi and load this page again. PaperPi keeps using the last version that worked.</p>
+  <ul class="mistakes">{% for line in review.mistakes %}<li><code>{{ line }}</code></li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% if review.problems %}
+<div class="note">
+  <p>These plugins have a mistake: PaperPi leaves them out until it is fixed.</p>
+  <ul class="mistakes">{% for line in review.problems %}<li><code>{{ line }}</code></li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% for group in review.groups %}
+<section class="change">
+  <div class="change-head">
+    <h2>{{ group.title }}</h2>
+    {% if group.kind %}<span class="type">{{ group.kind }}</span>{% endif %}
+    {% if group.status == "added" %}<span class="chip rotation">+ New plugin</span>{% endif %}
+    {% if group.status == "removed" %}<span class="chip bad">− Removed</span>{% endif %}
+    {% if group.index is not none and group.plugin_id and not review.mistakes %}
+    <a class="edit" href="/plugins/{{ group.index }}/settings?id={{ group.plugin_id|urlencode }}">Edit</a>
+    {% endif %}
+  </div>
+  {% if group.note %}<p class="hint">{{ group.note }}</p>{% endif %}
+  {% if group.changes %}
+  <ul class="diffs">
+    {% for change in group.changes %}
+    <li><code class="key">{{ change.key }}</code>
+      <span class="diff">
+        {%- if group.status != "added" %}
+        {%- if change.old is none %}<span class="old unset">{{ default(change) }}</span>{% else %}<code class="old">{{ change.old }}</code>{% endif %}
+        <span class="arrow" aria-label="changes to">→</span>
+        {%- endif %}
+        {%- if change.new is none %} <span class="new unset">{{ default(change) }}</span>{% else %} <code class="new">{{ change.new }}</code>{% endif %}
+      </span>
+      {% if change.note %}<span class="hint">{{ change.note }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% else %}
+{% if not review.mistakes %}<p class="hint">Only settings count here: the edits change no setting PaperPi uses.</p>{% endif %}
+{% endfor %}
+
+<form class="decide" method="post" action="/changes/apply">
+  <button type="submit"{% if review.mistakes %} disabled{% endif %}>Apply changes</button>
+</form>
+{% if not review.mistakes %}
+<p class="hint">Saving on any settings page applies these changes too.</p>
+{% set command, service = command %}
+<p class="hint">Or apply them from the command line on the Pi: <code>{{ command }}</code>
+  {%- if not service %} ({{ command.split()[-1] }} is this PaperPi's process ID){% endif %}.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

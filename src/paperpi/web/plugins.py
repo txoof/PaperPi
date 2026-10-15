@@ -113,6 +113,11 @@ class PluginEditor:
         """PaperPi loaded the config file ``text`` (at the start or a reload)."""
         self._applied = text
 
+    @property
+    def applied(self) -> str | None:
+        """The file text PaperPi uses now (``None``: not known)."""
+        return self._applied
+
     def plugin_list(self) -> PluginList:
         """The plugin blocks in the file now. Raises :class:`config_file.EditError` when the
         file can't be read at all."""
