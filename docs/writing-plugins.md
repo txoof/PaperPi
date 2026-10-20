@@ -42,7 +42,11 @@ PLUGIN = Plugin(
     description="The time, and optionally the date, in large text.",
     settings=Settings,
     layouts=LAYOUTS,
-    layout_titles={"time": "Time", "time_date": "Time and date", "small": "Small line at the bottom"},
+    layout_titles={
+        "time": "Time",
+        "time_date": "Time and date",
+        "small": "Small line at the bottom",
+    },
     fetch=fetch,
     draw=draw,
     sample=datetime(2026, 10, 5, 10, 42),

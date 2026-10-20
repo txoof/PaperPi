@@ -1,0 +1,27 @@
+{#- The Add form: on the Add page (add.html) and in the Plugin Library's Add window
+    (add_window.html, opened by library.js). -#}
+{% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
+{% if item.plugin.setup %}<p class="note">Before it works: {{ item.plugin.setup }}
+  <a href="/library/{{ item.type }}/readme">How to set it up</a></p>{% endif %}
+{% if item.required %}
+<div class="note">
+  <p>This plugin is not shown until these settings are filled in, so it is added switched off:</p>
+  <ul>
+  {% for key, help in item.required %}<li><code>{{ key }}</code>: {{ help }}</li>{% endfor %}
+  </ul>
+  <p>Its settings page opens next: fill them in there, then switch the plugin on in the
+  list on the Home page.</p>
+</div>
+{% else %}
+<p class="hint">It is added switched on, at the end of your list on the Home page. Its
+settings page opens next.</p>
+{% endif %}
+<form method="post" action="/library/{{ item.type }}" class="add-form">
+  <label for="add-name">Name on the Home page</label>
+  <input type="text" id="add-name" name="name" value="{{ name }}" maxlength="100"
+    aria-describedby="add-name-hint" autofocus>
+  <p class="hint" id="add-name-hint">You can change it later. Leave it empty and PaperPi
+  makes a code like {{ item.type }}-3f9a1c2e.</p>
+  <p class="buttons"><button type="submit">Add</button>
+    <a href="/library" data-close>Cancel</a></p>
+</form>

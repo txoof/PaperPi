@@ -756,7 +756,9 @@ def create_app(
         if item is None:
             return library_page(request, 404, "No such plugin.")
         values.setdefault("name", editor.suggested_name(item))
-        return page(request, "add.html", status, item=item, **values)
+        # The Library's Add window asks for the form only (library.js).
+        part = request.headers.get("hx-request") == "true" and status == 200
+        return page(request, "add_window.html" if part else "add.html", status, item=item, **values)
 
     @app.get("/library/{plugin_type}/readme", response_class=HTMLResponse)
     def readme_page(request: Request, plugin_type: str):

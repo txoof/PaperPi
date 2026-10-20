@@ -7,23 +7,5 @@
 <h1>Add {{ item.title }}</h1>
 <p>{{ item.description }} <code class="hint">{{ item.type }}</code>
   · <a href="/library/{{ item.type }}/readme">README</a></p>
-{% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
-{% if item.plugin.setup %}<p class="note">Before it works: {{ item.plugin.setup }}
-  <a href="/library/{{ item.type }}/readme">How to set it up</a></p>{% endif %}
-{% if item.required %}
-<div class="note">
-  <p>This plugin is not shown until these settings are filled in, so it is added switched off:</p>
-  <ul>
-  {% for key, help in item.required %}<li><code>{{ key }}</code>: {{ help }}</li>{% endfor %}
-  </ul>
-  <p>Its settings page opens next: fill them in there, then switch the plugin on in the
-  list on the Home page.</p>
-</div>
-{% endif %}
-<form method="post" action="/library/{{ item.type }}">
-  <label>Name (shown on the Home page; leave it empty to show a code PaperPi makes, like {{ item.type }}-3f9a1c2e)
-    <input type="text" name="name" value="{{ name }}" maxlength="100" autofocus></label>
-  <button type="submit">Add</button>
-  <a href="/library">Cancel</a>
-</form>
+{% include "_add.html" %}
 {% endblock %}
