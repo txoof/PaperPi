@@ -114,6 +114,10 @@ PLUGIN = Plugin(
     description='The time in words, such as "It\'s roughly Twenty After Eight".',
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "words_time": "Words with the time below",
+        "words": "Words only",
+    },
     fetch=fetch,
     draw=draw,
     sample=datetime(2026, 10, 5, 20, 21),

@@ -54,6 +54,10 @@ def test_fields_show_the_value_or_else_the_default():
     assert (found["display_time"].value, found["display_time"].default) == ("60", "120")
     assert found["refresh"].value == found["refresh"].default == "1800"  # the suggestion
     assert found["layout"].choices == tuple(plugins.load("met_no").layouts)
+    # The layouts are shown by their titles; the default too.
+    assert found["layout"].labels[:2] == ("Next 12 hours", "Small: right now")
+    assert found["layout"].default == "Next 12 hours"
+    assert found["temperature"].labels == ()
     assert found["temperature"].choices == ("C", "F")
     assert found["email"].max_length == 200
     assert found["storage_mb"].whole

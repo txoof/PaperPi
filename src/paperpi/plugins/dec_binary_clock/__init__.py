@@ -35,6 +35,9 @@ PLUGIN = Plugin(
     description="The time as binary dots: one column of 4 dots for each digit.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "dots_time": "Dots with the time below",
+    },
     fetch=fetch,
     draw=draw,
     sample=datetime(2026, 10, 5, 14, 49),

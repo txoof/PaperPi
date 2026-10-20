@@ -121,7 +121,7 @@ def test_the_home_page_shows_the_screen_and_a_card_per_plugin(client, scheduler)
     scheduler.summary = on_screen()
     page = client.get("/").text
     now = page[page.index('<section class="now"') : page.index("</section>")]
-    assert "<h2>Clock</h2>" in now and "basic_clock" in now
+    assert "<h2>Clock</h2>" in now and '<div class="type">Clock</div>' in now
     assert "<dd>13:50</dd>" in now and "<dd>Words, in about 5 minutes</dd>" in now
     assert 'hx-get="/now" hx-trigger="every 3s"' in now
     assert 'src="/screen/picture?v=' in now and 'width="400" height="300"' in now

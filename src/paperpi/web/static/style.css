@@ -285,6 +285,18 @@ button.switch[aria-checked="true"] i::after { left: 14px; }
 .library .add-row { margin: auto 0 0; padding-top: 0.2rem; display: flex; flex-wrap: wrap;
   gap: 0.3rem 0.6rem; align-items: center; }
 .library .add-row .hint { font-size: 0.85rem; }
+.library .layouts { font-size: 0.85rem; }
+/* The Add form, on the Add page and in the Library's Add window */
+.add-form label { margin: 0.75rem 0 0; font-weight: 500; }
+.add-form .hint { margin: 0.3rem 0 0; }
+.add-form .buttons { display: flex; gap: 0.9rem; align-items: center; margin: 0.9rem 0 0; }
+dialog.window { width: min(34rem, calc(100% - 32px)); max-height: calc(100% - 32px);
+  box-sizing: border-box; padding: 0; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--panel); color: var(--ink); }
+dialog.window .window-body { padding: 1rem 1.1rem; }
+dialog.window::backdrop { background: rgba(0, 0, 0, 0.4); }
+dialog.window h2 { margin: 0 0 0.6rem; font-size: 1.15rem; }
+dialog.window .note p, dialog.window .note ul { margin: 0.25rem 0; }
 .search { display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem; align-items: center; margin: 0 0 0.5rem; }
 .search[hidden] { display: none; }
 .search input { width: 100%; max-width: 22rem; padding: 0.4rem 0.55rem; }

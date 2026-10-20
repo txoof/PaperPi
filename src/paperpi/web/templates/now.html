@@ -16,7 +16,7 @@
     <div class="now-text">
       {% if now.id %}
       <h2>{{ now.name }}</h2>
-      <div class="type">{{ now.type }}{% if now.extra %} · extra turn (Show now){% endif %}</div>
+      <div class="type">{{ now.title or now.type }}{% if now.extra %} · extra turn (Show now){% endif %}</div>
       <dl class="facts">
         {% if now.since %}<dt>On screen since</dt><dd>{{ now.since }}</dd>{% endif %}
         <dt>Next</dt><dd>{{ now.next or "Nothing else to show" }}</dd>

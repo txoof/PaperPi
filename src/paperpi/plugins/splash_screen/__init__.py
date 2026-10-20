@@ -169,6 +169,9 @@ PLUGIN = Plugin(
     "is ready to show.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "splash": "Welcome screen",
+    },
     fetch=fetch,
     draw=draw,
     # A fixed version and made-up addresses, so the sample images never change by

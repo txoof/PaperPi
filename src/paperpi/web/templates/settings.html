@@ -8,7 +8,7 @@
 {% block main %}
 <p class="crumbs"><a href="/">Home</a> › {{ row.name }}</p>
 <h1>{{ row.name }}</h1>
-<p class="type">{{ row.type }}: {{ plugin.description }}</p>
+<p class="type">{{ plugin.shown_title }}: {{ plugin.description }}</p>
 {% if done %}
 <p class="saved">
   {%- if done == "added" %}Added. Fill in its settings here, then Save.
@@ -64,7 +64,7 @@
   <summary>Technical information</summary>
   <dl class="technical">
     <dt>ID</dt><dd><code>{{ row.id }}</code> (fixed; it names the storage folder)</dd>
-    <dt>Type</dt><dd><code>{{ row.type }}</code></dd>
+    <dt>Type</dt><dd>{{ plugin.shown_title }} (<code>{{ row.type }}</code>)</dd>
     <dt>Storage folder</dt><dd><code>plugins/{{ folder }}/</code> in PaperPi's state folder</dd>
     <dt>Config file</dt><dd><code>{{ auth.config_file }}</code>, plugin block {{ row.index + 1 }}</dd>
   </dl>

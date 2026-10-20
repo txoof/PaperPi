@@ -24,7 +24,7 @@ from PIL import Image
 
 from ..scheduler import PluginSummary, Summary
 from .pictures import Shown
-from .plugins import Row
+from .plugins import Row, title_of
 
 #: The built-in plugins that can be on screen, with the names the page shows for them.
 BUILT_IN = {
@@ -113,6 +113,8 @@ class Now:
     """The ID of the plugin on screen; ``None`` before the first picture."""
     name: str = ""
     type: str = ""
+    title: str = ""
+    """The plain name of its plugin type, e.g. ``Weather``."""
     since: str = ""
     next: str = ""
     """The name of the plugin that comes next, and about when."""
@@ -207,6 +209,7 @@ def now_part(summary: Summary | None, rows: list[Row], snapshots: Snapshots, now
         summary.on_screen,
         name,
         plugin_type,
+        title_of(plugin_type) if plugin_type else "",
         since=clock(summary.since) if summary.since else "",
         next=upcoming,
         picture=snapshots.version("", picture) if picture is not None else None,

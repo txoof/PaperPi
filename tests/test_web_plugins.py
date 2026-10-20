@@ -126,6 +126,7 @@ def test_a_plugin_with_missing_settings_cant_be_switched_on(client, cfg, reloads
 def test_removing_asks_first(client, cfg):
     page = client.get("/plugins/0/remove", params={"id": "Clock"})
     assert "Remove Clock?" in page.text and cfg.read_text() == CONFIG
+    assert "This removes the Clock plugin <strong>Clock</strong>" in page.text
     response = client.post("/plugins/0/remove", data={"id": "Clock"})
     assert response.headers["location"] == "/?done=removed"
     assert names(cfg) == ["Weather", "Broken"]
@@ -181,8 +182,21 @@ def test_the_library_page_shows_titles_labels_and_names_added(client):
     assert page.count("Added: ") == 2
     # Every word of the search is looked for in the title, type, description and labels.
     assert 'data-search="weather met_no the weather for the next 12 hours' in page
-    assert 'wind. requires setup requires internet"' in page
+    assert "wind. requires setup requires internet next 12 hours small: right now" in page
+    # A plugin with more than one layout lists their titles, the default first.
+    assert "Layouts: Next 12 hours, Small: right now, Every 3 hours," in page
+    assert page.count('class="hint layouts"') == sum(
+        len(item.plugin.layouts) > 1 for item in web_plugins.library()
+    )
     assert '<div class="search" hidden>' in page  # library.js shows it
+
+
+def test_a_plugin_type_is_shown_by_its_title():
+    assert web_plugins.title_of("met_no") == "Weather"
+    assert web_plugins.title_of("no_such_plugin") == "no_such_plugin"
+    text = CONFIG.replace('type = "basic_clock"\nrefresh', 'type = "no_such_plugin"\nrefresh')
+    rows = web_plugins._plugin_list(text).rows
+    assert [row.title for row in rows] == ["Clock", "Weather", "no_such_plugin"]
 
 
 def test_the_library_works_while_the_config_file_cant_be_read(client, cfg):
@@ -206,6 +220,26 @@ def test_the_add_page_uses_the_title(client):
     form = client.get("/library/met_no").text
     assert "<h1>Add Weather</h1>" in form and '<code class="hint">met_no</code>' in form
     assert 'value="Weather 2"' in form  # "Weather" is in use (as an ID)
+
+
+def test_the_add_window_gets_the_add_form_only(client, cfg):
+    library = client.get("/library").text
+    assert '<dialog id="add-window" class="window"' in library  # library.js fills it
+    assert '<a class="add" href="/library/word_clock">+ Add</a>' in library  # no JS: the page
+    part = client.get("/library/word_clock", headers={"HX-Request": "true"}).text
+    assert part.startswith('<div class="window-body">\n<h2 id="add-title">Add Word clock</h2>')
+    assert "<html" not in part
+    assert '<form method="post" action="/library/word_clock" class="add-form">' in part
+    assert 'value="Word clock"' in part and '<a href="/library" data-close>Cancel</a>' in part
+    assert "It is added switched on, at the end of your list" in part
+    assert cfg.read_text() == CONFIG
+    # A name that can't be used shows the whole Add page, with the problem.
+    sent = client.post("/library/word_clock", data={"name": "x" * 101})
+    assert sent.status_code == 400 and "<h1>Add Word clock</h1>" in sent.text
+    assert "at most 100 characters" in sent.text and cfg.read_text() == CONFIG
+    # An unknown type: the Library says so (library.js then opens that page).
+    gone = client.get("/library/no_such_plugin", headers={"HX-Request": "true"})
+    assert gone.status_code == 404 and "No such plugin." in gone.text
 
 
 def test_adding_a_plugin(client, cfg, reloads):
@@ -232,7 +266,7 @@ def test_names_may_be_empty_or_the_same(client, cfg):
     assert first["id"] != second["id"]
     page = client.get("/").text
     assert f"<strong>{first['id']}</strong>" in page  # without a name: the ID
-    assert f"word_clock · {second['id']}" in page  # the ID tells the two Clocks apart
+    assert f"Word clock · {second['id']}" in page  # the ID tells the two Clocks apart
 
 
 def test_a_new_id_is_never_one_in_use(client, cfg, monkeypatch):
@@ -250,6 +284,7 @@ def test_a_new_id_fits_also_for_a_long_type():
 def test_a_plugin_with_required_settings_is_added_switched_off(client, cfg):
     form = client.get("/library/met_no").text
     assert "real email address" in form and "added switched off" in form
+    assert "added switched on" not in form
     client.post("/library/met_no", data={"name": "Weather Rio"})
     added = blocks(cfg)[-1]
     assert added == {"id": added["id"], "name": "Weather Rio", "type": "met_no", "enabled": False}

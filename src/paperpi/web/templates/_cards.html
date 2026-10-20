@@ -45,7 +45,7 @@
     <div class="title">
       <span class="pos" aria-label="Place {{ card.number }}">{{ card.number }}</span>
       <strong>{{ card.row.name or "(no id)" }}</strong>
-      <span class="type">{{ card.row.type }}{% if card.row.id and card.row.id != card.row.name %} · {{ card.row.id }}{% endif %}</span>
+      <span class="type">{{ card.row.title or card.row.type }}{% if card.row.id and card.row.id != card.row.name %} · {{ card.row.id }}{% endif %}</span>
     </div>
     {{ state(card, running) }}
     <div class="actions">

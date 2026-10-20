@@ -354,6 +354,11 @@ PLUGIN = Plugin(
     description="A random cartoon from The New Yorker's Daily Cartoon, with its caption.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "comic_caption_date": "Cartoon, caption and date",
+        "comic_caption": "Cartoon and caption",
+        "comic_only": "Cartoon only",
+    },
     fetch=fetch,
     draw=draw,
     # A made-up cartoon, caption and cartoonist, made for PaperPi: not a New Yorker cartoon.

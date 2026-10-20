@@ -394,6 +394,9 @@ class Plugin:
     setup: str = ""
     """One sentence about what must be set up outside PaperPi first, e.g. another program
     (empty: nothing)."""
+    layout_titles: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    """A plain name for each layout in the web interface, e.g. ``{"time_date": "Time and
+    date"}``. A layout without one is shown by its name."""
 
     @property
     def shown_title(self) -> str:
@@ -428,7 +431,7 @@ class Plugin:
                 f"refresh must be between {limits.SHORTEST_REFRESH:g} "
                 f"and {limits.LONGEST_SETTING:g} seconds"
             )
-        if len(self.title) > TITLE_LENGTH or self.title != " ".join(self.title.split()):
+        if not _good_title(self.title, empty=True):
             problems.append(
                 f"title must be one line of at most {TITLE_LENGTH} characters, "
                 "with single spaces between words and none at the ends"
@@ -438,6 +441,7 @@ class Plugin:
                 f"setup must be one line of at most {SETUP_LENGTH} characters, "
                 "with single spaces between words and none at the ends"
             )
+        problems += self._layout_title_problems()
         if self.network not in (None, *NETWORKS):
             problems.append(f"network must be None or one of: {', '.join(NETWORKS)}")
         if self.level not in LEVELS:
@@ -448,6 +452,20 @@ class Plugin:
             problems.append(f"storage_days must be between 0 and {limits.STORAGE_DAYS_MAX}")
         if problems:
             raise PluginDefinitionError(f"plugin {self.type!r}: " + "; ".join(problems))
+
+    def _layout_title_problems(self) -> list[str]:
+        if not isinstance(self.layout_titles, Mapping):
+            return ["layout_titles must be a dictionary"]
+        problems = []
+        if unknown := [k for k in self.layout_titles if k not in self.layouts]:
+            problems.append(f"layout_titles names layouts it doesn't have: {unknown}")
+        for name, title in self.layout_titles.items():
+            if not _good_title(title):
+                problems.append(
+                    f"layout title of {name!r} must be one line of at most {TITLE_LENGTH} "
+                    "characters, with single spaces between words and none at the ends"
+                )
+        return problems
 
     def _helper_problems(self) -> list[str]:
         problems = []
@@ -479,6 +497,10 @@ class Plugin:
     def default_layout(self) -> str:
         return next(iter(self.layouts))
 
+    def layout_title(self, name: str) -> str:
+        """The plain name of the layout ``name``, or ``name`` when it has none."""
+        return self.layout_titles.get(name) or name
+
     @property
     def required(self) -> tuple[str, ...]:
         """The settings the user has to fill in (see :func:`setting`)."""
@@ -498,6 +520,17 @@ class Plugin:
         if colors:
             description = _recolor(description, *colors)
         return Layout(description)
+
+
+def _good_title(title: object, empty: bool = False) -> bool:
+    """``title`` is one line of at most :data:`TITLE_LENGTH` characters, with single spaces
+    between words and none at the ends (and not empty, unless ``empty``)."""
+    return (
+        isinstance(title, str)
+        and (empty or bool(title))
+        and len(title) <= TITLE_LENGTH
+        and title == " ".join(title.split())
+    )
 
 
 def _recolor(node: Any, fill: str, background: str) -> Any:

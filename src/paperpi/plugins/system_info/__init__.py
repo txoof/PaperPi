@@ -149,6 +149,11 @@ PLUGIN = Plugin(
     description="Hostname, network address, disk, processor and memory use of this Pi.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "full": "Everything",
+        "portrait": "Upright: bars",
+        "small": "Small: address and heat",
+    },
     fetch=fetch,
     draw=draw,
     sample=Info(

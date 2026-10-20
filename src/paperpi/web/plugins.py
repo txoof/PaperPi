@@ -54,6 +54,8 @@ class Row:
     """The name it is shown with: its ``name``, or its ID without one."""
     type: str
     enabled: bool
+    title: str = ""
+    """The plain name of its plugin type, e.g. ``Weather`` (see :func:`title_of`)."""
     missing: tuple[str, ...] = ()
     """Required settings that are not set yet; the plugin can't be switched on until they are."""
     errors: tuple[str, ...] = ()
@@ -104,6 +106,13 @@ class LibraryItem:
         elif self.plugin.network == "home":
             found.append("Uses home network")
         return found
+
+    @property
+    def layouts(self) -> list[str]:
+        """The titles of its layouts, the default first."""
+        if self.plugin is None:
+            return []
+        return [self.plugin.layout_title(name) for name in self.plugin.layouts]
 
     @property
     def required(self) -> list[tuple[str, str]]:
@@ -369,6 +378,7 @@ def _plugin_list(text: str, source: str = "config") -> PluginList:
     if len(found) != len(raw):
         file_problems.append(str(config_file.UnknownForm()))
     rows = []
+    titles: dict[str, str] = {}
     for index, block in enumerate(raw):
         block = block if isinstance(block, dict) else {}
         plugin_type, enabled = block.get("type"), block.get("enabled", True)
@@ -382,13 +392,17 @@ def _plugin_list(text: str, source: str = "config") -> PluginList:
                 if p.level == "error" and p.line and place.start < p.line <= place.end
             )
         plugin_id, name = config_file.id_of(block), block.get("name")
+        plugin_type = plugin_type if isinstance(plugin_type, str) else ""
+        if plugin_type not in titles:
+            titles[plugin_type] = title_of(plugin_type)
         rows.append(
             Row(
                 index=index,
                 id=plugin_id,
                 name=label(name if isinstance(name, str) else "", plugin_id),
-                type=plugin_type if isinstance(plugin_type, str) else "",
+                type=plugin_type,
                 enabled=enabled if isinstance(enabled, bool) else True,
+                title=titles[plugin_type],
                 missing=good.missing if good is not None else (),
                 errors=() if good is not None or not known else (errors or ("can't be used",)),
                 known=known,
@@ -462,6 +476,15 @@ def added_names(rows: Sequence[Row]) -> dict[str, list[str]]:
     for row in rows:
         found.setdefault(row.type, []).append(row.name or "(no id)")
     return found
+
+
+def title_of(plugin_type: str) -> str:
+    """The plain name of ``plugin_type``, e.g. ``Weather``; the type itself for a plugin
+    without a title, or one that is unknown or broken."""
+    try:
+        return plugins.load(plugin_type).shown_title
+    except Exception:  # noqa: BLE001 - the type is shown; its block says what is wrong
+        return plugin_type
 
 
 def library_item(plugin_type: str) -> LibraryItem | None:

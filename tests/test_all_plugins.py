@@ -16,6 +16,7 @@ FOLDER = Path(plugins.__file__).parent
 def test_plugin_loads_and_describes_itself(plugin_type):
     plugin = plugins.load(plugin_type)
     assert plugin.description and plugin.title
+    assert set(plugin.layout_titles) == set(plugin.layouts), "every layout needs a title"
     assert (FOLDER / plugin_type / "README.md").is_file()
     for name, field in plugin.settings.model_fields.items():
         assert field.description, f"setting {name} needs a help text (description)"
