@@ -131,6 +131,7 @@ PLUGIN = Plugin(
     description="Misbehaves on request (crashes, hangs, changing states), to test PaperPi.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={"text_state": "Text and state"},
     fetch=fetch,
     draw=draw,
     sample="ready",

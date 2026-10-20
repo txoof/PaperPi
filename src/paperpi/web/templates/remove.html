@@ -5,7 +5,7 @@
 {% block main %}
 <p class="crumbs"><a href="/">Home</a> › {{ row.name or "(no id)" }}</p>
 <h1>Remove {{ row.name or "(no id)" }}?</h1>
-<p>This removes the <code>{{ row.type }}</code> plugin <strong>{{ row.name or "(no id)" }}</strong>
+<p>This removes the {{ row.title or row.type }} plugin <strong>{{ row.name or "(no id)" }}</strong>
 and all its settings from the config file. To only stop showing it, switch it off instead.</p>
 <form method="post" action="/plugins/{{ row.index }}/remove">
   <input type="hidden" name="id" value="{{ row.id }}">

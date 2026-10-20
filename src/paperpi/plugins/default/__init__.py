@@ -60,6 +60,7 @@ PLUGIN = Plugin(
     description="Says how many plugins are not working, when nothing else can be shown.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={"message": "Message"},
     fetch=fetch,
     draw=draw,
     sample=PluginsStatus(3, 4),

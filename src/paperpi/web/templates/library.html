@@ -23,11 +23,12 @@ screens show fewer shades than the example.</p>
 {% endif %}
 <ul class="library" id="library">
 {% for item in items %}
-  <li data-search="{{ ([item.title, item.type, item.description] + item.labels)|join(' ')|lower }}">
+  <li data-search="{{ ([item.title, item.type, item.description] + item.labels + item.layouts)|join(' ')|lower }}">
     {% if item.plugin %}
     {% with picture = shown[item.type] %}{% include "picture.html" %}{% endwith %}
     <h2><a href="/library/{{ item.type }}">{{ item.title }}</a></h2>
     <p>{{ item.description }}</p>
+    {% if item.layouts|length > 1 %}<p class="hint layouts">Layouts: {{ item.layouts|join(", ") }}</p>{% endif %}
     <p class="labels"><code>{{ item.type }}</code>
       {%- for text in item.labels %} <span class="chip{% if text == 'Requires setup' %} warn{% endif %}">{{ text }}</span>{% endfor %}</p>
     {% if item.plugin.setup %}<p class="hint setup">{{ item.plugin.setup }}

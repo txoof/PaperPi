@@ -42,6 +42,7 @@ PLUGIN = Plugin(
     description="The time, and optionally the date, in large text.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={"time": "Time", "time_date": "Time and date", "small": "Small line at the bottom"},
     fetch=fetch,
     draw=draw,
     sample=datetime(2026, 10, 5, 10, 42),
@@ -50,7 +51,7 @@ PLUGIN = Plugin(
 )
 ```
 
-`title` is the plain name the Plugin Library shows (at most 40 characters; the type is shown small below it), and the start of the name a new plugin gets ("Clock", "Clock 2"). A plugin that connects to something says so with `network="internet"` (a website or online service) or `network="home"` (a device on the home network, such as a music server); the Library shows "Requires internet" or "Uses home network". A plugin with required settings gets "Requires setup" by itself. A plugin that needs something set up outside PaperPi first, such as another program, says so in one sentence with `setup="..."` (at most 200 characters); it then gets "Requires setup" too, and the sentence is shown on its card and its Add page, with a link to its README: explain the setup there. In the web interface the README's first heading, its pictures and its "Sample images" section are left out (the pictures are not installed), links to other plugins' READMEs open their page there, links to websites stay, and other links become plain text.
+`title` is the plain name the Plugin Library shows (at most 40 characters; the type is shown small below it), and the start of the name a new plugin gets ("Clock", "Clock 2"); the Home page and the settings page show it too. `layout_titles` gives each layout a plain name in the same way (at most 40 characters each), shown on the Library card and in the settings page's layout list, with the layout's name after it ("Time and date (time_date)"); every plugin that comes with PaperPi has one for each layout (a test checks), and a layout without one is shown by its name. A plugin that connects to something says so with `network="internet"` (a website or online service) or `network="home"` (a device on the home network, such as a music server); the Library shows "Requires internet" or "Uses home network". A plugin with required settings gets "Requires setup" by itself. A plugin that needs something set up outside PaperPi first, such as another program, says so in one sentence with `setup="..."` (at most 200 characters); it then gets "Requires setup" too, and the sentence is shown on its card and its Add page, with a link to its README: explain the setup there. In the web interface the README's first heading, its pictures and its "Sample images" section are left out (the pictures are not installed), links to other plugins' READMEs open their page there, links to websites stay, and other links become plain text.
 
 ## One update, step by step
 

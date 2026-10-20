@@ -20,7 +20,7 @@
       {%- if f.value %}(not one of the choices: {{ f.value }}){% else %}(not set){% endif %}</option>
     {% endif %}
     {% for choice in f.choices %}
-    <option value="{{ choice }}"{% if choice == f.value %} selected{% endif %}>{{ choice }}</option>
+    <option value="{{ choice }}"{% if choice == f.value %} selected{% endif %}>{% if f.labels %}{{ f.labels[loop.index0] }} ({{ choice }}){% else %}{{ choice }}{% endif %}</option>
     {% endfor %}
   </select>
   {% elif f.kind == "choices" %}

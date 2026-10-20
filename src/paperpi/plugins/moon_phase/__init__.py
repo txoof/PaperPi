@@ -226,6 +226,10 @@ PLUGIN = Plugin(
     description="Today's moon: its phase, and the times it rises and sets, from met.no.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "moon_data": "Moon with rise and set times",
+        "moon_only": "Moon only",
+    },
     fetch=fetch,
     draw=draw,
     sample=SAMPLE,

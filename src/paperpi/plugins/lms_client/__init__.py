@@ -380,6 +380,13 @@ PLUGIN = Plugin(
     "Shown only while music plays (interrupt); the other plugins are shown when it stops.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "two_column_three_row": "Cover, artist, album and title",
+        "album_art_title": "Cover and title",
+        "cover_art_only": "Cover only",
+        "two_rows_text_only": "Title and artist",
+        "three_rows_text_only": "Title, artist and album",
+    },
     fetch=fetch,
     draw=draw,
     sample=Song("Night Train to the Coast", "The Paper Orchestra", "Late Signals", SAMPLE),

@@ -61,6 +61,9 @@ class FormField:
     """``choice`` and ``choices``: every value it may have, as text."""
     values: tuple[Any, ...] = ()
     """The values of ``choices`` themselves (``12`` for ``"12"``)."""
+    labels: tuple[str, ...] = ()
+    """``choice``: the text shown for each of ``choices`` (empty: ``choices`` themselves),
+    e.g. a layout's title."""
     default: str = ""
     """The default, as text (``""``: none)."""
     required: bool = False
@@ -112,8 +115,10 @@ def fields(
     found = []
     for key, info in _infos(plugin).items():
         kind, allowed = _kind(info.annotation)
+        labels: tuple[str, ...] = ()
         if key == "layout":
             kind, allowed = "choice", tuple(plugin.layouts)
+            labels = tuple(plugin.layout_title(name) for name in allowed)
         value = block.get(key, shown[key])
         texts = form_texts(value)
         if kind == "file":
@@ -137,7 +142,12 @@ def fields(
                 selected=tuple(texts) if kind == "choices" else (),
                 choices=tuple(_text(c) for c in allowed),
                 values=tuple(allowed),
-                default=_default_text(kind, shown[key], info),
+                labels=labels,
+                default=(
+                    plugin.layout_title(shown[key])
+                    if labels
+                    else _default_text(kind, shown[key], info)
+                ),
                 required=is_required(info),
                 is_set=kind == "secret" and bool(_text(value)),
                 changed=example.plain(value) != example.plain(shown[key]),

@@ -84,6 +84,11 @@ class RequiredWithValue(PluginSettings):
         ({"title": "Big  clock"}, "single spaces between words"),
         ({"setup": "x" * 201}, "setup must be one line of at most 200 characters"),
         ({"network": "wifi"}, "network must be None or one of: internet, home"),
+        ({"layout_titles": ["One"]}, "layout_titles must be a dictionary"),
+        ({"layout_titles": {"two": "Two"}}, "names layouts it doesn't have: \\['two'\\]"),
+        ({"layout_titles": {"one": ""}}, "layout title of 'one' must be one line"),
+        ({"layout_titles": {"one": "x" * 41}}, "at most 40 characters"),
+        ({"layout_titles": {"one": "Big  text"}}, "layout title of 'one' must be one line"),
     ],
 )
 def test_plugin_rules(changes, message):
@@ -256,6 +261,12 @@ def test_missing_lists_the_required_settings_that_are_not_set():
 def test_met_no_plugins_need_a_place_and_an_email_address(plugin_type):
     # met.no's terms of service ask for a real way to contact the user.
     assert plugins.load(plugin_type).required == ("lat", "lon", "email")
+
+
+def test_without_a_title_a_layout_is_shown_by_its_name():
+    layouts = {"one": {"column": []}, "two": {"column": []}}
+    plugin = make(layouts=layouts, layout_titles={"two": "Second"})
+    assert [plugin.layout_title(n) for n in plugin.layouts] == ["one", "Second"]
 
 
 def test_without_a_title_the_type_is_shown():

@@ -258,6 +258,11 @@ PLUGIN = Plugin(
     description="A random comic from xkcd.com, with its title and hover text.",
     settings=Settings,
     layouts=LAYOUTS,
+    layout_titles={
+        "comic_title_alttext": "Comic, title and hover text",
+        "comic_title": "Comic and title",
+        "comic_only": "Comic only",
+    },
     fetch=fetch,
     draw=draw,
     # "Think Logically" (xkcd 1112) by Randall Munroe, CC BY-NC 2.5: see sample/LICENSE.

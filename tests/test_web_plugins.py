@@ -126,6 +126,7 @@ def test_a_plugin_with_missing_settings_cant_be_switched_on(client, cfg, reloads
 def test_removing_asks_first(client, cfg):
     page = client.get("/plugins/0/remove", params={"id": "Clock"})
     assert "Remove Clock?" in page.text and cfg.read_text() == CONFIG
+    assert "This removes the Clock plugin <strong>Clock</strong>" in page.text
     response = client.post("/plugins/0/remove", data={"id": "Clock"})
     assert response.headers["location"] == "/?done=removed"
     assert names(cfg) == ["Weather", "Broken"]
@@ -181,8 +182,21 @@ def test_the_library_page_shows_titles_labels_and_names_added(client):
     assert page.count("Added: ") == 2
     # Every word of the search is looked for in the title, type, description and labels.
     assert 'data-search="weather met_no the weather for the next 12 hours' in page
-    assert 'wind. requires setup requires internet"' in page
+    assert "wind. requires setup requires internet next 12 hours small: right now" in page
+    # A plugin with more than one layout lists their titles, the default first.
+    assert "Layouts: Next 12 hours, Small: right now, Every 3 hours," in page
+    assert page.count('class="hint layouts"') == sum(
+        len(item.plugin.layouts) > 1 for item in web_plugins.library()
+    )
     assert '<div class="search" hidden>' in page  # library.js shows it
+
+
+def test_a_plugin_type_is_shown_by_its_title():
+    assert web_plugins.title_of("met_no") == "Weather"
+    assert web_plugins.title_of("no_such_plugin") == "no_such_plugin"
+    text = CONFIG.replace('type = "basic_clock"\nrefresh', 'type = "no_such_plugin"\nrefresh')
+    rows = web_plugins._plugin_list(text).rows
+    assert [row.title for row in rows] == ["Clock", "Weather", "no_such_plugin"]
 
 
 def test_the_library_works_while_the_config_file_cant_be_read(client, cfg):
@@ -232,7 +246,7 @@ def test_names_may_be_empty_or_the_same(client, cfg):
     assert first["id"] != second["id"]
     page = client.get("/").text
     assert f"<strong>{first['id']}</strong>" in page  # without a name: the ID
-    assert f"word_clock · {second['id']}" in page  # the ID tells the two Clocks apart
+    assert f"Word clock · {second['id']}" in page  # the ID tells the two Clocks apart
 
 
 def test_a_new_id_is_never_one_in_use(client, cfg, monkeypatch):
