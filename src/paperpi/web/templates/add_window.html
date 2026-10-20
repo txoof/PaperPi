@@ -1,3 +1,7 @@
 {#- The Plugin Library's Add window (library.js puts it in a dialog). -#}
+{#- The inner box takes every click inside the window, so only a click on the dark area
+    around it reaches the dialog itself (and closes it). -#}
+<div class="window-body">
 <h2 id="add-title">Add {{ item.title }}</h2>
 {% include "_add.html" %}
+</div>

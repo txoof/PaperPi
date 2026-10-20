@@ -227,7 +227,8 @@ def test_the_add_window_gets_the_add_form_only(client, cfg):
     assert '<dialog id="add-window" class="window"' in library  # library.js fills it
     assert '<a class="add" href="/library/word_clock">+ Add</a>' in library  # no JS: the page
     part = client.get("/library/word_clock", headers={"HX-Request": "true"}).text
-    assert part.startswith('<h2 id="add-title">Add Word clock</h2>') and "<html" not in part
+    assert part.startswith('<div class="window-body">\n<h2 id="add-title">Add Word clock</h2>')
+    assert "<html" not in part
     assert '<form method="post" action="/library/word_clock" class="add-form">' in part
     assert 'value="Word clock"' in part and '<a href="/library" data-close>Cancel</a>' in part
     assert "It is added switched on, at the end of your list" in part

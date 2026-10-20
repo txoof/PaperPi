@@ -36,12 +36,15 @@
     var dialog = document.getElementById("add-window");
     if (!dialog || typeof dialog.showModal !== "function") return;
     var opener = null;
+    var asking = false; // a form is being fetched
 
     document.addEventListener("click", function (event) {
       var link = event.target.closest("a.add");
       if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
       event.preventDefault();
+      if (asking || dialog.open) return; // a double click opens one window
       opener = link;
+      asking = true;
       fetch(link.href, { headers: { "HX-Request": "true" }, credentials: "same-origin" })
         .then(function (response) {
           // Logged out meanwhile (the log-in page), or a problem: the Add page says why.
@@ -54,7 +57,8 @@
           var name = dialog.querySelector("#add-name");
           if (name) name.select();
         })
-        .catch(function () { window.location.href = link.href; });
+        .catch(function () { window.location.href = link.href; })
+        .finally(function () { asking = false; });
     });
 
     dialog.addEventListener("click", function (event) {

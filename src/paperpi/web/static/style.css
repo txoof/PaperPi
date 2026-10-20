@@ -291,8 +291,9 @@ button.switch[aria-checked="true"] i::after { left: 14px; }
 .add-form .hint { margin: 0.3rem 0 0; }
 .add-form .buttons { display: flex; gap: 0.9rem; align-items: center; margin: 0.9rem 0 0; }
 dialog.window { width: min(34rem, calc(100% - 32px)); max-height: calc(100% - 32px);
-  box-sizing: border-box; padding: 1rem 1.1rem; border: 1px solid var(--line);
+  box-sizing: border-box; padding: 0; border: 1px solid var(--line);
   border-radius: 10px; background: var(--panel); color: var(--ink); }
+dialog.window .window-body { padding: 1rem 1.1rem; }
 dialog.window::backdrop { background: rgba(0, 0, 0, 0.4); }
 dialog.window h2 { margin: 0 0 0.6rem; font-size: 1.15rem; }
 dialog.window .note p, dialog.window .note ul { margin: 0.25rem 0; }
