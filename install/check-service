@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Check the installed paperpi service on the Pi itself (issue #209, docs/install-systemd.md):
+# 1. "kill -9" of the main process: systemd starts PaperPi again and no old process is left.
+# 2. "systemctl stop" ends within TimeoutStopSec (the screen is cleared first).
+# Run it with sudo while the service runs. It starts the service again at the end.
+
+set -euo pipefail
+
+[[ $EUID -eq 0 ]] || { echo "run it with sudo" >&2; exit 1; }
+systemctl is-active --quiet paperpi || { echo "the paperpi service is not running" >&2; exit 1; }
+
+processes() {
+    local group
+    group=$(systemctl show -p ControlGroup --value paperpi)
+    cat "/sys/fs/cgroup$group/cgroup.procs" 2>/dev/null || true
+}
+
+# Waits until the service runs again with a main process other than $1.
+wait_restarted() {
+    for _ in $(seq 180); do
+        if systemctl is-active --quiet paperpi \
+            && [[ $(systemctl show -p MainPID --value paperpi) != "$1" ]]; then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
+failed=0
+main=$(systemctl show -p MainPID --value paperpi)
+old=$(processes)
+echo "1. kill -9 of the main process $main; the service has $(wc -w <<<"$old") processes"
+kill -9 "$main"
+wait_restarted "$main" || { echo "   FAIL: not running again after 3 minutes" >&2; failed=1; }
+new_main=$(systemctl show -p MainPID --value paperpi)
+left=()
+for pid in $old; do
+    if [[ -d /proc/$pid ]]; then
+        left+=("$pid $(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null)")
+    fi
+done
+if [[ ${#left[@]} -gt 0 ]]; then
+    printf '   FAIL: old process still running: %s\n' "${left[@]}" >&2
+    failed=1
+else
+    echo "   ok: started again (main process $new_main), no old process left"
+fi
+
+limit=$(systemctl show -p TimeoutStopUSec --value paperpi)
+echo "2. systemctl stop (time limit $limit)"
+start=$(date +%s)
+systemctl stop paperpi
+took=$(($(date +%s) - start))
+result=$(systemctl show -p Result --value paperpi)
+if [[ $result != success ]]; then
+    echo "   FAIL: stopped after $took s with result $result" >&2
+    failed=1
+else
+    echo "   ok: stopped in $took s"
+fi
+[[ -z $(processes) ]] || { echo "   FAIL: processes left after the stop" >&2; failed=1; }
+
+systemctl start paperpi
+echo "Service started again."
+exit $failed

@@ -9,7 +9,7 @@ import pytest
 from pydantic import BaseModel, Field, SecretStr
 
 from paperpi import config, plugins
-from paperpi.example import example_config, plugin_block
+from paperpi.example import example_config, plugin_block, setup_config
 from paperpi.plugin import PluginEntry, PluginSettings
 
 EXAMPLE_FILE = Path(__file__).parent.parent / "paperpi.example.toml"
@@ -37,6 +37,20 @@ def test_example_file_works_as_it_is():
         ("weather_rio", "Weather Rio", "met_no"),
     ]
     assert loaded.plugin("weather_rio").settings.place == "Rio"
+
+
+def test_setup_config_shows_the_clock_and_the_setup_screen():
+    loaded = config.parse(setup_config({"type": "it8951", "model": "9.7", "vcom": -1.90}))
+    assert [p for p in loaded.problems if p.level != "hint"] == []
+    assert (loaded.display.type, loaded.display.model, loaded.display.vcom) == (
+        "it8951",
+        "9.7",
+        -1.9,
+    )
+    assert [(p.entry.id, p.plugin.type, p.layout, p.shown) for p in loaded.plugins] == [
+        ("clock", "basic_clock", "time", True),
+        ("setup", "splash_screen", "setup", True),
+    ]
 
 
 def uncomment(text):

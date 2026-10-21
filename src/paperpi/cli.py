@@ -161,10 +161,20 @@ def _parser() -> argparse.ArgumentParser:
         help="print an example config file",
         description=(
             "Print an example config file that works as it is: a clock and the weather in two "
-            "places, with every other setting as a comment with its default and help text."
+            "places, with every other setting as a comment with its default and help text. "
+            "With --setup: the first config of a new install."
         ),
     )
     sample.add_argument("-o", "--output", type=Path, help="file to write instead of printing")
+    sample.add_argument(
+        "--setup",
+        action="store_true",
+        help="the first config of a new install instead: a clock and a screen that asks to set "
+        "PaperPi up in the web interface",
+    )
+    sample.add_argument("--display", default="virtual", help="[display] type (default: virtual)")
+    sample.add_argument("--model", help='[display] model, e.g. "9.7"')
+    sample.add_argument("--vcom", type=float, help="[display] vcom, e.g. -1.90 (it8951)")
     sample.add_argument(
         "--force", action="store_true", help="with -o: replace the file if it is already there"
     )
@@ -449,7 +459,13 @@ def _on_column(row: config.PluginRow) -> str:
 
 
 def _example_config(args: argparse.Namespace) -> int:
-    text = example.example_config()
+    display = {"type": args.display, "model": args.model, "vcom": args.vcom}
+    make = example.setup_config if args.setup else example.example_config
+    try:
+        text = make(display)
+        config.parse(text)  # e.g. an it8951 screen without its vcom
+    except (ValidationError, config.ConfigError) as error:
+        raise UsageError(f"the [display] settings can't be used:\n{error}") from None
     if args.output is None:
         print(text, end="")
         return 0

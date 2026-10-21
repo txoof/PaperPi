@@ -6,6 +6,9 @@
 - :func:`example_config` writes ``paperpi.example.toml``: a short config that works as it
   is. ``paperpi example-config`` prints it; a test checks that the file in the repository
   is the same.
+- :func:`setup_config` writes the first config of a new install: a clock and the set-up
+  screen, which asks to set PaperPi up in the web interface (``paperpi example-config
+  --setup``; the installer uses it).
 """
 
 from __future__ import annotations
@@ -49,6 +52,22 @@ EXAMPLE_PLUGINS = (
         {"name": "Weather Rio", "lat": -22.91, "lon": -43.17, "place": "Rio"},
     ),
 )
+
+#: The blocks of the first config after installing: the clock, and the set-up screen with
+#: the web address, until the user chooses their own plugins in the web interface.
+SETUP_PLUGINS = (
+    ("clock", "basic_clock", {"name": "Clock"}),
+    ("setup", "splash_screen", {"name": "Set up PaperPi", "layout": "setup"}),
+)
+
+_SETUP_HEADER = """\
+# PaperPi config, made by "paperpi example-config --setup" when PaperPi was installed. It
+# shows a clock and a screen that asks to set PaperPi up: open the web interface (the address
+# is on the screen), set a password and choose which plugins to display.
+#
+# The file only needs the settings that differ from the default. Every other setting is
+# shown as a comment with its default: remove the # in front of it to change it.
+"""
 
 _HEADER = """\
 # PaperPi example config, made by "paperpi example-config". Save it as your config file
@@ -172,15 +191,26 @@ def web_part() -> str:
     return "\n".join(lines) + "\n"
 
 
-def example_config() -> str:
-    """The text of ``paperpi.example.toml``."""
+def example_config(display: Mapping[str, Any] | None = None) -> str:
+    """The text of ``paperpi.example.toml``; ``display``: the ``[display]`` settings to set
+    (default: the virtual screen)."""
+    return _config(_HEADER, display, EXAMPLE_PLUGINS)
+
+
+def setup_config(display: Mapping[str, Any] | None = None) -> str:
+    """The first config of a new install: :data:`SETUP_PLUGINS`. ``display`` as in
+    :func:`example_config`."""
+    return _config(_SETUP_HEADER, display, SETUP_PLUGINS)
+
+
+def _config(header: str, display: Mapping[str, Any] | None, blocks: Iterable[tuple]) -> str:
     parts = [
-        _HEADER,
+        header,
         f"config_version = {CONFIG_VERSION}\n",
-        display_part({"type": "virtual"}),
+        display_part(display or {"type": "virtual"}),
         web_part(),
     ]
-    for index, (plugin_id, plugin_type, values) in enumerate(EXAMPLE_PLUGINS):
+    for index, (plugin_id, plugin_type, values) in enumerate(blocks):
         plugin = plugins.load(plugin_type)
         parts.append(plugin_block(plugin, plugin_id, values, shared=index == 0))
     return "\n".join(parts)
