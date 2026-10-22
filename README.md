@@ -17,6 +17,10 @@ This branch (`main`) holds PaperPi **version 2**, which is being written from sc
 
 Progress is tracked in [milestones](https://github.com/txoof/PaperPi/milestones).
 
+## Install on a Raspberry Pi
+
+For now, PaperPi installs as a systemd service (it starts with the Pi and is started again after a crash): [docs/install-systemd.md](docs/install-systemd.md). The one-command Docker install follows in milestone M6.
+
 ## Development
 
 PaperPi needs Python 3.13, the version in Raspberry Pi OS "trixie".
@@ -93,7 +97,7 @@ uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/ --heal
 ```
 
 - It runs until Ctrl+C, or until it gets the stop signal (`kill <process id>`).
-- After changing the config file, send it the reload signal SIGHUP (a standard message to a running program, here meaning "read your settings again"): `kill -HUP <process id>`. The process id is printed at the start. Use exactly that number: `pkill -f` would also reach PaperPi's helper processes and stop them. Once PaperPi is installed as a service (M6), `systemctl reload paperpi` does the same. Changes are applied without a restart; a broken file is not applied, and the old settings keep running.
+- After changing the config file, send it the reload signal SIGHUP (a standard message to a running program, here meaning "read your settings again"): `kill -HUP <process id>`. The process id is printed at the start. Use exactly that number: `pkill -f` would also reach PaperPi's helper processes and stop them. Once PaperPi is installed as a service ([docs/install-systemd.md](docs/install-systemd.md)), `sudo systemctl reload paperpi` does the same. Changes are applied without a restart; a broken file is not applied, and the old settings keep running.
 - While it runs, it says "still running" every 30 seconds: to systemd, when it runs as a service, and in the file `/run/paperpi/health`. Only root or the service can make `/run/paperpi`, so the example above uses `--health-file` to put the file in your own folder in `/run/user/`, which is also kept in memory (a file that can't be written is only a warning). `paperpi health` (with the same `--health-file`) prints the last report and ends with an error when there is no report or the last one is more than 2 minutes old. Once an hour the same values (time since the last screen write, whether screen writes work, memory use, open files, free disk) also go to the log, starting with a `health:` line at the start. If PaperPi gets stuck, systemd (or Docker, from M6) uses this to restart it: [docs/decisions/errors-and-time-limits.md](docs/decisions/errors-and-time-limits.md).
 - **Logs:** warnings and errors go to the terminal (with `-v`, every line), or the system log when PaperPi runs as a service. The web interface's **Warnings** page lists what needs attention now (a paused plugin, missing settings, a config file mistake, a screen that does not answer, each with a button that helps) and the last 100 warnings and errors; its menu entry shows how many things need attention. Its **Full log** tab has more: every line of level INFO and up since the start (the last 5,000; DEBUG lines too with `-v`), after the lines kept in the file from before the start, with a level filter, search, new lines as they come and **Download log**. Warnings, errors, starts and stops, crashes and the hourly health line are also kept in `paperpi.log` in the state folder (at most about 2 MB with the older `paperpi.log.1`), so they are still there after a restart of the Pi.
 - `--state-dir` holds the plugins' own folders, the log file, the last good copy of the config, the Plugin Library's example pictures (`library-pictures/`, a few hundred KB) and the time PaperPi last exited because of a stuck screen (default `/var/lib/paperpi`). The PNG files go to `screen/` in it, unless `--out` names another folder.

@@ -22,7 +22,7 @@ from pydantic import Field
 
 from ... import __version__
 from ...plugin import Context, Plugin, PluginSettings, ready
-from .layouts import ADDRESS_BLOCKS, LAYOUTS
+from .layouts import ADDRESS_BLOCKS, LAYOUTS, SETUP_SCAN, SETUP_TITLE, SETUP_TODO
 
 NAME = "PaperPi"
 URL = "https://github.com/txoof/PaperPi"
@@ -147,19 +147,30 @@ def qr_code(address: str, width: int, height: int) -> Image.Image:
 def draw(about: About, context: Context) -> dict:
     layout = PLUGIN.layout(context.layout, context.settings)
     prepared = layout.prepare(context.width, context.height, context.mode)
-    values = {"name": about.name, "version": about.version}
     address = web_address(about, context.settings.port)
+    values = {
+        "name": about.name,
+        "version": about.version,
+        "title": SETUP_TITLE,
+        # Without a network there is no code to scan and no address to open yet.
+        "scan": SETUP_SCAN if address else "",
+        "todo": SETUP_TODO,
+    }
     texts = {"github": about.url, "ip": address or NO_NETWORK}
+    blocks = prepared.layout.blocks
     width, height = prepared.content_size("qr")
     if address and width > 0 and height > 0:
         values["qr"] = qr_code(address, width, height)
     for name in ADDRESS_BLOCKS:
+        if name not in blocks:
+            continue
         value = texts.get(name, "")
         width, height = prepared.content_size(name)
         if value and width > 0 and height > 0:
             value = fit_address(prepared, name, value)
         values[name] = value
-    return values
+    # Each layout has only some of these blocks.
+    return {name: value for name, value in values.items() if name in blocks}
 
 
 PLUGIN = Plugin(
@@ -171,6 +182,7 @@ PLUGIN = Plugin(
     layouts=LAYOUTS,
     layout_titles={
         "splash": "Welcome screen",
+        "setup": "Set-up screen",
     },
     fetch=fetch,
     draw=draw,

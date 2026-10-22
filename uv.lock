@@ -58,7 +58,7 @@ wheels = [
 [[package]]
 name = "epdlib"
 version = "1.0.0.dev0"
-source = { git = "https://github.com/txoof/epdlib?rev=3cc316dd0acb34cf922cc780d8be63d418cf212f#3cc316dd0acb34cf922cc780d8be63d418cf212f" }
+source = { git = "https://github.com/txoof/epdlib?rev=caf0607a848fcb1a89fcfe3a12aa9516e2321fde#caf0607a848fcb1a89fcfe3a12aa9516e2321fde" }
 dependencies = [
     { name = "pillow" },
 ]
@@ -361,8 +361,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=3cc316dd0acb34cf922cc780d8be63d418cf212f" },
-    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=3cc316dd0acb34cf922cc780d8be63d418cf212f" },
+    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=caf0607a848fcb1a89fcfe3a12aa9516e2321fde" },
+    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=caf0607a848fcb1a89fcfe3a12aa9516e2321fde" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "markdown-it-py", specifier = ">=3" },

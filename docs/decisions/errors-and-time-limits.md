@@ -95,5 +95,6 @@ As in `plugin-scheduling.md`: a failed update is skipped and retried at the plug
   - Docker itself only marks a container "unhealthy"; it does not restart it. The install must choose how an unhealthy PaperPi is restarted (for example, the health check command also ends the container, which `restart: always` then starts again).
   - Inside a container `/run` is not kept in memory. The container must keep `/run/paperpi` in memory (a "tmpfs" mount), so the report causes no SD card writes and is gone after a restart.
   - There is no report until the scheduler loop has started, so the health check needs a start period (a time at the start when failures don't count).
+  - The systemd install ([install-systemd.md](../install-systemd.md), #295) came first. The Docker install keeps its folders (`/etc/paperpi`, `/var/lib/paperpi`), so settings carry over. It runs the container as the Pi's `paperpi` user (`--user` with that user's number, and `--group-add` with the numbers of `spi` and `gpio`), so the files keep their owner. It stops and removes the systemd service first (`paperpi-install uninstall`, without `--purge`): two PaperPis can't share one screen.
 
 All other points above were agreed with txoof on 2026-10-04.

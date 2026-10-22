@@ -549,6 +549,21 @@ def test_example_config_prints_or_saves_the_example(tmp_path, capsys):
     assert out.read_text() == example_config()
 
 
+def test_example_config_for_a_new_install(tmp_path, capsys):
+    from paperpi.example import setup_config
+
+    out = tmp_path / "paperpi.toml"
+    args = ["example-config", "--setup", "--display", "it8951", "--model", "9.7", "--vcom", "-1.9"]
+    assert main([*args, "-o", str(out)]) == 0
+    assert out.read_text() == setup_config({"type": "it8951", "model": "9.7", "vcom": -1.9})
+    assert out.stat().st_mode & 0o777 == 0o600
+
+
+def test_example_config_refuses_a_screen_without_its_settings(capsys):
+    assert main(["example-config", "--setup", "--display", "it8951"]) != 0
+    assert "vcom: required setting is missing" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize(
     ("web", "args", "started"),
     [("", [], True), ("[web]\nenabled = false\n", [], False), ("", ["--no-web"], False)],

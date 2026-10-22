@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+# Install, update or remove PaperPi as a systemd service on a Raspberry Pi (Raspberry Pi OS
+# trixie). Run it with sudo; "paperpi-install --help" lists the commands. Where everything
+# goes, and why: docs/install-systemd.md.
+#
+# Everything is inside main(), called on the last line: bash reads a script while it runs it,
+# and "update" replaces this file.
+
+set -euo pipefail
+
+REPO=https://github.com/txoof/PaperPi
+REF=main
+# The uv version that installs PaperPi's Python packages (from uv.lock).
+UV_VERSION=0.12.23
+
+PREFIX=/opt/paperpi
+CODE=$PREFIX/code
+VENV=$PREFIX/venv
+TOOLS=$PREFIX/tools
+CONFIG_DIR=/etc/paperpi
+CONFIG=$CONFIG_DIR/paperpi.toml
+STATE_DIR=/var/lib/paperpi
+UNIT=/etc/systemd/system/paperpi.service
+COMMAND=/usr/local/bin/paperpi
+SELF=/usr/local/sbin/paperpi-install
+USER_NAME=paperpi
+
+usage() {
+    cat <<EOF
+Usage: sudo paperpi-install COMMAND [OPTIONS]
+
+Commands:
+  install     install PaperPi in $PREFIX and start the paperpi service
+  update      get the newest PaperPi (or --ref) and restart the service
+  uninstall   stop the service and remove PaperPi; the config ($CONFIG_DIR) and the
+              saved files ($STATE_DIR) stay, unless --purge
+
+Options:
+  --ref REF       branch, tag or commit to install (default: $REF)
+  --repo URL      where to get PaperPi from (default: $REPO)
+  --display TYPE  install only, for a new config: the screen type, e.g. it8951
+                  (default: virtual, which only saves pictures; change it in the web
+                  interface later)
+  --model MODEL   install only: the screen model, e.g. 9.7
+  --vcom VCOM     install only: the vcom printed on the screen's cable, e.g. -1.90
+  --purge         uninstall only: also remove the config, the saved files and the
+                  $USER_NAME user
+EOF
+}
+
+step() { printf '\n==> %s\n' "$*"; }
+fail() { printf 'paperpi-install: %s\n' "$*" >&2; exit 1; }
+
+check_system() {
+    [[ $EUID -eq 0 ]] || fail "run it with sudo"
+    command -v systemctl >/dev/null || fail "systemd is needed"
+    command -v git >/dev/null || fail "git is needed: sudo apt install git"
+    python3 -c 'import sys; sys.exit(sys.version_info < (3, 13))' 2>/dev/null \
+        || fail "Python 3.13 or newer is needed (Raspberry Pi OS trixie has it)"
+    python3 -c 'import venv, ensurepip' 2>/dev/null \
+        || fail "Python's venv module is needed: sudo apt install python3-venv"
+    # spidev, the SPI library for the screen, is built during the install.
+    if ! command -v gcc >/dev/null \
+        || ! python3 -c 'import os, sys, sysconfig
+sys.exit(not os.path.exists(os.path.join(sysconfig.get_paths()["include"], "Python.h")))'; then
+        fail "a C compiler and Python's header files are needed: sudo apt install gcc python3-dev"
+    fi
+}
+
+make_user() {
+    if id -u "$USER_NAME" >/dev/null 2>&1; then
+        step "User $USER_NAME is already there"
+        return
+    fi
+    step "Making the user $USER_NAME (no login, no password; it only runs PaperPi)"
+    useradd --system --user-group --home-dir "$STATE_DIR" --no-create-home \
+        --shell /usr/sbin/nologin --comment PaperPi "$USER_NAME"
+}
+
+get_uv() {
+    if [[ -x $TOOLS/bin/uv ]] && [[ $("$TOOLS/bin/uv" --version) == "uv $UV_VERSION"* ]]; then
+        return
+    fi
+    step "Getting uv $UV_VERSION (installs PaperPi's Python packages) into $TOOLS"
+    rm -rf "$TOOLS"
+    python3 -m venv "$TOOLS"
+    "$TOOLS/bin/pip" install --quiet --disable-pip-version-check "uv==$UV_VERSION"
+}
+
+get_code() {
+    if [[ -d $CODE/.git ]]; then
+        step "Getting $REF from $REPO"
+        git -C "$CODE" remote set-url origin "$REPO"
+        git -C "$CODE" fetch --quiet --tags --force origin
+    else
+        step "Getting PaperPi from $REPO into $CODE"
+        mkdir -p "$PREFIX"
+        git clone --quiet "$REPO" "$CODE"
+    fi
+    # A branch name means the newest commit of that branch on GitHub.
+    local target=$REF
+    if git -C "$CODE" rev-parse --verify --quiet "refs/remotes/origin/$REF" >/dev/null; then
+        target=origin/$REF
+    fi
+    git -C "$CODE" -c advice.detachedHead=false checkout --quiet --force "$target" \
+        || fail "no branch, tag or commit $REF in $REPO"
+    printf '    %s\n' "$(git -C "$CODE" log -1 --format='%h %s')"
+}
+
+install_packages() {
+    step "Installing PaperPi's Python packages into $VENV"
+    # The system's Python (it gets Debian's security updates), never a downloaded one; the
+    # exact versions of uv.lock; no development tools.
+    (cd "$CODE" && UV_PROJECT_ENVIRONMENT=$VENV UV_PYTHON=/usr/bin/python3 \
+        UV_PYTHON_DOWNLOADS=never UV_CACHE_DIR=$PREFIX/cache \
+        "$TOOLS/bin/uv" sync --quiet --frozen --no-dev --no-editable)
+    ln -sfn "$VENV/bin/paperpi" "$COMMAND"
+    # Kept outside $CODE, so the next update can't change it while it runs.
+    install -m 0755 "$CODE/install/paperpi-install" "$SELF"
+}
+
+make_config() {
+    install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$CONFIG_DIR"
+    if [[ -e $CONFIG ]]; then
+        step "Keeping the config $CONFIG"
+        return
+    fi
+    step "Writing a first config to $CONFIG: a clock and the set-up screen"
+    local options=(--setup --display "$DISPLAY_TYPE")
+    if [[ -n $MODEL ]]; then options+=(--model "$MODEL"); fi
+    if [[ -n $VCOM ]]; then options+=(--vcom "$VCOM"); fi
+    # As the PaperPi user: the web interface must be able to change the file.
+    runuser -u "$USER_NAME" -- "$VENV/bin/paperpi" example-config "${options[@]}" -o "$CONFIG"
+}
+
+install_service() {
+    step "Installing the service file $UNIT"
+    install -m 0644 "$CODE/install/paperpi.service" "$UNIT"
+    systemctl daemon-reload
+}
+
+wait_for_start() {
+    # "systemctl restart" returns once PaperPi says READY=1, or fails.
+    if ! systemctl is-active --quiet paperpi; then
+        fail "the service did not start; see: journalctl -u paperpi -n 50"
+    fi
+    echo
+    echo "PaperPi runs.${1:+ $1}"
+    echo "Logs: journalctl -u paperpi -f    Status: systemctl status paperpi"
+}
+
+cmd_install() {
+    check_system
+    [[ -e /dev/spidev0.0 ]] || echo "Note: SPI is off; the screen needs it (sudo raspi-config," \
+        "Interface Options, SPI), then a restart of the Pi."
+    make_user
+    get_uv
+    get_code
+    install_packages
+    make_config
+    install_service
+    step "Starting PaperPi, also at every start of the Pi"
+    systemctl enable --quiet paperpi
+    systemctl restart paperpi
+    wait_for_start "The screen shows the web address to set it up."
+}
+
+cmd_update() {
+    check_system
+    [[ -d $CODE/.git ]] || fail "PaperPi is not installed; use: sudo paperpi-install install"
+    get_uv
+    get_code
+    install_packages
+    install_service
+    step "Restarting PaperPi"
+    systemctl restart paperpi
+    wait_for_start
+}
+
+cmd_uninstall() {
+    [[ $EUID -eq 0 ]] || fail "run it with sudo"
+    step "Stopping the service (this clears the screen, up to 45 seconds)"
+    systemctl disable --now --quiet paperpi 2>/dev/null || true
+    rm -f "$UNIT"
+    systemctl daemon-reload
+    step "Removing $PREFIX, $COMMAND and $SELF"
+    rm -rf "$PREFIX"
+    rm -f "$COMMAND" "$SELF"
+    if [[ $PURGE == yes ]]; then
+        step "Removing $CONFIG_DIR, $STATE_DIR and the user $USER_NAME"
+        rm -rf "$CONFIG_DIR" "$STATE_DIR"
+        userdel "$USER_NAME" 2>/dev/null || true
+    else
+        echo "Kept: $CONFIG_DIR (config, web password) and $STATE_DIR (saved files)."
+    fi
+}
+
+main() {
+    local command=${1:-}
+    [[ -n $command ]] && shift
+    DISPLAY_TYPE=virtual MODEL='' VCOM='' PURGE=no
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --ref) REF=${2:?--ref needs a value}; shift 2 ;;
+            --repo) REPO=${2:?--repo needs a value}; shift 2 ;;
+            --display) DISPLAY_TYPE=${2:?--display needs a value}; shift 2 ;;
+            --model) MODEL=${2:?--model needs a value}; shift 2 ;;
+            --vcom) VCOM=${2:?--vcom needs a value}; shift 2 ;;
+            --purge) PURGE=yes; shift ;;
+            -h | --help) usage; exit 0 ;;
+            *) usage >&2; fail "unknown option: $1" ;;
+        esac
+    done
+    case $command in
+        install) cmd_install ;;
+        update) cmd_update ;;
+        uninstall) cmd_uninstall ;;
+        -h | --help | help) usage ;;
+        *) usage >&2; exit 2 ;;
+    esac
+}
+
+main "$@"
+exit

@@ -1,0 +1,67 @@
+# PaperPi as a systemd service; install/paperpi-install puts it in /etc/systemd/system.
+# Why each setting is here: docs/install-systemd.md and docs/decisions/errors-and-time-limits.md.
+[Unit]
+Description=PaperPi e-paper display
+Documentation=https://github.com/txoof/PaperPi
+After=network-online.target time-sync.target
+Wants=network-online.target
+# A setup that keeps crashing at start stops being restarted after 5 tries in 10 minutes
+# (see "systemctl status paperpi"; "systemctl reset-failed paperpi" allows new tries).
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+# Counted as started only after PaperPi says READY=1, and restarted when no WATCHDOG=1
+# arrives for 2 minutes. The default NotifyAccess=main: only the main process counts, so a
+# plugin process can't say "still running" for a stuck loop.
+Type=notify
+WatchdogSec=120
+ExecStart=/opt/paperpi/venv/bin/paperpi run
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10
+# Longer than the screen clear at exit (30 s) plus its check (2 s).
+TimeoutStopSec=45
+# The default KillMode=control-group stays (#209): a stop, also after "kill -9" of the main
+# process, ends every PaperPi process, plugin processes included. Never set it to process
+# or none.
+
+User=paperpi
+Group=paperpi
+# The screen: /dev/spidev* and /dev/gpiochip*.
+SupplementaryGroups=spi gpio
+# /run/paperpi (health file, in memory) and /var/lib/paperpi (plugin files, last good
+# config, logs). /etc/paperpi is made by the installer: the web interface writes the config.
+RuntimeDirectory=paperpi
+StateDirectory=paperpi
+StateDirectoryMode=0750
+WorkingDirectory=/var/lib/paperpi
+Environment=HOME=/var/lib/paperpi
+UMask=0027
+
+# Protection: PaperPi can write only its own folders and use no devices but the screen.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/paperpi
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=no
+DevicePolicy=closed
+DeviceAllow=char-spi rw
+DeviceAllow=char-gpiochip rw
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

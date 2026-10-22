@@ -32,8 +32,8 @@ SAMPLE = PLUGIN.sample
 SIZES = [(1200, 825), (250, 122), (122, 250), (480, 800)]
 
 
-def context(width=800, height=480, mode=None):
-    return Context(Settings(), width, height, mode or ScreenMode.bw(), Path("."), "splash")
+def context(width=800, height=480, mode=None, layout="splash"):
+    return Context(Settings(), width, height, mode or ScreenMode.bw(), Path("."), layout)
 
 
 def test_fetch_shows_this_paperpi(monkeypatch):
@@ -210,6 +210,24 @@ def test_draw_fills_every_block_of_the_layout():
 def test_draw_without_a_network():
     values = draw(replace(SAMPLE, ip=None), context())
     assert values["ip"] == NO_NETWORK
+    assert "qr" not in values
+
+
+def test_setup_layout_asks_to_set_paperpi_up():
+    values = draw(SAMPLE, context(layout="setup"))
+    layout = PLUGIN.layout("setup", Settings())
+    assert set(layout.prepare(800, 480, ScreenMode.bw()).boxes) == set(values)
+    assert values["title"] == "Set up PaperPi"
+    assert values["scan"] == "Scan the code, or open"
+    assert values["ip"].replace("\n", "") == "http://192.0.2.10:8080"
+    assert values["todo"] == "Set a password and choose which plugins to display."
+    assert "qr" in values
+
+
+def test_setup_layout_without_a_network():
+    values = draw(replace(SAMPLE, ip=None), context(layout="setup"))
+    assert values["ip"] == NO_NETWORK
+    assert values["scan"] == ""  # no code to scan
     assert "qr" not in values
 
 
