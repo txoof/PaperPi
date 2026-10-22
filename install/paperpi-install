@@ -145,7 +145,7 @@ wait_for_start() {
         fail "the service did not start; see: journalctl -u paperpi -n 50"
     fi
     echo
-    echo "PaperPi runs. The screen shows the web address to set it up."
+    echo "PaperPi runs.${1:+ $1}"
     echo "Logs: journalctl -u paperpi -f    Status: systemctl status paperpi"
 }
 
@@ -162,7 +162,7 @@ cmd_install() {
     step "Starting PaperPi, also at every start of the Pi"
     systemctl enable --quiet paperpi
     systemctl restart paperpi
-    wait_for_start
+    wait_for_start "The screen shows the web address to set it up."
 }
 
 cmd_update() {

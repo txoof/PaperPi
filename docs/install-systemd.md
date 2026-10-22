@@ -41,7 +41,7 @@ Stopping clears the screen first, which can take up to 30 seconds.
 | apply a change to the config file made by hand | `sudo systemctl reload paperpi` |
 | restart / stop / start | `sudo systemctl restart paperpi` (or `stop`, `start`) |
 | forget the web password | `sudo paperpi reset-password`, then `sudo systemctl reload paperpi` |
-| check the health report | `sudo paperpi health` |
+| check the health report | `paperpi health` |
 
 When PaperPi crashes 5 times within 10 minutes, systemd stops trying (`systemctl status paperpi` says so). Fix the cause (see the log), then `sudo systemctl reset-failed paperpi` and `sudo systemctl start paperpi`.
 
