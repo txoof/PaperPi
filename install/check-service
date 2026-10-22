@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Check the installed paperpi service on the Pi itself (issue #209, docs/install-systemd.md):
 # 1. "kill -9" of the main process: systemd starts PaperPi again and no old process is left.
-# 2. "systemctl stop" ends within TimeoutStopSec (the screen is cleared first).
+# 2. "systemctl stop" ends within TimeoutStopSec (the screen is cleared first) and leaves no
+#    process.
 # Run it with sudo while the service runs. It starts the service again at the end.
 
 set -euo pipefail
@@ -9,10 +10,24 @@ set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo "run it with sudo" >&2; exit 1; }
 systemctl is-active --quiet paperpi || { echo "the paperpi service is not running" >&2; exit 1; }
 
+# The service's process group; empty once it has stopped.
+group=$(systemctl show -p ControlGroup --value paperpi)
+[[ -n $group ]] || { echo "the paperpi service has no process group" >&2; exit 1; }
+
 processes() {
-    local group
-    group=$(systemctl show -p ControlGroup --value paperpi)
     cat "/sys/fs/cgroup$group/cgroup.procs" 2>/dev/null || true
+}
+
+# Waits until PaperPi has written to the screen since its start, so the stop below also
+# clears the screen. The health file says "since_screen": null until the first write.
+wait_screen_written() {
+    for _ in $(seq 180); do
+        if grep -q '"since_screen": [0-9]' /run/paperpi/health 2>/dev/null; then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
 }
 
 # Waits until the service runs again with a main process other than $1.
@@ -47,6 +62,7 @@ else
     echo "   ok: started again (main process $new_main), no old process left"
 fi
 
+wait_screen_written || { echo "   FAIL: no screen write within 3 minutes" >&2; failed=1; }
 limit=$(systemctl show -p TimeoutStopUSec --value paperpi)
 echo "2. systemctl stop (time limit $limit)"
 start=$(date +%s)
