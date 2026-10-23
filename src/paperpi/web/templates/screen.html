@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "system" %}
+{% block title %}Change screen · PaperPi{% endblock %}
+
+{% macro label(key, name, help="") %}
+<div class="lbl"><span id="name-{{ key }}">{{ name }}</span>
+  {%- if help %}<span class="help">{{ help }}</span>{% endif %}
+  {%- if errors[key] %}<p class="problem">{{ errors[key]|sentence }}</p>{% endif %}</div>
+{% endmacro %}
+
+{% block head %}<script src="/static/system.js" defer></script>{% endblock %}
+
+{% block main %}
+<p class="crumbs"><a href="/system">← Screen &amp; system</a></p>
+<h1>Change screen</h1>
+<p class="lead">Tell PaperPi which screen to use. A new type or model is used from the next
+  start of PaperPi; a new VCOM for the same screen applies at once.</p>
+{% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
+
+<form id="screen-form" method="post" action="/system/screen">
+<section class="sec"><div class="sec-body">
+  <div class="field{% if errors.type %} wrong{% endif %}">
+    {{ label("type", "Type") }}
+    <div class="ctl"><select name="type" id="screen-type" aria-labelledby="name-type">
+      {% for value, text in (("it8951", "Waveshare IT8951 board (6, 7.8, 9.7 or 10.3 inch)"),
+        ("virtual", "Virtual screen (writes pictures to files, for testing)")) %}
+      <option value="{{ value }}"{% if values.type == value %} selected{% endif %}>{{ text }}</option>
+      {% endfor %}
+    </select></div>
+  </div>
+  {#- Without JavaScript both groups show; only the one of the chosen type is used. -#}
+  <div class="for-type" data-type="it8951">
+    <h2 class="no-js">For a Waveshare IT8951 board</h2>
+    <div class="field{% if errors.model %} wrong{% endif %}">
+      {{ label("model", "Model", "The size in inches, printed on the screen's box.") }}
+      <div class="ctl"><select name="model" aria-labelledby="name-model">
+        {% for name, info in models %}
+        <option value="{{ name }}"{% if values.model == name %} selected{% endif %}>{{ name }} inch,
+          {{ info.width }} × {{ info.height }}</option>
+        {% endfor %}
+      </select></div>
+    </div>
+    <div class="field{% if errors.vcom %} wrong{% endif %}">
+      {{ label("vcom", "VCOM", "The voltage printed on the screen's ribbon cable, e.g. −1.90. Each screen has its own; a wrong value gives poor contrast.") }}
+      <div class="ctl"><div class="unit"><input type="text" inputmode="decimal" name="vcom"
+        value="{{ values.vcom }}" aria-labelledby="name-vcom"> V</div></div>
+    </div>
+  </div>
+  <div class="for-type" data-type="virtual">
+    <h2 class="no-js">For a virtual screen</h2>
+    <div class="field{% if errors.width or errors.height %} wrong{% endif %}">
+      {{ label("width", "Size") }}
+      {%- if errors.height and not errors.width %}<p class="problem">{{ errors.height|sentence }}</p>{% endif %}
+      <div class="ctl"><div class="unit">
+        <input type="text" inputmode="numeric" name="width" value="{{ values.width }}" aria-label="Width"> ×
+        <input type="text" inputmode="numeric" name="height" value="{{ values.height }}" aria-label="Height">
+        pixels</div></div>
+    </div>
+    <div class="field{% if errors.mode %} wrong{% endif %}">
+      {{ label("mode", "Shows") }}
+      <div class="ctl"><select name="mode" aria-labelledby="name-mode">
+        {% for value, text in shows.items() %}
+        <option value="{{ value }}"{% if values.mode == value %} selected{% endif %}>{{ text }}</option>
+        {% endfor %}
+      </select></div>
+    </div>
+  </div>
+  <div class="buttons"><button type="submit">Save</button><a href="/system">Cancel</a></div>
+</div></section>
+</form>
+{% endblock %}

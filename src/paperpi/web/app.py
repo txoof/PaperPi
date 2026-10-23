@@ -36,7 +36,11 @@ Address            What it does
                    (``/log/new`` the lines after a number, ``/log/download`` all of them)
 ``/system``        Screen & system: the screen in use, the ``[display]`` settings that
                    apply at once (a POST to ``/system`` saves them all) and facts
-                   about this Pi (``/system/pi``, asked for again while the page is open)
+                   about this Pi (``/system/pi``, asked for again while the page is open);
+                   ``/system/screen`` Change screen… (used from the next start;
+                   ``/system/screen/undo`` and ``/system/screen/back`` put back the
+                   screen in use or the previous one), ``/system/restart`` restarts
+                   PaperPi when it runs as a service
 ``/static/...``    the style sheet, the home page's script, SortableJS (drag to change
                    the order) and htmx (a small JavaScript file that updates one part of
                    a page without loading the whole page again)
@@ -64,6 +68,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlencode, urlsplit
 
+from epdlib.drivers.it8951 import MODELS as IT8951_MODELS
 from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -851,6 +856,16 @@ def create_app(
             values |= wrong.values
         done = request.query_params.get("done", "")
         shown = summary()
+        screen_state = shown.screen if shown is not None else None
+        new_screen = system.waiting(file_display, editor.display)
+        before = system.previous(state_dir)
+        if before is not None and editor.display is not None and not new_screen:
+            if before == system.screen_of(editor.display):
+                before = None  # back on it, by hand
+            elif screen_state == "ok":
+                # The new screen answers: the previous one is not needed any more.
+                system.forget_previous(state_dir)
+                before = None
         return page(
             request,
             "system.html",
@@ -858,15 +873,52 @@ def create_app(
             values=values,
             saved=system.form(text) if text is not None else {},
             screen=system.screen_facts(display) if display is not None else None,
-            screen_state=shown.screen if shown is not None else None,
+            screen_state=screen_state,
             running=controls is not None,
             pi=pi_facts(),
             problem=problem,
             errors=wrong.errors if wrong is not None else {},
-            done=done == "saved",
+            done=_SYSTEM_DONE.get(done, ""),
             hand_edits=request.query_params.get("hand") == "1",
             readable=text is not None,
+            new_screen=system.screen_of(file_display) if new_screen and file_display else None,
+            go_back=before if screen_state in ("failing", "paused") and not new_screen else None,
+            describe=system.describe,
+            can_restart=can_restart(),
         )
+
+    def can_restart() -> bool:
+        """PaperPi can restart itself only as a service: systemd starts it again."""
+        return controls is not None and _reload_command()[1]
+
+    def restarting(request: Request) -> Response:
+        controls.restart()
+        return page(request, "restarting.html")
+
+    def used_screen() -> dict | None:
+        return system.screen_of(editor.display) if editor.display is not None else None
+
+    def screen_page(request: Request, status: int = 200, wrong=None, problem=None):
+        try:
+            file_display = system.file_display(read_config(editor.path)[1])
+        except EditError as error:
+            file_display, problem = None, problem or str(error)
+        values = system.screen_form(file_display or editor.display)
+        if wrong is not None:
+            values |= wrong.values
+        return page(
+            request,
+            "screen.html",
+            status,
+            values=values,
+            errors=wrong.errors if wrong is not None else {},
+            problem=problem,
+            models=list(IT8951_MODELS.items()),
+            shows=system.SHOWS,
+        )
+
+    def system_done(done: str) -> RedirectResponse:
+        return RedirectResponse(f"/system?done={done}", status_code=303)
 
     def pi_facts() -> system.PiFacts:
         shown = summary()
@@ -899,6 +951,65 @@ def create_app(
         query = urlencode({"done": "saved"} | ({"hand": "1"} if hand_edits else {}))
         return RedirectResponse(f"/system?{query}", status_code=303)
 
+    @app.get("/system/screen", response_class=HTMLResponse)
+    def change_screen_page(request: Request):
+        return screen_page(request)
+
+    @app.post("/system/screen", response_class=HTMLResponse)
+    async def change_screen(request: Request):
+        form = await request.form()
+        sent = {k: [str(v) for v in form.getlist(k)] for k in form}
+        used = used_screen()
+        try:
+            await run_in_threadpool(editor.change, lambda text: system.with_screen(text, sent))
+        except system.SectionErrors as error:
+            return screen_page(request, 400, error, str(error))
+        except EditError as error:
+            return screen_page(request, 409, problem=str(error))
+        file_display = system.file_display(read_config(editor.path)[1])
+        if used is None or not system.waiting(file_display, editor.display):
+            return system_done("saved")  # e.g. only the VCOM: it applies at once
+        # Keep the screen in use for "Go back", unless it is a new one that does not answer
+        # (then the one kept before is the one that worked).
+        shown = summary()
+        failing = shown is not None and shown.screen in ("failing", "paused")
+        if system.previous(state_dir) is None or not failing:
+            system.keep_previous(state_dir, used)
+        return system_done("screen")
+
+    @app.post("/system/screen/undo", response_class=HTMLResponse)
+    def undo_screen(request: Request):
+        used = used_screen()
+        if used is None:
+            return system_done("")
+        try:
+            editor.change(lambda text: system.set_screen(text, used))
+        except EditError as error:
+            return system_page(request, 409, str(error))
+        if system.previous(state_dir) == used:
+            system.forget_previous(state_dir)
+        return system_done("undone")
+
+    @app.post("/system/screen/back", response_class=HTMLResponse)
+    def go_back(request: Request):
+        before = system.previous(state_dir)
+        if before is None:
+            return system_page(request, 409, "No previous screen is kept.")
+        try:
+            editor.change(lambda text: system.set_screen(text, before))
+        except EditError as error:
+            return system_page(request, 409, str(error))
+        system.forget_previous(state_dir)
+        return restarting(request) if can_restart() else system_done("back")
+
+    @app.post("/system/restart", response_class=HTMLResponse)
+    def restart(request: Request):
+        if not can_restart():
+            return system_page(
+                request, 409, "PaperPi was not started as a service, so it can't restart itself."
+            )
+        return restarting(request)
+
     @app.post("/logout")
     def logout():
         response = RedirectResponse("/login", status_code=303)
@@ -922,6 +1033,14 @@ _DONE = {
     "applied": "Applied. PaperPi uses the changed config file now.",
     "applying": "Asked PaperPi to load the config file again. It does so between two "
     "screen writes, in a moment.",
+}
+
+
+#: What the Screen & system page says after a change (``?done=...``).
+_SYSTEM_DONE = {
+    "saved": "Saved. PaperPi applies the changes now.",
+    "undone": "The new screen is undone: the config file names the screen in use again.",
+    "back": "The previous screen is saved again. Restart PaperPi to use it.",
 }
 
 

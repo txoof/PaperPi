@@ -29,13 +29,54 @@
   <b>Save and apply</b>. Each part says when a change takes effect: <span class="when">at
   once</span> or <span class="when next">at the next start</span>.</p>
 {% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
-{% if done %}<p class="saved" role="status">Saved. PaperPi applies the changes now.
+{% if done %}<p class="saved" role="status">{{ done }}
   {%- if hand_edits %} Your hand edits to the config file were applied too.{% endif %}</p>{% endif %}
+{% if new_screen %}
+<div class="waiting" id="waiting">
+  <p><b>Saved, waiting for a restart:</b> the new screen is {{ describe(new_screen) }}.
+    PaperPi keeps using the current screen until it starts again.</p>
+  {% if new_screen.type == "it8951" %}
+  <p>To connect the new screen:</p>
+  <ol>
+    <li>Shut the Pi down. On the Pi: <code>sudo shutdown now</code></li>
+    <li>Wait until the green light on the Pi stops blinking, then unplug the power.</li>
+    <li>Connect the new screen.</li>
+    <li>Plug the power back in. PaperPi starts with the new screen.</li>
+  </ol>
+  {% elif not can_restart %}
+  <p>PaperPi was started by hand: stop it (Ctrl+C) and start it again.</p>
+  {% endif %}
+  <div class="buttons">
+    {% if new_screen.type != "it8951" and can_restart %}
+    <a class="button" href="/system?restart=1#pi">Restart PaperPi now</a>{% endif %}
+    <form method="post" action="/system/screen/undo"><button type="submit">Undo: keep
+      the current screen</button></form>
+  </div>
+</div>
+{% endif %}
 
 <section class="sec" id="screen">
   <div class="sec-head"><h2>Screen</h2><span class="when next">at the next start</span>
     <p>The screen PaperPi uses now.</p></div>
   <div class="sec-body">
+    {% if go_back %}
+    <div class="failed">
+      <p><b>The screen does not answer.</b> Check its cable, or go back to the screen you used
+        before: {{ describe(go_back) }}.</p>
+      {% if request.query_params.get("back") == "1" %}
+      <p>PaperPi saves {{ describe(go_back) }} as the screen again
+        {%- if can_restart %} and restarts. The web interface is gone for about 20 seconds{% endif %}.
+        If you already connected the old screen again, shut the Pi down first, as when changing
+        the screen.</p>
+      <div class="buttons"><form method="post" action="/system/screen/back">
+        <button class="go" type="submit">Go back{% if can_restart %} and restart{% endif %}</button></form>
+        <a href="/system#screen">Cancel</a></div>
+      {% else %}
+      <div class="buttons"><a class="button" href="/system?back=1#screen">Go back to the previous
+        screen…</a></div>
+      {% endif %}
+    </div>
+    {% endif %}
     {% if screen %}
     <dl class="current">
       <dt>Type</dt><dd>{{ screen.type }}</dd>
@@ -49,8 +90,8 @@
         {%- else %}Not written to yet{% endif %}</dd>
     </dl>
     {% endif %}
-    <p class="help">To use another screen, change <code>[display]</code> in the config file
-      (<code>{{ auth.config_file }}</code>) and restart PaperPi.</p>
+    <div class="buttons"><a class="button" href="/system/screen">Change screen…</a>
+      <span class="help">Another screen, or the VCOM of this one.</span></div>
   </div>
 </section>
 
@@ -157,5 +198,20 @@
   <div class="sec-head"><h2>This Pi</h2><p>Measured now, and again every 30 seconds while this
     page is open.</p></div>
   {% include "_pi.html" %}
+  <div class="sec-body">
+    {% if can_restart and request.query_params.get("restart") == "1" %}
+    <div class="waiting"><p><b>Restart PaperPi?</b> The web interface is gone for about 20
+      seconds, then this page loads again by itself. The screen keeps its picture.</p>
+      <div class="buttons"><form method="post" action="/system/restart">
+        <button class="go" type="submit">Restart</button></form><a href="/system#pi">Cancel</a></div></div>
+    {% elif can_restart %}
+    <div class="buttons"><a class="button" href="/system?restart=1#pi">Restart PaperPi…</a>
+      <span class="help">Stops and starts PaperPi, not the whole Pi. The screen keeps its
+        picture.</span></div>
+    {% elif running %}
+    <p class="help">PaperPi was started by hand, not as a service, so it can't restart itself.
+      To restart it: stop it (Ctrl+C) and start it again.</p>
+    {% endif %}
+  </div>
 </section>
 {% endblock %}

@@ -357,3 +357,15 @@ def test_summary_while_the_screen_is_paused_agrees_with_itself(tmp_path):
     summary = sim.scheduler.summary
     assert (summary.on_screen, summary.next, summary.screen) == ("a", "b", "paused")
     assert [p.status for p in summary.plugins] == ["on_screen", "next"]
+
+
+# Restart
+
+
+def test_restart_ends_the_loop_and_says_so(tmp_path):
+    sim = Sim(tmp_path, rotation("a"), rotation("b"))
+    assert not sim.scheduler.restart_asked
+    sim.clock.at(150, sim.scheduler.restart)
+    sim.run(until=1000)
+    assert sim.writes == [(1, "A"), (101, "B")]
+    assert sim.scheduler.restart_asked

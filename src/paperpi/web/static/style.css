@@ -536,3 +536,15 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 }
 #leave #leave-save { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   font-weight: 500; }
+/* Change screen and Restart: a saved change that waits for a restart, a new screen that
+   doesn't answer, and the restart itself. */
+.waiting, .failed { border-radius: 8px; padding: 0.6rem 0.8rem; margin: 0.8rem 0; }
+.waiting { background: var(--warn-bg); border-left: 4px solid var(--warn); }
+.waiting b { color: var(--warn); }
+.failed { background: var(--bad-bg); border-left: 4px solid var(--bad); }
+.failed b { color: var(--bad); }
+.waiting p, .failed p { margin: 0 0 0.4rem; }
+.waiting ol { margin: 0.3rem 0 0.5rem; padding-left: 1.3rem; }
+.buttons form button.go { background: var(--accent); color: var(--accent-ink);
+  border-color: var(--accent); font-weight: 500; }
+.sec-body > .buttons:first-child { margin-top: 0.7rem; }

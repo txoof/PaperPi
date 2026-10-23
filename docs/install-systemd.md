@@ -68,7 +68,7 @@ The code belongs to root, so PaperPi itself (and a plugin) can't change it. Pape
 - `Type=notify`, `WatchdogSec=120`: systemd counts PaperPi as started only after it says `READY=1`, and restarts it when no "still running" message (`WATCHDOG=1`) arrives for 2 minutes. Only the main process may send them (`NotifyAccess=main`, the default), so a plugin process can't hide a stuck loop.
 - `TimeoutStopSec=45`: longer than the screen clear at exit (30 s) and its check (2 s).
 - `KillMode` stays at its default, `control-group`: stopping the service ends **every** PaperPi process (plugin processes, the process that starts them, Python's resource tracker), also when the main process was killed with `kill -9` ([#209](https://github.com/txoof/PaperPi/issues/209)). Never set it to `process` or `none`.
-- `Restart=on-failure`, `RestartSec=10`, at most 5 starts in 10 minutes.
+- `Restart=on-failure`, `RestartSec=10`, at most 5 starts in 10 minutes. `SuccessExitStatus=75` and `RestartForceExitStatus=75`: "Restart PaperPi" in the web interface ends PaperPi with exit status 75, which counts as a clean stop and starts it again (the `paperpi` user can't run `systemctl`).
 - `RuntimeDirectory` and `StateDirectory`: systemd makes `/run/paperpi` and `/var/lib/paperpi` for the `paperpi` user.
 - Protection settings: PaperPi can write only `/etc/paperpi`, `/var/lib/paperpi`, `/run/paperpi` and its own `/tmp`, can't see `/home`, and can use no devices but SPI and GPIO.
 

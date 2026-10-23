@@ -5,6 +5,8 @@
 (function () {
   "use strict";
   document.addEventListener("DOMContentLoaded", function () {
+    waitForRestart();
+    screenType();
     var form = document.getElementById("system-form");
     if (!form) return;
     var saved = JSON.parse(form.dataset.saved || "{}");
@@ -122,4 +124,38 @@
     }
     show();
   });
+
+  // The Restarting page: open Screen & system once PaperPi is gone and answers again.
+  function waitForRestart() {
+    var note = document.getElementById("restarting");
+    if (!note) return;
+    var gone = false;
+    var started = Date.now();
+    function ask() {
+      fetch("/system/pi", { cache: "no-store" }).then(function (answer) {
+        if (answer.ok && (gone || Date.now() - started > 60000)) {
+          window.location.href = "/system";
+          return;
+        }
+        if (!answer.ok) gone = true;
+        setTimeout(ask, 2000);
+      }, function () {
+        gone = true;
+        setTimeout(ask, 2000);
+      });
+    }
+    setTimeout(ask, 2000);
+  }
+
+  // Change screen: show only the fields of the chosen type.
+  function screenType() {
+    var type = document.getElementById("screen-type");
+    if (!type) return;
+    var groups = Array.prototype.slice.call(document.querySelectorAll(".for-type"));
+    function show() {
+      groups.forEach(function (group) { group.hidden = group.dataset.type !== type.value; });
+    }
+    type.addEventListener("change", show);
+    show();
+  }
 })();

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "system" %}
+{% block title %}Restarting · PaperPi{% endblock %}
+{#- Without JavaScript the browser opens Screen & system again after 30 seconds; system.js
+    opens it as soon as the restarted PaperPi answers. -#}
+{% block head %}<noscript><meta http-equiv="refresh" content="30;url=/system"></noscript>
+<script src="/static/system.js" defer></script>{% endblock %}
+{% block main %}
+<h1>Restarting PaperPi…</h1>
+<p class="lead" id="restarting" role="status">PaperPi stops and starts again. The web interface
+  is gone for about 20 seconds, then <a href="/system">Screen &amp; system</a> opens again by
+  itself. The screen keeps its picture.</p>
+{% endblock %}

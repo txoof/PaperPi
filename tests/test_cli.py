@@ -322,6 +322,27 @@ def test_run_with_an_it8951_screen(tmp_path, monkeypatch, capsys, on_exit, clear
     assert steps == (["init", "clear", "close"] if cleared else ["init", "close"])
 
 
+def test_run_restarts_with_its_own_exit_status_and_keeps_the_picture(tmp_path, monkeypatch):
+    """Restart PaperPi in the web interface: exit status 75, which the service file starts
+    again (install/paperpi.service), and no clear at the stop."""
+    from functools import partial
+
+    from .fake_screens import Pretend, notes
+
+    def restart(self):
+        self.screen.check()
+        self.restart()
+
+    monkeypatch.setattr(cli, "driver_for", lambda display, out: partial(Pretend, tmp_path))
+    monkeypatch.setattr(cli.Scheduler, "run", restart)
+    cfg = tmp_path / "paperpi.toml"
+    cfg.write_text(IT8951_CONFIG.format(extra='on_exit = "clear"\n'))
+    args = ["run", "--no-web", "--config", str(cfg), "--state-dir", str(tmp_path)]
+    assert main([*args, "--health-file", str(tmp_path / "health")]) == cli.RESTART_STATUS == 75
+    assert [what for _, what in notes(tmp_path)] == ["init", "close"]
+    assert "PaperPi stops (exit status 75)" in (tmp_path / "paperpi.log").read_text()
+
+
 def test_run_exits_at_once_when_the_helper_is_stuck_while_clearing(tmp_path, monkeypatch):
     from paperpi.screen import Screen, ScreenStuck
 

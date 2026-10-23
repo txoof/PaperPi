@@ -338,6 +338,8 @@ class Scheduler:
         self._cleaned: dict[Path, float] = {}
         """When each storage folder was last cleaned (monotonic clock)."""
         self._stopping = False
+        self.restart_asked = False
+        """:meth:`restart` was called: PaperPi exits so that systemd starts it again."""
         self._next_report = -math.inf
         self._last_written: float | None = None
         """When the screen was last written without an error."""
@@ -409,6 +411,11 @@ class Scheduler:
 
     def stop(self) -> None:
         """Ask :meth:`run` to end."""
+        self._events.put(_STOP)
+
+    def restart(self) -> None:
+        """Ask :meth:`run` to end so that PaperPi starts again (see :attr:`restart_asked`)."""
+        self.restart_asked = True
         self._events.put(_STOP)
 
     def reload(self) -> None:

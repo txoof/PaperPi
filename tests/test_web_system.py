@@ -31,6 +31,10 @@ PI = "http://192.168.1.20:8080"
 class Controls:
     def __init__(self, summary: Summary):
         self.summary = summary
+        self.restarts = 0
+
+    def restart(self):
+        self.restarts += 1
 
 
 @pytest.fixture
@@ -213,3 +217,167 @@ def test_set_display_refuses_a_file_it_cant_change_safely():
 )
 def test_running_time_in_words(seconds, shown):
     assert system._duration(seconds) == shown
+
+
+# Change screen…
+
+NINE = config.DisplaySettings(type="it8951", model="9.7", vcom=-1.9)
+VIRTUAL = config.DisplaySettings(type="virtual")
+IT8951 = {"type": "it8951", "model": "10.3", "vcom": "-1,52"}
+
+
+@pytest.fixture
+def service(monkeypatch):
+    """PaperPi runs as a systemd service, so it can restart itself."""
+    monkeypatch.setenv("INVOCATION_ID", "1234")
+
+
+def previous_file(cfg):
+    return cfg.parent / system.PREVIOUS_FILE
+
+
+def test_change_screen_shows_the_screen_of_the_file(cfg, reloads):
+    page = make_client(cfg, reloads, VIRTUAL).get("/system/screen").text
+    assert "<h1>Change screen</h1>" in page
+    assert '<option value="virtual" selected>' in page
+    assert 'name="width" value="1200"' in page and '<option value="gray16" selected>' in page
+    assert '<option value="10.3">10.3 inch,' in page
+    assert (
+        '<a class="button" href="/system/screen">' in make_client(cfg, reloads).get("/system").text
+    )
+
+
+def test_a_new_screen_is_saved_for_the_next_start(cfg, reloads):
+    cfg.write_text(CONFIG.replace('type = "virtual"', 'type = "virtual"\nwidth = 800\nmode = "bw"'))
+    client = make_client(cfg, reloads, VIRTUAL.model_copy(update={"width": 800, "mode": "bw"}))
+    response = client.post("/system/screen", data=IT8951 | {"width": "800", "mode": "bw"})
+    assert (response.status_code, response.headers["location"]) == (303, "/system?done=screen")
+    # The settings of a virtual screen go; the help comment of type stays.
+    assert display(cfg) == {"type": "it8951", "model": "10.3", "vcom": -1.52, "max_refresh": 6}
+    assert '# The kind of screen\ntype = "it8951"\n' in cfg.read_text()
+    assert reloads == [1]
+    # The screen in use is kept for "Go back".
+    kept = tomllib.loads(previous_file(cfg).read_text())
+    assert kept == {"type": "virtual", "width": 800, "mode": "bw"}
+    page = client.get("/system?done=screen").text
+    assert "Saved, waiting for a restart:</b> the new screen is IT8951, 10.3 inch, −1.52 V." in page
+    assert "<code>sudo shutdown now</code>" in page  # a real screen is connected with the power off
+    assert 'action="/system/screen/undo"' in page
+
+
+def test_a_new_virtual_screen_can_restart_at_once(cfg, reloads, service):
+    controls = Controls(Summary(screen="ok"))
+    client = make_client(cfg, reloads, VIRTUAL, controls)
+    sent = {"type": "virtual", "width": "640", "height": "400", "mode": "7color"}
+    assert client.post("/system/screen", data=sent).headers["location"] == "/system?done=screen"
+    page = client.get("/system").text
+    assert "the new screen is virtual screen, 640 × 400, 7 colours." in page
+    assert "sudo shutdown now" not in page
+    assert 'href="/system?restart=1#pi">Restart PaperPi now' in page
+
+
+def test_only_a_new_vcom_applies_at_once(cfg, reloads):
+    cfg.write_text(
+        CONFIG.replace('type = "virtual"', 'type = "it8951"\nmodel = "9.7"\nvcom = -1.9')
+    )
+    client = make_client(cfg, reloads, NINE)
+    response = client.post("/system/screen", data=IT8951 | {"model": "9.7"})
+    assert response.headers["location"] == "/system?done=saved"
+    assert display(cfg)["vcom"] == -1.52
+    assert not previous_file(cfg).exists()
+    assert "waiting for a restart" not in client.get("/system").text
+
+
+@pytest.mark.parametrize(
+    ("sent", "key", "problem"),
+    [
+        (IT8951 | {"vcom": "-4"}, "vcom", "Must be a number from -3.00 to -0.50"),
+        (IT8951 | {"vcom": ""}, "vcom", "Must be a number from -3.00 to -0.50"),
+        (IT8951 | {"model": "13"}, "model", "Choose one of the models"),
+        (
+            {"type": "virtual", "width": "wide", "height": "1", "mode": "bw"},
+            "width",
+            "Must be a whole",
+        ),
+        ({"type": "virtual", "width": "1", "height": "1", "mode": "16"}, "mode", "Choose what"),
+        ({"type": "inkplate"}, "type", "Choose a type"),
+    ],
+)
+def test_wrong_screen_values_save_nothing_and_say_why(client, cfg, reloads, sent, key, problem):
+    response = client.post("/system/screen", data=sent)
+    assert response.status_code == 400
+    assert f'<p class="problem">{problem}' in response.text
+    assert cfg.read_text() == CONFIG and reloads == []
+
+
+def test_undo_puts_back_the_screen_in_use(cfg, reloads):
+    client = make_client(cfg, reloads, VIRTUAL)
+    client.post("/system/screen", data=IT8951)
+    response = client.post("/system/screen/undo")
+    assert response.headers["location"] == "/system?done=undone"
+    assert display(cfg) == {"type": "virtual", "max_refresh": 6}
+    assert not previous_file(cfg).exists()
+    page = client.get("/system?done=undone").text
+    assert "The new screen is undone" in page and "waiting for a restart" not in page
+
+
+def test_go_back_is_offered_when_the_new_screen_does_not_answer(cfg, reloads, service):
+    system.keep_previous(cfg.parent, {"type": "it8951", "model": "9.7", "vcom": -1.9})
+    controls = Controls(Summary(screen="paused"))
+    client = make_client(cfg, reloads, VIRTUAL, controls)
+    page = client.get("/system").text
+    assert "The screen does not answer." in page
+    assert "before: IT8951, 9.7 inch, −1.90 V." in page
+    assert 'href="/system?back=1#screen">Go back to the previous' in page
+    assert 'action="/system/screen/back"' in client.get("/system?back=1").text
+    response = client.post("/system/screen/back")
+    assert "<h1>Restarting PaperPi…</h1>" in response.text
+    assert controls.restarts == 1
+    assert display(cfg) == {"type": "it8951", "model": "9.7", "vcom": -1.9, "max_refresh": 6}
+    assert not previous_file(cfg).exists()
+
+
+def test_go_back_without_a_service_asks_for_a_restart_by_hand(cfg, reloads, monkeypatch):
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
+    system.keep_previous(cfg.parent, {"type": "virtual", "width": 800})
+    controls = Controls(Summary(screen="failing"))
+    client = make_client(cfg, reloads, NINE, controls)
+    assert client.post("/system/screen/back").headers["location"] == "/system?done=back"
+    assert controls.restarts == 0
+    assert "Restart PaperPi to use it." in client.get("/system?done=back").text
+
+
+def test_the_previous_screen_goes_once_the_new_one_answers(cfg, reloads):
+    system.keep_previous(cfg.parent, {"type": "it8951", "model": "9.7", "vcom": -1.9})
+    page = make_client(cfg, reloads, VIRTUAL, Controls(Summary(screen="ok"))).get("/system").text
+    assert "does not answer" not in page
+    assert not previous_file(cfg).exists()
+
+
+def test_a_second_new_screen_keeps_the_one_that_worked(cfg, reloads):
+    system.keep_previous(cfg.parent, {"type": "it8951", "model": "9.7", "vcom": -1.9})
+    client = make_client(cfg, reloads, VIRTUAL, Controls(Summary(screen="paused")))
+    client.post("/system/screen", data=IT8951)
+    assert system.previous(cfg.parent) == {"type": "it8951", "model": "9.7", "vcom": -1.9}
+
+
+def test_restart_only_as_a_service(cfg, reloads, monkeypatch):
+    controls = Controls(Summary(screen="ok"))
+    client = make_client(cfg, reloads, VIRTUAL, controls)
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
+    page = client.get("/system").text
+    assert "Restart PaperPi…" not in page and "started by hand" in page
+    assert client.post("/system/restart").status_code == 409
+    monkeypatch.setenv("INVOCATION_ID", "1234")
+    assert 'href="/system?restart=1#pi">Restart PaperPi…' in client.get("/system").text
+    assert 'action="/system/restart"' in client.get("/system?restart=1").text
+    assert controls.restarts == 0  # only asked so far
+    response = client.post("/system/restart")
+    assert response.status_code == 200 and 'id="restarting"' in response.text
+    assert controls.restarts == 1
+
+
+def test_a_kept_screen_that_cant_be_used_is_ignored(tmp_path):
+    (tmp_path / system.PREVIOUS_FILE).write_text('type = "it8951"\nvcom = 7\n')
+    assert system.previous(tmp_path) is None
+    assert system.previous(None) is None
