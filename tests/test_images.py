@@ -41,6 +41,7 @@ VARIANTS = {
 }
 # More screens for layouts made for a special shape, per plugin and layout.
 LAYOUT_SCREENS = {
+    "ical_calendar": {"small": {"2in13": (250, 122, ScreenMode.bw())}},
     "met_no": {
         "small": {"2in13": (250, 122, ScreenMode.bw())},
         "portrait_hours": {"upright": (480, 800, ScreenMode.gray(16))},

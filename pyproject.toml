@@ -11,11 +11,13 @@ dependencies = [
     # The pin and SPI libraries for the IT8951 screen; they build only on Linux.
     "epdlib[it8951]; sys_platform == 'linux'",
     "fastapi>=0.115",
+    "icalendar>=7.3.0",
     "jinja2>=3.1",
     "markdown-it-py>=3",
     "pydantic>=2.9",
     "python-multipart>=0.0.9",
     "pyyaml>=6.0.3",
+    "recurring-ical-events>=3.8.2",
     "segno>=1.6",
     "tomlkit>=0.13",
     "uvicorn>=0.30",
