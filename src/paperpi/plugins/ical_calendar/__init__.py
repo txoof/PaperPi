@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
 
+from PIL import Image, ImageDraw
 from pydantic import Field, SecretStr
 
 from ... import webrequest
@@ -26,8 +27,9 @@ from .layouts import LAYOUTS
 log = logging.getLogger(__name__)
 
 CALENDARS = ("calendar_1", "calendar_2", "calendar_3")
-#: The mark before each event's title, per calendar, when two or more are used.
-MARKS = ("●", "○", "■")
+#: The mark before each event's title, per calendar, when two or more are used: a filled
+#: circle, an open circle and a filled square.
+MARKS = ("dot", "ring", "square")
 #: Saved events are shown when a calendar can't be downloaded, until they are this old.
 OLDEST = timedelta(days=1)
 #: Calendars that have been used for many years can be large (Google: about 1 MB for some
@@ -59,14 +61,12 @@ class Settings(PluginSettings):
 
 @dataclass(frozen=True)
 class Agenda:
-    """What ``draw`` gets: the events of all calendars, the time they are shown at, when
-    the oldest saved events used were downloaded (``None``: all are new), the time zone
-    to show them in (``None``: this computer's own) and the name of each calendar setting
-    (``None`` for one that is not used)."""
+    """What ``draw`` gets: the events of all calendars, the time they are shown at, the
+    time zone to show them in (``None``: this computer's own) and the name of each calendar
+    setting (``None`` for one that is not used)."""
 
     events: tuple[Event, ...]
     now: datetime
-    saved: datetime | None = None
     zone: str | None = None
     calendars: tuple[str | None, ...] = ()
 
@@ -94,7 +94,6 @@ def fetch(context: Context):
     now = datetime.now().astimezone()
     end = events.window_end(now, settings.days)
     found: list[Event] = []
-    oldest = None
     for name in wanted:
         slot = CALENDARS.index(name)
         url = address(name, getattr(settings, name))
@@ -109,7 +108,7 @@ def fetch(context: Context):
             if saved is None or now - saved.fetched > OLDEST:
                 raise
             log.warning("%s can't be downloaded, showing the saved events: %s", name, error)
-            latest, oldest = saved.events, min(oldest or saved.fetched, saved.fetched)
+            latest = saved.events
         else:
             try:
                 write_atomic(path, events.save(latest, key, now))
@@ -119,7 +118,7 @@ def fetch(context: Context):
     calendars = tuple(
         calendar_name(settings, i) if n in wanted else None for i, n in enumerate(CALENDARS)
     )
-    return ready(Agenda(tuple(found), now, oldest, calendars=calendars))
+    return ready(Agenda(tuple(found), now, calendars=calendars))
 
 
 def calendar_name(settings: Settings, slot: int) -> str:
@@ -165,10 +164,30 @@ def time_text(event: Event, today: date, local, hours: int) -> str:
 
 
 def when_text(event: Event, day: date, today: date, time: str) -> str:
-    """Day and time in one short text, for small screens: "18:45", "Thu 18:45", "Thu 1"."""
+    """Day and time in one short text, for small screens: "18:45", "Thu 18:45", "Thu 1".
+    12-hour times are shortened to "6:45p", so they fit too."""
+    time = time.replace(" AM", "a").replace(" PM", "p")
     if day == today:
         return "Today" if event.all_day else time
-    return _short_day(day) if event.all_day else f"{_short_day(day)} {time}"
+    return _short_day(day) if event.all_day else f"{day:%a} {time}"
+
+
+def mark(kind: str, width: int, height: int, size: int) -> Image.Image:
+    """A calendar's mark, ``size`` pixels wide, in the middle of a picture of its block's
+    size, so nothing is resized (see writing-plugins.md)."""
+    image = Image.new("L", (max(width, 1), max(height, 1)), 255)
+    size = max(min(size, width, height), 4)
+    left, top = (width - size) // 2, (height - size) // 2
+    box = (left, top, left + size - 1, top + size - 1)
+    pen = ImageDraw.Draw(image)
+    if kind == "dot":
+        pen.ellipse(box, fill=0)
+    elif kind == "ring":
+        pen.ellipse(box, outline=0, width=max(size // 7, 2))
+    else:
+        inset = round(size * 0.08)  # a square looks larger than a circle of the same width
+        pen.rectangle((box[0] + inset, box[1] + inset, box[2] - inset, box[3] - inset), fill=0)
+    return image
 
 
 def draw(agenda: Agenda, context: Context) -> dict:
@@ -189,17 +208,28 @@ def draw(agenda: Agenda, context: Context) -> dict:
 
     # Saved events, and the sample, may have ended since they were fetched.
     listed = sorted(events.upcoming(agenda.events, agenda.now, end, zone), key=order)
-    wanted = PLUGIN.layout(context.layout, settings).blocks
+    layout = PLUGIN.layout(context.layout, settings)
+    wanted = layout.blocks
     rows = sum(1 for name in wanted if name.startswith("title_"))
     used = [(i, n) for i, n in enumerate(agenda.calendars) if n is not None]
     marked = len(used) > 1
-    corner = [f"{MARKS[i]} {n}" for i, n in used] if marked else []
-    if agenda.saved:
-        corner.append(f"Saved {clock(local(agenda.saved), settings.hours)}")
-    values = {
-        "today": f"{local(agenda.now):%A} {today.day} {local(agenda.now):%B}",
-        "legend": "  ".join(corner),
-    }
+    values = {"today": f"{local(agenda.now):%A} {today.day} {local(agenda.now):%B}"}
+    if marked:
+        # Every mark, in the rows and in the header, is 60 % of a row's mark block.
+        prepared = layout.prepare(context.width, context.height, context.mode)
+        blocks = {
+            b: prepared.content_size(f"{b}_0") for b in ("mark", "key_mark") if f"{b}_0" in wanted
+        }
+        size = round(min(blocks["mark"]) * 0.6)
+        marks = {
+            (slot, b): mark(MARKS[slot], *wh, size) for slot, _ in used for b, wh in blocks.items()
+        }
+    if marked and "key_mark_0" in wanted:
+        # Filled from the right, so the last one ends at the screen's edge.
+        first = sum(1 for n in wanted if n.startswith("key_mark_")) - len(used)
+        for k, (slot, name) in enumerate(used, start=first):
+            values[f"key_mark_{k}"] = marks[slot, "key_mark"]
+            values[f"key_name_{k}"] = name
     if not listed:
         days = "today" if settings.days == 1 else f"the next {settings.days} days"
         values["title_0"] = f"Nothing planned for {days}"
@@ -211,7 +241,9 @@ def draw(agenda: Agenda, context: Context) -> dict:
         day = shown_day(event)
         values[f"day_{i}"] = day_name(day, today) if day != previous else ""
         values[f"time_{i}"] = time_text(event, today, local, settings.hours)
-        values[f"title_{i}"] = f"{MARKS[event.calendar]} {event.title}" if marked else event.title
+        values[f"title_{i}"] = event.title
+        if marked:
+            values[f"mark_{i}"] = marks[event.calendar, "mark"]
         values[f"when_{i}"] = when_text(event, day, today, values[f"time_{i}"])
         previous = day
     return {name: value for name, value in values.items() if name in wanted}

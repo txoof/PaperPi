@@ -5,12 +5,13 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from epdlib import ScreenMode
+from PIL import ImageOps
 from pydantic import SecretStr
 
 import paperpi.plugins.ical_calendar as ical_calendar
 from paperpi import webrequest
 from paperpi.plugin import Context
-from paperpi.plugins.ical_calendar import Agenda, Settings, address, draw, fetch
+from paperpi.plugins.ical_calendar import Agenda, Settings, address, draw, fetch, mark
 from paperpi.plugins.ical_calendar.events import CalendarError, Event, load, read, save
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -131,7 +132,6 @@ def test_fetch_merges_calendars_and_saves_each(calendars, tmp_path):
         ("Mine", 0),
     ]
     assert fetched.data.calendars == ("Calendar 1", None, "Family")
-    assert fetched.data.saved is None
     assert (tmp_path / "calendar_1.json").is_file() and (tmp_path / "calendar_3.json").is_file()
 
 
@@ -143,7 +143,6 @@ def test_fetch_uses_saved_events_when_a_calendar_cant_be_downloaded(calendars, t
     calendars[URL_2] = webrequest.WebError("calendar.example.com can't be reached")
     fetched = fetch(context(tmp_path, **settings))
     assert sorted(e.title for e in fetched.data.events) == ["Family", "Mine"]
-    assert fetched.data.saved is not None
 
 
 def test_fetch_fails_without_usable_saved_events(calendars, tmp_path):
@@ -179,8 +178,8 @@ def test_saved_events_load_back(tmp_path):
 # --- Drawing ---------------------------------------------------------------------------------
 
 
-def drawn(events, layout="list", saved=None, calendars=("Mine", None, None), **settings):
-    agenda = Agenda(tuple(events), NOW, saved, "Europe/Berlin", calendars)
+def drawn(events, layout="list", calendars=("Mine", None, None), **settings):
+    agenda = Agenda(tuple(events), NOW, "Europe/Berlin", calendars)
     return draw(agenda, Context(Settings(calendar_1=URL_1, **settings), 1200, 825,
                                 ScreenMode.gray(16), None, layout))  # fmt: skip
 
@@ -200,7 +199,8 @@ def test_draw_names_each_day_once_and_puts_all_day_events_first():
     assert [values[f"day_{i}"] for i in range(3)] == ["Today", "Tomorrow", ""]
     assert [values[f"title_{i}"] for i in range(3)] == ["Dentist", "Rent", "Club"]
     assert [values[f"time_{i}"] for i in range(3)] == ["14:30", "all day", "18:45"]
-    assert values["today"] == "Wednesday 30 September" and values["legend"] == ""
+    assert values["today"] == "Wednesday 30 September"
+    assert not any(name.startswith(("mark_", "key_")) for name in values)  # one calendar
 
 
 def test_draw_shows_how_long_earlier_events_still_last():
@@ -233,9 +233,10 @@ def test_draw_leaves_out_events_after_the_days_shown():
     assert drawn([Event("Later", *at(3, 10))], days=3)["title_0"].startswith("Nothing")
 
 
-def test_draw_12_hour_times_and_the_saved_time():
-    values = drawn([Event("Club", *at(0, 18, 45))], hours=12, saved=NOW - timedelta(hours=2))
-    assert values["time_0"] == "6:45 PM" and values["legend"] == "Saved 7:15 AM"
+def test_draw_12_hour_times():
+    values = drawn([Event("Club", *at(0, 18, 45))], hours=12)
+    assert values["time_0"] == "6:45 PM"
+    assert drawn([Event("Club", *at(1, 18, 45))], "small", hours=12)["when_0"] == "Thu 6:45p"
 
 
 def test_small_layout_puts_day_and_time_together():
@@ -249,8 +250,33 @@ def test_small_layout_puts_day_and_time_together():
 def test_draw_marks_each_calendar_when_there_are_several():
     values = drawn(
         [Event("Club", *at(0, 18)), Event("Rent", *at(0, 20), calendar=2)],
-        saved=NOW - timedelta(hours=2),
         calendars=("Personal", None, "Family"),
     )
-    assert values["legend"] == "● Personal  ■ Family  Saved 07:15"
-    assert values["title_0"] == "● Club" and values["title_1"] == "■ Rent"
+    # Filled from the right: the first of the three places in the header stays empty.
+    assert (values["key_name_1"], values["key_name_2"]) == ("Personal", "Family")
+    assert "key_name_0" not in values
+    assert values["title_0"] == "Club" and values["title_1"] == "Rent"
+
+    # Each event has the same picture as its calendar in the header.
+    # Each event has its calendar's mark, the same size as the one in the header.
+    def ink(name):  # the size of what was drawn in black
+        box = ImageOps.invert(values[name]).getbbox()
+        return box[2] - box[0], box[3] - box[1]
+
+    assert (
+        values["mark_0"].tobytes()
+        == mark("dot", *values["mark_0"].size, ink("mark_0")[0]).tobytes()
+    )
+    assert (
+        values["mark_1"].tobytes()
+        == mark("square", *values["mark_1"].size, ink("mark_0")[0]).tobytes()
+    )
+    assert ink("mark_0") == ink("key_mark_1")
+
+
+def test_marks_are_the_same_size_and_differ():
+    dot, ring, square = (mark(kind, 40, 60, 24) for kind in ("dot", "ring", "square"))
+    assert dot.size == ring.size == square.size == (40, 60)
+    assert len({dot.tobytes(), ring.tobytes(), square.tobytes()}) == 3
+    ink = [ImageOps.invert(m).getbbox() for m in (dot, ring)]  # where black was drawn
+    assert ink[0] == ink[1] is not None  # the circles have the same size and place

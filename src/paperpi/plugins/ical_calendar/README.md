@@ -2,7 +2,7 @@
 
 The next events from one, two or three calendars, merged into one list sorted by time: today's date at the top, then one row per event with its day, its time and its title. Each day is named once ("Today", "Tomorrow", "Sat 3 Oct"); all-day events come first on their day.
 
-With two or three calendars, each event's title starts with its calendar's mark: ● for `calendar_1`, ○ for `calendar_2`, ■ for `calendar_3`. The top right shows each mark with the calendar's name ("● Personal  ○ Family"), from the settings `name_1` to `name_3` ("Calendar 1" when a name is not set). With one calendar there are no marks.
+With two or three calendars, each event has its calendar's mark before the title: a filled circle for `calendar_1`, an open circle for `calendar_2`, a filled square for `calendar_3`. The marks are small pictures, all the same size. The top right shows each mark with the calendar's name ("Personal", "Family"), from the settings `name_1` to `name_3` ("Calendar 1" when a name is not set). With one calendar there are no marks.
 
 It works with any calendar that gives an iCal address (iCal is the standard file format for calendars, ending in `.ics`): Google Calendar, Outlook.com, iCloud, Nextcloud, Fastmail and others. No login is needed.
 
@@ -30,14 +30,14 @@ The plugin downloads each calendar at every update. Google sends the whole calen
 
 It suggests a refresh every 30 minutes, so a new event can take up to half an hour to show.
 
-After each download, the plugin saves that calendar's events of the coming days in its storage folder. When a calendar can't be downloaded, its saved events are shown instead, for up to one day, and the top right also says when they were saved ("Saved 10:32"). Saved events are not used for another address.
+After each download, the plugin saves that calendar's events of the coming days in its storage folder. When a calendar can't be downloaded, its saved events are shown instead, for up to one day; PaperPi's log says so. Saved events are not used for another address.
 
 ## Layouts
 
 | Layout | Shows |
 |---|---|
 | `list` (default) | today's date and the calendars' marks and names, then the next 8 events: day, time and title |
-| `small` | for tiny screens (2" to 3"): the next 3 events, with the day and time in one column ("18:45", "Thu 18:45"); the marks but not the names |
+| `small` | for tiny screens (2" to 3"): the next 3 events, with the day and time in one column ("18:45", "Thu 18:45"; 12-hour times are shortened to "6:45p"); the marks but not the names |
 
 When there are more events than rows, the last row says how many more there are ("+ 3 more"). With no events: "Nothing planned for the next 7 days".
 
@@ -46,7 +46,7 @@ The time column shows:
 - "all day" for an all-day event;
 - for an event that started on an earlier day and is still going: "until 10:00" (it ends today) or "until Sun 4"; for an all-day event "ends today" or "until Sun 4".
 
-A long title is drawn smaller, on two lines if needed, and cut ("…") when it still doesn't fit. Times are shown in the Pi's own time zone.
+All text of a layout has one size, which depends on the size of the screen. A title that is too long is cut ("…"). Times are shown in the Pi's own time zone.
 
 ## Settings
 
