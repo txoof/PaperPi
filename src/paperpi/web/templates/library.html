@@ -26,7 +26,7 @@ screens show fewer shades than the example.</p>
   <li data-search="{{ ([item.title, item.type, item.description] + item.labels + item.layouts)|join(' ')|lower }}">
     {% if item.plugin %}
     {% with picture = shown[item.type] %}{% include "picture.html" %}{% endwith %}
-    <h2><a href="/library/{{ item.type }}">{{ item.title }}</a></h2>
+    <h2><a class="look" href="/library/{{ item.type }}/look">{{ item.title }}</a></h2>
     <p>{{ item.description }}</p>
     {% if item.layouts|length > 1 %}<p class="hint layouts">Layouts: {{ item.layouts|join(", ") }}</p>{% endif %}
     <p class="labels"><code>{{ item.type }}</code>
@@ -44,7 +44,7 @@ screens show fewer shades than the example.</p>
 {% endfor %}
 </ul>
 <p class="hint" id="no-match" hidden>No plugin matches your search.</p>
-{#- The Add window: library.js fills it with the Add form; without JavaScript, + Add opens
-    the Add page. -#}
-<dialog id="add-window" class="window" aria-labelledby="add-title"></dialog>
+{#- The window: library.js fills it with the Add form or Look closer; without JavaScript,
+    + Add opens the Add page and a picture the Look closer page. -#}
+<dialog id="window" class="window" aria-labelledby="window-title"></dialog>
 {% endblock %}

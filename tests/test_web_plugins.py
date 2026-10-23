@@ -175,7 +175,7 @@ def test_library_cards_have_a_title_labels_and_the_names_added():
 
 def test_the_library_page_shows_titles_labels_and_names_added(client):
     page = client.get("/library").text
-    assert '<h2><a href="/library/met_no">Weather</a></h2>' in page
+    assert '<h2><a class="look" href="/library/met_no/look">Weather</a></h2>' in page
     assert '<code>met_no</code> <span class="chip warn">Requires setup</span>' in page
     assert '<span class="chip">Requires internet</span>' in page
     assert "Added: Clock, Broken</span>" in page and "Added: Weather</span>" in page
@@ -202,7 +202,8 @@ def test_a_plugin_type_is_shown_by_its_title():
 def test_the_library_works_while_the_config_file_cant_be_read(client, cfg):
     cfg.write_text("[[plugin]\n")
     page = client.get("/library").text
-    assert '<h2><a href="/library/basic_clock">Clock</a></h2>' in page and "Added:" not in page
+    assert '<h2><a class="look" href="/library/basic_clock/look">Clock</a></h2>' in page
+    assert "Added:" not in page
 
 
 def test_a_setup_note_is_on_the_card_and_the_add_page(client):
@@ -224,10 +225,10 @@ def test_the_add_page_uses_the_title(client):
 
 def test_the_add_window_gets_the_add_form_only(client, cfg):
     library = client.get("/library").text
-    assert '<dialog id="add-window" class="window"' in library  # library.js fills it
+    assert '<dialog id="window" class="window"' in library  # library.js fills it
     assert '<a class="add" href="/library/word_clock">+ Add</a>' in library  # no JS: the page
     part = client.get("/library/word_clock", headers={"HX-Request": "true"}).text
-    assert part.startswith('<div class="window-body">\n<h2 id="add-title">Add Word clock</h2>')
+    assert part.startswith('<div class="window-body">\n<h2 id="window-title">Add Word clock</h2>')
     assert "<html" not in part
     assert '<form method="post" action="/library/word_clock" class="add-form">' in part
     assert 'value="Word clock"' in part and '<a href="/library" data-close>Cancel</a>' in part

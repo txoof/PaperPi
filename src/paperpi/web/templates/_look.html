@@ -1,0 +1,19 @@
+{#- Look closer: one layout's picture, bigger, and a button for each layout. On the Look
+    closer page (look.html) and in the Plugin Library's window (look_window.html). -#}
+{% include "picture.html" %}
+{% if picture and picture.turned %}<p class="note">Made for upright screens, so it is drawn
+upright here. To use it, turn your screen (<code>rotation</code> 90 or 270).</p>{% endif %}
+{% if item.layout_choices|length > 1 %}
+<div class="layout-pick" role="group" aria-label="Layouts">
+  {%- for name, title in item.layout_choices %}
+  <a class="button" href="/library/{{ item.type }}/look?layout={{ name|urlencode }}"
+    {%- if name == layout %} aria-current="true"{% endif %}>{{ title }}
+    {%- if loop.first %} (default){% endif %}{% if title != name %}<small>{{ name }}</small>{% endif %}</a>
+  {%- endfor %}
+</div>
+{% else %}
+<p class="hint">This plugin has one layout.</p>
+{% endif %}
+<p>{{ item.description }}</p>
+{% if picture %}<p class="hint">Drawn {% if not picture.turned %}at your screen's size {% endif %}with sample
+data and default settings. You choose the layout on the plugin's settings page after adding it.</p>{% endif %}

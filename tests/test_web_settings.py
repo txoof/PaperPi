@@ -79,7 +79,7 @@ def test_the_page_shows_the_settings_in_their_groups(client):
     assert 'value="52.52"' in page and "(required)" in page
     assert "Not shown until these settings are filled in: email." in page
     assert "<details>\n    <summary>More settings" in page  # folded: all defaults
-    assert "<code>Weather</code> (fixed; it names the storage folder)" in page
+    assert "<dt>ID</dt><dd><code>Weather</code></dd>" in page
     assert '<p class="type">Weather: The weather' in page
     assert "<dt>Type</dt><dd>Weather (<code>met_no</code>)</dd>" in page
     # The layout list shows the titles and sends the layout's name.

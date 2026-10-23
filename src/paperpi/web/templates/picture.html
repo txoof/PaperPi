@@ -1,15 +1,21 @@
-{#- One plugin's example picture in the Plugin Library. Also sent alone (htmx): while the
-picture is being drawn, it asks again every few seconds and replaces itself. -#}
+{#- An example picture: on a Plugin Library card (no layout given: the first layout, and a
+link to Look closer), or one layout's picture in Look closer. Also sent alone (htmx): while
+the picture is being drawn, it asks again every few seconds and replaces itself. -#}
 {% if picture is none %}
 {%- elif picture.file %}
-<figure class="picture">
-  <a href="/library/{{ item.type }}"><img src="/library/pictures/{{ picture.file }}"
-    width="{{ picture.screen.width }}" height="{{ picture.screen.height }}"
-    alt="Add {{ item.title }} (example drawn with its sample data)"></a>
+<figure class="picture{% if picture.turned %} upright{% endif %}">
+  {%- set img -%}
+  <img src="/library/pictures/{{ picture.file }}" width="{{ picture.screen.width }}"
+    height="{{ picture.screen.height }}" alt="{{ item.title }} (example drawn with its sample data)">
+  {%- endset %}
+  {% if layout %}{{ img }}
+  {% else %}<a class="look" href="/library/{{ item.type }}/look">{{ img }}
+    <span>{% if item.plugin.layouts|length > 1 %}{{ item.plugin.layouts|length }} layouts · {% endif %}Look closer</span></a>
+  {% endif %}
 </figure>
 {%- elif picture.problem %}
 <p class="hint picture">No example picture. {{ picture.problem }}</p>
 {%- else %}
-<p class="hint picture" hx-get="/library/{{ item.type }}/picture" hx-trigger="load delay:3s"
-  hx-swap="outerHTML">Drawing the example picture…</p>
+<p class="hint picture" hx-get="/library/{{ item.type }}/picture{% if layout %}?layout={{ layout|urlencode }}{% endif %}"
+  hx-trigger="load delay:3s" hx-swap="outerHTML">Drawing the example picture…</p>
 {%- endif %}

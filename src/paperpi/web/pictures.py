@@ -1,4 +1,5 @@
-"""Example pictures for the Plugin Library: each plugin drawn with its sample data.
+"""Example pictures for the Plugin Library: each layout of each plugin drawn with its sample
+data.
 
 See ``docs/decisions/web-interface.md``. The pictures are drawn ahead, in the background,
 at the screen's size (in 256 shades of gray, or in color for a color screen), and saved in
@@ -7,7 +8,8 @@ txoof, M5 part 3b-2).
 
 A picture's file name holds a fingerprint: a short code made from the plugin's files (the
 name, size and time of last change of each file in its folder, so a change to any of them
-counts), the screen's width, height and type, and the PaperPi and epdlib versions. When
+counts), the layout, the screen's width, height and type, and the PaperPi and epdlib
+versions. When
 one of these changes, the old picture no longer matches and a new one is drawn; pictures
 that match no plugin any more are deleted. The files' contents are not read: moon_phase
 alone has 19 MB of images, too much to read at every opening of the page on a Pi 3. Only
@@ -16,12 +18,17 @@ without a new version number, as while developing) counts only through the versi
 
 Drawing starts :data:`~paperpi.limits.LIBRARY_PICTURES_WAIT` seconds after PaperPi starts
 (so the first screen update goes first), or at once when the Library page is opened or
-the config file is loaded again. One picture is drawn at a time, each in its own plugin
-process, as a preview is (:func:`paperpi.runner.run_update`), with the plugin's default
-settings and first layout, within :data:`~paperpi.limits.PREVIEW_SAMPLE` seconds. A plugin
+the config file is loaded again. The first layout of every plugin is drawn first (the
+Library page shows it), then the other layouts (shown by Look closer). One picture is drawn
+at a time, each in its own plugin process, as a preview is
+(:func:`paperpi.runner.run_update`), with the plugin's default settings, within
+:data:`~paperpi.limits.PREVIEW_SAMPLE` seconds. A plugin
 that takes longer is tried again, at most :data:`TRIES` times in all (the Pi may just have
 been busy). Any other picture that can't be drawn says why and is not tried again until its
 file name changes or PaperPi starts again, so an open Library page can't keep the Pi busy.
+
+A layout made for upright screens (its name starts with ``portrait``) is drawn upright on
+a wide screen, so it can be seen as it is meant (agreed with txoof, 2026-10-23, #270).
 """
 
 from __future__ import annotations
@@ -51,6 +58,9 @@ FOLDER = "library-pictures"
 #: How often a picture is tried when the plugin takes too long.
 TRIES = 3
 
+#: The start of the name of a layout made for upright screens.
+UPRIGHT = "portrait"
+
 
 @dataclass(frozen=True)
 class Screen:
@@ -69,6 +79,13 @@ class Screen:
         mode = display.screen_mode
         return cls(*display.layout_size, mode if mode.has_color else ScreenMode.gray(256))
 
+    def for_layout(self, layout: str) -> Screen:
+        """What ``layout`` is drawn at: upright for a layout made for upright screens on a
+        wide screen (see the top), else this screen."""
+        if layout.startswith(UPRIGHT) and self.width > self.height:
+            return Screen(self.height, self.width, self.mode)
+        return self
+
 
 @dataclass(frozen=True)
 class Shown:
@@ -79,6 +96,9 @@ class Shown:
     problem: str = ""
     """Why there is no picture (it could not be drawn)."""
     screen: Screen | None = None
+    """What it is drawn at."""
+    turned: bool = False
+    """A layout for upright screens, drawn upright although the screen is wide."""
 
     @property
     def waiting(self) -> bool:
@@ -131,24 +151,35 @@ class Pictures:
         self._stopped.set()
         self._wake.set()
 
-    def shown(self, plugin_type: str) -> Shown | None:
-        """What to show for ``plugin_type``; ``None`` when there are no pictures."""
+    def shown(self, plugin_type: str, layout: str = "") -> Shown | None:
+        """What to show for ``layout`` of ``plugin_type`` (default: its first layout);
+        ``None`` when there are no pictures. Raises ``KeyError`` for a layout the plugin
+        doesn't have."""
         with self._lock:
-            screen = self._screen
-        if self.folder is None or screen is None:
+            base = self._screen
+        if self.folder is None or base is None:
             return None
-        if self._problem:
-            return Shown(problem=self._problem, screen=screen)
         try:
-            name = self.file_name(plugin_type, screen)
+            plugin = plugins.load(plugin_type, self._package)
+        except Exception as error:  # noqa: BLE001 - the Library page says it is broken
+            return Shown(problem=f"The plugin is broken: {error}", screen=base)
+        layout = layout or plugin.default_layout
+        if layout not in plugin.layouts:
+            raise KeyError(layout)
+        screen = base.for_layout(layout)
+        shown = {"screen": screen, "turned": screen != base}
+        if self._problem:
+            return Shown(problem=self._problem, **shown)
+        try:
+            name = self.file_name(plugin_type, base, layout)
         except OSError as error:
-            return Shown(problem=f"Its files can't be read: {error.strerror}.", screen=screen)
+            return Shown(problem=f"Its files can't be read: {error.strerror}.", **shown)
         if (self.folder / name).is_file():
-            return Shown(file=name, screen=screen)
+            return Shown(file=name, **shown)
         if name in self._failed:
-            return Shown(problem=self._failed[name], screen=screen)
+            return Shown(problem=self._failed[name], **shown)
         self._wake.set()  # a plugin changed, or the page was opened during the wait
-        return Shown(screen=screen)
+        return Shown(**shown)
 
     def path(self, name: str) -> Path | None:
         """The saved picture called ``name``, or ``None`` (also for any other file name)."""
@@ -158,21 +189,34 @@ class Pictures:
         # Not a link to another file: only pictures PaperPi saved itself are given out.
         return found if found.is_file() and not found.is_symlink() else None
 
-    def file_name(self, plugin_type: str, screen: Screen) -> str:
-        """The file name of ``plugin_type``'s picture for ``screen``: ``<type>-<16 hex
-        digits>.png``, the digits being the fingerprint (see the top)."""
+    def file_name(self, plugin_type: str, screen: Screen, layout: str = "") -> str:
+        """The file name of the picture of ``layout`` of ``plugin_type`` (default: its first
+        layout) for ``screen``: ``<type>-<16 hex digits>.png``, the digits being the
+        fingerprint (see the top)."""
+        layout = layout or plugins.load(plugin_type, self._package).default_layout
+        return self._name(plugin_type, layout, screen, self._files_code(plugin_type))
+
+    def _files_code(self, plugin_type: str) -> bytes:
+        """The fingerprint of the files in the plugin's folder."""
         spec = importlib.util.find_spec(f"{self._package}.{plugin_type}")
         folder = Path(spec.submodule_search_locations[0])
         code = hashlib.sha256()
-        for part in (__version__, version("epdlib"), plugin_type, screen.width, screen.height):
-            code.update(f"{part}\n".encode())
-        code.update(f"{screen.mode!r}\n".encode())
         for file in sorted(folder.rglob("*")):
             if file.is_file() and "__pycache__" not in file.parts:
                 info = file.stat()
                 code.update(
                     f"{file.relative_to(folder)} {info.st_size} {info.st_mtime_ns}\n".encode()
                 )
+        return code.digest()
+
+    @staticmethod
+    def _name(plugin_type: str, layout: str, screen: Screen, files: bytes) -> str:
+        screen = screen.for_layout(layout)
+        code = hashlib.sha256()
+        for part in (__version__, version("epdlib"), plugin_type, screen.width, screen.height):
+            code.update(f"{part}\n".encode())
+        code.update(f"{screen.mode!r}\n{layout!r}\n".encode())
+        code.update(files)
         return f"{plugin_type}-{code.hexdigest()[:16]}.png"
 
     def _work(self) -> None:
@@ -192,28 +236,39 @@ class Pictures:
         self.folder.mkdir(parents=True, exist_ok=True)
         self._problem = ""  # e.g. fixed before a config reload
         keep = set()
+        first, others = [], []  # (type, layout, file name) to draw
         for plugin_type in plugins.available(self._package):
             if plugin_type in HIDDEN:
                 continue
-            if self._stopped.is_set():
-                return
             try:
-                name = self.file_name(plugin_type, screen)
+                plugin = plugins.load(plugin_type, self._package)
+            except Exception:  # noqa: BLE001 - the page says it is broken
+                continue
+            try:
+                files = self._files_code(plugin_type)
             except OSError:  # keep what it has; the page says its files can't be read
                 keep.update(p.name for p in self.folder.glob(f"{plugin_type}-*.png"))
                 continue
-            keep.add(name)
+            todo = [
+                (plugin_type, x, self._name(plugin_type, x, screen, files)) for x in plugin.layouts
+            ]
+            keep.update(name for _, _, name in todo)
+            first.append(todo[0])
+            others += todo[1:]
+        for plugin_type, layout, name in first + others:
+            if self._stopped.is_set():
+                return
             if not (self.folder / name).is_file() and name not in self._failed:
                 try:
-                    self._draw(plugin_type, name, screen)
+                    self._draw(plugin_type, layout, name, screen.for_layout(layout))
                 except Exception as error:  # noqa: BLE001 - say why; go on with the others
-                    log.exception("library picture of %s", plugin_type)
+                    log.exception("library picture of %s (%s)", plugin_type, layout)
                     self._failed[name] = f"It could not be drawn: {error}"
         for old in [*self.folder.glob("*.png"), *self.folder.glob(".*.part")]:
             if old.name not in keep:
                 old.unlink(missing_ok=True)
 
-    def _draw(self, plugin_type: str, name: str, screen: Screen) -> None:
+    def _draw(self, plugin_type: str, layout: str, name: str, screen: Screen) -> None:
         try:
             plugin = plugins.load(plugin_type, self._package)
             settings = plugin.settings.model_validate({})
@@ -227,14 +282,14 @@ class Pictures:
                 screen.height,
                 screen.mode,
                 Path(storage),
-                plugin.default_layout,
+                layout,
             )
             try:
                 result = self._update(
                     plugin_type, context, sample=True, time_limit=limits.PREVIEW_SAMPLE
                 )
             except PluginFailed as error:
-                log.info("library picture of %s: %s", plugin_type, error)
+                log.info("library picture of %s (%s): %s", plugin_type, layout, error)
                 tries = self._timeouts[name] = self._timeouts.get(name, 0) + 1
                 if isinstance(error, PluginTimeout) and tries < TRIES:
                     return  # tried again at the next round (the page asks again)
@@ -250,9 +305,9 @@ class Pictures:
         except OSError as error:
             part.unlink(missing_ok=True)
             self._failed[name] = f"It could not be saved: {error.strerror or error}."
-            log.error("library picture of %s can't be saved: %s", plugin_type, error)
+            log.error("library picture of %s (%s) can't be saved: %s", plugin_type, layout, error)
             return
-        log.debug("library picture of %s drawn in %.1f s", plugin_type, result.seconds)
+        log.debug("library picture of %s (%s) drawn in %.1f s", plugin_type, layout, result.seconds)
 
 
 def _good_name(name: str) -> bool:
