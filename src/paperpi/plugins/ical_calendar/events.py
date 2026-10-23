@@ -25,6 +25,9 @@ class Event:
     title: str
     start: datetime | date
     end: datetime | date
+    calendar: int = 0
+    """Which calendar setting it is from: 0 for ``calendar_1``. Not saved: it is set
+    after reading."""
 
     @property
     def all_day(self) -> bool:

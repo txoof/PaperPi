@@ -2,7 +2,8 @@
 
 One row per event, with the blocks ``day_<i>``, ``time_<i>`` and ``title_<i>`` (``small``:
 ``when_<i>`` and ``title_<i>``); the number of rows is the number of ``title_`` blocks. The
-list layout also has a header: ``today`` (the date) and ``updated``. Text sizes are shares
+list layout also has a header: ``today`` (the date) and ``legend`` (each calendar's mark and
+name, and when saved events are shown, when they were saved). Text sizes are shares
 of the screen's shorter side, so every row uses the same size; ``shrink`` makes a long text
 smaller (and may wrap it onto a second line) before it is cut.
 """
@@ -12,7 +13,8 @@ from ... import fonts
 PAD = 0.01
 DAY = "Tomorrow"
 TIME = "until Sun 25"
-TITLE = "Dentist appointment with Anne"
+TITLE = "● Dentist appointment with Anne"
+LEGEND = "● Personal  ○ Family  ■ Work  Saved 88:88"
 
 
 def _text(name, sample, size, font_size, font=None, align="left", **more) -> dict:
@@ -73,7 +75,7 @@ LAYOUTS = {
             {
                 "row": [
                     _text("today", "Wednesday 30 September", 3, 0.07, fonts.LATO_BOLD),
-                    _text("updated", "Saved 88:88", 1, 0.035, align="right"),
+                    _text("legend", LEGEND, 2, 0.035, align="right"),
                 ],
                 "gap": 0,
                 "size": 1.3,

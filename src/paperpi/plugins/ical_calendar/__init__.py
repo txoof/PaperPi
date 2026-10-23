@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from typing import Literal
 from zoneinfo import ZoneInfo
@@ -26,6 +26,8 @@ from .layouts import LAYOUTS
 log = logging.getLogger(__name__)
 
 CALENDARS = ("calendar_1", "calendar_2", "calendar_3")
+#: The mark before each event's title, per calendar, when two or more are used.
+MARKS = ("●", "○", "■")
 #: Saved events are shown when a calendar can't be downloaded, until they are this old.
 OLDEST = timedelta(days=1)
 #: Calendars that have been used for many years can be large (Google: about 1 MB for some
@@ -46,6 +48,11 @@ class Settings(PluginSettings):
     calendar_3: SecretStr = Field(
         SecretStr(""), description="Address of a third calendar, shown in the same list"
     )
+    name_1: str = Field(
+        "", max_length=20, description="Short name of the first calendar, e.g. Personal"
+    )
+    name_2: str = Field("", max_length=20, description="Short name of the second, e.g. Family")
+    name_3: str = Field("", max_length=20, description="Short name of the third, e.g. Work")
     days: int = Field(7, ge=1, le=31, description="How many days to show, starting today")
     hours: Literal[12, 24] = Field(24, description="12-hour (3:45 PM) or 24-hour (15:45) times")
 
@@ -53,13 +60,15 @@ class Settings(PluginSettings):
 @dataclass(frozen=True)
 class Agenda:
     """What ``draw`` gets: the events of all calendars, the time they are shown at, when
-    the oldest saved events used were downloaded (``None``: all are new) and the time zone
-    to show them in (``None``: this computer's own)."""
+    the oldest saved events used were downloaded (``None``: all are new), the time zone
+    to show them in (``None``: this computer's own) and the name of each calendar setting
+    (``None`` for one that is not used)."""
 
     events: tuple[Event, ...]
     now: datetime
     saved: datetime | None = None
     zone: str | None = None
+    calendars: tuple[str | None, ...] = ()
 
 
 class SettingsMissing(ValueError):
@@ -87,6 +96,7 @@ def fetch(context: Context):
     found: list[Event] = []
     oldest = None
     for name in wanted:
+        slot = CALENDARS.index(name)
         url = address(name, getattr(settings, name))
         path = context.storage / f"{name}.json"
         key = hashlib.sha256(url.encode()).hexdigest()
@@ -105,8 +115,16 @@ def fetch(context: Context):
                 write_atomic(path, events.save(latest, key, now))
             except OSError as error:
                 log.warning("can't save the events of %s, showing them anyway: %s", name, error)
-        found.extend(events.upcoming(latest, now, end))
-    return ready(Agenda(tuple(found), now, oldest))
+        found.extend(replace(e, calendar=slot) for e in events.upcoming(latest, now, end))
+    calendars = tuple(
+        calendar_name(settings, i) if n in wanted else None for i, n in enumerate(CALENDARS)
+    )
+    return ready(Agenda(tuple(found), now, oldest, calendars=calendars))
+
+
+def calendar_name(settings: Settings, slot: int) -> str:
+    """The name shown for a calendar: its ``name_<n>`` setting, or "Calendar <n>"."""
+    return getattr(settings, f"name_{slot + 1}").strip() or f"Calendar {slot + 1}"
 
 
 # --- Drawing ---------------------------------------------------------------------------------
@@ -173,9 +191,14 @@ def draw(agenda: Agenda, context: Context) -> dict:
     listed = sorted(events.upcoming(agenda.events, agenda.now, end, zone), key=order)
     wanted = PLUGIN.layout(context.layout, settings).blocks
     rows = sum(1 for name in wanted if name.startswith("title_"))
+    used = [(i, n) for i, n in enumerate(agenda.calendars) if n is not None]
+    marked = len(used) > 1
+    corner = [f"{MARKS[i]} {n}" for i, n in used] if marked else []
+    if agenda.saved:
+        corner.append(f"Saved {clock(local(agenda.saved), settings.hours)}")
     values = {
         "today": f"{local(agenda.now):%A} {today.day} {local(agenda.now):%B}",
-        "updated": f"Saved {clock(local(agenda.saved), settings.hours)}" if agenda.saved else "",
+        "legend": "  ".join(corner),
     }
     if not listed:
         days = "today" if settings.days == 1 else f"the next {settings.days} days"
@@ -188,14 +211,15 @@ def draw(agenda: Agenda, context: Context) -> dict:
         day = shown_day(event)
         values[f"day_{i}"] = day_name(day, today) if day != previous else ""
         values[f"time_{i}"] = time_text(event, today, local, settings.hours)
-        values[f"title_{i}"] = event.title
+        values[f"title_{i}"] = f"{MARKS[event.calendar]} {event.title}" if marked else event.title
         values[f"when_{i}"] = when_text(event, day, today, values[f"time_{i}"])
         previous = day
     return {name: value for name, value in values.items() if name in wanted}
 
 
 def _sample() -> Agenda:
-    """A made-up week in Berlin, with all-day, repeating and multi-day events."""
+    """A made-up week in Berlin from two calendars, with all-day, repeating and multi-day
+    events."""
     zone = ZoneInfo("Europe/Berlin")
     now = datetime(2026, 9, 30, 9, 15, tzinfo=zone)
 
@@ -205,18 +229,18 @@ def _sample() -> Agenda:
         return start, start + timedelta(hours=length)
 
     sample = [
-        Event("School autumn break", date(2026, 9, 26), date(2026, 10, 5)),
-        Event("Compost bin out", *at(0, 7)),
+        Event("School autumn break", date(2026, 9, 26), date(2026, 10, 5), calendar=1),
+        Event("Compost bin out", *at(0, 7), calendar=1),
         Event("Dentist appointment with Anne", *at(0, 14, 30)),
         Event("Running club", *at(1, 18, 45, 1.5)),
-        Event("Pay the rent", date(2026, 10, 1), date(2026, 10, 2)),
-        Event("Grandma's birthday", date(2026, 10, 3), date(2026, 10, 4)),
+        Event("Pay the rent", date(2026, 10, 1), date(2026, 10, 2), calendar=1),
+        Event("Grandma's birthday", date(2026, 10, 3), date(2026, 10, 4), calendar=1),
         Event("Football match", *at(3, 10)),
-        Event("Dinner with friends", *at(3, 19, 30, 3)),
+        Event("Dinner with friends", *at(3, 19, 30, 3), calendar=1),
         Event("Running club", *at(4, 8, 30, 1.5)),
-        Event("Window cleaner", *at(5, 9)),
+        Event("Window cleaner", *at(5, 9), calendar=1),
     ]
-    return Agenda(tuple(sample), now, zone="Europe/Berlin")
+    return Agenda(tuple(sample), now, zone="Europe/Berlin", calendars=("Personal", "Family", None))
 
 
 PLUGIN = Plugin(

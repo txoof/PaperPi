@@ -125,10 +125,14 @@ def soon(title: str, hours: float) -> str:
 def test_fetch_merges_calendars_and_saves_each(calendars, tmp_path):
     calendars[URL_1] = ics(soon("Mine", 2))
     calendars[URL_2] = ics(soon("Family", 1), soon("Far away", 24 * 40))
-    fetched = fetch(context(tmp_path, calendar_1=URL_1, calendar_2=URL_2))
-    assert sorted(e.title for e in fetched.data.events) == ["Family", "Mine"]
+    fetched = fetch(context(tmp_path, calendar_1=URL_1, calendar_3=URL_2, name_3="Family"))
+    assert sorted((e.title, e.calendar) for e in fetched.data.events) == [
+        ("Family", 2),
+        ("Mine", 0),
+    ]
+    assert fetched.data.calendars == ("Calendar 1", None, "Family")
     assert fetched.data.saved is None
-    assert (tmp_path / "calendar_1.json").is_file() and (tmp_path / "calendar_2.json").is_file()
+    assert (tmp_path / "calendar_1.json").is_file() and (tmp_path / "calendar_3.json").is_file()
 
 
 def test_fetch_uses_saved_events_when_a_calendar_cant_be_downloaded(calendars, tmp_path):
@@ -175,8 +179,8 @@ def test_saved_events_load_back(tmp_path):
 # --- Drawing ---------------------------------------------------------------------------------
 
 
-def drawn(events, layout="list", saved=None, **settings):
-    agenda = Agenda(tuple(events), NOW, saved, "Europe/Berlin")
+def drawn(events, layout="list", saved=None, calendars=("Mine", None, None), **settings):
+    agenda = Agenda(tuple(events), NOW, saved, "Europe/Berlin", calendars)
     return draw(agenda, Context(Settings(calendar_1=URL_1, **settings), 1200, 825,
                                 ScreenMode.gray(16), None, layout))  # fmt: skip
 
@@ -196,7 +200,7 @@ def test_draw_names_each_day_once_and_puts_all_day_events_first():
     assert [values[f"day_{i}"] for i in range(3)] == ["Today", "Tomorrow", ""]
     assert [values[f"title_{i}"] for i in range(3)] == ["Dentist", "Rent", "Club"]
     assert [values[f"time_{i}"] for i in range(3)] == ["14:30", "all day", "18:45"]
-    assert values["today"] == "Wednesday 30 September" and values["updated"] == ""
+    assert values["today"] == "Wednesday 30 September" and values["legend"] == ""
 
 
 def test_draw_shows_how_long_earlier_events_still_last():
@@ -231,7 +235,7 @@ def test_draw_leaves_out_events_after_the_days_shown():
 
 def test_draw_12_hour_times_and_the_saved_time():
     values = drawn([Event("Club", *at(0, 18, 45))], hours=12, saved=NOW - timedelta(hours=2))
-    assert values["time_0"] == "6:45 PM" and values["updated"] == "Saved 7:15 AM"
+    assert values["time_0"] == "6:45 PM" and values["legend"] == "Saved 7:15 AM"
 
 
 def test_small_layout_puts_day_and_time_together():
@@ -240,3 +244,13 @@ def test_small_layout_puts_day_and_time_together():
         layout="small",
     )
     assert values == {"when_0": "18:45", "title_0": "Club", "when_1": "Thu 1", "title_1": "Rent"}
+
+
+def test_draw_marks_each_calendar_when_there_are_several():
+    values = drawn(
+        [Event("Club", *at(0, 18)), Event("Rent", *at(0, 20), calendar=2)],
+        saved=NOW - timedelta(hours=2),
+        calendars=("Personal", None, "Family"),
+    )
+    assert values["legend"] == "● Personal  ■ Family  Saved 07:15"
+    assert values["title_0"] == "● Club" and values["title_1"] == "■ Rent"
