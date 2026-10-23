@@ -193,6 +193,15 @@ def test_htmx_and_style_are_served_without_log_in(cfg):
     assert client.get("/static/nothing.js").status_code == 404
 
 
+def test_the_icon_is_served_without_log_in(cfg):
+    client = make_client(cfg, password_hash=hash_password("correct horse"))
+    icon = client.get("/static/icon.svg")
+    assert icon.status_code == 200 and icon.headers["content-type"] == "image/svg+xml"
+    for name in ("favicon-32.png", "apple-touch-icon.png"):
+        assert client.get(f"/static/{name}").headers["content-type"] == "image/png"
+    assert 'rel="icon" href="/static/icon.svg"' in client.get("/login").text
+
+
 def test_server_runs_in_a_thread(cfg, caplog):
     settings = config.WebSettings.model_construct(
         **(config.WebSettings().model_dump() | {"address": "127.0.0.1", "port": 0})

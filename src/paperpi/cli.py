@@ -10,6 +10,8 @@
   example config file.
 - ``paperpi reset-password`` removes the web password, so a new one can be set in the web
   interface.
+- ``paperpi web-defaults`` puts the web interface back on its default address and port,
+  for when a new address or port in the web interface can't be reached.
 - ``paperpi health`` says whether ``paperpi run`` still reports "healthy"; Docker's health
   check uses it.
 
@@ -37,6 +39,7 @@ from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
 from .screen import Screen, ScreenStuck, driver_for
+from .web import config_file
 from .web.password import PasswordError, save_password_hash
 
 log = logging.getLogger("paperpi")
@@ -216,6 +219,22 @@ def _parser() -> argparse.ArgumentParser:
         "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
     )
     reset.set_defaults(command=_reset_password)
+
+    defaults = commands.add_parser(
+        "web-defaults",
+        help="put the web interface back on port 8080 for every device",
+        description=(
+            "Take the web interface's address and port out of [web] in the config file, so "
+            "it uses the defaults again: port 8080, for every device on the home network. "
+            "For when the web interface can't be reached after a change. The rest of the "
+            "file stays as it is. Run it with sudo when the config file belongs to root, as "
+            "in /etc/paperpi. Then restart PaperPi."
+        ),
+    )
+    defaults.add_argument(
+        "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    defaults.set_defaults(command=_web_defaults)
     return parser
 
 
@@ -418,6 +437,30 @@ def _reset_password(args: argparse.Namespace) -> int:
         "(sudo systemctl reload paperpi once it runs as a service).\n"
         "Then open the web interface and set a new password. Until then, anyone on your "
         "home network can set it."
+    )
+    return 0
+
+
+def _web_defaults(args: argparse.Namespace) -> int:
+    every = config.WebSettings()
+    try:
+        path, text = config_file.read(args.config)
+        defaults = {"address": every.address, "port": every.port}
+        new = config_file.set_web(text, dict.fromkeys(defaults), defaults)
+        if new != text:
+            config_file.write(path, new)
+    except config_file.EditError as error:
+        hint = "; run it with sudo" if "Permission denied" in str(error) else ""
+        print(f"paperpi: {error}{hint}", file=sys.stderr)
+        return 1
+    where = f"port {every.port}, for every device on your home network"
+    if new == text:
+        print(f"the web interface already uses the defaults in {args.config}: {where}")
+        return 0
+    print(
+        f"the web interface is back on {where} in {args.config}.\n"
+        "Next: restart PaperPi (sudo systemctl restart paperpi when it runs as a service), "
+        f"then open http://<the Pi's address>:{every.port}"
     )
     return 0
 

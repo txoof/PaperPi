@@ -13,6 +13,11 @@ at once, and facts about this Pi.
   (:func:`waiting`). The screen in use is kept in :data:`PREVIOUS_FILE` in the state
   folder, so "Go back to the previous screen" can put it back when the new one does not
   answer.
+- The Web interface section sets ``[web]`` (:data:`WEB`): the log-in at once, the
+  address and port at the next start. :func:`port_problem` tries the new port on this Pi
+  before it is saved, so a port PaperPi can't use doesn't cost the web interface;
+  :func:`web_waiting` tells when the file names another address or port than the ones in
+  use.
 - :func:`screen_facts` describes the screen in use (the type and model PaperPi started
   with, see ``docs/decisions/live-config-reload.md``) and :func:`pi_facts` measures this Pi
   when the page asks.
@@ -20,6 +25,7 @@ at once, and facts about this Pi.
 
 from __future__ import annotations
 
+import errno
 import os
 import tomllib
 from collections.abc import Mapping, Sequence
@@ -44,6 +50,10 @@ SECTIONS = {
 }
 #: The ``[display]`` settings of the screen itself, set on the Change screen page.
 SCREEN = ("type", "model", "vcom", "width", "height", "mode")
+#: The ``[web]`` settings of the Web interface section.
+WEB = ("port", "address", "login")
+#: Where the web interface can be reached from, in words.
+ADDRESSES = {"0.0.0.0": "every device on your home network", "127.0.0.1": "only this Pi"}
 #: The screen used before Change screen…, in the state folder.
 PREVIOUS_FILE = "previous-screen.toml"
 #: What a virtual screen can show, in words.
@@ -57,6 +67,7 @@ SHOWS = {
 #: The units "Clean the screen every" can be given in, in seconds.
 CLEAN_UNITS = {"minutes": 60, "hours": 3600}
 _FIELDS = config.DisplaySettings.model_fields
+_WEB_FIELDS = config.WebSettings.model_fields
 _TEMPERATURE = Path("/sys/class/thermal/thermal_zone0/temp")
 
 
@@ -99,6 +110,9 @@ def form(text: str) -> dict[str, str]:
         "splash_time": _text(values.get("splash_time")),
         "fallback_clock": _check(values.get("fallback_clock")),
     }
+    web = web_values(text)
+    shown |= {"port": _text(web["port"]), "address": str(web["address"])}
+    shown["login"] = _check(web["login"])
     if clean == 0:
         return shown | {"clean_every": "1", "clean_unit": "hours", "clean_never": "true"}
     hours = isinstance(clean, int | float) and clean % 3600 == 0
@@ -107,9 +121,22 @@ def form(text: str) -> dict[str, str]:
     return shown | {"clean_every": _text(number), "clean_unit": unit, "clean_never": "false"}
 
 
-def with_values(text: str, sent: Mapping[str, Sequence[str]]) -> str:
-    """``text`` with the values of the sent form ``sent`` written into ``[display]``.
-    Raises :class:`SectionErrors` when a value can't be used and
+def web_values(text: str) -> dict[str, Any]:
+    """The ``[web]`` settings of the config file ``text``, with the defaults for what it
+    doesn't set."""
+    found = config_file.load(text).get("web")
+    every = {key: info.default for key, info in _WEB_FIELDS.items()}
+    return every | (found if isinstance(found, dict) else {})
+
+
+def with_values(
+    text: str,
+    sent: Mapping[str, Sequence[str]],
+    started: config.WebSettings | None = None,
+) -> str:
+    """``text`` with the values of the sent form ``sent`` written into ``[display]`` and
+    ``[web]``. ``started``: the ``[web]`` settings the web interface runs with now (see
+    :func:`port_problem`). Raises :class:`SectionErrors` when a value can't be used and
     :class:`config_file.EditError` when the file can't be changed."""
     one = {key: (texts[-1] if texts else "") for key, texts in sent.items()}
     values: dict[str, Any] = {}
@@ -137,6 +164,7 @@ def with_values(text: str, sent: Mapping[str, Sequence[str]]) -> str:
                     f"[display] {key} in the config file can't be used ({problem['msg']}). "
                     "Fix it in the config file first."
                 ) from None
+    web = _web_changes(text, one, started, errors)
     if errors:
         raise SectionErrors(errors, one)
     every = defaults()
@@ -146,9 +174,123 @@ def with_values(text: str, sent: Mapping[str, Sequence[str]]) -> str:
         # Unchanged settings keep their lines as written (with a comment at the end).
         if value != current.get(key, every.get(key))
     }
-    if not changes:
-        return text
-    return config_file.set_display(text, changes, every)
+    if changes:
+        text = config_file.set_display(text, changes, every)
+    if web:
+        text = config_file.set_web(text, web, _web_defaults())
+    return text
+
+
+def _web_changes(
+    text: str, sent: dict[str, str], started: config.WebSettings | None, errors: dict[str, str]
+) -> dict[str, Any]:
+    """The ``[web]`` settings to change for the sent form ``sent`` (``None``: back to the
+    default). What can't be used goes into ``errors``."""
+    current = web_values(text)
+    values: dict[str, Any] = {}
+    if "port" in sent:
+        try:
+            port = int(sent["port"].strip())
+        except ValueError:
+            port = 0
+        if not 0 < port <= 65535:
+            errors["port"] = "must be a whole number from 1 to 65535"
+        values["port"] = port
+    if "address" in sent:
+        address = sent["address"].strip()
+        # The two choices, or what the config file says now (an address set by hand).
+        if address not in ADDRESSES and address != current["address"]:
+            errors["address"] = "choose where the web interface can be reached from"
+        values["address"] = address
+    if "login" in sent:
+        values["login"] = sent["login"] == "true"
+    if "port" in errors or "address" in errors:
+        return {}
+    new = {key: value for key, value in values.items() if value != current[key]}
+    if "port" in new or "address" in new:
+        address, port = new.get("address", current["address"]), new.get("port", current["port"])
+        problem = port_problem(address, port, started)
+        if problem is not None:
+            errors["port"] = problem
+    if new.get("login") is True:
+        # Switched on again: a password from before goes, and the next visitor sets a new
+        # one (txoof 2026-10-23).
+        new["password_hash"] = None
+    every = _web_defaults()
+    return {key: None if value == every.get(key) else value for key, value in new.items()}
+
+
+def _web_defaults() -> dict[str, Any]:
+    # Without password_hash: a removed password leaves no "# password_hash =" behind.
+    return {key: info.default for key, info in _WEB_FIELDS.items() if key != "password_hash"}
+
+
+def port_problem(address: str, port: int, started: config.WebSettings | None) -> str | None:
+    """Why the web interface could not listen on ``port`` at ``address`` at the next start,
+    found by trying it now; ``None``: it can. The port the web interface uses now
+    (``started``) is fine: it is free again when PaperPi restarts."""
+    if started is not None and port == started.port:
+        return None
+    from .server import listen  # here: the server module needs this one
+
+    try:
+        listen(address, port).close()
+    except PermissionError:
+        return (
+            f"port {port} needs administrator rights, which PaperPi doesn't have. Choose "
+            "1024 or higher, for example 8081"
+        )
+    except OSError as error:
+        if error.errno == errno.EADDRINUSE:
+            return (
+                f"port {port} is used by another program. PaperPi couldn't use it, and you "
+                "would lose this page. Choose another port"
+            )
+        if error.errno == errno.EADDRNOTAVAIL:
+            return f"this Pi has no network address {address}"
+        return f"PaperPi can't use port {port} ({error.strerror or error})"
+    return None
+
+
+def file_web(text: str) -> config.WebSettings | None:
+    """The ``[web]`` settings in the config file ``text``; ``None``: they can't be used."""
+    try:
+        return config.WebSettings.model_validate(config_file.load(text).get("web") or {})
+    except (ValidationError, config_file.EditError):
+        return None
+
+
+def web_waiting(
+    file: config.WebSettings | None, used: config.WebSettings | None
+) -> config.WebSettings | None:
+    """The file's ``[web]`` settings when they name another address or port than the ones
+    in use, so a restart is needed; else ``None``."""
+    if file is None or used is None:
+        return None
+    if (file.address, file.port) == (used.address, used.port):
+        return None
+    return file
+
+
+def set_web_address(text: str, used: config.WebSettings) -> str:
+    """``text`` with the address and port of ``used`` in ``[web]`` again (Undo)."""
+    every = _web_defaults()
+    values = {key: getattr(used, key) for key in ("address", "port")}
+    current = web_values(text)
+    changes = {
+        key: None if value == every[key] else value
+        for key, value in values.items()
+        if value != current[key]
+    }
+    return config_file.set_web(text, changes, every) if changes else text
+
+
+def web_address(host: str, web: config.WebSettings) -> str:
+    """The web interface's address with the settings ``web``, as a browser opens it;
+    ``host`` is the Pi's address as the browser knows it now."""
+    if web.address not in ("0.0.0.0", "::"):
+        host = web.address
+    return f"http://{f'[{host}]' if ':' in host else host}:{web.port}"
 
 
 def screen_of(display: config.DisplaySettings) -> dict[str, Any]:
@@ -287,6 +429,8 @@ def forget_previous(state_dir: Path | None) -> None:
 
 def _value(key: str, sent: dict[str, str]) -> Any:
     if key == "clean_every":
+        if key not in sent and "clean_never" not in sent:
+            raise KeyError(key)  # not on the form
         if sent.get("clean_never") == "true":
             return 0
         unit = sent.get("clean_unit", "")
