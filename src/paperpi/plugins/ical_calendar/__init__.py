@@ -8,10 +8,12 @@ it is kept as a secret setting.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import logging
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from typing import Literal
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw
@@ -33,22 +35,25 @@ MARKS = ("dot", "ring", "square")
 #: Saved events are shown when a calendar can't be downloaded, until they are this old.
 OLDEST = timedelta(days=1)
 #: Calendars that have been used for many years can be large (Google: about 1 MB for some
-#: years), so allow more than webrequest's usual 5 MB.
-MAX_BYTES = 20_000_000
-
-_HELP = (
-    "Secret iCal address of a calendar, starting with https:// or webcal://. In Google "
-    "Calendar: Settings, click the calendar, Integrate calendar, Secret address in iCal format"
-)
+#: years), so allow more than webrequest's usual 5 MB. A Pi 4 needs about 50 seconds to read
+#: 5 MB, so a larger file could never be read within the time limit.
+MAX_BYTES = 8_000_000
+#: Names of servers on the home network, the only ones allowed with http:// (not encrypted).
+HOME_NAMES = (".local", ".lan", ".home.arpa", ".internal")
 
 
 class Settings(PluginSettings):
-    calendar_1: SecretStr = setting(SecretStr(""), required=True, description=_HELP)
+    calendar_1: SecretStr = setting(
+        SecretStr(""),
+        required=True,
+        description="Secret iCal address of a calendar (starts with https:// or webcal://). "
+        "The plugin's README shows where to find it in Google, Outlook and iCloud",
+    )
     calendar_2: SecretStr = Field(
-        SecretStr(""), description="Address of a second calendar, shown in the same list"
+        SecretStr(""), description="Secret iCal address of a second calendar (or leave empty)"
     )
     calendar_3: SecretStr = Field(
-        SecretStr(""), description="Address of a third calendar, shown in the same list"
+        SecretStr(""), description="Secret iCal address of a third calendar (or leave empty)"
     )
     name_1: str = Field(
         "", max_length=20, description="Short name of the first calendar, e.g. Personal"
@@ -62,28 +67,72 @@ class Settings(PluginSettings):
 @dataclass(frozen=True)
 class Agenda:
     """What ``draw`` gets: the events of all calendars, the time they are shown at, the
-    time zone to show them in (``None``: this computer's own) and the name of each calendar
-    setting (``None`` for one that is not used)."""
+    time zone to show them in (``None``: this computer's own), the name of each calendar
+    setting (``None`` for one that is not used) and the calendars that could not be
+    updated (0 for ``calendar_1``)."""
 
     events: tuple[Event, ...]
     now: datetime
     zone: str | None = None
     calendars: tuple[str | None, ...] = ()
+    failed: tuple[int, ...] = ()
 
 
 class SettingsMissing(ValueError):
     pass
 
 
+class AddressError(ValueError):
+    pass
+
+
 def address(name: str, secret: SecretStr) -> str:
     """The web address in a calendar setting. ``webcal://`` (used by Apple and Outlook)
-    is the same address over https. The error never shows the address: it is a secret."""
+    is the same address over https. ``http://`` is not encrypted, so anyone on the way
+    could read the secret address: it is only allowed for a server on the home network.
+    The errors never show the address: it is a secret."""
     text = secret.get_secret_value().strip()
     if text.lower().startswith("webcal://"):
         text = "https://" + text[len("webcal://") :]
-    if not text.lower().startswith(("https://", "http://")):
-        raise ValueError(f"{name} is not a web address: it must start with https:// or webcal://")
+    if text.lower().startswith("http://"):
+        try:
+            host = urlsplit(text).hostname or ""
+        except ValueError:
+            host = ""
+        if not _at_home(host):
+            raise AddressError(
+                f"{name} starts with http://, which is not encrypted: use https:// (http:// "
+                "only works for a server on the home network)"
+            )
+    elif not text.lower().startswith("https://"):
+        raise AddressError(f"{name} is not a web address: it must start with https:// or webcal://")
     return text
+
+
+def _at_home(host: str) -> bool:
+    """Whether a server name or number is on the home network: a name without a dot
+    (``nas``), a home name (``nas.local``) or a private address (``192.168.1.5``)."""
+    if not host:
+        return False
+    if "." not in host or host.endswith(HOME_NAMES):
+        return True
+    try:
+        number = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return number.is_private or number.is_loopback
+
+
+def saved_key(url: str, days: int) -> str:
+    """Which address and number of days saved events are for. The days are part of it:
+    after a change, saved events may cover too few days. A hash, so the secret address is
+    not written in the file."""
+    return hashlib.sha256(f"{days}\n{url}".encode()).hexdigest()
+
+
+def _now() -> datetime:
+    """The time now, with this computer's time zone (replaced in tests)."""
+    return datetime.now().astimezone()
 
 
 def fetch(context: Context):
@@ -91,34 +140,48 @@ def fetch(context: Context):
     wanted = [n for n in CALENDARS if getattr(settings, n).get_secret_value().strip()]
     if not wanted:
         raise SettingsMissing("ical_calendar needs the address of a calendar in calendar_1")
-    now = datetime.now().astimezone()
+    now = _now()
     end = events.window_end(now, settings.days)
     found: list[Event] = []
+    failed: list[int] = []
+    problem = None
     for name in wanted:
         slot = CALENDARS.index(name)
-        url = address(name, getattr(settings, name))
         path = context.storage / f"{name}.json"
-        key = hashlib.sha256(url.encode()).hexdigest()
         try:
+            url = address(name, getattr(settings, name))
+            key = saved_key(url, settings.days)
             answer = webrequest.get(url, max_bytes=MAX_BYTES)
             # A day more than shown, so saved events still fill the list tomorrow.
             latest = events.read(answer.body, now, end + timedelta(days=1))
-        except (webrequest.WebError, CalendarError) as error:
-            saved = events.load(path, key)
+        except (webrequest.WebError, CalendarError, AddressError) as error:
+            saved = None if isinstance(error, AddressError) else events.load(path, key)
             if saved is None or now - saved.fetched > OLDEST:
-                raise
+                # The other calendars are still shown; the update fails only when all fail.
+                log.warning("%s can't be updated and has no saved events: %s", name, error)
+                failed.append(slot)
+                problem = problem or error
+                continue
             log.warning("%s can't be downloaded, showing the saved events: %s", name, error)
             latest = saved.events
         else:
-            try:
-                write_atomic(path, events.save(latest, key, now))
-            except OSError as error:
-                log.warning("can't save the events of %s, showing them anyway: %s", name, error)
+            _save(context, path, events.save(latest, key, now), name)
         found.extend(replace(e, calendar=slot) for e in events.upcoming(latest, now, end))
+    if len(failed) == len(wanted):
+        raise problem
     calendars = tuple(
         calendar_name(settings, i) if n in wanted else None for i, n in enumerate(CALENDARS)
     )
-    return ready(Agenda(tuple(found), now, calendars=calendars))
+    return ready(Agenda(tuple(found), now, calendars=calendars, failed=tuple(failed)))
+
+
+def _save(context: Context, path, data: bytes, name: str) -> None:
+    if context.low_disk and not path.exists():
+        return  # little free space: don't add a new file (replacing one is fine)
+    try:
+        write_atomic(path, data)
+    except OSError as error:
+        log.warning("can't save the events of %s, showing them anyway: %s", name, error)
 
 
 def calendar_name(settings: Settings, slot: int) -> str:
@@ -131,7 +194,8 @@ def calendar_name(settings: Settings, slot: int) -> str:
 
 def clock(t: datetime, hours: int) -> str:
     if hours == 12:
-        return f"{t.hour % 12 or 12}:{t:%M} {t:%p}"
+        # Not %p: it depends on the system's language and can be empty.
+        return f"{t.hour % 12 or 12}:{t:%M} {'AM' if t.hour < 12 else 'PM'}"
     return f"{t:%H:%M}"
 
 
@@ -158,9 +222,11 @@ def time_text(event: Event, today: date, local, hours: int) -> str:
     start, end = local(event.start), local(event.end)
     if start.date() >= today:
         return clock(start, hours)
-    return (
-        f"until {clock(end, hours)}" if end.date() == today else f"until {_short_day(end.date())}"
-    )
+    # An event that ends at midnight (00:00) ends on the day before.
+    last = (end - timedelta(microseconds=1)).date() if end > start else end.date()
+    if last != today:
+        return f"until {_short_day(last)}"
+    return f"until {clock(end, hours)}" if end.date() == today else "ends today"
 
 
 def when_text(event: Event, day: date, today: date, time: str) -> str:
@@ -197,14 +263,16 @@ def draw(agenda: Agenda, context: Context) -> dict:
     today = local(agenda.now).date()
     end = events.window_end(agenda.now, settings.days, zone)
 
+    def start_day(e: Event) -> date:
+        return e.start if e.all_day else local(e.start).date()
+
     def shown_day(e: Event) -> date:
-        start = e.start if e.all_day else local(e.start).date()
-        return max(start, today)
+        return max(start_day(e), today)
 
     def order(e: Event):
         # All-day events and events that started earlier come first on their day.
-        first = e.all_day or shown_day(e) != (e.start if e.all_day else local(e.start).date())
-        return (shown_day(e), not first, events.moment(e.start, zone), e.title)
+        early = e.all_day or shown_day(e) != start_day(e)
+        return (shown_day(e), not early, events.moment(e.start, zone), e.title)
 
     # Saved events, and the sample, may have ended since they were fetched.
     listed = sorted(events.upcoming(agenda.events, agenda.now, end, zone), key=order)
@@ -212,7 +280,8 @@ def draw(agenda: Agenda, context: Context) -> dict:
     wanted = layout.blocks
     rows = sum(1 for name in wanted if name.startswith("title_"))
     used = [(i, n) for i, n in enumerate(agenda.calendars) if n is not None]
-    marked = len(used) > 1
+    # Marks only with several calendars, and in layouts that have them.
+    marked = len(used) > 1 and "mark_0" in wanted
     values = {"today": f"{local(agenda.now):%A} {today.day} {local(agenda.now):%B}"}
     if marked:
         # Every mark, in the rows and in the header, is 60 % of a row's mark block.
@@ -226,18 +295,19 @@ def draw(agenda: Agenda, context: Context) -> dict:
         }
     if marked and "key_mark_0" in wanted:
         # Filled from the right, so the last one ends at the screen's edge.
-        first = sum(1 for n in wanted if n.startswith("key_mark_")) - len(used)
-        for k, (slot, name) in enumerate(used, start=first):
+        offset = sum(1 for n in wanted if n.startswith("key_mark_")) - len(used)
+        for k, (slot, name) in enumerate(used, start=offset):
             values[f"key_mark_{k}"] = marks[slot, "key_mark"]
             values[f"key_name_{k}"] = name
-    if not listed:
-        days = "today" if settings.days == 1 else f"the next {settings.days} days"
-        values["title_0"] = f"Nothing planned for {days}"
-    if len(listed) > rows:
-        values[f"title_{rows - 1}"] = f"+ {len(listed) - rows + 1} more"
-        listed = listed[: rows - 1]
+    # The last rows say which calendars could not be updated; the events get the rest.
+    notes = [(slot, f"{agenda.calendars[slot]}: not updated") for slot in agenda.failed]
+    room = max(rows - len(notes), 0)
+    shown, more = listed, 0
+    if len(listed) > room:
+        shown = listed[: room - 1] if room else []
+        more = len(listed) - len(shown)
     previous = None
-    for i, event in enumerate(listed):
+    for i, event in enumerate(shown):
         day = shown_day(event)
         values[f"day_{i}"] = day_name(day, today) if day != previous else ""
         values[f"time_{i}"] = time_text(event, today, local, settings.hours)
@@ -246,6 +316,16 @@ def draw(agenda: Agenda, context: Context) -> dict:
             values[f"mark_{i}"] = marks[event.calendar, "mark"]
         values[f"when_{i}"] = when_text(event, day, today, values[f"time_{i}"])
         previous = day
+    texts = []
+    if not listed:
+        days = "today" if settings.days == 1 else f"the next {settings.days} days"
+        texts.append((None, f"Nothing planned for {days}"))
+    if more and room:
+        texts.append((None, f"+ {more} more"))
+    for i, (slot, text) in enumerate(texts + notes, start=len(shown)):
+        values[f"title_{i}"] = text
+        if marked and slot is not None:
+            values[f"mark_{i}"] = marks[slot, "mark"]
     return {name: value for name, value in values.items() if name in wanted}
 
 
@@ -288,4 +368,6 @@ PLUGIN = Plugin(
     draw=draw,
     sample=_sample(),
     refresh=30 * 60,
+    setup="First copy each calendar's secret iCal address from Google Calendar, Outlook.com "
+    "or iCloud; the README shows where.",
 )

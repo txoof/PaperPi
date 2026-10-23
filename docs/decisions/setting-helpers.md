@@ -8,7 +8,7 @@ Some plugin settings are hard to fill in by hand:
 - `met_no` and `moon_phase` need latitude and longitude. Most people don't know them for their town. `met_no` also gives better temperatures with the place's altitude (issue #176; met.no calls altitude "optional but recommended", because its own height map is coarse in hilly places).
 - The planned Dutch public transport plugin needs stop and station codes. Users should find them by name and pick from a list, never type codes. The NS station search needs the NS API key typed in the same form.
 - `lms_client` (M7) needs the address of a music server on the home network. PaperPi can find it by asking the network.
-- A later plugin may need the user to log in to an outside account (a calendar, Spotify): open a link on another device, enter a code, wait until it is confirmed, then save a token.
+- A later plugin may need the user to log in to an outside account (Spotify, for example): open a link on another device, enter a code, wait until it is confirmed, then save a token. (A calendar doesn't need this: `ical_calendar` uses the calendar's secret iCal address, see #301. Google doesn't allow this kind of login for its calendar.)
 
 v1 had a command per plugin for latitude and longitude (`met_no.get_coord`). It used OpenStreetMap's Nominatim, printed only the first match (so a town with a common name could give the wrong place without anyone noticing), had no time limit, and didn't send the contact name Nominatim's rules ask for.
 
@@ -74,7 +74,7 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 | `next` | Choosing starts a second search instead of filling in fields: pick a stop, then a direction or line; pick a music server, then a player on it. | Dutch transport plugin, `lms_client` |
 | `disabled` | The choice is shown but can't be used, with the reason ("No trains to Utrecht from this station"). | NS trains |
 | `picture` | A small image next to the choice (a station logo, an album cover), sent inside the page like preview images. | music plugins |
-| `wait` | For logging in to an outside account: show a message, a link and a code ("Open example.com/device on your phone and enter ABCD-1234"), and ask the helper again every few seconds, each call in its own process with its own time limit, until it returns a choice (e.g. a token in a secret setting) or stops with a message. | a calendar or Spotify plugin |
+| `wait` | For logging in to an outside account: show a message, a link and a code ("Open example.com/device on your phone and enter ABCD-1234"), and ask the helper again every few seconds, each call in its own process with its own time limit, until it returns a choice (e.g. a token in a secret setting) or stops with a message. | a Spotify plugin |
 
 - **A kind PaperPi doesn't know is ignored and logged**, so a plugin written for a newer PaperPi still works on an older one.
 - **All texts are shown as plain text**, so a stop name with odd characters can't change the page. Each text is put on one line and cut to 200 characters.

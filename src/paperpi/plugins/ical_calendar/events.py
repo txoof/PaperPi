@@ -11,6 +11,13 @@ import json
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, tzinfo
 
+#: Errors a broken calendar file can cause in icalendar and recurring-ical-events.
+BROKEN = (ValueError, KeyError, TypeError, AttributeError, OverflowError, RecursionError)
+#: Repeating events this often are left out (see ``_usable``).
+TOO_OFTEN = {"SECONDLY", "MINUTELY", "HOURLY"}
+MOST_EVENTS = 200
+TITLE_LENGTH = 200
+
 
 class CalendarError(ValueError):
     """The downloaded file is not a calendar that can be read."""
@@ -53,11 +60,14 @@ def read(body: bytes, start: datetime, end: datetime, zone: tzinfo | None = None
         calendar = icalendar.Calendar.from_ical(body)
         if calendar.name != "VCALENDAR":
             raise CalendarError("the address doesn't give a calendar file")
+        # Anyone can send an invitation, and Google puts invitations in the calendar: one
+        # broken or very fast repeating event must not stop the others.
+        calendar.subcomponents[:] = [c for c in calendar.subcomponents if _usable(c)]
         # skip_bad_series: a repeating event with broken rules is left out, not the calendar.
         found = recurring_ical_events.of(calendar, skip_bad_series=True).between(start, end)
     except CalendarError:
         raise
-    except ValueError as error:
+    except BROKEN as error:
         raise CalendarError(f"the calendar file can't be read ({type(error).__name__})") from None
     events = []
     for component in found:
@@ -66,9 +76,43 @@ def read(body: bytes, start: datetime, end: datetime, zone: tzinfo | None = None
         first, last = component.start, component.end
         if isinstance(first, datetime):
             first, last = _zoned(first, zone), _zoned(last, zone)
-        title = " ".join(str(component.get("SUMMARY", "")).split()) or "(no title)"
-        events.append(Event(title, first, last))
-    return events
+        events.append(Event(_title(component.get("SUMMARY")), first, last))
+    # At most MOST_EVENTS, the first ones: the screen shows far fewer, and the saved file
+    # stays small.
+    events.sort(key=lambda e: moment(e.start, zone))
+    return events[:MOST_EVENTS]
+
+
+def _usable(component) -> bool:
+    """Whether a part of the calendar can be read safely. Events without a start or with
+    impossible times are left out, and so are events repeating every hour or more often:
+    working those out takes the Pi minutes and hundreds of megabytes."""
+    if component.name != "VEVENT":
+        return True
+    if "DTSTART" not in component:
+        return False
+    rules = component.get("RRULE", [])
+    for rule in rules if isinstance(rules, list) else [rules]:
+        if any(str(f).upper() in TOO_OFTEN for f in rule.get("FREQ", [])):
+            return False
+    # Events inside events are not valid iCal; alarms (VALARM) are kept.
+    component.subcomponents[:] = [c for c in component.subcomponents if c.name != "VEVENT"]
+    try:
+        first, last = component.start, component.end
+    except BROKEN:
+        return False
+    if not isinstance(first, datetime) and last <= first and "DTEND" in component:
+        # Some programs end a one-day event on the day it starts: make it last that day.
+        del component["DTEND"]
+    return True
+
+
+def _title(summary) -> str:
+    """The title on one line, at most TITLE_LENGTH characters. A broken event may have
+    several SUMMARY lines: the first one is used."""
+    if isinstance(summary, list):
+        summary = summary[0] if summary else ""
+    return " ".join(str(summary or "").split())[:TITLE_LENGTH] or "(no title)"
 
 
 def _zoned(t: datetime, zone: tzinfo | None) -> datetime:
