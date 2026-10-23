@@ -43,6 +43,7 @@ class WebServer:
         pictures: Pictures | None = None,
         controls: Controls | None = None,
         logbook: Logbook | None = None,
+        state_dir: Path | None = None,
     ):
         self.auth = auth
         self.editor = editor
@@ -66,6 +67,7 @@ class WebServer:
                     self.searcher,
                     controls,
                     logbook,
+                    state_dir,
                 ),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
@@ -161,7 +163,7 @@ def start(
         editor.loaded(text)
     pictures = Pictures(state_dir / FOLDER if state_dir is not None else None)
     auth = Auth(config_file, settings)
-    server = WebServer(auth, settings, sock, editor, pictures, controls, logbook)
+    server = WebServer(auth, settings, sock, editor, pictures, controls, logbook, state_dir)
     server._thread.start()
     if display is not None:
         server.use_display(display)

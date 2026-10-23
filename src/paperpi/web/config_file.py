@@ -6,9 +6,10 @@
   other. :func:`saved_here` tells whether a text is the one the web interface saved last.
 - The plugin changes (:func:`move`, :func:`move_to`, :func:`remove`, :func:`set_enabled`,
   :func:`set_settings`, :func:`add`) work on the file's text, one ``[[plugin]]`` block at a
-  time. The comment lines just above a ``[[plugin]]`` line (with a blank line above them)
-  belong to that block: they move with it and are removed with it. A comment at the end of
-  a setting's line (such as ``enabled =``) is lost when that setting is changed.
+  time; :func:`set_display` changes settings in ``[display]`` the same way. The comment
+  lines just above a ``[[plugin]]`` line (with a blank line above them) belong to that
+  block: they move with it and are removed with it. A comment at the end of a setting's
+  line (such as ``enabled =``) is lost when that setting is changed.
 - Every change is checked before it is saved: PaperPi must read the new text back as exactly
   the old settings plus the change. A file written in a way these functions don't
   understand (for example a ``[[plugin]]`` line written differently, or a value line
@@ -130,6 +131,16 @@ def load(text: str) -> dict[str, Any]:
         raise EditError(f"the config file is not valid TOML: {error}") from None
 
 
+class UnknownScreenForm(EditError):
+    """``[display]`` is written in a way these functions can't change safely."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "The screen settings in the config file are written in a way the web interface "
+            "can't change safely. Make this change in the config file itself."
+        )
+
+
 @dataclass(frozen=True)
 class Block:
     """Where one ``[[plugin]]`` block is in the file (line numbers count from 0)."""
@@ -154,6 +165,8 @@ class _Scan:
     in_string: frozenset[int]
     """Lines that start inside a multi-line string."""
     blocks: list[Block]
+    headers: list[tuple[int, str]]
+    """Every ``[part]`` and ``[[part]]`` line: (line, the part's name)."""
 
 
 def _scan(text: str) -> _Scan:
@@ -162,6 +175,7 @@ def _scan(text: str) -> _Scan:
         lines.pop()
     plain = [line.rstrip("\r\n") for line in lines]
     starts: list[tuple[int, str]] = []  # (line, "plugin" / "part of plugin" / "other")
+    headers: list[tuple[int, str]] = []
     in_string = set()
     quote = None  # inside a multi-line string: the quotes it started with
     for number, line in enumerate(plain):
@@ -176,6 +190,7 @@ def _scan(text: str) -> _Scan:
         header = None if inside else _HEADER.fullmatch(line)
         if header:
             brackets, name = header.group(1), header.group(2)
+            headers.append((number, name))
             if brackets == "[[" and name == "plugin":
                 starts.append((number, "plugin"))
             elif name.startswith("plugin."):
@@ -192,7 +207,7 @@ def _scan(text: str) -> _Scan:
         end = _comments_above(plain, after, header + 1) if after < len(lines) else after
         lowest = max((n + 1 for n, _ in starts[:index]), default=0)
         found.append(Block(_comments_above(plain, header, lowest), header, own_end, end))
-    return _Scan(lines, frozenset(in_string), found)
+    return _Scan(lines, frozenset(in_string), found, headers)
 
 
 def blocks(text: str) -> list[Block]:
@@ -312,20 +327,61 @@ def set_settings(
       (``# key =`` for ``None``), as in the example config; others are taken out.
     - A setting written over several lines can't be changed: :class:`UnknownForm`.
     """
-    defaults = defaults or {}
     data, scan = _check(text, index, plugin_id)
     block = scan.blocks[index]
+    expected = plugin_blocks(data)
+    new, expected[index] = _with_values(
+        scan, block.header, block.own_end, expected[index], values, defaults or {}, UnknownForm
+    )
+    return _checked(new, data | {"plugin": expected})
+
+
+def set_display(
+    text: str, values: Mapping[str, Any], defaults: Mapping[str, Any] | None = None
+) -> str:
+    """``text`` with settings in ``[display]`` changed, as :func:`set_settings` does for a
+    plugin block. Raises :class:`UnknownScreenForm` when the file has no ``[display]`` line
+    of its own, or the change can't be checked."""
+    data = load(text)
+    scan = _scan(text)
+    at = [n for n, (_, name) in enumerate(scan.headers) if name == "display"]
+    if len(at) != 1 or not isinstance(data.get("display"), dict):
+        raise UnknownScreenForm()
+    header = scan.headers[at[0]][0]
+    later = scan.headers[at[0] + 1 :]
+    own_end = later[0][0] if later else len(scan.lines)
+    new, display = _with_values(
+        scan, header, own_end, data["display"], values, defaults or {}, UnknownScreenForm
+    )
+    try:
+        return _checked(new, data | {"display": display})
+    except UnknownForm:
+        raise UnknownScreenForm() from None
+
+
+def _with_values(
+    scan: _Scan,
+    header: int,
+    own_end: int,
+    current: Mapping[str, Any],
+    values: Mapping[str, Any],
+    defaults: Mapping[str, Any],
+    unknown: type[EditError],
+) -> tuple[str, dict[str, Any]]:
+    """The file's text with the settings between line ``header`` (a ``[part]`` line) and
+    ``own_end`` changed (see :func:`set_settings`), and the part's settings after it
+    (``current`` with the change). Raises ``unknown`` for a setting written over several
+    lines."""
     lines = _ended(scan.lines)
     newline = _newline(lines)
-    own = [n for n in range(block.header + 1, block.own_end) if n not in scan.in_string]
-    expected = plugin_blocks(data)
-    changed = dict(expected[index])
+    own = [n for n in range(header + 1, own_end) if n not in scan.in_string]
+    changed = dict(current)
     new: dict[int, str | None] = {}  # line -> its new text (None: taken out)
     added: list[tuple[str, str]] = []  # (setting, line) with no place in the block yet
     for key, value in values.items():
         at = _setting_line(lines, own, re.escape(key))
         if at is not None and not _one_line(lines[at]):
-            raise UnknownForm()
+            raise unknown()
         commented = _commented_setting(lines, own, key)
         if value is None:
             changed.pop(key, None)
@@ -346,11 +402,11 @@ def set_settings(
         line = new.get(number, lines[number])
         return line is not None and bool(line.strip()) and not line.lstrip().startswith("#")
 
-    last = max((n for n in own if setting_after(n)), default=block.header)
+    last = max((n for n in own if setting_after(n)), default=header)
     below: dict[int, list[str]] = {}  # line -> new lines to put below it
     for key, line in added:
         at = _setting_line(lines, own, "id") if key == "name" else None
-        at = _value_end(lines, last if at is None else at, block.own_end)
+        at = _value_end(lines, last if at is None else at, own_end)
         below.setdefault(at, []).append(line)
     result = []
     for number, line in enumerate(lines):
@@ -358,8 +414,7 @@ def set_settings(
         if replaced is not None:
             result.append(replaced)
         result += below.get(number, [])
-    expected[index] = changed
-    return _checked("".join(result), data | {"plugin": expected})
+    return "".join(result), changed
 
 
 def _value_end(lines: list[str], line: int, end: int) -> int:

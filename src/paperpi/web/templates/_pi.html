@@ -1,0 +1,8 @@
+{#- Facts about this Pi (system.html); htmx asks for this part again every 30 seconds. -#}
+<div class="about" id="pi-facts" hx-get="/system/pi" hx-trigger="every 30s" hx-swap="outerHTML">
+  {% for value, text in ((pi.version, "PaperPi version"), (pi.running_for, "PaperPi running for"),
+    (pi.last_write, "Last screen write"), (pi.memory, "Memory used by PaperPi"),
+    (pi.free_disk, "Free disk"), (pi.temperature, "Processor temperature")) %}
+  <div class="stat"><b>{{ value or "–" }}</b><span>{{ text }}</span></div>
+  {% endfor %}
+</div>

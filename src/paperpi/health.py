@@ -91,9 +91,9 @@ def measure(
         time=datetime.now().astimezone().isoformat(timespec="seconds"),
         since_screen=None if since_screen is None else round(since_screen, 1),
         screen=screen,
-        memory_mb=_memory_mb(),
+        memory_mb=memory_mb(),
         open_files=_open_files(),
-        free_disk_mb=_free_disk_mb(disk),
+        free_disk_mb=free_disk_mb(disk),
     )
 
 
@@ -240,7 +240,8 @@ def _not_under_systemd(name: str) -> None:
     pass
 
 
-def _memory_mb() -> float | None:
+def memory_mb() -> float | None:
+    """Memory used by this process, in MB (``None``: can't be measured)."""
     try:
         resident_pages = int(Path("/proc/self/statm").read_text().split()[1])
     except (OSError, IndexError, ValueError):
@@ -256,7 +257,8 @@ def _open_files() -> int | None:
         return None
 
 
-def _free_disk_mb(disk: Path) -> float | None:
+def free_disk_mb(disk: Path) -> float | None:
+    """Free space on the disk that holds ``disk``, in MB (``None``: can't be measured)."""
     try:
         return round(shutil.disk_usage(disk).free / 1_000_000, 1)
     except OSError:

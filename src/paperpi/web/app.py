@@ -34,6 +34,9 @@ Address            What it does
 ``/warnings``      what needs attention now (``/warnings/reload`` loads the config file
                    again), and the recent warnings and errors; ``/log`` is the Full log
                    (``/log/new`` the lines after a number, ``/log/download`` all of them)
+``/system``        Screen & system: the screen in use, the ``[display]`` settings that
+                   apply at once (a POST to ``/system`` saves them all) and facts
+                   about this Pi (``/system/pi``, asked for again while the page is open)
 ``/static/...``    the style sheet, the home page's script, SortableJS (drag to change
                    the order) and htmx (a small JavaScript file that updates one part of
                    a page without loading the whole page again)
@@ -71,9 +74,10 @@ from .. import __version__, limits
 from ..config import ConfigError, folder_name, read_text
 from ..logbook import Logbook
 from ..plugins import readme as readme_text
-from . import changes, logs, readme, warnings
+from . import changes, logs, readme, system, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_here
+from .config_file import read as read_config
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Snapshots, card_key, cards, now_part
@@ -107,13 +111,15 @@ def create_app(
     searcher: Searcher | None = None,
     controls: Controls | None = None,
     logbook: Logbook | None = None,
+    state_dir: Path | None = None,
 ) -> FastAPI:
     """The web interface, using ``auth`` for the password and log-in, ``editor`` to
     change the plugins in the config file, ``previewer`` to draw previews, ``pictures``
     for the Plugin Library's example pictures (default: none), ``searcher`` for the
     settings helpers' searches, ``controls`` (the scheduler) for what is on screen
     (without it, the home page shows only the config file) and ``logbook`` for the Full
-    log (without it, the page says the log is not kept)."""
+    log (without it, the page says the log is not kept). ``state_dir`` is PaperPi's state
+    folder, whose disk's free space the Screen & system page shows."""
     editor = editor or PluginEditor(auth.config_file)
     previewer = previewer or Previewer()
     pictures = pictures or Pictures(None)
@@ -825,6 +831,73 @@ def create_app(
         if index is None:  # moved away or removed by hand meanwhile
             return saved("added", hand_edits, plugin_id)
         return settings_saved(index, plugin_id, "added", hand_edits)
+
+    def system_page(
+        request: Request,
+        status: int = 200,
+        problem: str | None = None,
+        wrong: system.SectionErrors | None = None,
+    ):
+        try:
+            text = read_config(editor.path)[1]
+            values = system.form(text)
+            file_display = system.file_display(text)
+        except EditError as error:
+            text, values, file_display = None, {}, None
+            problem = problem or str(error)
+            status = 500 if status == 200 else status
+        display = editor.display or file_display
+        if wrong is not None:
+            values |= wrong.values
+        done = request.query_params.get("done", "")
+        shown = summary()
+        return page(
+            request,
+            "system.html",
+            status,
+            values=values,
+            saved=system.form(text) if text is not None else {},
+            screen=system.screen_facts(display) if display is not None else None,
+            screen_state=shown.screen if shown is not None else None,
+            running=controls is not None,
+            pi=pi_facts(),
+            problem=problem,
+            errors=wrong.errors if wrong is not None else {},
+            done=done == "saved",
+            hand_edits=request.query_params.get("hand") == "1",
+            readable=text is not None,
+        )
+
+    def pi_facts() -> system.PiFacts:
+        shown = summary()
+        return system.pi_facts(state_dir, shown.written_at if shown is not None else None)
+
+    @app.get("/system", response_class=HTMLResponse)
+    def system_settings(request: Request):
+        return system_page(request)
+
+    @app.get("/system/pi", response_class=HTMLResponse)
+    def system_pi(request: Request):
+        return page(request, "_pi.html", pi=pi_facts())
+
+    @app.post("/system", response_class=HTMLResponse)
+    async def save_system(request: Request):
+        form = await request.form()
+        sent = {k: [str(v) for v in form.getlist(k)] for k in form if k != "next"}
+        try:
+            hand_edits = await run_in_threadpool(
+                editor.change, lambda text: system.with_values(text, sent)
+            )
+        except system.SectionErrors as error:
+            return system_page(request, 400, str(error), error)
+        except EditError as error:
+            return system_page(request, 409, str(error))
+        # "Save and apply, then go" in the leave-this-page window: only PaperPi's own pages.
+        then = str(form.get("next", ""))
+        if then.startswith("/") and not then.startswith(("//", "/\\")):
+            return RedirectResponse(then, status_code=303)
+        query = urlencode({"done": "saved"} | ({"hand": "1"} if hand_edits else {}))
+        return RedirectResponse(f"/system?{query}", status_code=303)
 
     @app.post("/logout")
     def logout():

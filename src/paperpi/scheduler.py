@@ -230,6 +230,8 @@ class Summary:
     """``None`` before the first write, then "ok", "failing" or "paused"."""
     screen_retry_at: datetime | None = None
     """While the screen is paused: when it is tried again."""
+    written_at: datetime | None = None
+    """The last screen write that worked; ``None``: none yet."""
     plugins: tuple[PluginSummary, ...] = ()
     """Every ``[[plugin]]`` block but ``default``, in config order."""
     config_errors: tuple[str, ...] = ()
@@ -1153,6 +1155,7 @@ class Scheduler:
             next_at=at(upcoming[0][1]) if upcoming else None,
             screen=self._screen_state,
             screen_retry_at=at(self._retry_at),
+            written_at=at(self._last_written),
             plugins=tuple(plugins),
             config_errors=self._config_errors,
         )

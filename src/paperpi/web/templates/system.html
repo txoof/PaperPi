@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "system" %}
+{% block title %}Screen & system · PaperPi{% endblock %}
+
+{#- The parts of a setting: its name, help text, when it applies and its error. -#}
+{% macro label(key, name, help) %}
+<div class="lbl"><span id="name-{{ key }}">{{ name }}</span>
+  <span class="help">{{ help }}</span>
+  {%- if errors[key] %}<p class="problem">{{ errors[key]|sentence }}</p>{% endif %}</div>
+{% endmacro %}
+{#- A setting's row. `names`: its form fields; `now`: its saved value in words, which
+    system.js shows while a change is not saved yet. -#}
+{% macro row(key, names, now) %}
+<div class="field{% if errors[key] %} wrong{% endif %}" data-names="{{ names }}" data-now="{{ now }}">
+{% endmacro %}
+{% macro check(key, text) %}
+{# A browser sends nothing for a box that is off, so "false" goes first. #}
+<input type="hidden" name="{{ key }}" value="false">
+<label class="check"><input type="checkbox" name="{{ key }}" value="true"
+  {%- if values[key] == "true" %} checked{% endif %}> {{ text }}</label>
+{% endmacro %}
+
+{% block head %}<script src="/static/system.js" defer></script>{% endblock %}
+
+{% block main %}
+<h1>Screen &amp; system</h1>
+<p class="lead">Settings for the screen and PaperPi itself. Change what you like, then press
+  <b>Save and apply</b>. Each part says when a change takes effect: <span class="when">at
+  once</span> or <span class="when next">at the next start</span>.</p>
+{% if problem %}<p class="problem">{{ problem|sentence }}</p>{% endif %}
+{% if done %}<p class="saved" role="status">Saved. PaperPi applies the changes now.
+  {%- if hand_edits %} Your hand edits to the config file were applied too.{% endif %}</p>{% endif %}
+
+<section class="sec" id="screen">
+  <div class="sec-head"><h2>Screen</h2><span class="when next">at the next start</span>
+    <p>The screen PaperPi uses now.</p></div>
+  <div class="sec-body">
+    {% if screen %}
+    <dl class="current">
+      <dt>Type</dt><dd>{{ screen.type }}</dd>
+      <dt>Model</dt><dd>{{ screen.model }}</dd>
+      {% if screen.vcom %}<dt>VCOM</dt><dd>{{ screen.vcom }}</dd>{% endif %}
+      <dt>State</dt><dd>
+        {%- if not running %}PaperPi's screen is not running here
+        {%- elif screen_state == "ok" %}✓ Answers
+        {%- elif screen_state == "failing" %}✕ The last write failed
+        {%- elif screen_state == "paused" %}⏸ Paused: it does not answer (see <a href="/warnings">Warnings</a>)
+        {%- else %}Not written to yet{% endif %}</dd>
+    </dl>
+    {% endif %}
+    <p class="help">To use another screen, change <code>[display]</code> in the config file
+      (<code>{{ auth.config_file }}</code>) and restart PaperPi.</p>
+  </div>
+</section>
+
+{% if readable %}
+<form id="system-form" method="post" action="/system" data-saved="{{ saved|tojson|forceescape }}">
+<input type="hidden" name="next" value="">
+<section class="sec" id="picture">
+  <div class="sec-head"><h2>Picture</h2><span class="when">at once</span>
+    <p>How the picture is drawn. Every plugin draws again in the new way; the screen keeps its
+      picture until the new one is ready.</p></div>
+  <div class="sec-body">
+    {{ row("rotation", "rotation", saved.rotation ~ "°") }}
+      {{ label("rotation", "Rotation", "Turn the picture to match how the screen hangs.") }}
+      <div class="ctl"><div class="rot" role="radiogroup" aria-labelledby="name-rotation">
+        {% for turn in ("0", "90", "180", "270") %}
+        <label><input class="sr-only" type="radio" name="rotation" value="{{ turn }}"
+          {%- if values.rotation == turn %} checked{% endif %}>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><g transform="rotate({{ turn }} 20 20)">
+            <rect x="6" y="11" width="28" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+            <text x="20" y="23.5" font-size="9" text-anchor="middle" fill="currentColor">Aa</text></g></svg>
+          {{ turn }}°</label>
+        {% endfor %}
+      </div></div>
+    </div>
+    {{ row("color", "color", "on" if saved.color == "true" else "off") }}
+      {{ label("color", "Colour", "Only for screens that can show colour.") }}
+      <div class="ctl">
+        {% if screen and screen.shows_color %}{{ check("color", "Draw in colour (off: in gray)") }}
+        {% elif screen %}<span class="help">This screen shows {{ screen.shows }}, so plugins
+          always draw in {{ "black and white" if screen.shows == "black and white" else "gray" }}.</span>
+        {% endif %}</div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="care">
+  <div class="sec-head"><h2>Screen care</h2><span class="when">at once</span>
+    <p>E-paper screens keep faint leftovers of earlier pictures. These settings clean them
+      away.</p></div>
+  <div class="sec-body">
+    {{ row("max_refresh", "max_refresh", saved.max_refresh) }}
+      {{ label("max_refresh", "Full refresh after", "Fast refreshes in a row before a full one, which removes most leftovers (0 = never force one).") }}
+      <div class="ctl"><div class="unit"><input type="text" inputmode="numeric"
+        name="max_refresh" value="{{ values.max_refresh }}" aria-labelledby="name-max_refresh">
+        fast refreshes</div></div>
+    </div>
+    {{ row("clean_every", "clean_every clean_unit clean_never", "never" if saved.clean_never == "true" else saved.clean_every ~ " " ~ saved.clean_unit) }}
+      {{ label("clean_every", "Clean the screen every", "A cleaning refresh flashes the screen white to remove all leftovers. At least 10 minutes, or never.") }}
+      <div class="ctl"><div class="unit"><input type="text" inputmode="decimal"
+        name="clean_every" value="{{ values.clean_every }}" aria-labelledby="name-clean_every">
+        <select name="clean_unit" aria-label="Unit">
+          {% for unit in ("minutes", "hours") %}
+          <option{% if values.clean_unit == unit %} selected{% endif %}>{{ unit }}</option>
+          {% endfor %}
+        </select></div>
+        {{ check("clean_never", "Never") }}</div>
+    </div>
+    {{ row("on_exit", "on_exit", "blank screen" if saved.on_exit == "clear" else "keep the picture") }}
+      {{ label("on_exit", "When PaperPi stops", "After a stop on purpose (shutdown, systemctl stop). After a crash the picture always stays.") }}
+      <div class="ctl"><div class="seg" role="radiogroup" aria-labelledby="name-on_exit">
+        {% for value, text in (("clear", "Make the screen blank"), ("keep", "Keep the last picture")) %}
+        <label><input class="sr-only" type="radio" name="on_exit" value="{{ value }}"
+          {%- if values.on_exit == value %} checked{% endif %}>{{ text }}</label>
+        {% endfor %}
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="splash">
+  <div class="sec-head"><h2>Splash Screen &amp; Fallback Plugin</h2><span class="when">at once</span></div>
+  <div class="sec-body">
+    {{ row("splash_time", "splash_time", saved.splash_time ~ " seconds") }}
+      {{ label("splash_time", "Splash Screen", "PaperPi's version and web address, shown at start (0 = not at all). Up to 3600 seconds.") }}
+      <div class="ctl"><div class="unit"><input type="text" inputmode="decimal"
+        name="splash_time" value="{{ values.splash_time }}" aria-labelledby="name-splash_time">
+        seconds</div></div>
+    </div>
+    {{ row("fallback_clock", "fallback_clock", "on" if saved.fallback_clock == "true" else "off") }}
+      {{ label("fallback_clock", "Fallback clock", "A small clock when no plugin has anything to show. Strongly recommended: an empty screen looks like a broken one.") }}
+      <div class="ctl">{{ check("fallback_clock", "On") }}</div>
+    </div>
+  </div>
+</section>
+{#- Without JavaScript this is a plain button at the end of the form; system.js turns it
+    into a bar at the bottom of the window that shows only while there are changes. -#}
+<div class="save-bar" id="save-bar">
+  <p id="save-count">Change what you like above, then save.<span>Leaving this page throws
+    away changes that are not saved.</span></p>
+  <button class="quiet" type="button" id="save-undo" hidden>Undo changes</button>
+  <button type="submit">Save and apply</button>
+</div>
+</form>
+<dialog class="window" id="leave"><div class="window-body">
+  <h2>Leave without saving?</h2>
+  <p id="leave-text">You changed settings on this page that are not saved yet.</p>
+  <div class="buttons"><button type="button" id="leave-save">Save and apply, then go</button>
+    <button class="quiet" type="button" id="leave-go">Leave without saving</button>
+    <button class="quiet" type="button" id="leave-stay">Stay on this page</button></div>
+</div></dialog>
+{% endif %}
+
+<section class="sec" id="pi">
+  <div class="sec-head"><h2>This Pi</h2><p>Measured now, and again every 30 seconds while this
+    page is open.</p></div>
+  {% include "_pi.html" %}
+</section>
+{% endblock %}
