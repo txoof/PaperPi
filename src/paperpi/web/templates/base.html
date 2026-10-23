@@ -14,7 +14,7 @@
 <body>
   {#- The menu: the pages a logged-in visitor can open. Each page sets `page` to its own
       entry, which is marked as the current one. -#}
-  {% set menu = [("/", "home", "Home"), ("/library", "library", "Plugin Library"), ("/warnings", "warnings", "Warnings")] %}
+  {% set menu = [("/", "home", "Home"), ("/library", "library", "Plugin Library"), ("/warnings", "warnings", "Warnings"), ("/system", "system", "Screen & system")] %}
   {% from "_count.html" import badge %}
   {#- Next to Warnings: how many things need attention (the Warnings page passes the number). -#}
   {% set attention_number = (attention if attention is defined else attention_count()) if logged_in else 0 %}

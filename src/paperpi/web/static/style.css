@@ -464,3 +464,75 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
   .diffs li { grid-template-columns: 1fr; }
   .diffs .hint { grid-column: 1; }
 }
+
+/* The Screen & system page: a box per section, each setting in a row (name and help on the
+   left, the control on the right; one column on a phone). */
+.lead { color: var(--muted); }
+.when { font-size: 0.75rem; padding: 0 0.45rem; border-radius: 9px; border: 1.5px solid var(--line);
+  color: var(--muted); white-space: nowrap; }
+.when.next { border-color: var(--warn); color: var(--warn); }
+.sec { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  margin: 0.9rem 0; }
+.sec-head { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; align-items: center;
+  padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); }
+.sec-head h2 { margin: 0; font-size: 1rem; }
+.sec-head p { margin: 0; flex-basis: 100%; font-size: 0.9rem; color: var(--muted); }
+.sec-body { padding: 0.25rem 0.8rem 0.8rem; }
+.sec .field { display: grid; grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+  gap: 0.3rem 1rem; padding: 0.6rem 0; border-top: 1px solid var(--line); }
+.sec .field:first-child { border-top: 0; }
+.sec .lbl { display: grid; gap: 0.15rem; font-weight: 500; align-content: start; }
+.sec .help { font-size: 0.85rem; color: var(--muted); font-weight: 400; }
+.sec .ctl { display: grid; gap: 0.4rem; align-content: start; min-width: 0; }
+.sec .problem { margin: 0.2rem 0 0; font-size: 0.9rem; }
+.sec .wrong input[type="text"] { border: 2px solid var(--bad); }
+.sec label { margin: 0; }
+.sec label.check { display: flex; gap: 0.4rem; align-items: center; }
+.sec label.check input { width: auto; margin: 0; }
+.unit { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.unit input { display: inline-block; width: 6rem; }
+.unit select { padding: 0.35rem 0.4rem; }
+.rot { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.rot label, .seg label { cursor: pointer; color: var(--muted); background: var(--panel); }
+.rot label { display: grid; justify-items: center; gap: 0.2rem; width: 4.2rem; padding: 0.35rem;
+  border: 1px solid var(--line); border-radius: 6px; font-size: 0.8rem; }
+.rot svg { width: 2.6rem; height: 2.6rem; }
+.rot text { font-family: system-ui, sans-serif; }
+.rot label:has(:checked) { color: var(--ink); border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent); }
+.seg { display: inline-flex; flex-wrap: wrap; justify-self: start; border: 1px solid var(--line);
+  border-radius: 7px; overflow: hidden; }
+.seg label { padding: 0.3rem 0.7rem; font-size: 0.9rem; border-left: 1px solid var(--line); }
+.seg label:first-child { border-left: 0; }
+.seg label:has(:checked) { background: var(--chip); color: var(--ink); font-weight: 600; }
+.rot label:has(:focus-visible), .seg label:has(:focus-visible) { outline: 2px solid var(--accent);
+  outline-offset: 2px; }
+/* A change waits for Save and apply: its row is marked, and (with JavaScript) a bar at the
+   bottom of the window counts the changes. Without JavaScript the bar is a plain row. */
+.sec .field.changed { background: var(--warn-bg); box-shadow: inset 3px 0 0 var(--warn);
+  margin-inline: -0.5rem; padding-inline: 0.5rem; border-radius: 4px; }
+.not-saved { font-size: 0.8rem; font-weight: 600; color: var(--warn); }
+.save-bar { display: flex; gap: 0.5rem 0.75rem; align-items: center; flex-wrap: wrap;
+  margin: 0.9rem 0; }
+.save-bar p { margin: 0; flex: 1; min-width: 12rem; }
+.save-bar p span { display: block; font-size: 0.85rem; color: var(--muted); font-weight: 400; }
+.js-save .save-bar { display: none; }
+.js-save .save-bar.waiting { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  margin: 0; background: var(--panel); border-top: 2px solid var(--warn);
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.12);
+  padding: 0.6rem max(1rem, calc((100% - 46rem) / 2)) calc(0.6rem + env(safe-area-inset-bottom, 0px)); }
+.js-save .save-bar.waiting p { color: var(--warn); font-weight: 600; }
+.js-save body:has(.save-bar.waiting) footer { padding-bottom: 6rem; }
+.current { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 1rem; margin: 0.6rem 0; }
+.current dt { color: var(--muted); }
+.current dd { margin: 0; font-variant-numeric: tabular-nums; }
+.about { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.5rem;
+  padding: 0.7rem 0.8rem; }
+.stat { border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem; }
+.stat b { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.8rem; color: var(--muted); }
+@media (max-width: 40rem) {
+  .sec .field { grid-template-columns: 1fr; }
+}
+#leave #leave-save { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  font-weight: 500; }

@@ -46,6 +46,8 @@ applied yet. Check the settings here, adjust and accept them in this interface.<
     {% if group.status == "removed" %}<span class="chip bad">− Removed</span>{% endif %}
     {% if group.index is not none and group.plugin_id and not review.mistakes %}
     <a class="edit" href="/plugins/{{ group.index }}/settings?id={{ group.plugin_id|urlencode }}">Edit</a>
+    {% elif group.kind == "[display]" and not review.mistakes %}
+    <a class="edit" href="/system">Edit</a>
     {% endif %}
   </div>
   {% if group.note %}<p class="hint">{{ group.note }}</p>{% endif %}
