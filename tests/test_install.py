@@ -47,6 +47,13 @@ def test_service_setting(key, value):
     assert SET[key] == [value]
 
 
+def test_a_restart_from_the_web_interface_starts_paperpi_again():
+    from paperpi.cli import RESTART_STATUS
+
+    # A clean stop (not a failure in the log), and started again all the same.
+    assert SET["SuccessExitStatus"] == SET["RestartForceExitStatus"] == [str(RESTART_STATUS)]
+
+
 def test_stop_waits_for_the_screen_clear():
     # The exit clear may take 30 s, its check 2 s more.
     assert int(SET["TimeoutStopSec"][0]) > 32

@@ -20,6 +20,10 @@ ExecStart=/opt/paperpi/venv/bin/paperpi run
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=10
+# "Restart PaperPi" in the web interface: PaperPi exits with status 75 (it can't run
+# systemctl). That counts as a clean stop, and systemd starts it again.
+SuccessExitStatus=75
+RestartForceExitStatus=75
 # Longer than the screen clear at exit (30 s) plus its check (2 s).
 TimeoutStopSec=45
 # The default KillMode=control-group stays (#209): a stop, also after "kill -9" of the main

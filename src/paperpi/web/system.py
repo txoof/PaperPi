@@ -7,6 +7,12 @@ at once, and facts about this Pi.
   sent form and writes it into ``[display]`` (:func:`config_file.set_display`).
   A value equal to its default is taken out of the file, as the file only holds values
   that differ from the defaults.
+- **Change screen…** has a page of its own: :func:`screen_form` and :func:`with_screen`
+  set the screen settings (:data:`SCREEN`). A new type, model, size or mode is used from
+  the next start of PaperPi; until then the Screen & system page says a change is waiting
+  (:func:`waiting`). The screen in use is kept in :data:`PREVIOUS_FILE` in the state
+  folder, so "Go back to the previous screen" can put it back when the new one does not
+  answer.
 - :func:`screen_facts` describes the screen in use (the type and model PaperPi started
   with, see ``docs/decisions/live-config-reload.md``) and :func:`pi_facts` measures this Pi
   when the page asks.
@@ -15,6 +21,7 @@ at once, and facts about this Pi.
 from __future__ import annotations
 
 import os
+import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,9 +29,11 @@ from pathlib import Path
 from typing import Any
 
 from epdlib.drivers.it8951 import MODELS as IT8951_MODELS
+from epdlib.drivers.it8951 import VCOM_RANGE
 from pydantic import ValidationError
 
-from .. import __version__, config, health
+from .. import __version__, config, example, health
+from ..files import write_atomic
 from . import config_file
 
 #: The page's sections and their ``[display]`` settings.
@@ -32,6 +41,18 @@ SECTIONS = {
     "picture": ("rotation", "color"),
     "care": ("max_refresh", "clean_every", "on_exit"),
     "splash": ("splash_time", "fallback_clock"),
+}
+#: The ``[display]`` settings of the screen itself, set on the Change screen page.
+SCREEN = ("type", "model", "vcom", "width", "height", "mode")
+#: The screen used before Change screen…, in the state folder.
+PREVIOUS_FILE = "previous-screen.toml"
+#: What a virtual screen can show, in words.
+SHOWS = {
+    "bw": "black and white",
+    "gray4": "4 grays",
+    "gray16": "16 grays",
+    "7color": "7 colours",
+    "rgb": "full colour",
 }
 #: The units "Clean the screen every" can be given in, in seconds.
 CLEAN_UNITS = {"minutes": 60, "hours": 3600}
@@ -128,6 +149,140 @@ def with_values(text: str, sent: Mapping[str, Sequence[str]]) -> str:
     if not changes:
         return text
     return config_file.set_display(text, changes, every)
+
+
+def screen_of(display: config.DisplaySettings) -> dict[str, Any]:
+    """The screen settings of ``display`` that are set."""
+    values = display.model_dump(include=set(SCREEN))
+    return {key: value for key, value in values.items() if value is not None}
+
+
+def screen_form(display: config.DisplaySettings | None) -> dict[str, str]:
+    """The values of the Change screen page's fields for the screen ``display``."""
+    shown = {
+        "type": "it8951",
+        "model": "9.7",
+        "vcom": "",
+        "width": str(config.VIRTUAL_WIDTH),
+        "height": str(config.VIRTUAL_HEIGHT),
+        "mode": config.VIRTUAL_MODE,
+    }
+    if display is None:
+        return shown
+    values = screen_of(display)
+    if "vcom" in values:
+        values["vcom"] = f"{values['vcom']:.2f}"
+    return shown | {key: str(value) for key, value in values.items()}
+
+
+def with_screen(text: str, sent: Mapping[str, Sequence[str]]) -> str:
+    """``text`` with the screen of the Change screen form ``sent`` in ``[display]``. Raises
+    :class:`SectionErrors` when a value can't be used and :class:`config_file.EditError`
+    when the file can't be changed."""
+    one = {key: (texts[-1] if texts else "").strip() for key, texts in sent.items()}
+    errors: dict[str, str] = {}
+    kind = one.get("type", "")
+    values: dict[str, Any] = {"type": kind}
+    if kind == "it8951":
+        if one.get("model") not in IT8951_MODELS:
+            errors["model"] = "choose one of the models"
+        values["model"] = one.get("model")
+        try:
+            values["vcom"] = float(one.get("vcom", "").replace(",", ".").replace("−", "-"))
+        except ValueError:
+            values["vcom"] = None
+        low, high = VCOM_RANGE
+        if values["vcom"] is None or not low <= values["vcom"] <= high:
+            errors["vcom"] = f"must be a number from {low:.2f} to {high:.2f}, e.g. -1.90"
+    elif kind == "virtual":
+        for key in ("width", "height"):
+            try:
+                values[key] = int(one.get(key, ""))
+            except ValueError:
+                values[key] = None
+            if values[key] is None or not 0 < values[key] <= 10_000:
+                errors[key] = "must be a whole number from 1 to 10000"
+        if one.get("mode") not in SHOWS:
+            errors["mode"] = "choose what the screen shows"
+        values["mode"] = one.get("mode")
+    else:
+        errors["type"] = "choose a type"
+    if errors:
+        raise SectionErrors(errors, one)
+    return set_screen(text, values)
+
+
+def set_screen(text: str, screen: Mapping[str, Any]) -> str:
+    """``text`` with ``screen`` (see :func:`screen_of`) as the screen in ``[display]``:
+    screen settings it doesn't hold are taken out."""
+    found = config_file.load(text).get("display")
+    current = found if isinstance(found, dict) else {}
+    values = {key: screen.get(key) for key in SCREEN}
+    new = {key: value for key, value in (current | values).items() if value is not None}
+    try:
+        config.DisplaySettings.model_validate(new)
+    except ValidationError as error:
+        problem = error.errors()[0]
+        key = str(problem["loc"][0]) if problem["loc"] else ""
+        raise config_file.EditError(
+            f"[display] {key} in the config file can't be used ({problem['msg']}). "
+            "Fix it in the config file first."
+        ) from None
+    changes = {key: value for key, value in values.items() if current.get(key) != value}
+    if not changes:
+        return text
+    # A setting that doesn't belong to the new screen goes without a comment in its place.
+    every = {key: value for key, value in defaults().items() if value is not None}
+    return config_file.set_display(text, changes, every)
+
+
+def waiting(file: config.DisplaySettings | None, used: config.DisplaySettings | None) -> bool:
+    """The config file names another screen than the one in use, so a restart is needed."""
+    if file is None or used is None:
+        return False
+    return any(getattr(file, key) != getattr(used, key) for key in config.NEXT_START)
+
+
+def describe(screen: Mapping[str, Any]) -> str:
+    """A screen (see :func:`screen_of`) in a few words."""
+    if screen.get("type") == "it8951":
+        vcom = screen.get("vcom")
+        volts = "" if vcom is None else f", {vcom:.2f} V".replace("-", "−")
+        return f"IT8951, {screen.get('model')} inch{volts}"
+    width = screen.get("width") or config.VIRTUAL_WIDTH
+    height = screen.get("height") or config.VIRTUAL_HEIGHT
+    shows = SHOWS.get(screen.get("mode") or config.VIRTUAL_MODE, "")
+    return f"virtual screen, {width} × {height}, {shows}"
+
+
+def previous(state_dir: Path | None) -> dict[str, Any] | None:
+    """The screen used before Change screen…; ``None``: none is kept."""
+    if state_dir is None:
+        return None
+    try:
+        found = tomllib.loads((state_dir / PREVIOUS_FILE).read_text())
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    screen = {key: found[key] for key in SCREEN if key in found}
+    try:
+        config.DisplaySettings.model_validate(screen)
+    except ValidationError:
+        return None
+    return screen
+
+
+def keep_previous(state_dir: Path | None, screen: Mapping[str, Any]) -> None:
+    """Keep ``screen`` for "Go back to the previous screen"."""
+    if state_dir is None:
+        return
+    lines = [f"{key} = {example.toml_value(value)}\n" for key, value in screen.items()]
+    note = "# The screen used before Change screen… in the web interface (PaperPi writes this)\n"
+    write_atomic(state_dir / PREVIOUS_FILE, (note + "".join(lines)).encode())
+
+
+def forget_previous(state_dir: Path | None) -> None:
+    if state_dir is not None:
+        (state_dir / PREVIOUS_FILE).unlink(missing_ok=True)
 
 
 def _value(key: str, sent: dict[str, str]) -> Any:

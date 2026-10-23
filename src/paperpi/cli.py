@@ -42,6 +42,9 @@ from .web.password import PasswordError, save_password_hash
 log = logging.getLogger("paperpi")
 
 SIZE = f"{config.VIRTUAL_WIDTH}x{config.VIRTUAL_HEIGHT}"
+#: ``paperpi run``'s exit status after "Restart PaperPi" in the web interface. The service
+#: (install/paperpi.service) counts it as a clean stop and starts PaperPi again.
+RESTART_STATUS = 75
 
 
 class UsageError(Exception):
@@ -373,8 +376,8 @@ def _keep_running(args: argparse.Namespace, book: logbook.Logbook) -> int:
                 web.stop_previews()  # before the clear below, which can take 30 s
             # Only after a stop that was asked for (Ctrl+C, systemctl stop, shutdown or
             # reboot): after an error, the restart draws the picture again anyway. A second
-            # stop signal ends the clear at once.
-            if scheduler.display.on_exit == "clear":
+            # stop signal ends the clear at once. A restart keeps the picture.
+            if scheduler.display.on_exit == "clear" and not scheduler.restart_asked:
                 signal.signal(signal.SIGTERM, lambda *_: screen.abort())
                 signal.signal(signal.SIGINT, lambda *_: screen.abort())
                 screen.clear_before_exit()
@@ -393,6 +396,9 @@ def _keep_running(args: argparse.Namespace, book: logbook.Logbook) -> int:
         reports.stopping()
         if web is not None:
             web.stop()
+    if scheduler.restart_asked:
+        log.info("PaperPi starts again, as asked in the web interface", extra=logbook.KEEP)
+        return RESTART_STATUS
     return 0
 
 
