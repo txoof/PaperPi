@@ -1,10 +1,12 @@
 """Example pictures in the Plugin Library (M5 part 3b-2)."""
 
 import html
+import importlib
 import itertools
 import os
 import shutil
 import socket
+import sys
 import threading
 import time
 from pathlib import Path
@@ -76,6 +78,18 @@ def drawn(pictures, *types):
     return [pictures.shown(t) for t in types]
 
 
+def add_plugin(package, plugin_type, layouts=("one",)):
+    """Adds ``plugin_type`` to the test package: a copy of ``fake`` with ``layouts``."""
+    root = Path(__import__(package).__file__).parent
+    shutil.copytree(root / "fake", root / plugin_type)
+    text = (root / plugin_type / "__init__.py").read_text()
+    text = text.replace('type="fake"', f'type="{plugin_type}"')
+    one = '"one": {"column": [{"name": "text", "type": "text"}]}'
+    assert one in text
+    text = text.replace(one, ", ".join(one.replace('"one"', repr(x)) for x in layouts))
+    (root / plugin_type / "__init__.py").write_text(text)
+
+
 def stale_gone(path):
     return lambda: not path.exists()
 
@@ -105,6 +119,83 @@ def test_each_plugin_is_drawn_once_with_its_sample_data(tmp_path, make):
     round_done(pictures)  # nothing to draw again
     assert len(update.calls) == 1 and pictures.shown("fake") == fake
     assert sorted(p.name for p in (tmp_path / "pics").iterdir()) == [fake.file]
+
+
+def test_every_layout_is_drawn_the_first_layouts_first(tmp_path, make, package):
+    add_plugin(package, "multi", ("one", "two", "three"))
+    update = FakeUpdate(*[State.READY] * 4)
+    pictures = make(update)
+    until(lambda: len(update.calls) == 4)
+    drawn_layouts = [(t, context.layout) for t, context, _, _ in update.calls]
+    assert drawn_layouts == [
+        ("fake", "one"),
+        ("multi", "one"),
+        ("multi", "two"),
+        ("multi", "three"),
+    ]
+    until(lambda: all(pictures.shown("multi", x).file for x in ("two", "three")))
+    shown = [pictures.shown("multi", x) for x in ("one", "two", "three")]
+    assert len({s.file for s in shown}) == 3 and pictures.shown("multi") == shown[0]
+    assert not any(s.turned for s in shown)
+    round_done(pictures)  # nothing to draw again, nothing deleted
+    assert len(update.calls) == 4 and len(list((tmp_path / "pics").iterdir())) == 4
+    with pytest.raises(KeyError):
+        pictures.shown("multi", "four")
+
+
+def test_an_upright_layout_is_drawn_upright_on_a_wide_screen(make, package):
+    add_plugin(package, "multi", ("one", "portrait_now"))
+    update = FakeUpdate(*[State.READY] * 3)
+    pictures = make(update)
+    until(lambda: pictures.shown("multi", "portrait_now").file)
+    upright = pictures.shown("multi", "portrait_now")
+    assert upright.turned and upright.screen == Screen(200, 300, SCREEN.mode)
+    with Image.open(pictures.folder / upright.file) as image:
+        assert image.size == (200, 300)
+    assert not pictures.shown("multi").turned
+    # A turned screen: drawn as it is.
+    tall = Screen(200, 300, SCREEN.mode)
+    pictures.use(tall)
+    until(lambda: pictures.shown("multi", "portrait_now").screen == tall)
+    assert not pictures.shown("multi", "portrait_now").turned
+
+
+def test_a_first_layout_for_upright_screens_is_upright_on_the_card(make, package, tmp_path):
+    add_plugin(package, "multi", ("portrait_now", "one"))
+    pictures = make(FakeUpdate(*[State.READY] * 3))
+    until(lambda: pictures.shown("multi").file)
+    assert pictures.shown("multi").turned
+
+
+def test_a_removed_layout_loses_its_picture(make, package):
+    add_plugin(package, "multi", ("one", "two"))
+    pictures = make(FakeUpdate(*[State.READY] * 3))
+    until(lambda: pictures.shown("multi", "two").file)
+    two = pictures.folder / pictures.shown("multi", "two").file
+    code = Path(__import__(package).__file__).parent / "multi" / "__init__.py"
+    code.write_text(code.read_text().replace('"two": ', '"three": '))
+    importlib.reload(sys.modules[f"{package}.multi"])
+    round_done(pictures)
+    assert not two.exists()
+
+
+def test_a_round_stops_when_the_screen_changes(make, package):
+    add_plugin(package, "multi", ("one", "two", "three"))
+    update = FakeUpdate(*[State.READY] * 8)
+    pictures = make(update, wait=60)
+    real = update.__call__
+    other = Screen(200, 300, SCREEN.mode)
+
+    def turn_after_first(*args, **kwargs):
+        if len(update.calls) == 0:
+            pictures.use(other)
+        return real(*args, **kwargs)
+
+    pictures._update = turn_after_first
+    pictures._wake.set()
+    until(lambda: all(pictures.shown("multi", x).file for x in ("one", "two", "three")))
+    sizes = [(c.width, c.height) for _, c, _, _ in update.calls]
+    assert sizes[0] == (300, 200) and set(sizes[1:]) == {(200, 300)} and len(sizes) == 5
 
 
 def test_a_changed_plugin_is_drawn_again(make, package):
@@ -163,10 +254,7 @@ def test_a_slow_plugin_is_tried_three_times(make):
 
 
 def test_any_error_is_shown_and_the_others_are_still_drawn(make, package):
-    root = Path(__import__(package).__file__).parent
-    shutil.copytree(root / "fake", root / "zfake")
-    text = (root / "zfake" / "__init__.py").read_text()
-    (root / "zfake" / "__init__.py").write_text(text.replace('type="fake"', 'type="zfake"'))
+    add_plugin(package, "zfake")
     pictures = make(FakeUpdate(RuntimeError("no process"), State.READY))
     fake, zfake = drawn(pictures, "fake", "zfake")
     assert fake.problem == "It could not be drawn: no process" and zfake.file
@@ -187,6 +275,9 @@ def test_a_folder_that_cant_be_written_says_so(tmp_path, make):
         assert list(pictures.folder.iterdir()) == []  # no part left
     finally:
         (tmp_path / "pics").chmod(0o700)
+    pictures.stop()  # or its next round may make the folder again
+    pictures._thread.join(5)
+    assert not pictures._thread.is_alive()
     (tmp_path / "pics").rmdir()
     (tmp_path / "pics").write_text("not a folder")
     pictures = make(FakeUpdate(State.READY))
@@ -196,10 +287,10 @@ def test_a_folder_that_cant_be_written_says_so(tmp_path, make):
 def test_a_plugin_whose_files_cant_be_read_says_so(make, monkeypatch):
     pictures = make(FakeUpdate(), wait=60)
 
-    def unreadable(plugin_type, screen):
+    def unreadable(plugin_type):
         raise PermissionError(13, "Permission denied")
 
-    monkeypatch.setattr(pictures, "file_name", unreadable)
+    monkeypatch.setattr(pictures, "_files_code", unreadable)
     assert pictures.shown("fake").problem == "Its files can't be read: Permission denied."
 
 
@@ -213,10 +304,7 @@ def test_drawing_waits_after_the_start_unless_the_page_is_opened(make):
 
 
 def test_stop_ends_drawing(make, package):
-    root = Path(__import__(package).__file__).parent
-    shutil.copytree(root / "fake", root / "zfake")
-    text = (root / "zfake" / "__init__.py").read_text()
-    (root / "zfake" / "__init__.py").write_text(text.replace('type="fake"', 'type="zfake"'))
+    add_plugin(package, "zfake")
     update = FakeUpdate(State.READY, State.READY)
     pictures = make(update)
     real = update.__call__
@@ -328,9 +416,11 @@ def test_the_library_shows_drawn_pictures_and_waits_for_the_others(tmp_path, rea
     pictures, name = ready_pictures
     client = make_client(tmp_path, pictures)
     page = html.unescape(client.get("/library").text)
-    # The title, the picture and + Add open the Add page.
-    assert f'<a href="/library/basic_clock"><img src="/library/pictures/{name}"' in page
-    assert '<h2><a href="/library/basic_clock">Clock</a></h2>' in page
+    # The picture and the title open Look closer; + Add the Add page.
+    look = '<a class="look" href="/library/basic_clock/look">'
+    assert f'{look}<img src="/library/pictures/{name}"' in page
+    assert "<span>3 layouts · Look closer</span></a>" in page
+    assert f"<h2>{look}Clock</a></h2>" in page
     assert '<a class="add" href="/library/basic_clock">+ Add</a>' in page
     assert "drawn at your screen's size with the plugin's\nsample data" in page
     assert 'hx-get="/library/word_clock/picture"' in page  # not drawn yet
@@ -362,3 +452,64 @@ def test_without_pictures_the_library_has_none(tmp_path):
     page = make_client(tmp_path, None).get("/library").text
     assert "/library/pictures/" not in page and "hx-get" not in page
     assert "sample data" not in page
+
+
+# Look closer.
+
+
+def test_look_closer_shows_a_layout_and_a_button_for_each(tmp_path, ready_pictures):
+    pictures, name = ready_pictures
+    client = make_client(tmp_path, pictures)
+    page = html.unescape(client.get("/library/basic_clock/look").text)
+    assert '<p class="crumbs"><a href="/library">Plugin Library</a> › Clock</p>' in page
+    assert f'<img src="/library/pictures/{name}"' in page and 'class="look"' not in page
+    first = '<a class="button" href="/library/basic_clock/look?layout=time" aria-current="true">'
+    assert f"{first}Time (default)<small>time</small></a>" in page
+    other = '<a class="button" href="/library/basic_clock/look?layout=time_date">Time and date'
+    assert other in page and page.count('aria-current="true"') == 1
+    assert '<a class="add" href="/library/basic_clock">+ Add</a>' in page
+    assert "Made for upright screens" not in page
+    assert "Drawn at your screen's size with sample\ndata" in page
+    # Another layout: not drawn yet, so its picture asks again.
+    page = client.get("/library/basic_clock/look?layout=small").text
+    assert 'hx-get="/library/basic_clock/picture?layout=small"' in page
+    assert 'href="/library/basic_clock/look?layout=small" aria-current="true"' in page
+
+
+def test_look_closer_in_the_window_is_the_inside_only(tmp_path, ready_pictures):
+    client = make_client(tmp_path, ready_pictures[0])
+    part = client.get("/library/met_no/look?layout=portrait_now", headers={"HX-Request": "true"})
+    text = part.text
+    assert text.startswith('<div class="window-body look-view">') and "<html" not in text
+    assert '<h2 id="window-title">Weather <code class="hint">met_no</code></h2>' in text
+    assert "Made for upright screens, so it is drawn\nupright here." in text
+    assert "Drawn " not in text  # not drawn yet
+    assert '<a href="/library" data-close>Close</a>' in text
+    assert '<dialog id="window" class="window"' in client.get("/library").text
+
+
+def test_look_closer_of_a_plugin_with_one_layout(tmp_path, ready_pictures):
+    page = make_client(tmp_path, ready_pictures[0]).get("/library/dec_binary_clock/look").text
+    assert "This plugin has one layout." in page and "layout-pick" not in page
+
+
+@pytest.mark.parametrize(
+    ("address", "problem"),
+    [("/library/nothing/look", "No such plugin."),
+     ("/library/basic_clock/look?layout=nothing", "This plugin has no such layout.")],
+)  # fmt: skip
+def test_look_closer_of_something_unknown_is_not_found(tmp_path, ready_pictures, address, problem):
+    answer = make_client(tmp_path, ready_pictures[0]).get(address)
+    assert answer.status_code == 404 and problem in answer.text
+
+
+def test_the_picture_part_of_another_layout(tmp_path, ready_pictures):
+    pictures, _ = ready_pictures
+    client = make_client(tmp_path, pictures)
+    part = client.get("/library/basic_clock/picture?layout=small").text
+    assert 'hx-get="/library/basic_clock/picture?layout=small"' in part
+    name = pictures.file_name("basic_clock", SCREEN, "small")
+    shutil.copy(next((tmp_path / "pics").iterdir()), tmp_path / "pics" / name)
+    part = client.get("/library/basic_clock/picture?layout=small").text
+    assert f'<img src="/library/pictures/{name}"' in part and 'class="look"' not in part
+    assert client.get("/library/basic_clock/picture?layout=nothing").text.strip() == ""

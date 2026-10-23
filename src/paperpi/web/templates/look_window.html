@@ -1,0 +1,10 @@
+{#- The Plugin Library's Look closer window (library.js puts it in a dialog; a layout button
+    loads it again). The inner box takes every click inside the window, so only a click on
+    the dark area around it reaches the dialog itself (and closes it). -#}
+<div class="window-body look-view">
+<h2 id="window-title">{{ item.title }} <code class="hint">{{ item.type }}</code></h2>
+{% include "_look.html" %}
+<p class="buttons"><a class="add" href="/library/{{ item.type }}">+ Add</a>
+  <a href="/library/{{ item.type }}/readme">README</a>
+  <a href="/library" data-close>Close</a></p>
+</div>

@@ -115,6 +115,13 @@ class LibraryItem:
         return [self.plugin.layout_title(name) for name in self.plugin.layouts]
 
     @property
+    def layout_choices(self) -> list[tuple[str, str]]:
+        """The names and titles of its layouts, the default first."""
+        if self.plugin is None:
+            return []
+        return [(name, self.plugin.layout_title(name)) for name in self.plugin.layouts]
+
+    @property
     def required(self) -> list[tuple[str, str]]:
         """The settings the user has to fill in, with their help text."""
         if self.plugin is None:

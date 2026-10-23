@@ -22,7 +22,9 @@ Address            What it does
                    choice into the form (all three are parts of the settings page)
 ``/library``       Plugin Library: every plugin type with an example picture
                    (``/library/pictures/<file>``; ``/library/<type>/picture`` is the
-                   picture's part of the page, asked for again until it is drawn);
+                   picture's part of the page, asked for again until it is drawn,
+                   ``?layout=<name>`` for another layout); ``/library/<type>/look``
+                   (Look closer) shows each layout's picture bigger (``?layout=<name>``);
                    ``/library/<type>`` adds one and opens its settings;
                    ``/library/<type>/readme`` shows its README
 ``/changes``       Review changes: hand edits to the config file that PaperPi does not
@@ -77,7 +79,14 @@ from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Snapshots, card_key, cards, now_part
 from .password import PasswordError, password_problem
 from .pictures import Pictures
-from .plugins import FormErrors, PluginEditor, added_names, library, library_item
+from .plugins import (
+    FormErrors,
+    LibraryItem,
+    PluginEditor,
+    added_names,
+    library,
+    library_item,
+)
 from .preview import Busy, Previewer, PreviewFailed
 
 COOKIE = "paperpi_login"
@@ -744,12 +753,37 @@ def create_app(
             found, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"}
         )
 
+    def layout_shown(item: LibraryItem | None, layout: str):
+        """The picture of ``layout`` of ``item``, ``None`` for an unknown plugin or
+        layout (or without pictures)."""
+        if item is None or item.plugin is None:
+            return None
+        try:
+            return pictures.shown(item.type, layout)
+        except KeyError:
+            return None
+
     @app.get("/library/{plugin_type}/picture", response_class=HTMLResponse)
-    def library_picture_part(request: Request, plugin_type: str):
-        # Only a part of the Library page (htmx), so every answer is a 200.
+    def library_picture_part(request: Request, plugin_type: str, layout: str = ""):
+        # Only a part of a page (htmx), so every answer is a 200.
         item = library_item(plugin_type)
-        shown = pictures.shown(plugin_type) if item is not None else None
-        return page(request, "picture.html", item=item, picture=shown)
+        shown = layout_shown(item, layout)
+        return page(request, "picture.html", item=item, picture=shown, layout=layout)
+
+    @app.get("/library/{plugin_type}/look", response_class=HTMLResponse)
+    def look(request: Request, plugin_type: str, layout: str = ""):
+        item = library_item(plugin_type)
+        if item is None:
+            return library_page(request, 404, "No such plugin.")
+        if item.plugin is None:
+            return library_page(request, 404, item.description)  # why it is broken
+        layout = layout or item.plugin.default_layout
+        if layout not in item.plugin.layouts:
+            return library_page(request, 404, "This plugin has no such layout.")
+        values = {"item": item, "layout": layout, "picture": layout_shown(item, layout)}
+        # The Library's window asks for the inside only (library.js).
+        part = request.headers.get("hx-request") == "true"
+        return page(request, "look_window.html" if part else "look.html", **values)
 
     def add_page(request: Request, plugin_type: str, status: int = 200, **values):
         item = library_item(plugin_type)

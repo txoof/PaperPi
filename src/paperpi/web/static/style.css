@@ -303,6 +303,19 @@ dialog.window .note p, dialog.window .note ul { margin: 0.25rem 0; }
 .picture { margin: 0; }
 .picture img { display: block; width: 100%; height: auto; border: 1px solid var(--line);
   border-radius: 3px; }
+/* Look closer: the card's picture opens it; the label sits on the picture's corner. */
+.picture a.look { display: block; position: relative; cursor: zoom-in; }
+.picture a.look span { position: absolute; right: 6px; bottom: 6px; background: var(--panel);
+  color: var(--ink); border: 1px solid var(--line); border-radius: 4px; font-size: 0.75rem;
+  padding: 0 0.4rem; }
+.look-view .picture { margin: 0 0 0.75rem; }
+/* An upright picture of a layout for upright screens: no taller than the window. */
+.look-view .picture.upright img { width: auto; max-width: 100%; max-height: 60vh; margin: 0 auto; }
+.layout-pick { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.75rem; }
+.layout-pick a.button { display: grid; justify-items: start; font-size: 0.85rem; padding: 0.25rem 0.65rem; }
+.layout-pick small { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.layout-pick a[aria-current] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+dialog.window:has(.look-view) { width: min(44rem, calc(100% - 32px)); }
 
 /* A plugin's settings */
 .settings h2 { font-size: 1.05rem; margin-top: 1.5rem; }

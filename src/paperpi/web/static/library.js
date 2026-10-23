@@ -1,7 +1,8 @@
 // The Plugin Library's search box: shows only the plugins whose title, type, description or labels
 // has every word typed. Without JavaScript the box stays hidden and every plugin is shown.
-// + Add opens the Add window with the Add form from the page's server; without JavaScript (or
-// when the form can't be fetched) it opens the Add page.
+// + Add opens a window with the Add form from the page's server, and a plugin's picture or
+// title opens one with Look closer (its layout buttons load it again); without JavaScript (or
+// when the part can't be fetched) they open the Add page or the Look closer page.
 (function () {
   "use strict";
 
@@ -11,7 +12,7 @@
     var count = document.getElementById("search-count");
     var none = document.getElementById("no-match");
     var items = document.querySelectorAll("#library > li");
-    addWindow();
+    libraryWindow();
     if (!box || !items.length) return;
 
     function filter() {
@@ -32,37 +33,40 @@
     input.addEventListener("input", filter);
   });
 
-  function addWindow() {
-    var dialog = document.getElementById("add-window");
+  function libraryWindow() {
+    var dialog = document.getElementById("window");
     if (!dialog || typeof dialog.showModal !== "function") return;
     var opener = null;
-    var asking = false; // a form is being fetched
+    var asking = false; // a part is being fetched
 
     document.addEventListener("click", function (event) {
-      var link = event.target.closest("a.add");
+      var link = event.target.closest("a.add, a.look, .layout-pick a");
       if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
       event.preventDefault();
-      if (asking || dialog.open) return; // a double click opens one window
-      opener = link;
+      if (asking) return; // a double click opens one window
+      if (!dialog.open) opener = link;
       asking = true;
       fetch(link.href, { headers: { "HX-Request": "true" }, credentials: "same-origin" })
         .then(function (response) {
-          // Logged out meanwhile (the log-in page), or a problem: the Add page says why.
+          // Logged out meanwhile (the log-in page), or a problem: the whole page says why.
           if (!response.ok || response.redirected) throw new Error(response.status);
           return response.text();
         })
         .then(function (html) {
           dialog.innerHTML = html;
-          dialog.showModal();
+          if (window.htmx) window.htmx.process(dialog); // a picture still being drawn
+          if (!dialog.open) dialog.showModal();
           var name = dialog.querySelector("#add-name");
+          var current = dialog.querySelector(".layout-pick [aria-current]");
           if (name) name.select();
+          else if (current) current.focus();
         })
         .catch(function () { window.location.href = link.href; })
         .finally(function () { asking = false; });
     });
 
     dialog.addEventListener("click", function (event) {
-      // Cancel, or a click on the dark area around the window.
+      // Cancel or Close, or a click on the dark area around the window.
       if (event.target.closest("[data-close]") || event.target === dialog) {
         event.preventDefault();
         dialog.close();
