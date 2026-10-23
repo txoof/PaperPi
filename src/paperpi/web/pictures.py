@@ -242,7 +242,8 @@ class Pictures:
                 continue
             try:
                 plugin = plugins.load(plugin_type, self._package)
-            except Exception:  # noqa: BLE001 - the page says it is broken
+            except Exception:  # noqa: BLE001 - keep what it has; the page says it is broken
+                keep.update(p.name for p in self.folder.glob(f"{plugin_type}-*.png"))
                 continue
             try:
                 files = self._files_code(plugin_type)
@@ -256,7 +257,9 @@ class Pictures:
             first.append(todo[0])
             others += todo[1:]
         for plugin_type, layout, name in first + others:
-            if self._stopped.is_set():
+            with self._lock:
+                changed = self._screen != screen  # e.g. turned: the next round draws it
+            if self._stopped.is_set() or changed:
                 return
             if not (self.folder / name).is_file() and name not in self._failed:
                 try:

@@ -15,5 +15,5 @@ upright here. To use it, turn your screen (<code>rotation</code> 90 or 270).</p>
 <p class="hint">This plugin has one layout.</p>
 {% endif %}
 <p>{{ item.description }}</p>
-{% if picture %}<p class="hint">Drawn {% if not picture.turned %}at your screen's size {% endif %}with sample
+{% if picture and picture.file %}<p class="hint">Drawn {% if not picture.turned %}at your screen's size {% endif %}with sample
 data and default settings. You choose the layout on the plugin's settings page after adding it.</p>{% endif %}

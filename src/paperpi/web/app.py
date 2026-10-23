@@ -773,8 +773,10 @@ def create_app(
     @app.get("/library/{plugin_type}/look", response_class=HTMLResponse)
     def look(request: Request, plugin_type: str, layout: str = ""):
         item = library_item(plugin_type)
-        if item is None or item.plugin is None:
+        if item is None:
             return library_page(request, 404, "No such plugin.")
+        if item.plugin is None:
+            return library_page(request, 404, item.description)  # why it is broken
         layout = layout or item.plugin.default_layout
         if layout not in item.plugin.layouts:
             return library_page(request, 404, "This plugin has no such layout.")

@@ -1,10 +1,12 @@
 """Example pictures in the Plugin Library (M5 part 3b-2)."""
 
 import html
+import importlib
 import itertools
 import os
 import shutil
 import socket
+import sys
 import threading
 import time
 from pathlib import Path
@@ -151,8 +153,49 @@ def test_an_upright_layout_is_drawn_upright_on_a_wide_screen(make, package):
     with Image.open(pictures.folder / upright.file) as image:
         assert image.size == (200, 300)
     assert not pictures.shown("multi").turned
-    tall = Screen(200, 300, SCREEN.mode)  # a turned screen: drawn as it is
-    assert tall.for_layout("portrait_now") == tall and SCREEN.for_layout("one") == SCREEN
+    # A turned screen: drawn as it is.
+    tall = Screen(200, 300, SCREEN.mode)
+    pictures.use(tall)
+    until(lambda: pictures.shown("multi", "portrait_now").screen == tall)
+    assert not pictures.shown("multi", "portrait_now").turned
+
+
+def test_a_first_layout_for_upright_screens_is_upright_on_the_card(make, package, tmp_path):
+    add_plugin(package, "multi", ("portrait_now", "one"))
+    pictures = make(FakeUpdate(*[State.READY] * 3))
+    until(lambda: pictures.shown("multi").file)
+    assert pictures.shown("multi").turned
+
+
+def test_a_removed_layout_loses_its_picture(make, package):
+    add_plugin(package, "multi", ("one", "two"))
+    pictures = make(FakeUpdate(*[State.READY] * 3))
+    until(lambda: pictures.shown("multi", "two").file)
+    two = pictures.folder / pictures.shown("multi", "two").file
+    code = Path(__import__(package).__file__).parent / "multi" / "__init__.py"
+    code.write_text(code.read_text().replace('"two": ', '"three": '))
+    importlib.reload(sys.modules[f"{package}.multi"])
+    round_done(pictures)
+    assert not two.exists()
+
+
+def test_a_round_stops_when_the_screen_changes(make, package):
+    add_plugin(package, "multi", ("one", "two", "three"))
+    update = FakeUpdate(*[State.READY] * 8)
+    pictures = make(update, wait=60)
+    real = update.__call__
+    other = Screen(200, 300, SCREEN.mode)
+
+    def turn_after_first(*args, **kwargs):
+        if len(update.calls) == 0:
+            pictures.use(other)
+        return real(*args, **kwargs)
+
+    pictures._update = turn_after_first
+    pictures._wake.set()
+    until(lambda: all(pictures.shown("multi", x).file for x in ("one", "two", "three")))
+    sizes = [(c.width, c.height) for _, c, _, _ in update.calls]
+    assert sizes[0] == (300, 200) and set(sizes[1:]) == {(200, 300)} and len(sizes) == 5
 
 
 def test_a_changed_plugin_is_drawn_again(make, package):
@@ -234,6 +277,7 @@ def test_a_folder_that_cant_be_written_says_so(tmp_path, make):
         (tmp_path / "pics").chmod(0o700)
     pictures.stop()  # or its next round may make the folder again
     pictures._thread.join(5)
+    assert not pictures._thread.is_alive()
     (tmp_path / "pics").rmdir()
     (tmp_path / "pics").write_text("not a folder")
     pictures = make(FakeUpdate(State.READY))
@@ -439,7 +483,7 @@ def test_look_closer_in_the_window_is_the_inside_only(tmp_path, ready_pictures):
     assert text.startswith('<div class="window-body look-view">') and "<html" not in text
     assert '<h2 id="window-title">Weather <code class="hint">met_no</code></h2>' in text
     assert "Made for upright screens, so it is drawn\nupright here." in text
-    assert "Drawn with sample\ndata" in text
+    assert "Drawn " not in text  # not drawn yet
     assert '<a href="/library" data-close>Close</a>' in text
     assert '<dialog id="window" class="window"' in client.get("/library").text
 
