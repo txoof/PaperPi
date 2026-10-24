@@ -36,7 +36,7 @@ In the config file:
 
 ```toml
 [[plugin]]
-id = "binary_clock"
+id = "dec_binary_clock-f4cf009c"
 name = "Binary Clock"
 type = "dec_binary_clock"
 ```

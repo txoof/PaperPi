@@ -47,7 +47,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
-id = "spotify"
+id = "librespot_client-e17e8f3c"
 name = "Spotify"
 type = "librespot_client"
 port = 24879

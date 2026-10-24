@@ -39,7 +39,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
-id = "system"
+id = "system_info-fe2462b4"
 name = "System"
 type = "system_info"
 layout = "portrait"

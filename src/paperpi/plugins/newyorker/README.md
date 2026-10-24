@@ -34,7 +34,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
-id = "new_yorker"
+id = "newyorker-7e1d832d"
 name = "New Yorker"
 type = "newyorker"
 layout = "comic_caption"   # optional; without it: comic_caption_date

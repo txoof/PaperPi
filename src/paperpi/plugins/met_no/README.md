@@ -66,7 +66,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
-id = "weather_berlin"
+id = "met_no-fdb87963"
 name = "Weather Berlin"
 type = "met_no"
 lat = 52.52

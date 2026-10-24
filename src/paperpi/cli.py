@@ -168,7 +168,7 @@ def _parser() -> argparse.ArgumentParser:
         description=(
             "Print an example config file that works as it is: a clock and the weather in two "
             "places, with every other setting as a comment with its default and help text. "
-            "With --setup: the first config of a new install."
+            "Each plugin gets a new random ID. With --setup: the first config of a new install."
         ),
     )
     sample.add_argument("-o", "--output", type=Path, help="file to write instead of printing")
@@ -266,7 +266,7 @@ def _render(args: argparse.Namespace) -> int:
         if args.plugin:
             raise UsageError(f"give either a plugin type ({args.plugin!r}) or --config, not both")
         if args.id is None:
-            raise UsageError("with --config, give the plugin's ID: --id clock")
+            raise UsageError("with --config, give the plugin's ID, e.g. --id basic_clock-5c1e0a7b")
         if args.set or args.size or args.mode:
             raise UsageError("with --config, settings, size and mode come from the config file")
         job = _job_from_config(args)
@@ -528,7 +528,7 @@ def _example_config(args: argparse.Namespace) -> int:
     display = {"type": args.display, "model": args.model, "vcom": args.vcom}
     make = example.setup_config if args.setup else example.example_config
     try:
-        text = make(display)
+        text = make(display, fresh=True)
         config.parse(text)  # e.g. an it8951 screen without its vcom
     except (ValidationError, config.ConfigError) as error:
         raise UsageError(f"the [display] settings can't be used:\n{error}") from None

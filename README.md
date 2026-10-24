@@ -59,20 +59,22 @@ height = 480
 mode = "bw"
 
 [[plugin]]
-id = "clock"
+id = "basic_clock-5c1e0a7b"
 type = "basic_clock"
 layout = "time_date"
 ```
 
+Every `[[plugin]]` block has its own `id`, which names the plugin's storage folder. The web interface and `paperpi example-config` make it: the plugin type and 8 random letters and digits, as in the examples here.
+
 ```bash
-uv run paperpi render --config paperpi.toml --id clock   # writes clock.png, named after the plugin's ID
+uv run paperpi render --config paperpi.toml --id basic_clock-5c1e0a7b   # writes basic-clock-5c1e0a7b.png, named after the plugin's ID
 ```
 
 Run `uv run paperpi render --help` for all options. How to write a plugin: [docs/writing-plugins.md](docs/writing-plugins.md).
 
 ### A config file
 
-`paperpi example-config` prints an example config file that loads without errors: a virtual screen, a clock, and weather blocks for Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text. The weather blocks are not shown until you remove the `#` in front of `email` and fill in your own, real email address: met.no's terms of service ask for it, so the example leaves it empty. Until then `paperpi list` shows them as "needs email". `-o` doesn't replace a file that is already there, unless you add `--force`.
+`paperpi example-config` prints an example config file that loads without errors: a virtual screen, a clock, and weather blocks for Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text, except that each plugin gets a new random `id` every time. The weather blocks are not shown until you remove the `#` in front of `email` and fill in your own, real email address: met.no's terms of service ask for it, so the example leaves it empty. Until then `paperpi list` shows them as "needs email". `-o` doesn't replace a file that is already there, unless you add `--force`.
 
 ```bash
 uv run paperpi example-config -o paperpi.toml

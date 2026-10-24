@@ -28,15 +28,15 @@ def test_example_file_works_as_it_is():
     # The weather blocks wait for the user's own email address (met.no's terms).
     assert [(p.level, p.message, p.where) for p in loaded.problems] == [
         ("warning", "not shown until these required settings are filled in: email", where)
-        for where in ("[[plugin]] 'weather_berlin'", "[[plugin]] 'weather_rio'")
+        for where in ("[[plugin]] 'met_no-3a91d2f4'", "[[plugin]] 'met_no-b7e40c19'")
     ]
-    assert [p.entry.id for p in loaded.plugins if p.shown] == ["clock"]
+    assert [p.entry.id for p in loaded.plugins if p.shown] == ["basic_clock-5c1e0a7b"]
     assert [(p.entry.id, p.entry.label, p.plugin.type) for p in loaded.plugins] == [
-        ("clock", "Clock", "basic_clock"),
-        ("weather_berlin", "Weather Berlin", "met_no"),
-        ("weather_rio", "Weather Rio", "met_no"),
+        ("basic_clock-5c1e0a7b", "Clock", "basic_clock"),
+        ("met_no-3a91d2f4", "Weather Berlin", "met_no"),
+        ("met_no-b7e40c19", "Weather Rio", "met_no"),
     ]
-    assert loaded.plugin("weather_rio").settings.place == "Rio"
+    assert loaded.plugin("met_no-b7e40c19").settings.place == "Rio"
 
 
 def test_setup_config_shows_the_clock_and_the_setup_screen():
@@ -48,9 +48,20 @@ def test_setup_config_shows_the_clock_and_the_setup_screen():
         -1.9,
     )
     assert [(p.entry.id, p.plugin.type, p.layout, p.shown) for p in loaded.plugins] == [
-        ("clock", "basic_clock", "time", True),
-        ("setup", "splash_screen", "setup", True),
+        ("basic_clock-8d2f6e30", "basic_clock", "time", True),
+        ("splash_screen-1b4c9a57", "splash_screen", "setup", True),
     ]
+
+
+def test_the_examples_ids_have_the_form_the_library_makes():
+    # The repository's copy has fixed IDs, so the file stays the same (#263).
+    for made in (example_config(), setup_config()):
+        for p in config.parse(made).plugins:
+            assert re.fullmatch(rf"{p.plugin.type}-[0-9a-f]{{8}}", p.entry.id)
+    # A user's own copy gets new ones.
+    fixed = [p.entry.id for p in config.parse(example_config()).plugins]
+    fresh = [p.entry.id for p in config.parse(example_config(fresh=True)).plugins]
+    assert len(set(fresh)) == 3 and not set(fresh) & set(fixed)
 
 
 def uncomment(text):

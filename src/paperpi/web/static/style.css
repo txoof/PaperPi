@@ -110,6 +110,11 @@ input, select { font: inherit; color: var(--ink); background: var(--panel);
 form input { display: block; width: 100%; max-width: 22rem; padding: 0.4rem 0.55rem;
   margin-top: 0.2rem; }
 input[type="checkbox"] { accent-color: var(--accent); }
+/* A password field with its Show button. */
+.pw { display: flex; gap: 0.4rem; max-width: 22rem; margin: 0.2rem 0 0.9rem; }
+form .pw input { flex: 1; min-width: 0; margin: 0; }
+.pw button { flex: none; min-width: 4.2rem; }
+.ctl .pw { margin: 0; }
 
 /* Messages: a symbol as well as a colour */
 .problem { color: var(--bad); font-weight: 500; }
@@ -200,6 +205,11 @@ a.add { text-decoration: none; background: var(--accent); color: var(--accent-in
 .thumb { align-self: start; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
 .thumb img { display: block; width: 100%; height: auto; background: var(--paper); }
 .thumb .empty { aspect-ratio: 5 / 3; }
+/* The picture on the screen now, under the log-in form. */
+main > .login-screen { margin-top: 1.75rem; max-width: 22rem; }
+.login-screen .bezel img { max-height: 40vh; }
+.login-screen .caption { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.9rem; }
+.login-screen .caption b { color: var(--ink); font-weight: 500; }
 .thumb .example { position: relative; }
 .thumb .example img { opacity: 0.45; filter: grayscale(1); }
 .thumb .example span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);

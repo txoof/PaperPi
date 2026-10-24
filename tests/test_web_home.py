@@ -301,3 +301,45 @@ def test_snapshots():
 )
 def test_in_about(seconds, said):
     assert in_about(NOW + timedelta(seconds=seconds), NOW) == said
+
+
+def logged_out_client(cfg, scheduler, stored: str | None):
+    app = create_app(
+        auth.Auth(cfg, config.WebSettings(password_hash=stored)),
+        PluginEditor(cfg),
+        controls=scheduler,
+    )
+    return TestClient(app, follow_redirects=False, base_url=PI)
+
+
+def test_the_log_in_page_shows_the_picture_on_the_screen_now(cfg, scheduler):
+    # Before log-in, the screen's picture and its plugin's name are the only things shown.
+    client = logged_out_client(cfg, scheduler, web_password.hash_password("correct horse"))
+    scheduler.summary = on_screen()
+    page = client.get("/login").text
+    assert "On the screen now: <b>Clock</b> · since 13:50" in page
+    number = page.split('src="/login/picture?v=')[1].split('"')[0]
+    response = client.get(f"/login/picture?v={number}")
+    assert response.status_code == 200 and response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"] == "private, max-age=86400"
+    # Only the screen's picture: a plugin's latest and the home page's address stay closed.
+    plugin = Image.new("L", (400, 300), 77)
+    scheduler.summary = on_screen(plugins=(PluginSummary("Words", "next", picture=plugin),))
+    shown = Image.open(io.BytesIO(client.get("/login/picture?id=Words").content))
+    assert shown.getpixel((0, 0)) == 0
+    assert client.get("/screen/picture").headers["location"] == "/login"
+    # A wrong password shows it too, and so does the first visit's Set a password page.
+    assert "On the screen now: <b>Clock</b>" in client.post("/login", data={"password": "x"}).text
+    first_visit = logged_out_client(cfg, scheduler, None)
+    assert "On the screen now: <b>Clock</b>" in first_visit.get("/setup").text
+
+
+def test_the_log_in_page_before_the_first_picture(cfg, scheduler):
+    stored = web_password.hash_password("correct horse")
+    client = logged_out_client(cfg, scheduler, stored)
+    page = client.get("/login").text
+    assert "No picture on the screen yet" in page and "On the screen now:" not in page
+    assert client.get("/login/picture").status_code == 404
+    # Without the screen running (only the web interface), there is nothing to show.
+    page = logged_out_client(cfg, None, stored).get("/login").text
+    assert 'class="login-screen"' not in page
