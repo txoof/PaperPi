@@ -1,7 +1,7 @@
 """Layouts for nl_openbaar_vervoer. The first one is the default.
 
-``sections``: a heading per stop (``head_<s>``: the stop's name in bold, ``walk_<s>``: "6 min
-walk" at the right, and a line under them), then its departures, one row each, with the
+``sections``: a heading per stop (a black bar with ``head_<s>``: the stop's name in bold, and
+``walk_<s>``: "6 min walk" at the right), then its departures, one row each, with the
 blocks ``time_<s>_<i>``, ``delay_<s>_<i>``, ``line_<s>_<i>``, ``dest_<s>_<i>`` and
 ``note_<s>_<i>`` ("leave in 3 min", "left", ...). The screen is shared by the stops shown
 today, so the number of rows per stop depends on the settings and the day.
@@ -67,18 +67,26 @@ def _row(s: int, i: int) -> dict:
 
 
 def _heading(s: int) -> list:
-    """The heading of stop ``s``: its name in bold, the walking time at the right (both in
-    one row: a text block has one font), and a line under them."""
+    """The heading of stop ``s``: a black bar with white text, the stop's name in bold and
+    the walking time at the right (two blocks: a text block has one font). The bar sets the
+    sections apart, so the walking time can't be read as one more departure."""
+    bar = {"background": "black", "fill": "white"}
     return [
         {
             "row": [
                 # Long names (train routes) are made smaller to fit.
-                _text(f"head_{s}", "Rotterdam Centraal", 3.6, font=fonts.LATO_BOLD, shrink=True),
-                _text(f"walk_{s}", "88 min walk", 1.4, align="right"),
+                _text(
+                    f"head_{s}",
+                    "Rotterdam Centraal",
+                    3.6,
+                    font=fonts.LATO_BOLD,
+                    shrink=True,
+                    **bar,
+                ),
+                _text(f"walk_{s}", "88 min walk", 1.4, align="right", **bar),
             ],
             "gap": 0,
         },
-        {"name": f"under_{s}", "type": "shape", "shape": "hline", "pixels": 1},
     ]
 
 
