@@ -136,7 +136,8 @@ class Settings(PluginSettings):
     days_4: tuple[Day, ...] = _days(4)
     ns_key: SecretStr = Field(
         SecretStr(""),
-        description="NS API key, needed for trains (free; the plugin's README says how to get it)",
+        description="NS API key needed for trains. See the [README](readme) for information on "
+        "obtaining a free key",
     )
     train_from_1: str = _station(1, "from")
     train_to_1: str = _station(1, "to")
