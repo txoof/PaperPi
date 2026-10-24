@@ -1,5 +1,6 @@
 """Keep these settings: new web settings on trial after a restart (M5 part 5-3b)."""
 
+import re
 import socket
 import threading
 import time
@@ -59,7 +60,7 @@ def on_trial(cfg):
     """A keeper with port 8081 on trial; the old port was 8080."""
     keep.remember(cfg.parent, OLD)
     keeper = keep.Keeper(NEW, cfg.parent)
-    keeper.go_back = lambda why: None
+    keeper.go_back = lambda why, old: None
     keeper.start_trial(OLD)
     yield keeper
     keeper.stop()
@@ -107,7 +108,7 @@ def test_while_on_trial_the_old_address_stays_kept(cfg, on_trial):
 def test_nobody_keeping_goes_back_when_the_time_is_up(tmp_path):
     asked = threading.Event()
     keeper = keep.Keeper(NEW, tmp_path)
-    keeper.go_back = lambda why: asked.set() if why == "time" else None
+    keeper.go_back = lambda why, old: asked.set() if why == "time" and old == OLD else None
     keeper.start_trial(OLD, seconds=0.1)
     assert asked.wait(5)
 
@@ -116,14 +117,36 @@ def test_keep_stops_the_time(tmp_path):
     keep.remember(tmp_path, OLD)
     calls = []
     keeper = keep.Keeper(NEW, tmp_path)
-    keeper.go_back = calls.append
+    keeper.go_back = lambda *sent: calls.append(sent)
     keeper.start_trial(OLD, seconds=1.0)
     assert keeper.seconds_left() == 1
-    assert keeper.keep() and not keeper.on_trial
+    assert keeper.keep(NEW) and not keeper.on_trial
     assert keep.previous(tmp_path, NEW) is None
     time.sleep(1.2)
     assert calls == []
-    assert not keeper.keep()  # nothing on trial any more
+    assert not keeper.keep(NEW)  # nothing on trial any more
+
+
+def test_keep_with_a_further_address_saved_keeps_the_one_in_use(tmp_path):
+    """Saved during the trial, the further one gets its own way back."""
+    keep.remember(tmp_path, OLD)
+    keeper = keep.Keeper(NEW, tmp_path)
+    keeper.start_trial(OLD)
+    keeper.saved(config.WebSettings(port=9000))
+    assert keeper.keep(config.WebSettings(port=9000))
+    assert keep.previous(tmp_path, NEW).port == 8081
+
+
+def test_go_back_twice_goes_back_once(tmp_path):
+    calls = []
+    keeper = keep.Keeper(NEW, tmp_path)
+    keeper.go_back = lambda *sent: calls.append(sent)
+    keeper.start_trial(OLD)
+    keeper.back_now()
+    keeper.back_now()
+    assert not keeper.keep(NEW)  # too late: going back already
+    time.sleep(1.5)
+    assert calls == [("asked", OLD)]
 
 
 # --- The pages ---
@@ -135,7 +158,8 @@ def test_every_page_shows_the_keep_box(cfg, on_trial, path):
     assert "New web address:" in page
     assert "<code>http://192.168.1.20:8081</code>" in page
     assert "goes back to <code>http://192.168.1.20:8080</code> by itself" in page
-    assert 'data-left="300">5:00</span>' in page or 'data-left="299">4:59</span>' in page
+    old = 'data-old="http://192.168.1.20:8080/system"'
+    assert re.search(rf'data-left="(29\d|300)" {old}>(4:5\d|5:00)</span>', page)
     assert "Go back to port 8080 now" in page
     assert "/static/keep.js" in page
 
@@ -166,11 +190,33 @@ def test_keep_these_settings(cfg, on_trial):
 
 def test_go_back_now(cfg, on_trial):
     asked = threading.Event()
-    on_trial.go_back = lambda why: asked.set() if why == "asked" else None
+    on_trial.go_back = lambda why, old: asked.set() if why == "asked" else None
     page = make_client(cfg, on_trial).post("/system/web/back").text
     assert "Going back" in page and "New web address" not in page
     assert 'content="5;url=http://192.168.1.20:8080/system"' in page
     assert asked.wait(5)
+
+
+def test_an_old_address_on_this_pi_only_says_so(cfg):
+    keeper = keep.Keeper(config.WebSettings(login=False, port=8081), cfg.parent)
+    keeper.go_back = lambda why, old: None
+    keeper.start_trial(config.WebSettings(address="127.0.0.1", port=8080))
+    client = make_client(cfg, keeper)
+    page = client.get("/").text
+    assert "which can only be\n      opened on the Pi itself" in page and "data-old" not in page
+    page = client.post("/system/web/back").text
+    assert "can only be opened on the Pi itself" in page and "refresh" not in page
+
+
+def test_logged_out_visitors_see_no_keep_box(cfg):
+    keeper = keep.Keeper(NEW.model_copy(update={"login": True}), cfg.parent)
+    keeper.start_trial(OLD)
+    try:
+        client = make_client(cfg, keeper)
+        assert client.get("/").headers["location"] == "/setup"
+        assert "New web address" not in client.get("/setup").text
+    finally:
+        keeper.stop()
 
 
 def test_keep_and_go_back_without_a_trial_do_nothing(cfg):
@@ -236,13 +282,55 @@ def test_going_back_moves_the_web_interface(cfg, caplog):
     web_server = started(cfg, new, old)
     try:
         assert answers(new)
-        web_server.keeper.go_back("time")
+        web_server.keeper._ran_out()
         assert web_server.port == old and answers(old) and not answers(new)
         assert web(cfg)["port"] == old
         assert keep.previous(cfg.parent, web_server.settings) is None
         assert web_server.settings.port == old and web_server.keeper.used.port == old
         assert "nobody pressed Keep these settings within 5 minutes" in web_server.keeper.note
         assert "went back to port" in caplog.text
+    finally:
+        web_server.stop()
+
+
+def test_going_back_names_a_further_address_that_is_not_used(cfg):
+    new, old = free_port(), free_port()
+    web_server = started(cfg, new, old)
+    try:
+        cfg.write_text(cfg.read_text().replace(f"port = {new}", "port = 9000"))
+        web_server.keeper._ran_out()
+        assert web(cfg)["port"] == old
+        assert "The address saved after the restart (port 9000, " in web_server.keeper.note
+    finally:
+        web_server.stop()
+
+
+def test_after_web_defaults_the_web_interface_stays(cfg):
+    """paperpi web-defaults ran while new settings were on trial: the file wins."""
+    new, old = free_port(), free_port()
+    web_server = started(cfg, new, old)
+    try:
+        keep.forget(cfg.parent)
+        before = cfg.read_text()
+        web_server.keeper._ran_out()
+        assert web_server.port == new and cfg.read_text() == before
+        assert web_server.keeper.note is None
+    finally:
+        web_server.stop()
+
+
+def test_an_old_port_taken_meanwhile_keeps_the_new_one(cfg):
+    new, old = free_port(), free_port()
+    web_server = started(cfg, new, old)
+    try:
+        with socket.socket() as other:
+            other.bind(("127.0.0.1", old))
+            other.listen()
+            web_server.keeper._ran_out()
+        assert web_server.port == new and answers(new)
+        assert web(cfg)["port"] == new
+        assert keep.previous(cfg.parent, web_server.settings).port == old  # tried again later
+        assert "couldn't go back to port" in web_server.keeper.note
     finally:
         web_server.stop()
 
@@ -270,6 +358,15 @@ def test_a_kept_address_that_is_in_use_again_is_forgotten(cfg):
         assert not (cfg.parent / keep.PREVIOUS_FILE).exists()
     finally:
         web_server.stop()
+
+
+def test_web_defaults_changes_nothing_when_the_kept_address_cant_go(cfg, tmp_path, capsys):
+    not_a_folder = tmp_path / "state"
+    not_a_folder.write_text("")
+    before = cfg.read_text()
+    assert main(["web-defaults", "--config", str(cfg), "--state-dir", str(not_a_folder)]) == 1
+    assert "can't remove the kept old web address" in capsys.readouterr().err
+    assert cfg.read_text() == before
 
 
 def test_web_defaults_forgets_the_kept_address(cfg, capsys):

@@ -238,7 +238,10 @@ def _parser() -> argparse.ArgumentParser:
         "--state-dir",
         type=Path,
         default=config.STATE_DIR,
-        help=f"PaperPi's state folder, where the old web address is kept ({config.STATE_DIR})",
+        help=(
+            "PaperPi's state folder, where the old web address is kept: the same as for "
+            f"paperpi run ({config.STATE_DIR})"
+        ),
     )
     defaults.set_defaults(command=_web_defaults)
     return parser
@@ -448,6 +451,14 @@ def _reset_password(args: argparse.Namespace) -> int:
 
 
 def _web_defaults(args: argparse.Namespace) -> int:
+    # The kept old address goes first (else the next start would put the defaults on trial
+    # and go back to it), so nothing changes when it can't be removed.
+    try:
+        (args.state_dir / keep.PREVIOUS_FILE).unlink(missing_ok=True)
+    except OSError as error:
+        hint = "; run it with sudo" if isinstance(error, PermissionError) else ""
+        print(f"paperpi: can't remove the kept old web address: {error}{hint}", file=sys.stderr)
+        return 1
     every = config.WebSettings()
     try:
         path, text = config_file.read(args.config)
@@ -459,11 +470,6 @@ def _web_defaults(args: argparse.Namespace) -> int:
         hint = "; run it with sudo" if "Permission denied" in str(error) else ""
         print(f"paperpi: {error}{hint}", file=sys.stderr)
         return 1
-    # Else the next start would put the defaults on trial and go back to the old address.
-    try:
-        (args.state_dir / keep.PREVIOUS_FILE).unlink(missing_ok=True)
-    except OSError as error:
-        print(f"paperpi: can't remove the kept old web address: {error}", file=sys.stderr)
     where = f"port {every.port}, for every device on your home network"
     if new == text:
         print(f"the web interface already uses the defaults in {args.config}: {where}")

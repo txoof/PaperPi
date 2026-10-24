@@ -406,6 +406,8 @@ def create_app(
             "new": system.web_address(host, used),
             "old": system.web_address(host, old),
             "back": f"port {old.port}" if old.port != used.port else "the old address",
+            # Then a browser on another device can't open it.
+            "here": system.only_here(old) and not system.only_here(used),
         }
 
     templates.env.globals["keep_box"] = keep_box
@@ -1056,7 +1058,7 @@ def create_app(
 
     @app.post("/system/web/keep", response_class=HTMLResponse)
     def keep_web(request: Request):
-        return system_done("web-kept" if keeper.keep() else "")
+        return system_done("web-kept" if keeper.keep(file_web()) else "")
 
     @app.post("/system/web/back", response_class=HTMLResponse)
     def web_back(request: Request):
@@ -1064,9 +1066,9 @@ def create_app(
         if old is None:
             return system_done("")
         keeper.back_now()
-        return page(
-            request, "going_back.html", old=system.web_address(request.url.hostname or "", old)
-        )
+        here = system.only_here(old) and not system.only_here(keeper.used)
+        address = system.web_address(request.url.hostname or "", old)
+        return page(request, "going_back.html", old=address, here=here)
 
     def password_page(request: Request, status: int = 200, problem: str | None = None):
         if not auth.login or auth.password_hash is None:

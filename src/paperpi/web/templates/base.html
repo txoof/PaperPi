@@ -66,8 +66,9 @@
   <div class="keep-bar" role="status"><div>
     <p><b>New web address:</b> PaperPi now uses <code>{{ keep.new }}</code>. Press <b>Keep these
       settings</b> to go on using it.</p>
-    <p>If nobody presses it within <span class="timer" data-left="{{ keep.left }}">{{ "%d:%02d" % (keep.left // 60, keep.left % 60) }}</span>,
-      PaperPi goes back to <code>{{ keep.old }}</code> by itself. The screen keeps running either way.</p>
+    <p>If nobody presses it within <span class="timer" data-left="{{ keep.left }}"{% if not keep.here %} data-old="{{ keep.old }}/system"{% endif %}>{{ "%d:%02d" % (keep.left // 60, keep.left % 60) }}</span>,
+      PaperPi goes back to <code>{{ keep.old }}</code> by itself{% if keep.here %}, which can only be
+      opened on the Pi itself{% endif %}. The screen keeps running either way.</p>
     <div class="buttons">
       <form method="post" action="/system/web/keep"><button class="go" type="submit">Keep these settings</button></form>
       <form method="post" action="/system/web/back"><button class="quiet" type="submit">Go back to {{ keep.back }} now</button></form>

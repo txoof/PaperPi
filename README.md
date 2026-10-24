@@ -117,7 +117,7 @@ uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/ --heal
 - **No password at all:** `login = false` in `[web]`. Then anyone on your home network can change PaperPi's settings; the home page says so.
 - **Other `[web]` settings:** `enabled = false` (no web interface; `paperpi run --no-web` does the same for one run), `port`, and `address = "127.0.0.1"` to reach it from the Pi only. These three apply at the next start; `login` and the password apply at a reload. **Screen & system** sets the port, the address and the password switch, and has **Change password…**; it tries a new port before saving it.
 - **After changing the port or address:** every page asks you to press **Keep these settings** within 5 minutes after the restart. If nobody does, or the new port can't be used, PaperPi goes back to the old address by itself, and the Warnings page says so.
-- **Can't reach it after changing the port or address:** on the Pi, run `sudo paperpi web-defaults` (development copy: `uv run paperpi web-defaults --config paperpi.toml`) and restart PaperPi. It goes back to port 8080 for every device on your home network.
+- **Can't reach it after changing the port or address:** on the Pi, run `sudo paperpi web-defaults` (development copy: `uv run paperpi web-defaults --config paperpi.toml --state-dir <the same folder as for paperpi run>`) and restart PaperPi. It goes back to port 8080 for every device on your home network.
 - It uses plain HTTP, not HTTPS: it is for the home network only. Do not open it to the internet.
 - If the port is taken by another program, the log says so and PaperPi runs without the web interface.
 

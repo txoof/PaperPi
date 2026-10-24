@@ -23,6 +23,7 @@ from . import keep, system
 from .app import create_app
 from .auth import Auth
 from .config_file import EditError
+from .config_file import read as read_config
 from .helpers import Searcher
 from .home import Controls
 from .pictures import FOLDER, Pictures, Screen
@@ -108,30 +109,44 @@ class WebServer:
         except BaseException:  # noqa: BLE001 - also SystemExit, which uvicorn uses for errors
             log.exception("the web interface stopped because of an error")
 
-    def _go_back(self, why: str) -> None:
-        """Nobody kept the new web settings (``why``: "time" or "asked"): write the old
-        address and port back into the config file and move the web interface there."""
-        old = self.keeper.end_trial()
-        if old is None:
+    def _go_back(self, why: str, old: config.WebSettings) -> None:
+        """Nobody kept the new web settings (``why``: "time" or "asked"): move the web
+        interface back to the address and port of ``old``, and write them into the config
+        file."""
+        if keep.previous(self._state_dir, old) is None:
+            # Removed meanwhile, for example by paperpi web-defaults: the file wins.
+            log.info("the kept old web address is gone; the web interface stays where it is")
             return
-        # Before the change: the reload it starts compares the file with these.
-        self.settings = self.keeper.used = old
+        new, file = self.settings, self._file_web()
+        problem = self._move(old, new)
+        if problem is not None:
+            # The kept file stays: the next start puts the new settings on trial again.
+            self.keeper.note = keep.stayed(old, new, problem)
+            log.error("%s", self.keeper.note)
+            return
         try:
             self.editor.change(lambda text: system.set_web_address(text, old))
         except EditError as error:
-            # The kept file stays, so the next start puts the new settings on trial again.
             log.error("can't write the old web address back into the config file: %s", error)
         else:
             keep.forget(self._state_dir)
-        self.keeper.note = keep.reason(why, old)
+        further = file is not None and not keep.same_address(file, new)
+        dropped = file if further and not keep.same_address(file, old) else None
+        self.keeper.note = keep.reason(why, old, dropped=dropped)
         log.warning("%s", self.keeper.note)
-        self._move(old)
 
-    def _move(self, settings: config.WebSettings) -> None:
-        """Listen at the address and port of ``settings`` instead."""
+    def _file_web(self) -> config.WebSettings | None:
+        try:
+            return system.file_web(read_config(self.editor.path)[1])
+        except EditError:
+            return None
+
+    def _move(self, settings: config.WebSettings, current: config.WebSettings) -> str | None:
+        """Listen at the address and port of ``settings`` instead of ``current``. Returns
+        why it can't (then it listens at ``current`` again), or ``None``."""
         with self._moving:
             if self._stopped:
-                return
+                return None
             # Stopped first: the old address may use the same port.
             self._server.should_exit = True
             self._thread.join(STOP_SECONDS)
@@ -139,19 +154,22 @@ class WebServer:
             try:
                 sock = listen(settings.address, settings.port)
             except OSError as error:
-                log.error(
-                    "the web interface can't start on %s port %s: %s",
-                    settings.address,
-                    settings.port,
-                    error,
-                )
-                return
-            self._socket = sock
-            self.port = sock.getsockname()[1]
-            self.settings = self.keeper.used = settings
-            self._server = self._new_server()
-            self._thread = self._new_thread()
-            self._thread.start()
+                try:
+                    self._serve_on(listen(current.address, current.port), current)
+                except OSError as again:
+                    _cant_start(current, again)
+                return error.strerror or str(error)
+            self._serve_on(sock, settings)
+            return None
+
+    def _serve_on(self, sock: socket.socket, settings: config.WebSettings) -> None:
+        self._socket = sock
+        self.port = sock.getsockname()[1]
+        # Before the config file changes: the reload it starts compares the file with these.
+        self.settings = self.keeper.used = settings
+        self._server = self._new_server()
+        self._thread = self._new_thread()
+        self._thread.start()
 
     def use(self, loaded: config.Config) -> None:
         """Apply a reloaded config: ``[web]`` log-in changes apply at once, the rest of
@@ -255,12 +273,12 @@ def start(
     pictures = Pictures(state_dir / FOLDER if state_dir is not None else None)
     auth = Auth(config_file, settings)
     server = WebServer(auth, settings, sock, editor, pictures, controls, logbook, state_dir, keeper)
+    server._thread.start()
     if old is not None:
         keeper.start_trial(old)
         log.info(
             "new web settings on trial: %s (old: %s)", keep.describe(settings), keep.describe(old)
         )
-    server._thread.start()
     if display is not None:
         server.use_display(display)
     return server

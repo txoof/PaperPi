@@ -57,12 +57,19 @@ def remember(state_dir: Path | None, web: config.WebSettings) -> None:
         return
     lines = [f"{key} = {example.toml_value(getattr(web, key))}\n" for key in _KEPT]
     note = "# The web address used before a new one was saved (PaperPi writes this)\n"
-    write_atomic(state_dir / PREVIOUS_FILE, (note + "".join(lines)).encode())
+    try:
+        write_atomic(state_dir / PREVIOUS_FILE, (note + "".join(lines)).encode())
+    except OSError as error:
+        log.error("can't keep the web address in use to go back to: %s", error)
 
 
 def forget(state_dir: Path | None) -> None:
-    if state_dir is not None:
+    if state_dir is None:
+        return
+    try:
         (state_dir / PREVIOUS_FILE).unlink(missing_ok=True)
+    except OSError as error:
+        log.error("can't remove the kept old web address: %s", error)
 
 
 def same_address(a: config.WebSettings, b: config.WebSettings) -> bool:
@@ -86,8 +93,9 @@ class Keeper:
         """The settings to go back to; ``None``: nothing is on trial."""
         self.note: str | None = None
         """Why the web interface went back, for the Warnings page; ``None`` once seen."""
-        self.go_back: Callable[[str], None] | None = None
-        """Writes :attr:`old` back and moves the web interface there; gets the reason."""
+        self.go_back: Callable[[str, config.WebSettings], None] | None = None
+        """Writes the old settings back and moves the web interface there; gets the
+        reason and the old settings."""
         self._deadline = 0.0
         self._timer: threading.Timer | None = None
         self._lock = threading.Lock()
@@ -116,18 +124,24 @@ class Keeper:
                 self._timer = None
             return old
 
-    def keep(self) -> bool:
-        """Keep the new settings (**Keep these settings**); False: none were on trial."""
+    def keep(self, file: config.WebSettings | None) -> bool:
+        """Keep the new settings (**Keep these settings**); False: none were on trial.
+        ``file``: the config file's ``[web]`` settings. When they name a further new
+        address, the one in use is kept to go back to from there."""
         if self.end_trial() is None:
             return False
-        forget(self.state_dir)
         log.info("the new web settings are kept: %s", describe(self.used))
+        if file is None:
+            forget(self.state_dir)
+        else:
+            self.saved(file)
         return True
 
     def back_now(self) -> None:
         """Go back in a moment (**Go back … now**): the answer to the browser goes first."""
-        if self.on_trial and self.go_back is not None:
-            later = threading.Timer(1.0, self.go_back, ("asked",))
+        old = self.end_trial()
+        if old is not None and self.go_back is not None:
+            later = threading.Timer(1.0, self.go_back, ("asked", old))
             later.daemon = True
             later.start()
 
@@ -146,8 +160,9 @@ class Keeper:
         self.end_trial()
 
     def _ran_out(self) -> None:
-        if self.on_trial and self.go_back is not None:
-            self.go_back("time")
+        old = self.end_trial()
+        if old is not None and self.go_back is not None:
+            self.go_back("time", old)
 
 
 #: Why the web interface went back, for the Warnings page and the log.
@@ -158,6 +173,21 @@ REASONS = {
 }
 
 
-def reason(why: str, old: config.WebSettings, error: str = "") -> str:
+def reason(
+    why: str, old: config.WebSettings, error: str = "", dropped: config.WebSettings | None = None
+) -> str:
+    """Why the web interface went back to ``old``. ``dropped``: a further new address that
+    was saved meanwhile, and is not used."""
     text = REASONS[why].format(minutes=round(limits.KEEP_WEB / 60), error=error)
-    return f"The web interface went back to {describe(old)}: {text}."
+    found = f"The web interface went back to {describe(old)}: {text}."
+    if dropped is not None:
+        found += f" The address saved after the restart ({describe(dropped)}) is not used."
+    return found
+
+
+def stayed(old: config.WebSettings, used: config.WebSettings, error: str) -> str:
+    """The web interface could not go back to ``old`` and stays at ``used``."""
+    return (
+        f"The web interface couldn't go back to {describe(old)} ({error}), so it stays at "
+        f"{describe(used)}."
+    )

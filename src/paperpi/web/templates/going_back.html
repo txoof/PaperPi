@@ -6,10 +6,15 @@
 {#- The web interface moves to its old address in a moment; this page can't ask the old
     address whether it is there (the browser only lets it ask its own), so it opens it after
     a few seconds. -#}
-{% block head %}<meta http-equiv="refresh" content="5;url={{ old }}/system">{% endblock %}
+{% block head %}{% if not here %}<meta http-equiv="refresh" content="5;url={{ old }}/system">{% endif %}{% endblock %}
 {% block main %}
 <h1>Going back…</h1>
+{% if here %}
+<p class="lead" role="status">The web interface goes back to its old address,
+  <code>{{ old }}</code>, which can only be opened on the Pi itself. The screen keeps running.</p>
+{% else %}
 <p class="lead" role="status">The web interface goes back to its old address:
   <a href="{{ old }}/system">{{ old }}</a>. This page opens it in 5 seconds. The screen keeps
   running.</p>
+{% endif %}
 {% endblock %}

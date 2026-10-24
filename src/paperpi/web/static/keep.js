@@ -7,6 +7,8 @@ if (timer) {
     const left = Math.max(0, Math.round((end - Date.now()) / 1000));
     timer.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
     if (left > 0) setTimeout(tick, 1000);
+    // PaperPi went back by itself: open the old address once it listens there.
+    else if (timer.dataset.old) setTimeout(() => location.assign(timer.dataset.old), 5000);
   };
   tick();
 }
