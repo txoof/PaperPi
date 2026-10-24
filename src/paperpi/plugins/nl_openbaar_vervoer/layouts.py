@@ -1,0 +1,67 @@
+"""Layouts for nl_openbaar_vervoer. The first one is the default.
+
+``sections``: a heading per stop (``head_<s>``), then its departures, one row each, with the
+blocks ``time_<s>_<i>``, ``delay_<s>_<i>``, ``line_<s>_<i>``, ``dest_<s>_<i>`` and
+``note_<s>_<i>`` ("leave in 3 min", "left", ...). The screen is shared by the stops that are
+set, so the number of rows per stop depends on the settings. ``footer`` says when the
+departures were fetched.
+"""
+
+from ... import fonts
+
+PAD = 0.008
+TEXT = 0.045
+#: Heading and departure lines on the screen, shared by the stops.
+LINES = 12
+STOPS = 4
+
+
+def _text(name, sample, size, align="left", font=None) -> dict:
+    block = {
+        "name": name,
+        "type": "text",
+        "size": size,
+        "sample": sample,
+        "font_size": TEXT,
+        "align": align,
+        "padding": PAD,
+    }
+    if font:
+        block["font"] = font
+    return block
+
+
+def rows_per_stop(stops: int) -> int:
+    """Departure rows for each of ``stops`` stops (1 to 4): 11, 5, 3 or 2."""
+    return (LINES - stops) // stops
+
+
+def _row(s: int, i: int) -> dict:
+    return {
+        "row": [
+            _text(f"time_{s}_{i}", "88:88", 1.3, font=fonts.LATO_BOLD),
+            _text(f"delay_{s}_{i}", "+88", 0.9),
+            _text(f"line_{s}_{i}", "888", 0.9, align="center", font=fonts.LATO_BOLD),
+            _text(f"dest_{s}_{i}", "Carnisselande", 3.2),
+            _text(f"note_{s}_{i}", "leave in 88 min", 3.0, align="right"),
+        ],
+        "gap": 0,
+    }
+
+
+def sections(settings) -> dict:
+    """One section per stop that is set (at least one)."""
+    count = max(1, sum(1 for n in range(1, STOPS + 1) if getattr(settings, f"stop_{n}", "")))
+    rows = rows_per_stop(count)
+    column = []
+    for s in range(count):
+        column.append(
+            _text(f"head_{s}", "Rotterdam Centraal · 8 min walk", 1, font=fonts.LATO_BOLD)
+        )
+        column += [_row(s, i) for i in range(rows)]
+    column.append({"name": "line", "type": "shape", "shape": "hline", "pixels": 2})
+    column.append(_text("footer", "Not updated since 88:88", 0.8, align="right"))
+    return {"column": column, "gap": 0}
+
+
+LAYOUTS = {"sections": sections}
