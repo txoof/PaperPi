@@ -20,7 +20,7 @@ from ... import webrequest
 from ...files import write_atomic
 from ...plugin import NOTHING, Context, Plugin, PluginSettings, ready, setting
 from . import departures
-from .departures import ZONE, AnswerError, Departure
+from .departures import ZONE, AnswerError, Departure, Saved
 from .layouts import LAYOUTS, STOPS
 
 log = logging.getLogger(__name__)
@@ -29,6 +29,8 @@ log = logging.getLogger(__name__)
 OVAPI = "http://v0.ovapi.nl"
 #: Saved departures are shown when OVapi can't be reached, until they are this old.
 OLDEST = timedelta(minutes=30)
+#: OVapi asks for at most one request a minute: a quicker update uses the saved departures.
+QUICKEST = timedelta(minutes=1)
 SAVED = "departures.json"
 
 Day = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -111,13 +113,13 @@ class Settings(PluginSettings):
 
 @dataclass(frozen=True)
 class Section:
-    """One stop on the screen: its heading, walking time and departures. ``missing``: OVapi
-    doesn't know the stop."""
+    """One stop on the screen: its heading, walking time and departures. ``problem``: why
+    there are no departures to show, e.g. OVapi doesn't know the stop."""
 
     title: str
     walk: int
     departures: tuple[Departure, ...]
-    missing: bool = False
+    problem: str = ""
 
 
 @dataclass(frozen=True)
@@ -137,7 +139,7 @@ def lines_of(text: str) -> tuple[str, ...]:
 
 def today_stops(settings: Settings, now: datetime) -> list[int]:
     """The stops (1 to 4) that are set and shown on ``now``'s day."""
-    day = DAYS[now.weekday()]
+    day = DAYS[now.astimezone(ZONE).weekday()]
     return [
         n
         for n in range(1, STOPS + 1)
@@ -158,32 +160,37 @@ def fetch(context: Context):
         return NOTHING
     codes = sorted({getattr(settings, f"stop_{n}") for n in wanted})
     path = context.storage / SAVED
-    try:
-        answer = webrequest.get(f"{OVAPI}/tpc/{','.join(codes)}")
-        stops = departures.read(answer.json())
-        fetched = now
-    except (webrequest.WebError, AnswerError) as error:
-        saved = departures.load(path)
-        if saved is None or now - saved[1] > OLDEST:
-            raise
-        log.warning("OVapi can't be reached, showing the saved departures: %s", error)
-        stops, fetched = saved
+    saved = departures.load(path)
+    if saved and set(codes) <= saved.asked and timedelta(0) <= now - saved.fetched < QUICKEST:
+        latest = saved  # updated less than a minute ago
     else:
-        _save(context, path, departures.save(stops, now))
+        try:
+            answer = webrequest.get(f"{OVAPI}/tpc/{','.join(codes)}")
+            latest = Saved(departures.read(answer.json()), frozenset(codes), now)
+        except (webrequest.WebError, AnswerError) as error:
+            if saved is None or now - saved.fetched > OLDEST:
+                raise
+            log.warning("OVapi can't be reached, showing the saved departures: %s", error)
+            latest = saved
+        else:
+            _save(context, path, departures.save(latest))
     found = []
     for n in wanted:
         code = getattr(settings, f"stop_{n}")
-        stop = stops.get(code)
+        stop = latest.stops.get(code)
         title = getattr(settings, f"name_{n}").strip() or (stop.name if stop else code)
         walk = getattr(settings, f"walk_{n}")
         if stop is None:
-            found.append(Section(title, walk, (), missing=True))
+            problem = (
+                "Stop not found: check its code" if code in latest.asked else "No saved times yet"
+            )
+            found.append(Section(title, walk, (), problem))
             continue
         shown = departures.shown(
             stop, lines_of(getattr(settings, f"lines_{n}")), now, settings.ahead
         )
         found.append(Section(title, walk, tuple(shown)))
-    return ready(Board(tuple(found), now, fetched))
+    return ready(Board(tuple(found), now, latest.fetched))
 
 
 def _save(context: Context, path, data: bytes) -> None:
@@ -203,7 +210,7 @@ def note(departure: Departure, walk: int, now: datetime) -> str:
     "leave in 3 min", "leave now" or "too late"."""
     if departure.cancelled:
         return "cancelled"
-    if departure.left or departure.expected < now:
+    if departure.left or departure.expected < now:  # gone, even if OVapi doesn't say so yet
         return "left"
     if not walk:
         return ""
@@ -222,8 +229,8 @@ def draw(board: Board, context: Context) -> dict:
         walk = f" · {section.walk} min walk" if section.walk else ""
         values[f"head_{s}"] = section.title + walk
         rows = sum(1 for name in wanted if name.startswith(f"dest_{s}_"))
-        if section.missing:
-            values[f"dest_{s}_0"] = "Stop not found: check its code"
+        if section.problem:
+            values[f"dest_{s}_0"] = section.problem
         elif not section.departures:
             values[f"dest_{s}_0"] = f"No departures in the next {context.settings.ahead} min"
         for i, d in enumerate(section.departures[:rows]):

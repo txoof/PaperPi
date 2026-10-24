@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -38,8 +38,13 @@ class Departure:
 
     @property
     def delay(self) -> int:
-        """Whole minutes late (negative: early)."""
-        return round((self.expected - self.planned).total_seconds() / 60)
+        """Minutes late (negative: early), counted between the whole minutes shown, so
+        "08:09 +2" always means planned 08:07."""
+        return round((_minute(self.expected) - _minute(self.planned)).total_seconds() / 60)
+
+
+def _minute(t: datetime) -> datetime:
+    return t.replace(second=0, microsecond=0)
 
 
 @dataclass(frozen=True)
@@ -52,7 +57,9 @@ class Stop:
 
 
 def _time(text: str) -> datetime:
-    return datetime.fromisoformat(text).replace(tzinfo=ZONE)
+    # In UTC: two times with the same ZoneInfo are compared by their clock reading, which
+    # is wrong in the hour that happens twice when the clocks go back.
+    return datetime.fromisoformat(text).replace(tzinfo=ZONE).astimezone(UTC)
 
 
 def read(answer: object) -> dict[str, Stop]:
@@ -99,15 +106,29 @@ def shown(stop: Stop, lines: tuple[str, ...], now: datetime, ahead: int) -> list
     ]
 
 
-def save(stops: dict[str, Stop], fetched: datetime) -> bytes:
-    """The stops and when they were fetched, as the file :func:`load` reads."""
-    data = {"fetched": fetched.isoformat(), "stops": [asdict(s) for s in stops.values()]}
+@dataclass(frozen=True)
+class Saved:
+    """The last answer from OVapi: its stops, the codes that were asked for (a code that was
+    asked for but is not in ``stops`` is unknown to OVapi) and when it was fetched."""
+
+    stops: dict[str, Stop]
+    asked: frozenset[str]
+    fetched: datetime
+
+
+def save(saved: Saved) -> bytes:
+    """``saved`` as the file :func:`load` reads."""
+    data = {
+        "fetched": saved.fetched.isoformat(),
+        "asked": sorted(saved.asked),
+        "stops": [asdict(s) for s in saved.stops.values()],
+    }
     return json.dumps(data, default=str).encode()
 
 
-def load(path: Path) -> tuple[dict[str, Stop], datetime] | None:
-    """Stops saved by :func:`save`, and when they were fetched; ``None`` when there are
-    none or the file can't be read."""
+def load(path: Path) -> Saved | None:
+    """The answer saved by :func:`save`; ``None`` when there is none or the file can't be
+    read."""
     try:
         data = json.loads(path.read_bytes())
         stops = {}
@@ -124,6 +145,6 @@ def load(path: Path) -> tuple[dict[str, Stop], datetime] | None:
                 for d in s["departures"]
             )
             stops[s["code"]] = Stop(s["code"], s["name"], departures)
-        return stops, datetime.fromisoformat(data["fetched"])
+        return Saved(stops, frozenset(data["asked"]), datetime.fromisoformat(data["fetched"]))
     except (OSError, KeyError, TypeError, ValueError):
         return None

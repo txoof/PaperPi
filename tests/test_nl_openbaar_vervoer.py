@@ -1,7 +1,9 @@
 """The nl_openbaar_vervoer plugin: reading OVapi's answers, choosing departures, the saved
 departures and drawing."""
 
-from datetime import datetime, timedelta
+import json
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from epdlib import ScreenMode
@@ -13,6 +15,7 @@ from paperpi.plugin import NOTHING, Context, State
 from paperpi.plugins.nl_openbaar_vervoer import (
     OLDEST,
     PLUGIN,
+    QUICKEST,
     SAVED,
     Board,
     Section,
@@ -27,6 +30,7 @@ from paperpi.plugins.nl_openbaar_vervoer.departures import (
     ZONE,
     AnswerError,
     Departure,
+    Saved,
     Stop,
     load,
     read,
@@ -87,7 +91,7 @@ def at(minutes, line="9", delay=0, **more) -> Departure:
 def test_read_sorts_by_expected_time_and_marks_left_and_cancelled():
     stop = read({"31001118": PERRON_A})["31001118"]
     assert stop.name == "Rotterdam Centraal perron A"
-    assert [(d.line, f"{d.expected:%H:%M}") for d in stop.departures] == [
+    assert [(d.line, f"{d.expected.astimezone(ZONE):%H:%M}") for d in stop.departures] == [
         ("14", "08:02"),
         ("18", "08:12"),
         ("14", "08:23"),
@@ -95,8 +99,22 @@ def test_read_sorts_by_expected_time_and_marks_left_and_cancelled():
     ]
     first, late = stop.departures[0], stop.departures[1]
     assert first.left and not first.cancelled
-    assert late.delay == 5 and late.expected.tzinfo is ZONE
+    assert late.delay == 5 and late.expected.tzinfo is UTC
     assert stop.departures[3].cancelled
+
+
+def test_delay_counts_the_minutes_shown():
+    planned = datetime(2026, 10, 24, 8, 7, tzinfo=ZONE)
+    late = Departure("9", "X", planned, planned + timedelta(minutes=2, seconds=40))
+    assert late.delay == 2  # shown as 08:09, so +2, not +3
+
+
+def test_times_in_the_hour_that_happens_twice_are_in_order():
+    # 25 October 2026: the clocks go back from 03:00 to 02:00. OVapi's times have no time
+    # zone; read as UTC they stay comparable with the time now.
+    stop = read(answer(a=("A", [passing("9", "X", "2026-10-25T02:30:00")])))["a"]
+    now = datetime(2026, 10, 25, 0, 20, tzinfo=UTC)  # 02:20 summer time
+    assert shown(stop, (), now, 60)[0].expected - now == timedelta(minutes=10)
 
 
 def test_read_uses_the_planned_time_without_an_expected_one():
@@ -118,11 +136,15 @@ def test_shown_keeps_the_lines_and_the_time_window():
     assert shown(stop, ("9a", "12"), NOW, 60) == [stop.departures[2], stop.departures[3]]
 
 
+def saved(fetched, codes=("31001118",)) -> bytes:
+    return save(Saved(read({"31001118": PERRON_A}), frozenset(codes), fetched))
+
+
 def test_saved_departures_come_back(tmp_path):
-    stops = read({"31001118": PERRON_A})
+    latest = Saved(read({"31001118": PERRON_A}), frozenset({"31001118", "x"}), NOW)
     path = tmp_path / SAVED
-    path.write_bytes(save(stops, NOW))
-    assert load(path) == (stops, NOW)
+    path.write_bytes(save(latest))
+    assert load(path) == latest
     path.write_text("not json")
     assert load(path) is None
     assert load(tmp_path / "missing.json") is None
@@ -150,6 +172,7 @@ def test_today_stops_keeps_the_days():
     settings = Settings(stop_1="a", stop_2="b", days_2=("mon", "fri"), stop_4="d")
     assert today_stops(settings, NOW) == [1, 4]
     assert today_stops(settings, NOW + timedelta(days=2)) == [1, 2, 4]  # Monday
+    assert today_stops(Settings(stop_1="a", days_1=()), NOW) == []  # no days: never shown
 
 
 # --- Fetching --------------------------------------------------------------------------------
@@ -179,8 +202,6 @@ def fake_get(monkeypatch, body=None, error=None) -> list:
 
 
 def test_fetch_asks_for_all_stops_at_once(context, monkeypatch):
-    import json
-
     body = json.dumps({"31001118": PERRON_A}).encode()
     asked = fake_get(monkeypatch, body)
     fetched = fetch(context(stop_1="31001118", lines_1="18", walk_1=4, stop_2="31001039"))
@@ -189,8 +210,27 @@ def test_fetch_asks_for_all_stops_at_once(context, monkeypatch):
     first, second = fetched.data.sections
     assert first.title == "Rotterdam Centraal perron A" and first.walk == 4
     assert [d.line for d in first.departures] == ["18"]  # 09:37 is more than 60 min ahead
-    assert second == Section("31001039", 0, (), missing=True)
-    assert (context().storage / SAVED).is_file()
+    assert second == Section("31001039", 0, (), "Stop not found: check its code")
+    assert load(context().storage / SAVED).asked == {"31001039", "31001118"}
+
+
+def test_fetch_asks_at_most_once_a_minute(context, monkeypatch):
+    path = context().storage / SAVED
+    path.write_bytes(saved(NOW - QUICKEST + timedelta(seconds=1)))
+    asked = fake_get(monkeypatch, b"{}")
+    assert fetch(context(stop_1="31001118")).data.sections[0].departures
+    assert asked == []
+    fetch(context(stop_1="31001118", stop_2="31001039"))  # a stop that was not asked for
+    path.write_bytes(saved(NOW - QUICKEST))
+    fetch(context(stop_1="31001118"))
+    assert len(asked) == 2
+
+
+def test_fetch_doesnt_save_a_new_file_when_the_disk_is_almost_full(context, monkeypatch):
+    fake_get(monkeypatch, json.dumps({"31001118": PERRON_A}).encode())
+    ctx = context(stop_1="31001118")
+    assert fetch(replace(ctx, low_disk=True)).state is State.READY
+    assert not (ctx.storage / SAVED).exists()
 
 
 def test_fetch_has_nothing_on_a_day_without_stops(context, monkeypatch):
@@ -199,23 +239,26 @@ def test_fetch_has_nothing_on_a_day_without_stops(context, monkeypatch):
     assert asked == []
 
 
-def test_fetch_shows_saved_departures_when_ovapi_cant_be_reached(context, monkeypatch):
-    stops = read({"31001118": PERRON_A})
-    saved = context().storage / SAVED
-    saved.write_bytes(save(stops, NOW - OLDEST + timedelta(minutes=1)))
-    fake_get(monkeypatch, error=webrequest.WebError("v0.ovapi.nl can't be reached"))
-    board = fetch(context(stop_1="31001118", name_1="Tram")).data
+@pytest.mark.parametrize(
+    "failure",
+    [{"error": webrequest.WebError("v0.ovapi.nl can't be reached")}, {"body": b"[]"}],
+    ids=["unreachable", "unreadable"],
+)
+def test_fetch_shows_saved_departures_when_ovapi_fails(context, monkeypatch, failure):
+    path = context().storage / SAVED
+    path.write_bytes(saved(NOW - OLDEST + timedelta(minutes=1)))
+    fake_get(monkeypatch, **failure)
+    board = fetch(context(stop_1="31001118", name_1="Tram", stop_2="31001039")).data
     assert board.fetched == NOW - OLDEST + timedelta(minutes=1)
-    assert board.sections[0].title == "Tram"
+    assert board.sections[0].title == "Tram" and board.sections[0].departures
+    # Added since the last answer: not known to be wrong.
+    assert board.sections[1].problem == "No saved times yet"
 
-    saved.write_bytes(save(stops, NOW - OLDEST - timedelta(minutes=1)))
-    with pytest.raises(webrequest.WebError):
+    path.write_bytes(saved(NOW - OLDEST - timedelta(minutes=1)))
+    with pytest.raises((webrequest.WebError, AnswerError)):
         fetch(context(stop_1="31001118"))
-
-
-def test_fetch_fails_on_an_answer_it_cant_read_without_saved_departures(context, monkeypatch):
-    fake_get(monkeypatch, b"[]")
-    with pytest.raises(AnswerError):
+    path.unlink()
+    with pytest.raises((webrequest.WebError, AnswerError)):
         fetch(context(stop_1="31001118"))
 
 
@@ -244,7 +287,7 @@ def test_draw_fills_each_stop_and_says_when_it_was_updated(context):
         (
             Section("Tram 9", 4, (at(2, delay=2), at(10))),
             Section("Bus", 0, ()),
-            Section("Gone", 0, (), missing=True),
+            Section("Gone", 0, (), "Stop not found: check its code"),
         ),
         NOW,
         NOW - timedelta(minutes=6),
@@ -270,8 +313,18 @@ def test_draw_leaves_out_stops_the_layout_has_no_room_for(context):
     assert "head_1" not in values and values["footer"] == "Updated 08:10"
 
 
-def test_layout_shares_the_rows_between_the_stops():
-    blocks = PLUGIN.layout("sections", Settings(stop_1="a", stop_3="c")).blocks
-    assert sorted(n for n in blocks if n.startswith("head_")) == ["head_0", "head_1"]
-    assert sum(1 for n in blocks if n.startswith("dest_1_")) == 5
+@pytest.mark.parametrize(("stops", "rows"), [(0, 11), (1, 11), (2, 5), (3, 3), (4, 2)])
+def test_layout_shares_the_rows_between_the_stops(stops, rows, monkeypatch):
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW)
+    settings = Settings(**{f"stop_{n}": "a" for n in range(1, stops + 1)})
+    blocks = PLUGIN.layout("sections", settings).blocks
+    heads = max(stops, 1)
+    assert sorted(n for n in blocks if n.startswith("head_")) == [f"head_{s}" for s in range(heads)]
+    assert all(sum(1 for n in blocks if n.startswith(f"dest_{s}_")) == rows for s in range(heads))
 
+
+def test_layout_leaves_out_stops_not_shown_today(monkeypatch):
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW)  # a Saturday
+    settings = Settings(stop_1="a", days_1=("mon",), stop_2="b")
+    blocks = PLUGIN.layout("sections", settings).blocks
+    assert "head_1" not in blocks and sum(1 for n in blocks if n.startswith("dest_0_")) == 11

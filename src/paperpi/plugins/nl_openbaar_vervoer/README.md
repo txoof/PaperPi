@@ -11,11 +11,11 @@ When the next buses and trams leave from up to four stops in the Netherlands, an
 Each stop gets a heading, then one row per departure: the expected time, the delay in minutes (`+3`), the line, where it goes, and a note:
 
 - `leave in 3 min` or `leave now`: when you set a walking time for the stop. `too late`: you can't reach it any more.
-- `left`: it left in the last 5 minutes. `cancelled`: it doesn't run.
+- `left`: it left in the last 5 minutes (or its time has passed). `cancelled`: it doesn't run.
 
 The bottom line says when the times were fetched. When OVapi can't be reached, the plugin shows the departures it saved, for up to 30 minutes, and the bottom line says "Not updated since 08:10".
 
-The times come from [OVapi](http://v0.ovapi.nl), a free service run by volunteers with the live times of all Dutch buses and trams. It needs no account or key. Please don't make the plugin update more often than once a minute (`refresh = 60`); the default is every 2 minutes.
+The times come from [OVapi](http://v0.ovapi.nl), a free service run by volunteers with the live times of all Dutch buses and trams. It needs no account or key. It asks for at most one request a minute: the plugin updates every 2 minutes, and with a shorter `refresh` it asks OVapi at most once a minute and shows the saved times in between.
 
 ## Settings
 
@@ -29,7 +29,7 @@ The times come from [OVapi](http://v0.ovapi.nl), a free service run by volunteer
 | `stop_2` ... `stop_4` | empty | Up to three more stops, each with its own `name_`, `lines_`, `walk_` and `days_` |
 | `ahead` | `60` | Minutes ahead to show departures for (10 to 80) |
 
-The stops share the screen: one stop gets 11 rows, two get 5 each, three get 3, four get 2. On a day when no stop is shown, the plugin has nothing to show and the other plugins take its turn.
+The stops shown today share the screen: one stop gets 11 rows, two get 5 each, three get 3, four get 2. On a day when no stop is shown, the plugin has nothing to show and the other plugins take its turn.
 
 ```toml
 [[plugin]]

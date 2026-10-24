@@ -2,9 +2,9 @@
 
 ``sections``: a heading per stop (``head_<s>``), then its departures, one row each, with the
 blocks ``time_<s>_<i>``, ``delay_<s>_<i>``, ``line_<s>_<i>``, ``dest_<s>_<i>`` and
-``note_<s>_<i>`` ("leave in 3 min", "left", ...). The screen is shared by the stops that are
-set, so the number of rows per stop depends on the settings. ``footer`` says when the
-departures were fetched.
+``note_<s>_<i>`` ("leave in 3 min", "left", ...). The screen is shared by the stops shown
+today, so the number of rows per stop depends on the settings and the day. ``footer`` says
+when the departures were fetched.
 """
 
 from ... import fonts
@@ -50,8 +50,11 @@ def _row(s: int, i: int) -> dict:
 
 
 def sections(settings) -> dict:
-    """One section per stop that is set (at least one)."""
-    count = max(1, sum(1 for n in range(1, STOPS + 1) if getattr(settings, f"stop_{n}", "")))
+    """One section per stop shown today (at least one). The layout is made again at each
+    update, so it follows the days."""
+    from . import _now, today_stops  # here: the plugin's module imports this one
+
+    count = max(1, len(today_stops(settings, _now())))
     rows = rows_per_stop(count)
     column = []
     for s in range(count):
