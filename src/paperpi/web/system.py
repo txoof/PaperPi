@@ -243,8 +243,8 @@ def port_problem(address: str, port: int, started: config.WebSettings | None) ->
     except OSError as error:
         if error.errno == errno.EADDRINUSE:
             return (
-                f"port {port} is used by another program. PaperPi couldn't use it, and you "
-                "would lose this page. Choose another port"
+                f"port {port} is used by another program and unavailable to PaperPi. Choose "
+                "another port"
             )
         if error.errno == errno.EADDRNOTAVAIL:
             return f"this Pi has no network address {address}"
