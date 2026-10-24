@@ -39,7 +39,7 @@ from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
 from .screen import Screen, ScreenStuck, driver_for
-from .web import config_file
+from .web import config_file, keep
 from .web.password import PasswordError, save_password_hash
 
 log = logging.getLogger("paperpi")
@@ -233,6 +233,15 @@ def _parser() -> argparse.ArgumentParser:
     )
     defaults.add_argument(
         "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    defaults.add_argument(
+        "--state-dir",
+        type=Path,
+        default=config.STATE_DIR,
+        help=(
+            "PaperPi's state folder, where the old web address is kept: the same as for "
+            f"paperpi run ({config.STATE_DIR})"
+        ),
     )
     defaults.set_defaults(command=_web_defaults)
     return parser
@@ -442,6 +451,14 @@ def _reset_password(args: argparse.Namespace) -> int:
 
 
 def _web_defaults(args: argparse.Namespace) -> int:
+    # The kept old address goes first (else the next start would put the defaults on trial
+    # and go back to it), so nothing changes when it can't be removed.
+    try:
+        (args.state_dir / keep.PREVIOUS_FILE).unlink(missing_ok=True)
+    except OSError as error:
+        hint = "; run it with sudo" if isinstance(error, PermissionError) else ""
+        print(f"paperpi: can't remove the kept old web address: {error}{hint}", file=sys.stderr)
+        return 1
     every = config.WebSettings()
     try:
         path, text = config_file.read(args.config)

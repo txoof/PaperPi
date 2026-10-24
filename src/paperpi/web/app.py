@@ -42,7 +42,10 @@ Address            What it does
                    ``/system/screen`` Change screen… (used from the next start;
                    ``/system/screen/undo`` and ``/system/screen/back`` put back the
                    screen in use or the previous one), ``/system/restart`` restarts
-                   PaperPi when it runs as a service
+                   PaperPi when it runs as a service; ``/system/web/keep`` keeps new
+                   web settings on trial and ``/system/web/back`` goes back to the old
+                   ones (the box on every page; ``/warnings/web-seen`` hides the note
+                   that it went back)
 ``/static/...``    the style sheet, the home page's script, SortableJS (drag to change
                    the order) and htmx (a small JavaScript file that updates one part of
                    a page without loading the whole page again)
@@ -81,7 +84,7 @@ from .. import __version__, config, limits
 from ..config import ConfigError, folder_name, read_text
 from ..logbook import Logbook
 from ..plugins import readme as readme_text
-from . import changes, logs, readme, system, warnings
+from . import changes, keep, logs, readme, system, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_here
 from .config_file import read as read_config
@@ -120,6 +123,7 @@ def create_app(
     logbook: Logbook | None = None,
     state_dir: Path | None = None,
     web: config.WebSettings | None = None,
+    keeper: keep.Keeper | None = None,
 ) -> FastAPI:
     """The web interface, using ``auth`` for the password and log-in, ``editor`` to
     change the plugins in the config file, ``previewer`` to draw previews, ``pictures``
@@ -128,12 +132,14 @@ def create_app(
     (without it, the home page shows only the config file) and ``logbook`` for the Full
     log (without it, the page says the log is not kept). ``state_dir`` is PaperPi's state
     folder, whose disk's free space the Screen & system page shows. ``web``: the ``[web]``
-    settings the web interface started with (its address and port)."""
+    settings the web interface started with (its address and port). ``keeper`` holds the
+    ones in use, and the old ones while new ones are on trial (see :mod:`.keep`)."""
     editor = editor or PluginEditor(auth.config_file)
     previewer = previewer or Previewer()
     pictures = pictures or Pictures(None)
     searcher = searcher or Searcher()
     snapshots = Snapshots()
+    keeper = keeper or keep.Keeper(web, state_dir)
     app = FastAPI(title="PaperPi", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
@@ -381,10 +387,35 @@ def create_app(
             problems = [p for p in problems if p != str(UnknownForm())]
             attention_found.update(key=key, found=(rows, problems))
         rows, problems = attention_found["found"]
-        return warnings.needs_attention(summary(), rows, problems, datetime.now())
+        items = warnings.needs_attention(summary(), rows, problems, datetime.now())
+        if keeper.note is not None:
+            items.insert(0, warnings.went_back(keeper.note))
+        return items
 
     # The menu shows how many things need attention, on every page.
     templates.env.globals["attention_count"] = lambda: len(attention())
+
+    def keep_box(request: Request) -> dict | None:
+        """The Keep these settings box, on every page while new web settings are on trial."""
+        old, used = keeper.old, keeper.used
+        if old is None or used is None:
+            return None
+        host = request.url.hostname or ""
+        return {
+            "left": keeper.seconds_left(),
+            "new": system.web_address(host, used),
+            "old": system.web_address(host, old),
+            "back": f"port {old.port}" if old.port != used.port else "the old address",
+            # Then a browser on another device can't open it.
+            "here": system.only_here(old) and not system.only_here(used),
+        }
+
+    templates.env.globals["keep_box"] = keep_box
+
+    @app.post("/warnings/web-seen")
+    def web_note_seen():
+        keeper.note = None
+        return RedirectResponse("/warnings", status_code=303)
 
     def warnings_values(shown: str) -> dict:
         today = date.today()
@@ -862,7 +893,9 @@ def create_app(
         shown = summary()
         screen_state = shown.screen if shown is not None else None
         new_screen = system.waiting(file_display, editor.display)
-        new_web = system.web_waiting(system.file_web(text), web) if text is not None else None
+        new_web = (
+            system.web_waiting(system.file_web(text), keeper.used) if text is not None else None
+        )
         before = system.previous(state_dir)
         if before is not None and editor.display is not None and not new_screen:
             if before == system.screen_of(editor.display):
@@ -890,7 +923,9 @@ def create_app(
             go_back=before if screen_state in ("failing", "paused") and not new_screen else None,
             describe=system.describe,
             can_restart=can_restart(),
-            web_now=system.web_address(request.url.hostname or "", web) if web else None,
+            web_now=system.web_address(request.url.hostname or "", keeper.used)
+            if keeper.used
+            else None,
             new_web=system.web_address(request.url.hostname or "", new_web) if new_web else None,
             new_web_here=new_web is not None and system.only_here(new_web),
             addresses=system.ADDRESSES,
@@ -904,7 +939,7 @@ def create_app(
     def restarting(request: Request) -> Response:
         controls.restart()
         try:
-            new_web = system.web_waiting(system.file_web(read_config(editor.path)[1]), web)
+            new_web = system.web_waiting(system.file_web(read_config(editor.path)[1]), keeper.used)
         except EditError:
             new_web = None
         moved = None
@@ -957,13 +992,14 @@ def create_app(
         login = file_login()
         try:
             hand_edits = await run_in_threadpool(
-                editor.change, lambda text: system.with_values(text, sent, web)
+                editor.change, lambda text: system.with_values(text, sent, keeper.used)
             )
         except system.SectionErrors as error:
             return system_page(request, 400, str(error), error)
         except EditError as error:
             return system_page(request, 409, str(error))
         use_login(login)
+        keeper.saved(file_web())
         # "Save and apply, then go" in the leave-this-page window: only PaperPi's own pages.
         then = str(form.get("next", ""))
         if then.startswith("/") and not then.startswith(("//", "/\\")):
@@ -1005,18 +1041,34 @@ def create_app(
         if not 0 < number <= 65535:
             problem = "Choose a whole number from 1 to 65535."
         else:
-            problem = system.port_problem(address, number, web)
+            problem = system.port_problem(address, number, keeper.used)
         return page(request, "_port.html", port=number, problem=problem)
 
     @app.post("/system/web/undo", response_class=HTMLResponse)
     def undo_web(request: Request):
-        if web is None:
+        used = keeper.used
+        if used is None:
             return system_done("")
         try:
-            editor.change(lambda text: system.set_web_address(text, web))
+            editor.change(lambda text: system.set_web_address(text, used))
         except EditError as error:
             return system_page(request, 409, str(error))
+        keeper.saved(file_web())
         return system_done("web-undone")
+
+    @app.post("/system/web/keep", response_class=HTMLResponse)
+    def keep_web(request: Request):
+        return system_done("web-kept" if keeper.keep(file_web()) else "")
+
+    @app.post("/system/web/back", response_class=HTMLResponse)
+    def web_back(request: Request):
+        old = keeper.old
+        if old is None:
+            return system_done("")
+        keeper.back_now()
+        here = system.only_here(old) and not system.only_here(keeper.used)
+        address = system.web_address(request.url.hostname or "", old)
+        return page(request, "going_back.html", old=address, here=here)
 
     def password_page(request: Request, status: int = 200, problem: str | None = None):
         if not auth.login or auth.password_hash is None:
@@ -1137,6 +1189,7 @@ _SYSTEM_DONE = {
     "undone": "The new screen is undone: the config file names the screen in use again.",
     "back": "The previous screen is saved again. Restart PaperPi to use it.",
     "web-undone": "Undone: the web interface stays at its current address.",
+    "web-kept": "Kept. The web interface stays at this address.",
     "password": "Password changed. Other phones and computers need to log in again.",
 }
 

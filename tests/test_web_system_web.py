@@ -295,13 +295,24 @@ def test_web_address_in_words():
 
 def test_web_defaults_command(cfg, capsys):
     cfg.write_text(CONFIG.replace("login = false", 'login = false\nport = 80\naddress = "1.2.3.4"'))
-    assert main(["web-defaults", "--config", str(cfg)]) == 0
+    assert main(["web-defaults", "--config", str(cfg), "--state-dir", str(cfg.parent)]) == 0
     assert "back on port 8080, for every device" in capsys.readouterr().out
     assert web(cfg) == {"login": False}  # the password settings stay
-    assert main(["web-defaults", "--config", str(cfg)]) == 0
+    assert main(["web-defaults", "--config", str(cfg), "--state-dir", str(cfg.parent)]) == 0
     assert "already uses the defaults" in capsys.readouterr().out
 
 
 def test_web_defaults_with_a_broken_file(tmp_path, capsys):
-    assert main(["web-defaults", "--config", str(tmp_path / "nothing.toml")]) == 1
+    assert (
+        main(
+            [
+                "web-defaults",
+                "--config",
+                str(tmp_path / "nothing.toml"),
+                "--state-dir",
+                str(tmp_path),
+            ]
+        )
+        == 1
+    )
     assert "file not found" in capsys.readouterr().err

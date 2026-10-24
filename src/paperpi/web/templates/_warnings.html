@@ -23,6 +23,10 @@
           <form method="post" action="/warnings/reload"><button class="quiet" type="submit">Load the file again</button></form>
           {% endif %}
           {% if item.settings %}<a href="{{ item.settings }}">Settings</a>{% endif %}
+          {% if item.seen %}
+          <form method="post" action="{{ item.seen }}"><button class="quiet" type="submit">OK</button></form>
+          <a href="/system#web">Screen &amp; system</a>
+          {% endif %}
         </div>
       </div>
     </li>
