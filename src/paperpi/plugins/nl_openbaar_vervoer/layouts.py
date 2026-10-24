@@ -1,6 +1,7 @@
 """Layouts for nl_openbaar_vervoer. The first one is the default.
 
-``sections``: a heading per stop (``head_<s>``), then its departures, one row each, with the
+``sections``: a heading per stop (``head_<s>``: the stop's name in bold, ``walk_<s>``: "6 min
+walk" at the right, and a line under them), then its departures, one row each, with the
 blocks ``time_<s>_<i>``, ``delay_<s>_<i>``, ``line_<s>_<i>``, ``dest_<s>_<i>`` and
 ``note_<s>_<i>`` ("leave in 3 min", "left", ...). The screen is shared by the stops shown
 today, so the number of rows per stop depends on the settings and the day.
@@ -9,9 +10,10 @@ today, so the number of rows per stop depends on the settings and the day.
 stop's heading in ``stop_<i>`` (rows ``time_<i>``, ``delay_<i>``, ``line_<i>``, ``dest_<i>``,
 ``note_<i>``).
 
-``next``: the first stop only. The next departure that can still be caught is large
-(``next_dest``: line and destination, ``next_note``: "Leave in 3 min", ``next_time``), the
-later ones are small rows below it (``time_0_<i>``, ...). Only the first stop is fetched.
+``next``: the first stop only, with the same heading. The next departure that can still be
+caught is large (``next_dest``: line and destination, ``next_note``: "Leave in 3 min",
+``next_time``), the later ones are small rows below it (``time_0_<i>``, ...). Only the first
+stop is fetched.
 
 Every layout ends with ``notice`` (disruptions on the train routes) and ``footer`` (when the
 departures were fetched).
@@ -64,6 +66,22 @@ def _row(s: int, i: int) -> dict:
     }
 
 
+def _heading(s: int) -> list:
+    """The heading of stop ``s``: its name in bold, the walking time at the right (both in
+    one row: a text block has one font), and a line under them."""
+    return [
+        {
+            "row": [
+                # Long names (train routes) are made smaller to fit.
+                _text(f"head_{s}", "Rotterdam Centraal", 3.6, font=fonts.LATO_BOLD, shrink=True),
+                _text(f"walk_{s}", "88 min walk", 1.4, align="right"),
+            ],
+            "gap": 0,
+        },
+        {"name": f"under_{s}", "type": "shape", "shape": "hline", "pixels": 1},
+    ]
+
+
 def sections(settings) -> dict:
     """One section per stop shown today (at least one). The layout is made again at each
     update, so it follows the days."""
@@ -74,9 +92,7 @@ def sections(settings) -> dict:
     rows = rows_per_stop(count)
     column = []
     for s in range(count):
-        column.append(
-            _text(f"head_{s}", "Rotterdam Centraal · 8 min walk", 1, font=fonts.LATO_BOLD)
-        )
+        column += _heading(s)
         column += [_row(s, i) for i in range(rows)]
     return _with_footer(column)
 
@@ -107,7 +123,7 @@ def by_time(settings) -> dict:
 def next_departure(settings) -> dict:
     """The next departure of the first stop, large, then :data:`LATER` small rows."""
     column = [
-        _text("head_0", "Rotterdam Centraal · 8 min walk", 1, font=fonts.LATO_BOLD),
+        *_heading(0),
         # No font_size: the text is made as large as its block allows.
         _text("next_dest", "888 Heemraadsplein", 2.2, align="center", font_size=None, shrink=True),
         _text(

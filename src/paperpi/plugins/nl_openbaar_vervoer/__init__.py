@@ -474,8 +474,9 @@ def _fill_row(values: dict, at: str, d: Departure, walk: int, now: datetime) -> 
     values[f"note_{at}"] = note(d, walk, now)
 
 
-def _heading(section: Section) -> str:
-    return section.title + (f" · {section.walk} min walk" if section.walk else "")
+def _heading(values: dict, s: int, section: Section) -> None:
+    values[f"head_{s}"] = section.title
+    values[f"walk_{s}"] = f"{section.walk} min walk" if section.walk else ""
 
 
 def _draw_sections(board: Board, wanted, ahead: int) -> dict:
@@ -483,7 +484,7 @@ def _draw_sections(board: Board, wanted, ahead: int) -> dict:
     for s, section in enumerate(board.sections):
         if f"head_{s}" not in wanted:
             break  # more stops today than the layout has room for
-        values[f"head_{s}"] = _heading(section)
+        _heading(values, s, section)
         rows = sum(1 for name in wanted if name.startswith(f"dest_{s}_"))
         shown = section.departures
         if rows <= 2:  # little room: only what can still be caught
@@ -530,7 +531,8 @@ def _draw_next(board: Board, wanted, ahead: int) -> dict:
     if not board.sections:
         return {}
     section = board.sections[0]
-    values = {"head_0": _heading(section)}
+    values = {}
+    _heading(values, 0, section)
     if section.problem:
         values["next_dest"] = section.problem
         return values

@@ -296,7 +296,7 @@ def test_draw_fills_each_stop_and_says_when_it_was_updated(context):
         NOW - timedelta(minutes=6),
     )
     values = draw(board, context(stop_1="a", stop_2="b", stop_3="c"))
-    assert values["head_0"] == "Tram 9 · 4 min walk"
+    assert (values["head_0"], values["walk_0"]) == ("Tram 9", "4 min walk")
     assert [values[f"{b}_0_0"] for b in ("time", "delay", "line", "dest", "note")] == [
         "08:14",
         "+2",
@@ -670,7 +670,7 @@ def test_next_shows_the_first_one_that_can_be_caught_large(layout_context):
     )
     other = Section("Bus", 0, (at(1),))
     values = draw(Board((section, other), NOW, NOW), layout_context("next"))
-    assert values["head_0"] == "Tram · 4 min walk"
+    assert (values["head_0"], values["walk_0"]) == ("Tram", "4 min walk")
     assert values["next_dest"] == "12  Vrederust"
     assert values["next_note"] == "Leave in 6 min"
     assert values["next_time"] == "08:20 (+2)"
