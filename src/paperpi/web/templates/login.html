@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Log in · PaperPi{% endblock %}
+{% from "_show_password.html" import password_field %}
+{% block head %}<script src="/static/password.js" defer></script>{% endblock %}
 {% block main %}
 <h1>Log in</h1>
 {% if problem %}<p class="problem">{{ problem }}</p>{% endif %}
 <form method="post" action="/login">
-  <label>Password <input type="password" name="password" autocomplete="current-password"
-    required autofocus></label>
+  <label for="password">Password</label>
+  {{ password_field("password", "current-password", autofocus=true) }}
   <button type="submit">Log in</button>
 </form>
 <details>
@@ -21,4 +23,5 @@
   </ol>
   <p>Until the new password is set, anyone on your home network can set it.</p>
 </details>
+{% include "_login_screen.html" %}
 {% endblock %}

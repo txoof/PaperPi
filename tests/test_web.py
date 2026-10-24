@@ -426,3 +426,21 @@ def test_a_web_interface_that_crashes_is_logged(cfg, caplog, monkeypatch):
     assert not web.running
     assert "the web interface stopped because of an error" in caplog.text
     web.stop()
+
+
+def show_buttons(page: str) -> list[str]:
+    """The password fields with a Show button, by ID."""
+    return re.findall(r'<button[^>]* data-show="([^"]+)"[^>]* hidden>Show</button>', page)
+
+
+def test_every_password_field_has_a_show_button(cfg):
+    # static/password.js shows the buttons; without JavaScript they stay hidden.
+    client = make_client(cfg)
+    page = client.get("/setup").text
+    assert show_buttons(page) == ["password", "again"]
+    assert '<script src="/static/password.js" defer></script>' in page
+    set_up(client)
+    assert show_buttons(client.get("/system/password").text) == ["current", "password", "again"]
+    client.post("/logout")
+    assert show_buttons(client.get("/login").text) == ["password"]
+    assert client.get("/static/password.js").status_code == 200

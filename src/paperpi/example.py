@@ -4,8 +4,8 @@
   every other setting as a comment with its default and help text. A config manager (the
   web interface, M5) can use it to add a plugin to a config file.
 - :func:`example_config` writes ``paperpi.example.toml``: a short config that works as it
-  is. ``paperpi example-config`` prints it; a test checks that the file in the repository
-  is the same.
+  is. A test checks that the file in the repository is the same. ``paperpi example-config``
+  prints it with new random plugin IDs, so two installs never share one (#263).
 - :func:`setup_config` writes the first config of a new install: a clock and the set-up
   screen, which asks to set PaperPi up in the web interface (``paperpi example-config
   --setup``; the installer uses it).
@@ -35,19 +35,21 @@ from .config import (
     DisplaySettings,
     WebSettings,
 )
-from .plugin import Plugin, PluginEntry, is_required
+from .plugin import Plugin, PluginEntry, is_required, new_id
 
 #: The blocks of the example file: ID, plugin type and the settings that are set.
-#: Weather twice, to show that one plugin type can be used more than once.
+#: Weather twice, to show that one plugin type can be used more than once. The IDs have the
+#: form the Plugin Library makes (:func:`paperpi.plugin.new_id`), fixed here so the file in
+#: the repository stays the same.
 EXAMPLE_PLUGINS = (
-    ("clock", "basic_clock", {"name": "Clock"}),
+    ("basic_clock-5c1e0a7b", "basic_clock", {"name": "Clock"}),
     (
-        "weather_berlin",
+        "met_no-3a91d2f4",
         "met_no",
         {"name": "Weather Berlin", "lat": 52.52, "lon": 13.40, "place": "Berlin"},
     ),
     (
-        "weather_rio",
+        "met_no-b7e40c19",
         "met_no",
         {"name": "Weather Rio", "lat": -22.91, "lon": -43.17, "place": "Rio"},
     ),
@@ -56,8 +58,8 @@ EXAMPLE_PLUGINS = (
 #: The blocks of the first config after installing: the clock, and the set-up screen with
 #: the web address, until the user chooses their own plugins in the web interface.
 SETUP_PLUGINS = (
-    ("clock", "basic_clock", {"name": "Clock"}),
-    ("setup", "splash_screen", {"name": "Set up PaperPi", "layout": "setup"}),
+    ("basic_clock-8d2f6e30", "basic_clock", {"name": "Clock"}),
+    ("splash_screen-1b4c9a57", "splash_screen", {"name": "Set up PaperPi", "layout": "setup"}),
 )
 
 _SETUP_HEADER = """\
@@ -76,10 +78,11 @@ _HEADER = """\
 # The file only needs the settings that differ from the default. Every other setting is
 # shown as a comment with its default: remove the # in front of it to change it.
 # Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
-# more than once, with a different id. The weather blocks are not shown until you remove
-# the # in front of "email" and fill in your own, real email address: met.no asks every
-# program for a way to contact its user. Settings marked "(required)" must be filled in
-# before a plugin is shown.
+# more than once, with a different id. Each id is the plugin type and 8 letters and digits,
+# as the web interface makes them. Keep it as it is: it names the plugin's storage folder.
+# The weather blocks are not shown until you remove the # in front of "email" and fill in
+# your own, real email address: met.no asks every program for a way to contact its user.
+# Settings marked "(required)" must be filled in before a plugin is shown.
 """
 
 #: Settings whose default is "empty", but that mean a known value; shown with that value.
@@ -191,19 +194,22 @@ def web_part() -> str:
     return "\n".join(lines) + "\n"
 
 
-def example_config(display: Mapping[str, Any] | None = None) -> str:
+def example_config(display: Mapping[str, Any] | None = None, *, fresh: bool = False) -> str:
     """The text of ``paperpi.example.toml``; ``display``: the ``[display]`` settings to set
-    (default: the virtual screen)."""
-    return _config(_HEADER, display, EXAMPLE_PLUGINS)
+    (default: the virtual screen). With ``fresh``, each plugin gets a new random ID instead
+    of the fixed one (for a user's own config file)."""
+    return _config(_HEADER, display, EXAMPLE_PLUGINS, fresh)
 
 
-def setup_config(display: Mapping[str, Any] | None = None) -> str:
-    """The first config of a new install: :data:`SETUP_PLUGINS`. ``display`` as in
-    :func:`example_config`."""
-    return _config(_SETUP_HEADER, display, SETUP_PLUGINS)
+def setup_config(display: Mapping[str, Any] | None = None, *, fresh: bool = False) -> str:
+    """The first config of a new install: :data:`SETUP_PLUGINS`. ``display`` and ``fresh``
+    as in :func:`example_config`."""
+    return _config(_SETUP_HEADER, display, SETUP_PLUGINS, fresh)
 
 
-def _config(header: str, display: Mapping[str, Any] | None, blocks: Iterable[tuple]) -> str:
+def _config(
+    header: str, display: Mapping[str, Any] | None, blocks: Iterable[tuple], fresh: bool
+) -> str:
     parts = [
         header,
         f"config_version = {CONFIG_VERSION}\n",
@@ -212,6 +218,8 @@ def _config(header: str, display: Mapping[str, Any] | None, blocks: Iterable[tup
     ]
     for index, (plugin_id, plugin_type, values) in enumerate(blocks):
         plugin = plugins.load(plugin_type)
+        if fresh:
+            plugin_id = new_id(plugin_type)
         parts.append(plugin_block(plugin, plugin_id, values, shared=index == 0))
     return "\n".join(parts)
 

@@ -103,7 +103,7 @@ In the config file, the plugin's settings go in its `[[plugin]]` block:
 
 ```toml
 [[plugin]]
-id = "clock"
+id = "basic_clock-5c1e0a7b"   # made by PaperPi: the type and 8 random letters and digits
 type = "basic_clock"
 hours = 12
 ```

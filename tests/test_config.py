@@ -330,7 +330,7 @@ def test_id_holds_only_letters_digits_and_dashes():
     assert cfg.plugins == []
     assert problems(cfg) == [
         "config line 7 [[plugin]] 'Weather Berlin': id: Value error, must hold only letters, "
-        "digits, _ and - (e.g. weather_berlin) (got 'Weather Berlin')"
+        "digits, _ and - (e.g. met_no-3f9a1c2e) (got 'Weather Berlin')"
     ]
 
 

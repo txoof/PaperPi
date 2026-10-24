@@ -12,7 +12,9 @@ Address            What it does
 ``/screen/...``    ask the screen for something: ``skip``, ``refresh``, ``dismiss``,
                    ``show`` (Show now) and ``try-again`` (see :mod:`paperpi.scheduler`)
 ``/setup``         the first visitor sets the password (only while none is set)
-``/login``         log in; also says how to reset a forgotten password
+``/login``         log in; also says how to reset a forgotten password. Both pages show
+                   the picture on the screen now and its plugin's name
+                   (``/login/picture``: only that picture, open to everyone)
 ``/logout``        log out (a button on every page)
 ``/plugins/...``   a plugin's settings page, and the changes the home page makes;
                    ``/plugins`` (the old Active Plugins page) opens the home page;
@@ -90,7 +92,7 @@ from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_h
 from .config_file import read as read_config
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
-from .home import Controls, Snapshots, card_key, cards, now_part
+from .home import Controls, Now, Snapshots, card_key, cards, now_part
 from .password import PasswordError, password_problem
 from .pictures import Pictures
 from .plugins import (
@@ -107,7 +109,9 @@ COOKIE = "paperpi_login"
 log = logging.getLogger(__name__)
 _HERE = Path(__file__).parent
 #: Pages that work without a log-in (and everything in ``/static/``).
-_OPEN = ("/setup", "/login")
+_OPEN = ("/setup", "/login", "/login/picture")
+#: Addresses the browser may keep (the others are sent again each time).
+_KEPT = ("/static/", "/library/pictures/", "/screen/picture", "/login/picture")
 #: A plugin's ID, sent as ``id`` in a form or in the address.
 _FormId = Annotated[str, Form(alias="id")]
 _QueryId = Annotated[str, Query(alias="id")]
@@ -199,15 +203,31 @@ def create_app(
             "form-action 'self'; base-uri 'none'"
         )
         response.headers["Referrer-Policy"] = "same-origin"
-        if not path.startswith(("/static/", "/library/pictures/", "/screen/picture")):
+        if not path.startswith(_KEPT):
             response.headers["Cache-Control"] = "no-store"
         return response
+
+    def open_page(request: Request, template: str, status: int = 200, **values) -> HTMLResponse:
+        """A log-in page, with what is on the screen now (the only thing it shows of PaperPi)."""
+        shown = summary()
+        rows = found_rows()[0] if shown is not None else []
+        full = now_part(shown, rows, snapshots, datetime.now())
+        # Only these, so plugin texts (the next plugin, an alert) never show before log-in.
+        now = Now(
+            full.id,
+            full.name,
+            since=full.since,
+            picture=full.picture,
+            width=full.width,
+            height=full.height,
+        )
+        return page(request, template, status, now=now, running=controls is not None, **values)
 
     @app.get("/setup", response_class=HTMLResponse)
     def setup_page(request: Request):
         if not auth.login or auth.password_hash is not None:
             return RedirectResponse("/", status_code=303)
-        return page(request, "setup.html")
+        return open_page(request, "setup.html")
 
     @app.post("/setup", response_class=HTMLResponse)
     async def setup(request: Request):
@@ -224,7 +244,7 @@ def create_app(
                 problem = str(error)
             else:
                 return logged_in(request, stored)
-        return page(request, "setup.html", 400, problem=problem)
+        return open_page(request, "setup.html", 400, problem=problem)
 
     @app.get("/login", response_class=HTMLResponse)
     def login_page(request: Request):
@@ -232,7 +252,11 @@ def create_app(
             return RedirectResponse("/", status_code=303)
         if auth.password_hash is None:
             return RedirectResponse("/setup", status_code=303)
-        return page(request, "login.html")
+        return open_page(request, "login.html")
+
+    @app.get("/login/picture")
+    def login_picture(v: int = 0):
+        return screen_picture("", v)
 
     @app.post("/login", response_class=HTMLResponse)
     async def login(request: Request):
@@ -244,7 +268,7 @@ def create_app(
             return RedirectResponse("/setup", status_code=303)
         if await run_in_threadpool(auth.check, str(form.get("password", "")), stored):
             return logged_in(request, stored)
-        return page(request, "login.html", 401, problem="Wrong password.")
+        return open_page(request, "login.html", 401, problem="Wrong password.")
 
     def found_rows() -> tuple[list, list[str], bool]:
         """The config file's plugin blocks, the file's problems, and whether it was read."""

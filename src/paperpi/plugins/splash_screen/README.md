@@ -33,7 +33,7 @@ To put it in the rotation (not needed for the splash at start), here with the se
 
 ```toml
 [[plugin]]
-id = "setup"
+id = "splash_screen-1fa86d6d"
 name = "Set up PaperPi"
 type = "splash_screen"
 layout = "setup"

@@ -51,6 +51,9 @@ In v2 the web interface is the main way to set up and change PaperPi: plugins, s
 - Packages: FastAPI, uvicorn (the web server that runs FastAPI), jinja2 (page templates) and python-multipart (reads forms).
 - **Log-in can be switched off:** `login = false` in `[web]`. Then anyone on the home network can change the settings; the config check gives a hint and the home page says so.
 - **Forgotten password:** `sudo paperpi reset-password` removes the `password_hash` line and leaves the rest of the file as it is. After a restart or reload, the first visitor sets a new password. The log-in page shows these steps.
+- **Log-in pages** (#296, agreed with txoof on 2026-10-24): every password field (Log in, Set a password, Change password) has a **Show** button that shows what was typed and hides it again, so it can be checked before sending (typing on a phone is easy to get wrong). Without JavaScript the button is not there. Log in and Set a password also show the **picture on the screen now** with its plugin's name and since when, below the form, drawn once when the page opens. That picture (`/login/picture`) is the only thing anyone on the home network sees without logging in: not the other plugins, their pictures or their settings.
+
+  ![Log in on a phone](../images/web/login-phone.png)
 - Forms are only accepted from the web interface's own pages, and its pages can't be shown inside another website. Without this, a web page on the internet could make the visitor's browser send a form to PaperPi in their name. For the same reason the web interface only answers when it is opened by an IP address (e.g. `http://192.168.1.20:8080`) or `localhost`: a web page could otherwise point a name of its own at the Pi (called DNS rebinding) and set the first password itself. Names such as `paperpi.local` may be allowed later. Agreed with txoof on 2026-10-07: setup is done by IP address.
 
 ### No HTTPS

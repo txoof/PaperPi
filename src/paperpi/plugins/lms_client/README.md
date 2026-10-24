@@ -42,7 +42,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
-id = "kitchen"
+id = "lms_client-3456567e"
 name = "Kitchen music"
 type = "lms_client"
 server = "192.168.1.9:9000"

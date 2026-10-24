@@ -4,10 +4,11 @@
 # The file only needs the settings that differ from the default. Every other setting is
 # shown as a comment with its default: remove the # in front of it to change it.
 # Each [[plugin]] block is one plugin on the screen; the same plugin type can be used
-# more than once, with a different id. The weather blocks are not shown until you remove
-# the # in front of "email" and fill in your own, real email address: met.no asks every
-# program for a way to contact its user. Settings marked "(required)" must be filled in
-# before a plugin is shown.
+# more than once, with a different id. Each id is the plugin type and 8 letters and digits,
+# as the web interface makes them. Keep it as it is: it names the plugin's storage folder.
+# The weather blocks are not shown until you remove the # in front of "email" and fill in
+# your own, real email address: met.no asks every program for a way to contact its user.
+# Settings marked "(required)" must be filled in before a plugin is shown.
 
 config_version = 1
 
@@ -65,7 +66,7 @@ type = "virtual"
 # Required. Unique ID of this plugin: up to 40 letters, digits, _ and - (when checking that it is
 # unique, capitals don't count and - is the same as _). It names the plugin's storage folder, so
 # changing it starts with an empty folder
-id = "clock"
+id = "basic_clock-5c1e0a7b"
 # Name shown in the web interface; leave it out to show the ID
 name = "Clock"
 type = "basic_clock"
@@ -100,7 +101,7 @@ type = "basic_clock"
 # met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
 # Layouts (values for "layout"): hours_12, small, steps_3h, now, portrait_hours, portrait_now
 [[plugin]]
-id = "weather_berlin"
+id = "met_no-3a91d2f4"
 name = "Weather Berlin"
 type = "met_no"
 # Latitude of the place, e.g. 52.52 (required)
@@ -130,7 +131,7 @@ place = "Berlin"
 # met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
 # Layouts (values for "layout"): hours_12, small, steps_3h, now, portrait_hours, portrait_now
 [[plugin]]
-id = "weather_rio"
+id = "met_no-b7e40c19"
 name = "Weather Rio"
 type = "met_no"
 # Latitude of the place, e.g. 52.52 (required)

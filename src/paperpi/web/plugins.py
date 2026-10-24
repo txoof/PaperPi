@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import secrets
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,7 +23,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from .. import config, example, plugins
-from ..plugin import ID_LENGTH, Plugin, PluginEntry, helper_of, label
+from ..plugin import Plugin, PluginEntry, helper_of, label, new_id
 from . import config_file, forms, helpers, preview
 
 #: Plugin types the Plugin Library doesn't offer: ``default`` is PaperPi's own message when
@@ -496,11 +495,6 @@ def title_of(plugin_type: str) -> str:
 
 def library_item(plugin_type: str) -> LibraryItem | None:
     return next((item for item in library() if item.type == plugin_type), None)
-
-
-def new_id(plugin_type: str) -> str:
-    """A new plugin ID: ``plugin_type``, ``-`` and 8 random letters and digits."""
-    return f"{plugin_type[: ID_LENGTH - 9]}-{secrets.token_hex(4)}"
 
 
 def name_problem(name: str) -> str | None:

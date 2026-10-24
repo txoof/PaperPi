@@ -1,0 +1,15 @@
+{#- The log-in pages' only view of PaperPi: the picture on the screen now and its plugin's
+    name (txoof, #296). Drawn once when the page opens. Nothing when the screen is not
+    running here. -#}
+{% if running %}
+<section class="login-screen" aria-label="On the screen now">
+  <div class="bezel">
+    {%- if now.picture is not none %}
+    <img src="/login/picture?v={{ now.picture }}" width="{{ now.width }}" height="{{ now.height }}" alt="The picture on the screen now: {{ now.name }}">
+    {%- else %}
+    <div class="empty">No picture on the screen yet</div>
+    {%- endif %}
+  </div>
+  {% if now.id %}<p class="caption">On the screen now: <b>{{ now.name }}</b>{% if now.since %} · since {{ now.since }}{% endif %}</p>{% endif %}
+</section>
+{% endif %}

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
+import secrets
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -181,6 +182,14 @@ LEVELS: tuple[Level, ...] = get_args(Level)
 
 #: The longest plugin ID (``id`` in a ``[[plugin]]`` block).
 ID_LENGTH = 40
+
+
+def new_id(plugin_type: str) -> str:
+    """A new plugin ID: ``plugin_type``, ``-`` and 8 random letters and digits, e.g.
+    ``met_no-3f9a1c2e``. Made by the Plugin Library and ``paperpi example-config``."""
+    return f"{plugin_type[: ID_LENGTH - 9]}-{secrets.token_hex(4)}"
+
+
 #: Characters a plugin's name may not hold: control characters, the ones Python counts
 #: as line breaks, and the invisible ones that change the direction of the text after them.
 _HIDDEN_CHARACTERS = r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]"
@@ -271,7 +280,7 @@ class PluginEntry(BaseModel):
     @classmethod
     def _plain_id(cls, plugin_id: str) -> str:
         if not re.fullmatch(r"[A-Za-z0-9_-]*", plugin_id):
-            raise ValueError("must hold only letters, digits, _ and - (e.g. weather_berlin)")
+            raise ValueError("must hold only letters, digits, _ and - (e.g. met_no-3f9a1c2e)")
         if plugin_id and not re.search(r"[A-Za-z0-9]", plugin_id):
             raise ValueError("needs at least one letter or digit")
         return plugin_id

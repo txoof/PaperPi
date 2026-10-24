@@ -1,6 +1,7 @@
 """The paperpi command (paperpi.cli)."""
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -527,12 +528,12 @@ def test_list_shows_the_plugins_as_used(capsys):
     lines = capsys.readouterr().out.splitlines()
     header = ["id", "name", "type", "on", "level", "display", "refresh", "layout", "storage"]
     assert lines[0].split() == header
-    row = "clock Clock basic_clock yes rotation 120 s 60 s time 500 MB, 30 d"
+    row = "basic_clock-5c1e0a7b Clock basic_clock yes rotation 120 s 60 s time 500 MB, 30 d"
     assert lines[1].split() == row.split()
-    assert lines[3].startswith("weather_rio     Weather Rio ")
+    assert lines[3].split()[:3] == ["met_no-b7e40c19", "Weather", "Rio"]
     # Not shown until the user fills in their email address.
     assert lines[2].split()[:6] == [
-        "weather_berlin",
+        "met_no-3a91d2f4",
         "Weather",
         "Berlin",
         "met_no",
@@ -560,13 +561,30 @@ def test_list_with_broken_config(tmp_path, capsys):
     assert "can't be used" in capsys.readouterr().err
 
 
+def ids(text: str) -> list[str]:
+    return re.findall(r'^id = "([^"]+)"$', text, flags=re.MULTILINE)
+
+
+def without_ids(text: str) -> str:
+    return re.sub(r'^id = "[^"]+"$', 'id = "..."', text, flags=re.MULTILINE)
+
+
 def test_example_config_prints_or_saves_the_example(tmp_path, capsys):
     from paperpi.example import example_config
 
     assert main(["example-config"]) == 0
-    assert capsys.readouterr().out == example_config()
+    printed = capsys.readouterr().out
+    assert without_ids(printed) == without_ids(example_config())
     out = tmp_path / "example.toml"
     assert main(["example-config", "-o", str(out)]) == 0
+    saved = out.read_text()
+    assert without_ids(saved) == without_ids(example_config())
+    # Each one with new random IDs, like the Plugin Library's (#263), never the example's.
+    assert [i.split("-")[0] for i in ids(saved)] == ["basic_clock", "met_no", "met_no"]
+    assert all(re.fullmatch(r"\w+-[0-9a-f]{8}", i) for i in ids(saved))
+    assert not set(ids(saved)) & set(ids(printed) + ids(example_config()))
+    # The repository's copy is made again with the fixed ones.
+    assert main(["example-config", "--fixed-ids", "-o", str(out), "--force"]) == 0
     assert out.read_text() == example_config()
 
 
@@ -576,7 +594,13 @@ def test_example_config_for_a_new_install(tmp_path, capsys):
     out = tmp_path / "paperpi.toml"
     args = ["example-config", "--setup", "--display", "it8951", "--model", "9.7", "--vcom", "-1.9"]
     assert main([*args, "-o", str(out)]) == 0
-    assert out.read_text() == setup_config({"type": "it8951", "model": "9.7", "vcom": -1.9})
+    made = out.read_text()
+    assert without_ids(made) == without_ids(
+        setup_config({"type": "it8951", "model": "9.7", "vcom": -1.9})
+    )
+    assert [i.split("-")[0] for i in ids(made)] == ["basic_clock", "splash_screen"]
+    assert all(re.fullmatch(r"\w+-[0-9a-f]{8}", i) for i in ids(made))
+    assert not set(ids(made)) & set(ids(setup_config()))
     assert out.stat().st_mode & 0o777 == 0o600
 
 

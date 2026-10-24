@@ -76,7 +76,7 @@ In the config file (the rest of the file is shown in the main [README](../../../
 
 ```toml
 [[plugin]]
-id = "calendar"
+id = "ical_calendar-47398d0f"
 name = "Calendar"
 type = "ical_calendar"
 calendar_1 = "https://calendar.google.com/calendar/ical/.../basic.ics"
