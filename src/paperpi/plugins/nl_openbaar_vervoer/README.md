@@ -17,7 +17,7 @@ The bottom line says when the times were fetched, after any disruptions (`Disrup
 
 The times come from [OVapi](http://v0.ovapi.nl), a free service run by volunteers with the live times of all Dutch buses and trams. It needs no account or key. It asks for at most one request a minute: the plugin updates every 2 minutes, and with a shorter `refresh` it asks OVapi (and NS) at most once a minute and shows the saved times in between.
 
-Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (see "Getting an NS key"). The key allows 5,000 requests a day. Each train route takes one or two requests per update (NS sends 5 trips at a time), and disruptions are asked for every 10 minutes: two routes every 2 minutes stay under 3,000 a day.
+Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (see "Getting an NS key"). The key allows 5,000 requests a day. Each train route takes one or two requests (NS sends 5 trips at a time). Train times are asked for at most every 110 seconds, whatever the `refresh`, and disruptions every 10 minutes, so two routes stay under about 3,500 requests a day.
 
 ## Settings
 
@@ -38,7 +38,7 @@ Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (
 | `alert_on_disruption` | `false` | While NS reports a disruption on a train route shown today, show the plugin as an alert (before the other plugins). Planned works don't count |
 | `ahead` | `60` | Minutes ahead to show departures for (10 to 80) |
 
-The plugin needs at least one stop or one train route. The stops and routes shown today share the screen, stops first: one gets 11 rows, two get 5 each, three get 3, four get 2. On a day when none is shown, the plugin has nothing to show and the other plugins take its turn.
+The plugin needs at least one stop or one train route. The stops and routes shown today share the screen, stops first: one gets 11 rows, two get 5 each, three get 3, four get 2, five or six get 1. With 1 or 2 rows, departures that already left are left out. On a day when none is shown, the plugin has nothing to show and the other plugins take its turn.
 
 ```toml
 [[plugin]]

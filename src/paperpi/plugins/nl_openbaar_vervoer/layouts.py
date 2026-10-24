@@ -33,7 +33,7 @@ def _text(name, sample, size, align="left", font=None, **more) -> dict:
 
 
 def rows_per_stop(stops: int) -> int:
-    """Departure rows for each of ``stops`` stops (1 to 4): 11, 5, 3 or 2."""
+    """Departure rows for each of ``stops`` stops and routes (1 to 6): 11, 5, 3, 2, 1, 1."""
     return (LINES - stops) // stops
 
 

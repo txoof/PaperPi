@@ -24,7 +24,7 @@ CANCELLED = ("CANCEL",)
 
 
 class AnswerError(ValueError):
-    """OVapi's answer is not what the plugin expects."""
+    """An answer from OVapi or NS is not what the plugin expects."""
 
 
 @dataclass(frozen=True)

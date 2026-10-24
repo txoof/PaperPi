@@ -375,7 +375,8 @@ def test_read_trips_keeps_direct_trains_and_marks_platform_changes():
         trip("08:55", arrival="09:32", track="8"),
         trip("09:10", status="CANCELLED"),
     )
-    route = ns.read_trips(answer, "GVC", "UT", changes=False)
+    route, last = ns.read_trips(answer, "GVC", "UT", changes=False)
+    assert f"{last.astimezone(ZONE):%H:%M}" == "09:10"
     assert (route.code, route.name) == ("GVC-UT", "Den Haag Centraal → Utrecht Centraal")
     assert [d.destination for d in route.departures] == [
         "spoor 2 (was 7)",
@@ -384,7 +385,7 @@ def test_read_trips_keeps_direct_trains_and_marks_platform_changes():
     ]
     assert route.departures[0].delay == 2 and route.departures[0].line == "IC"
     assert route.departures[2].cancelled
-    with_changes = ns.read_trips(answer, "GVC", "UT", changes=True)
+    with_changes, _ = ns.read_trips(answer, "GVC", "UT", changes=True)
     assert with_changes.departures[2].destination == "spoor 7 · 1 change"
 
 
@@ -516,3 +517,99 @@ def test_draw_shows_the_notices(context):
     notices = (ns.Notice("Signal fault", "DISRUPTION"), ns.Notice("Works", "MAINTENANCE"))
     board = Board((Section("A", 0, (at(5),)),), NOW, NOW, notices)
     assert draw(board, context(stop_1="a"))["notice"] == "Disruption: Signal fault; Works: Works"
+
+
+def test_trips_are_asked_for_whole_minutes():
+    start = datetime(2026, 10, 24, 8, 5, 42, 123456, tzinfo=UTC)
+    assert "dateTime=2026-10-24T10%3A05%3A00%2B02%3A00" in ns.trips_url("GVC", "UT", start)
+
+
+def test_the_second_request_starts_after_the_last_trip_even_with_changes(context, monkeypatch):
+    first = trips(*(trip(f"08:{m}", transfers=1) for m in ("10", "20", "30", "40", "50")))
+    asked = fake_ns(monkeypatch, {"trips": [first, trips(trip("09:05"))], "disruptions": []})
+    board = fetch(context(**TRAINS)).data
+    assert "dateTime=2026-10-24T08%3A51%3A00" in asked[1][0]
+    assert len(board.sections[0].departures) == 1
+
+
+def test_a_failed_second_request_keeps_the_first_trips(context, monkeypatch):
+    calls = []
+
+    def get(url, **options):
+        calls.append(url)
+        if "trips" in url and len(calls) == 1:
+            return webrequest.Answer(200, json.dumps(trips(trip("08:12"))).encode(), {}, url)
+        if "disruptions" in url:
+            return webrequest.Answer(200, b"[]", {}, url)
+        raise webrequest.WebError("gateway.apiportal.ns.nl answered 503 Service Unavailable")
+
+    monkeypatch.setattr(webrequest, "get", get)
+    assert len(fetch(context(**TRAINS)).data.sections[0].departures) == 1
+
+
+def test_train_times_are_reused_for_a_while(context, monkeypatch):
+    asked = fake_ns(monkeypatch, {"trips": trips(trip("09:30")), "disruptions": []})
+    fetch(context(**TRAINS))
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW + ns.TRIPS_EVERY - timedelta(seconds=1))
+    fetch(context(**TRAINS))
+    assert sum("trips" in url for url, _ in asked) == 1
+    assert (context().storage / "trains_GVC-UT.json").is_file()
+
+
+def test_saved_trips_are_shown_when_ns_fails(context, monkeypatch):
+    fake_ns(monkeypatch, {"trips": trips(trip("08:40")), "disruptions": []})
+    fetch(context(**TRAINS))
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW + timedelta(minutes=10))
+
+    def get(url, **options):
+        raise webrequest.WebError("gateway.apiportal.ns.nl can't be reached")
+
+    monkeypatch.setattr(webrequest, "get", get)
+    board = fetch(context(**TRAINS)).data
+    assert board.sections[0].departures and board.fetched == NOW
+
+
+@pytest.mark.parametrize(
+    ("message", "problem"),
+    [
+        ("answered 401 Unauthorized", "NS key not accepted"),
+        ("answered 429 Too Many Requests", None),
+    ],
+)
+def test_a_refused_key_is_shown_even_with_only_trains(context, monkeypatch, message, problem):
+    def get(url, **options):
+        raise webrequest.WebError(f"gateway.apiportal.ns.nl {message}")
+
+    monkeypatch.setattr(webrequest, "get", get)
+    if problem:
+        assert fetch(context(**TRAINS)).data.sections[0].problem == problem
+    else:  # nothing at all to show: the update fails, PaperPi logs why and tries again
+        with pytest.raises(webrequest.WebError):
+            fetch(context(**TRAINS))
+
+
+def test_too_many_requests_is_said_plainly(context, monkeypatch):
+    def get(url, **options):
+        if "ovapi" in url:
+            return webrequest.Answer(200, json.dumps({"31001118": PERRON_A}).encode(), {}, url)
+        raise webrequest.WebError("gateway.apiportal.ns.nl answered 429 Too Many Requests")
+
+    monkeypatch.setattr(webrequest, "get", get)
+    board = fetch(context(**TRAINS | {"stop_1": "31001118"})).data
+    assert board.sections[1].problem == "NS: too many requests today"
+
+
+def test_layout_counts_stops_and_routes_and_has_a_notice(monkeypatch):
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW)
+    settings = Settings(
+        stop_1="a", stop_2="b", **{k: v for k, v in TRAINS.items() if k != "stop_1"}
+    )
+    blocks = PLUGIN.layout("sections", settings).blocks
+    assert sum(1 for n in blocks if n.startswith("head_")) == 3 and "notice" in blocks
+
+
+def test_small_sections_leave_out_what_has_left(context):
+    board = Board((Section("A", 0, (at(-2, left=True), at(-1), at(5), at(9))),), NOW, NOW)
+    settings = {f"stop_{n}": "a" for n in range(1, 5)} | {"train_from_1": "A", "train_to_1": "B"}
+    values = draw(board, context(**settings))
+    assert values["time_0_0"] == "08:15"

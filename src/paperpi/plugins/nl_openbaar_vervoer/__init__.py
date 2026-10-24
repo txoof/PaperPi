@@ -83,13 +83,13 @@ def _days(n: int, what: str = "stop"):
 
 
 def _station(n: int, end: str):
+    example = "GVC (Den Haag Centraal)" if end == "from" else "UT (Utrecht Centraal)"
     return Field(
         "",
         pattern=STATION,
         max_length=8,
-        description=f"NS code of the station train route {n} goes {end}, e.g. "
-        + ("GVC (Den Haag Centraal)" if end == "from" else "UT (Utrecht Centraal)")
-        + " (or leave empty)",
+        description=f"NS code of the station train route {n} goes {end}, e.g. {example} "
+        "(or leave empty)",
     )
 
 
@@ -175,8 +175,8 @@ class Settings(PluginSettings):
 
 @dataclass(frozen=True)
 class Section:
-    """One stop on the screen: its heading, walking time and departures. ``problem``: why
-    there are no departures to show, e.g. OVapi doesn't know the stop."""
+    """One stop or train route on the screen: its heading, walking time and departures.
+    ``problem``: why there are no departures to show, e.g. OVapi doesn't know the stop."""
 
     title: str
     walk: int
@@ -186,8 +186,9 @@ class Section:
 
 @dataclass(frozen=True)
 class Board:
-    """What ``draw`` gets: the stops shown today, the time now, and when the departures were
-    fetched (earlier than ``now`` when OVapi could not be reached)."""
+    """What ``draw`` gets: the stops and routes shown today, the time now, when the oldest
+    departures were fetched (earlier than ``now`` when OVapi or NS could not be reached) and
+    the disruptions on the routes."""
 
     sections: tuple[Section, ...]
     now: datetime
@@ -250,21 +251,21 @@ def fetch(context: Context):
     notices: tuple[Notice, ...] = ()
     if routes:
         notices = _route_sections(context, routes, now, found, times, errors)
-    if errors and not any(section.departures for section in found):
-        raise errors[0]  # nothing to show at all
+    if errors and not times:
+        raise errors[0]  # no source answered: nothing to show
     board = Board(tuple(found), now, min(times, default=now), notices)
     if settings.alert_on_disruption and any(n.real for n in notices):
         return alert(board)
     return ready(board)
 
 
-def _latest(context, path, wanted: set[str], now, download) -> Saved:
-    """The newest answer for ``wanted``: the saved one when it is less than a minute old,
+def _latest(context, path, wanted: set[str], now, download, reuse=QUICKEST) -> Saved:
+    """The newest answer for ``wanted``: the saved one when it is younger than ``reuse``,
     else a new one from ``download()`` (saved), else the saved one when it is less than
     :data:`OLDEST` old."""
     saved = departures.load(path)
-    if saved and wanted <= saved.asked and timedelta(0) <= now - saved.fetched < QUICKEST:
-        return saved  # updated less than a minute ago
+    if saved and wanted <= saved.asked and timedelta(0) <= now - saved.fetched < reuse:
+        return saved  # updated a moment ago
     try:
         latest = download()
     except (webrequest.WebError, AnswerError) as error:
@@ -340,12 +341,20 @@ def _route_sections(context, wanted, now, found, times, errors) -> tuple[Notice,
                 lambda o=origin, d=destination, c=changes: ns.route_saved(
                     _trips(key, o, d, c, now, settings.ahead), now
                 ),
+                reuse=ns.TRIPS_EVERY,
             )
         except (webrequest.WebError, AnswerError) as error:
             log.warning("train times %s can't be updated: %s", title, error)
-            errors.append(error)
-            unknown = "401" in str(error) or "403" in str(error)
-            problem = "NS key not accepted" if unknown else "Not updated: NS can't be reached"
+            # webrequest's messages name the answer, e.g. "... answered 401 Unauthorized".
+            text = str(error)
+            if " 401 " in text or " 403 " in text:
+                problem = "NS key not accepted"  # the user can fix this: show it
+            else:
+                errors.append(error)
+                busy = " 429 " in text
+                problem = (
+                    "NS: too many requests today" if busy else "Not updated: NS can't be reached"
+                )
             found.append(Section(title, walk, (), problem))
             continue
         times.append(latest.fetched)
@@ -361,16 +370,18 @@ def _route_sections(context, wanted, now, found, times, errors) -> tuple[Notice,
 def _trips(key, origin, destination, changes, now, ahead) -> departures.Stop:
     """The trains of a route, from 5 minutes ago to ``ahead`` minutes ahead. NS sends 5 trips
     per request; when they end too soon, it is asked once more from the last one on."""
-    headers = {"Ocp-Apim-Subscription-Key": key}
     start = now - departures.SHOWN_AFTER
-    answer = webrequest.get(ns.trips_url(origin, destination, start), headers=headers)
-    route = ns.read_trips(answer.json(), origin, destination, changes)
-    last = route.departures[-1].planned if route.departures else start
-    if last < now + timedelta(minutes=ahead):
+    answer = webrequest.get(ns.trips_url(origin, destination, start), headers=ns.headers(key))
+    route, last = ns.read_trips(answer.json(), origin, destination, changes)
+    if last is not None and last < now + timedelta(minutes=ahead):
         url = ns.trips_url(origin, destination, last + timedelta(minutes=1))
-        more = ns.read_trips(
-            webrequest.get(url, headers=headers).json(), origin, destination, changes
-        )
+        try:
+            more, _ = ns.read_trips(
+                webrequest.get(url, headers=ns.headers(key)).json(), origin, destination, changes
+            )
+        except (webrequest.WebError, AnswerError) as error:
+            log.warning("more train times can't be fetched, showing the first ones: %s", error)
+            return route
         seen = {(d.line, d.planned) for d in route.departures}
         extra = tuple(d for d in more.departures if (d.line, d.planned) not in seen)
         route = departures.Stop(route.code, route.name, route.departures + extra)
@@ -385,9 +396,7 @@ def _disruptions(context, origin, destination, key, now) -> tuple[Notice, ...]:
     if saved and timedelta(0) <= now - saved[1] < ns.DISRUPTIONS_EVERY:
         return saved[0]
     try:
-        answer = webrequest.get(
-            ns.disruptions_url(origin), headers={"Ocp-Apim-Subscription-Key": key}
-        )
+        answer = webrequest.get(ns.disruptions_url(origin), headers=ns.headers(key))
         notices = ns.read_disruptions(answer.json(), origin, destination)
     except (webrequest.WebError, AnswerError) as error:
         log.warning("NS disruptions can't be updated: %s", error)
@@ -432,11 +441,14 @@ def draw(board: Board, context: Context) -> dict:
         walk = f" · {section.walk} min walk" if section.walk else ""
         values[f"head_{s}"] = section.title + walk
         rows = sum(1 for name in wanted if name.startswith(f"dest_{s}_"))
+        shown = section.departures
+        if rows <= 2:  # little room: only what can still be caught
+            shown = tuple(d for d in shown if not (d.left or d.expected < board.now))
         if section.problem:
             values[f"dest_{s}_0"] = section.problem
-        elif not section.departures:
+        elif not shown:
             values[f"dest_{s}_0"] = f"No departures in the next {context.settings.ahead} min"
-        for i, d in enumerate(section.departures[:rows]):
+        for i, d in enumerate(shown[:rows]):
             values[f"time_{s}_{i}"] = f"{d.expected.astimezone(ZONE):%H:%M}"
             values[f"delay_{s}_{i}"] = f"+{d.delay}" if d.delay > 0 else ""
             values[f"line_{s}_{i}"] = d.line
@@ -503,7 +515,7 @@ PLUGIN = Plugin(
     "OVapi and NS.",
     settings=Settings,
     layouts=LAYOUTS,
-    layout_titles={"sections": "A heading per stop"},
+    layout_titles={"sections": "A heading per stop or route"},
     fetch=fetch,
     draw=draw,
     sample=_sample(),

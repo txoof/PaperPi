@@ -20,6 +20,9 @@ from .departures import ZONE, AnswerError, Departure, Saved, Stop
 BASE = "https://gateway.apiportal.ns.nl/reisinformatie-api/api"
 #: Disruptions change slowly; asking less often keeps within the key's 5,000 requests a day.
 DISRUPTIONS_EVERY = timedelta(minutes=10)
+#: Train times are asked for at most this often, whatever the refresh: two routes of two
+#: requests each then stay under about 3,500 requests a day.
+TRIPS_EVERY = timedelta(seconds=110)
 #: Disruption types that are not planned works; only these can make the plugin an alert.
 REAL = ("DISRUPTION", "CALAMITY")
 
@@ -36,8 +39,13 @@ class Notice:
         return self.kind in REAL
 
 
+def headers(key: str) -> dict[str, str]:
+    """The headers that send the NS key (only to NS: see ``webrequest.get``)."""
+    return {"Ocp-Apim-Subscription-Key": key}
+
+
 def trips_url(origin: str, destination: str, start: datetime) -> str:
-    when = start.astimezone(ZONE).isoformat()
+    when = start.astimezone(ZONE).replace(second=0, microsecond=0).isoformat()
     query = {"fromStation": origin, "toStation": destination, "dateTime": when}
     return f"{BASE}/v3/trips?{urlencode(query)}"
 
@@ -54,23 +62,28 @@ def _clock(t: datetime) -> str:
     return f"{t.astimezone(ZONE):%H:%M}"
 
 
-def read_trips(answer: object, origin: str, destination: str, changes: bool) -> Stop:
+def read_trips(
+    answer: object, origin: str, destination: str, changes: bool
+) -> tuple[Stop, datetime | None]:
     """The trips in a ``/v3/trips`` answer as a :class:`Stop` whose code is
     ``<origin>-<destination>`` and whose name is the route ("Den Haag Centraal → Utrecht
-    Centraal"). Trips with a change of train are left out unless ``changes``."""
+    Centraal"), and the planned time of the last trip in the answer (``None``: no trips).
+    Trips with a change of train are left out unless ``changes``."""
     try:
         trips = answer["trips"]
         found = []
         name = f"{origin} → {destination}"
+        last = None
         for trip in trips:
             legs = trip["legs"]
             start, end = legs[0]["origin"], legs[-1]["destination"]
             if trip is trips[0]:
                 name = f"{start['name']} → {end['name']}"
+            planned = _time(start["plannedDateTime"])
+            last = max(last or planned, planned)
             transfers = int(trip.get("transfers", 0))
             if transfers and not changes:
                 continue
-            planned = _time(start["plannedDateTime"])
             expected = _time(start.get("actualDateTime") or start["plannedDateTime"])
             arrival = _time(end.get("actualDateTime") or end["plannedDateTime"])
             track = start.get("actualTrack") or start.get("plannedTrack") or "?"
@@ -88,7 +101,7 @@ def read_trips(answer: object, origin: str, destination: str, changes: bool) -> 
     except (AttributeError, IndexError, KeyError, TypeError, ValueError) as error:
         raise AnswerError(f"the NS answer can't be read: {error!r}") from None
     found.sort(key=lambda d: d.expected)
-    return Stop(f"{origin}-{destination}", name, tuple(found))
+    return Stop(f"{origin}-{destination}", name, tuple(found)), last
 
 
 def read_disruptions(answer: object, origin: str, destination: str) -> tuple[Notice, ...]:
