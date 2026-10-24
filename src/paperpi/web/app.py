@@ -892,7 +892,7 @@ def create_app(
             can_restart=can_restart(),
             web_now=system.web_address(request.url.hostname or "", web) if web else None,
             new_web=system.web_address(request.url.hostname or "", new_web) if new_web else None,
-            new_web_here=new_web is not None and new_web.address == "127.0.0.1",
+            new_web_here=new_web is not None and system.only_here(new_web),
             addresses=system.ADDRESSES,
             change_password=auth.login and auth.password_hash is not None,
         )
@@ -910,7 +910,7 @@ def create_app(
         moved = None
         if new_web is not None:
             moved = system.web_address(request.url.hostname or "", new_web)
-        here = new_web is not None and new_web.address == "127.0.0.1"
+        here = new_web is not None and system.only_here(new_web)
         return page(request, "restarting.html", moved=moved, here=here)
 
     def used_screen() -> dict | None:

@@ -71,6 +71,8 @@
     }
 
     function putBack() {
+      var check = document.getElementById("port-check");
+      if (check) check.innerHTML = "";  // the check of a port that is put back
       Object.keys(saved).forEach(function (name) {
         inputs(name).forEach(function (el) {
           if (el.type === "hidden") return;

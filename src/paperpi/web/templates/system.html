@@ -62,7 +62,7 @@
   {% if new_web_here %}<p>After the restart you can only open the web interface on the Pi
     itself, not from your phone or computer.</p>{% endif %}
   <p>If you can't reach the web interface after the restart: on the Pi, run
-    <code>paperpi web-defaults</code> and restart PaperPi. That puts it back on port 8080 for
+    <code>sudo paperpi web-defaults</code> and restart PaperPi. That puts it back on port 8080 for
     every device on your home network.</p>
   {% if not can_restart %}
   <p>PaperPi was started by hand: stop it (Ctrl+C) and start it again.</p>

@@ -145,6 +145,24 @@ def test_the_port_in_use_now_is_not_tried(client, cfg, monkeypatch):
     assert "only open the web interface on the Pi" in page
 
 
+def test_a_port_below_1024_is_refused_even_with_rights(client, cfg, monkeypatch):
+    """The service never has the rights, also when this PaperPi was started with sudo."""
+    monkeypatch.setattr(server, "listen", pytest.fail)
+    response = send(client, port="443")
+    assert response.status_code == 400 and "needs administrator rights" in response.text
+
+
+def test_the_port_in_use_now_is_tried_for_a_wider_address(cfg, taken):
+    """PaperPi on 127.0.0.2 doesn't keep the port free on 127.0.0.1."""
+    started = config.WebSettings(login=False, address="127.0.0.2", port=taken)
+    cfg.write_text(
+        CONFIG.replace("login = false", f'login = false\naddress = "127.0.0.2"\nport = {taken}')
+    )
+    client = make_client(cfg, started)
+    response = send(client, port=str(taken), address="127.0.0.1")
+    assert response.status_code == 400 and "used by another program" in response.text
+
+
 def test_only_the_two_choices_or_the_address_of_the_file(client, cfg):
     assert send(client, address="10.0.0.9").status_code == 400
     cfg.write_text(CONFIG.replace("login = false", 'login = false\naddress = "127.0.0.2"'))
@@ -176,6 +194,16 @@ def test_restart_with_a_new_port_opens_the_new_address(cfg, free, monkeypatch):
     page = client.post("/system/restart").text
     assert f'content="30;url=http://192.168.1.20:{free}/system"' in page
     assert "system.js" not in page  # it can't ask the new address whether PaperPi is back
+
+
+@pytest.mark.parametrize("address", ["127.0.0.1", "::1", "localhost"])
+def test_restart_to_this_pi_only_stays_on_the_page(cfg, free, monkeypatch, address):
+    monkeypatch.setenv("INVOCATION_ID", "service")
+    cfg.write_text(CONFIG.replace("login = false", f'login = false\naddress = "{address}"'))
+    started = config.WebSettings(login=False)
+    client = make_client(cfg, started, Controls())
+    page = client.post("/system/restart").text
+    assert "can\n  only be opened on the Pi itself" in page and "url=" not in page
 
 
 def test_password_off_applies_at_once(cfg):
@@ -236,6 +264,12 @@ def test_change_password_says_what_is_wrong(logged_in, cfg, form, problem):
     response = change(logged_in, **form)
     assert response.status_code == 400 and problem in response.text
     assert cfg.read_text() == before
+
+
+def test_change_password_needs_a_log_in(logged_in):
+    logged_in.cookies.clear()
+    assert logged_in.get("/system/password").headers["location"] == "/login"
+    assert change(logged_in).headers["location"] == "/login"
 
 
 def test_change_password_needs_a_password_in_use(client):

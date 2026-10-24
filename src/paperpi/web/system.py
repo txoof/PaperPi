@@ -26,6 +26,7 @@ at once, and facts about this Pi.
 from __future__ import annotations
 
 import errno
+import ipaddress
 import os
 import tomllib
 from collections.abc import Mapping, Sequence
@@ -230,16 +231,17 @@ def port_problem(address: str, port: int, started: config.WebSettings | None) ->
     found by trying it now; ``None``: it can. The port the web interface uses now
     (``started``) is fine: it is free again when PaperPi restarts."""
     if started is not None and port == started.port:
-        return None
+        # PaperPi's own socket covers the new address too only when it listens everywhere.
+        if address == started.address or started.address in ("0.0.0.0", "::"):
+            return None
+    if port < 1024:
+        return _NEEDS_RIGHTS.format(port=port)
     from .server import listen  # here: the server module needs this one
 
     try:
         listen(address, port).close()
     except PermissionError:
-        return (
-            f"port {port} needs administrator rights, which PaperPi doesn't have. Choose "
-            "1024 or higher, for example 8081"
-        )
+        return _NEEDS_RIGHTS.format(port=port)
     except OSError as error:
         if error.errno == errno.EADDRINUSE:
             return (
@@ -250,6 +252,22 @@ def port_problem(address: str, port: int, started: config.WebSettings | None) ->
             return f"this Pi has no network address {address}"
         return f"PaperPi can't use port {port} ({error.strerror or error})"
     return None
+
+
+_NEEDS_RIGHTS = (
+    "port {port} needs administrator rights, which PaperPi doesn't have. Choose 1024 or "
+    "higher, for example 8081"
+)
+
+
+def only_here(web: config.WebSettings) -> bool:
+    """The web interface can only be opened on the Pi itself."""
+    if web.address == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(web.address).is_loopback
+    except ValueError:
+        return False
 
 
 def file_web(text: str) -> config.WebSettings | None:
