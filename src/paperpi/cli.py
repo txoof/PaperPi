@@ -184,6 +184,11 @@ def _parser() -> argparse.ArgumentParser:
     sample.add_argument(
         "--force", action="store_true", help="with -o: replace the file if it is already there"
     )
+    sample.add_argument(
+        "--fixed-ids",
+        action="store_true",
+        help="keep the example's fixed plugin IDs (to make paperpi.example.toml again)",
+    )
     sample.set_defaults(command=_example_config)
 
     check = commands.add_parser(
@@ -528,7 +533,7 @@ def _example_config(args: argparse.Namespace) -> int:
     display = {"type": args.display, "model": args.model, "vcom": args.vcom}
     make = example.setup_config if args.setup else example.example_config
     try:
-        text = make(display, fresh=True)
+        text = make(display, fresh=not args.fixed_ids)
         config.parse(text)  # e.g. an it8951 screen without its vcom
     except (ValidationError, config.ConfigError) as error:
         raise UsageError(f"the [display] settings can't be used:\n{error}") from None

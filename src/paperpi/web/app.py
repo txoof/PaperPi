@@ -92,7 +92,7 @@ from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_h
 from .config_file import read as read_config
 from .forms import Read, fields, form_texts
 from .helpers import Searcher, SearchFailed, language
-from .home import Controls, Snapshots, card_key, cards, now_part
+from .home import Controls, Now, Snapshots, card_key, cards, now_part
 from .password import PasswordError, password_problem
 from .pictures import Pictures
 from .plugins import (
@@ -211,7 +211,16 @@ def create_app(
         """A log-in page, with what is on the screen now (the only thing it shows of PaperPi)."""
         shown = summary()
         rows = found_rows()[0] if shown is not None else []
-        now = now_part(shown, rows, snapshots, datetime.now())
+        full = now_part(shown, rows, snapshots, datetime.now())
+        # Only these, so plugin texts (the next plugin, an alert) never show before log-in.
+        now = Now(
+            full.id,
+            full.name,
+            since=full.since,
+            picture=full.picture,
+            width=full.width,
+            height=full.height,
+        )
         return page(request, template, status, now=now, running=controls is not None, **values)
 
     @app.get("/setup", response_class=HTMLResponse)

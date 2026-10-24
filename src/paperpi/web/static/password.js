@@ -13,11 +13,12 @@
     var show = input.type === "password";
     input.type = show ? "text" : "password";
     button.textContent = show ? "Hide" : "Show";
-    button.setAttribute("aria-pressed", show ? "true" : "false");
   });
   // Sent hidden again, so the browser doesn't keep it as ordinary typed text.
   document.addEventListener("submit", function (event) {
     var inputs = event.target.querySelectorAll(".pw input");
     for (var i = 0; i < inputs.length; i++) inputs[i].type = "password";
+    var buttons = event.target.querySelectorAll("[data-show]");
+    for (var j = 0; j < buttons.length; j++) buttons[j].textContent = "Show";
   });
 })();

@@ -583,6 +583,9 @@ def test_example_config_prints_or_saves_the_example(tmp_path, capsys):
     assert [i.split("-")[0] for i in ids(saved)] == ["basic_clock", "met_no", "met_no"]
     assert all(re.fullmatch(r"\w+-[0-9a-f]{8}", i) for i in ids(saved))
     assert not set(ids(saved)) & set(ids(printed) + ids(example_config()))
+    # The repository's copy is made again with the fixed ones.
+    assert main(["example-config", "--fixed-ids", "-o", str(out), "--force"]) == 0
+    assert out.read_text() == example_config()
 
 
 def test_example_config_for_a_new_install(tmp_path, capsys):
@@ -596,6 +599,8 @@ def test_example_config_for_a_new_install(tmp_path, capsys):
         setup_config({"type": "it8951", "model": "9.7", "vcom": -1.9})
     )
     assert [i.split("-")[0] for i in ids(made)] == ["basic_clock", "splash_screen"]
+    assert all(re.fullmatch(r"\w+-[0-9a-f]{8}", i) for i in ids(made))
+    assert not set(ids(made)) & set(ids(setup_config()))
     assert out.stat().st_mode & 0o777 == 0o600
 
 

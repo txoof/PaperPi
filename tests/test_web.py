@@ -430,7 +430,7 @@ def test_a_web_interface_that_crashes_is_logged(cfg, caplog, monkeypatch):
 
 def show_buttons(page: str) -> list[str]:
     """The password fields with a Show button, by ID."""
-    return re.findall(r'data-show="([^"]+)" aria-pressed="false" hidden>Show</button>', page)
+    return re.findall(r'<button[^>]* data-show="([^"]+)"[^>]* hidden>Show</button>', page)
 
 
 def test_every_password_field_has_a_show_button(cfg):

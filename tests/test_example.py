@@ -19,7 +19,7 @@ HEAD = 'config_version = 1\n[display]\ntype = "virtual"\n'
 def test_example_file_is_up_to_date():
     assert EXAMPLE_FILE.read_text() == example_config(), (
         "paperpi.example.toml is out of date; make it again with "
-        "uv run paperpi example-config -o paperpi.example.toml"
+        "uv run paperpi example-config --fixed-ids -o paperpi.example.toml --force"
     )
 
 
