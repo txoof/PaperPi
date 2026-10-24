@@ -311,7 +311,7 @@ def test_as_a_service_the_page_shows_systemctl(setup, cfg, monkeypatch):
     monkeypatch.setenv("INVOCATION_ID", "abc")
     cfg.write_text(edited(('name = "Clock"', 'name = "Big clock"')))
     page = client.get("/changes").text
-    assert "<code>sudo systemctl reload paperpi</code>" in page and "kill" not in page
+    assert "<code>sudo paperpi reload</code>" in page and "kill" not in page
 
 
 def test_without_the_screen_running_there_is_nothing_to_apply(cfg):

@@ -94,6 +94,42 @@ def test_report_holds_the_health_data(tmp_path, systemd):
     assert path.stat().st_mode & 0o777 == 0o644
 
 
+def test_report_holds_the_process_id_and_the_last_reload(tmp_path, systemd):
+    path = tmp_path / "health"
+    reports = Health(path, disk=tmp_path, notify=systemd)
+    reports.report(None)
+    values = json.loads(path.read_text())
+    assert values["pid"] == os.getpid() and values["reload"] is None
+    reports.reloaded(("line 3: broken", "x" * 500, "three", "four"))
+    reports.reloaded(())
+    reports.report(None)
+    values = health.read(path)
+    assert values["reload"]["number"] == 2 and values["reload"]["errors"] == []
+    assert values["reload"]["time"]
+    reports.reloaded(("line 3: broken", "x" * 500, "three", "four"))
+    reports.report(None)
+    errors = health.read(path)["reload"]["errors"]
+    # Only the first few, shortened, so the report stays small.
+    assert errors == ["line 3: broken", "x" * limits.RELOAD_ERROR_CHARS, "three"]
+    assert len(path.read_bytes()) < limits.HEALTH_FILE_BYTES
+
+
+def test_reasons_with_other_letters_keep_the_report_small(tmp_path, systemd):
+    path = tmp_path / "health"
+    reports = Health(path, disk=tmp_path, notify=systemd)
+    reports.reloaded(tuple(f'plugin "Café Zürich {n}": ' + "é" * 100 for n in range(3)))
+    reports.report(None)
+    assert len(path.read_bytes()) < limits.HEALTH_FILE_BYTES
+    errors = health.read(path)["reload"]["errors"]
+    assert errors[0].startswith('plugin "Café Zürich 0"') and len(errors) < 3
+    reports.reloaded(("😀" * 200,))  # even the first is too long as written
+    reports.report(None)
+    assert check(path)[0]
+    assert health.read(path)["reload"]["errors"] == [
+        "the config file can't be used (the reason is in the log)"
+    ]
+
+
 def test_health_values_go_to_the_log_at_the_start_and_then_every_hour(tmp_path, systemd, caplog):
     now = [1000.0]
     reports = Health(tmp_path / "health", disk=tmp_path, notify=systemd, clock=lambda: now[0])
@@ -194,7 +230,8 @@ def test_check_the_age(tmp_path, systemd, age, healthy):
         ("not json", "can't be read"),
         ('{"time": "no monotonic"}', "can't be read"),
         ('{"monotonic": "soon"}', "can't be read"),
-        ("[" * 2000, "can't be read: too large"),
+        ("[" * 3000, "can't be read: too large"),
+        ("[1, 2]", "can't be read: not a report"),
     ],
 )
 def test_check_a_missing_or_broken_file(tmp_path, content, message):

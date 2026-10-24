@@ -232,7 +232,7 @@ def test_reset_password(cfg, capsys):
     assert main(["reset-password", "--config", str(cfg)]) == 0
     out = capsys.readouterr().out
     assert "removed the web password" in out and "set a new password" in out
-    assert "reload signal: kill -HUP" in out  # the next step
+    assert "or run paperpi reload" in out  # the next step
     assert cfg.read_text() == before  # only the password line is gone
     assert config.parse(cfg.read_text()).web.password_hash is None
     assert main(["reset-password", "--config", str(cfg)]) == 0

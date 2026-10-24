@@ -14,9 +14,10 @@ The reasons are in ``docs/decisions/errors-and-time-limits.md``. In short:
 - Each report also replaces the health file (default :data:`HEALTH_FILE`). Docker's health
   check runs ``paperpi health``, which reads it with :func:`check`. The file holds one line
   of JSON: the time of the report, the time since the last screen write, the screen state,
-  memory use and open files of the main process, and free disk. It is replaced, never added
-  to, so it can't grow. The file is written first and systemd told after it, so "ready" means the
-  file is there.
+  memory use and open files of the main process, free disk, the process id, and the result
+  of the last reload of the config file (``paperpi reload`` reads these two). It is
+  replaced, never added to, so it can't grow. The file is written first and systemd told
+  after it, so "ready" means the file is there.
 - The same values go to the log at the first report and then every
   :data:`~paperpi.limits.HEALTH_LOG` seconds, so slow growth (memory, open files) can be
   seen over weeks.
@@ -74,6 +75,12 @@ class Report:
     """Files the main PaperPi process has open."""
     free_disk_mb: float | None
     """Free space on the disk that holds PaperPi's files."""
+    pid: int | None = None
+    """The process id of ``paperpi run``, for ``paperpi reload``."""
+    reload: dict | None = None
+    """The last reload of the config file since the start (``None``: none yet):
+    ``number`` (1 for the first), ``time``, and ``errors``, why the file could not be used
+    (an empty list: it was applied)."""
 
 
 #: The values shown to people, in this order.
@@ -81,7 +88,11 @@ DETAILS = ("since_screen", "screen", "memory_mb", "open_files", "free_disk_mb")
 
 
 def measure(
-    since_screen: float | None, disk: Path, now: float | None = None, screen: str | None = None
+    since_screen: float | None,
+    disk: Path,
+    now: float | None = None,
+    screen: str | None = None,
+    reload: dict | None = None,
 ) -> Report:
     """A report about this process at ``now`` (monotonic clock, default: now). A value that
     can't be measured is ``None``."""
@@ -94,6 +105,8 @@ def measure(
         memory_mb=memory_mb(),
         open_files=_open_files(),
         free_disk_mb=free_disk_mb(disk),
+        pid=os.getpid(),
+        reload=reload,
     )
 
 
@@ -129,11 +142,13 @@ class Health:
         self._ready = False
         self._failed: set[str] = set()
         """What failed already; each failure is logged once, not every 30 seconds."""
+        self._reload: dict | None = None
+        """See :attr:`Report.reload`."""
 
     def report(self, since_screen: float | None, screen: str | None = None) -> None:
         """Say "still running". Never raises: a failure is logged once (and again only
         when it comes back after working)."""
-        measured = measure(since_screen, self.disk, self.clock(), screen)
+        measured = measure(since_screen, self.disk, self.clock(), screen, self._reload)
         if self.path is not None:
             self._write(measured)
         if measured.monotonic >= self._next_log:
@@ -143,6 +158,27 @@ class Health:
             # Tried again with every report until it works: systemd waits for it.
             self._ready = self._send("READY")
         self._send("WATCHDOG")
+
+    def reloaded(self, errors: tuple[str, ...]) -> None:
+        """Note the result of a reload for the next report: ``errors`` says why the config
+        could not be used (empty: it was applied). Only the first few, shortened."""
+        number = 1 if self._reload is None else self._reload["number"] + 1
+        kept = []
+        for error in errors[: limits.RELOAD_ERRORS]:
+            # Counted as written: JSON writes "é" as 6 characters.
+            if (
+                len(json.dumps([*kept, error[: limits.RELOAD_ERROR_CHARS]]))
+                > limits.RELOAD_ERROR_BYTES
+            ):
+                break
+            kept.append(error[: limits.RELOAD_ERROR_CHARS])
+        if errors and not kept:
+            kept = ["the config file can't be used (the reason is in the log)"]
+        self._reload = {
+            "number": number,
+            "time": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "errors": kept,
+        }
 
     def _write(self, measured: Report) -> None:
         line = json.dumps(asdict(measured)) + "\n"
@@ -181,6 +217,19 @@ class Health:
             self._failed.add(what)
 
 
+def read(path: Path = HEALTH_FILE) -> dict:
+    """The values of the report in ``path``. Raises ``FileNotFoundError`` when there is
+    none, ``OSError`` when it can't be read and ``ValueError`` when it is broken."""
+    with open(path, "rb") as file:
+        data = file.read(limits.HEALTH_FILE_BYTES + 1)
+    if len(data) > limits.HEALTH_FILE_BYTES:
+        raise ValueError("too large")
+    values = json.loads(data)
+    if not isinstance(values, dict):
+        raise ValueError("not a report")
+    return values
+
+
 def check(path: Path = HEALTH_FILE, *, now: float | None = None) -> tuple[bool, str]:
     """Whether the report in ``path`` is recent, and a line that says why.
 
@@ -189,19 +238,14 @@ def check(path: Path = HEALTH_FILE, *, now: float | None = None) -> tuple[bool, 
     """
     now = time.monotonic() if now is None else now
     try:
-        with open(path, "rb") as file:
-            data = file.read(limits.HEALTH_FILE_BYTES + 1)
+        values = read(path)
+        age = now - float(values["monotonic"])
     except FileNotFoundError:
         return False, f"no health report in {path}: PaperPi is not running, or still starting"
-    except OSError as error:
-        return False, f"can't read the health report: {error}"
-    try:
-        if len(data) > limits.HEALTH_FILE_BYTES:
-            raise ValueError("too large")
-        values = json.loads(data)
-        age = now - float(values["monotonic"])
     except (ValueError, KeyError, TypeError) as error:
         return False, f"the health report in {path} can't be read: {error}"
+    except OSError as error:
+        return False, f"can't read the health report: {error}"
     shown = details(values)
     if not -limits.HEALTH_REPORT <= age <= limits.HEALTH_STALE:
         return False, f"not responding: the last report is {age:.0f} s old ({shown})"

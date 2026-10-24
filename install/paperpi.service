@@ -17,7 +17,9 @@ StartLimitBurst=5
 Type=notify
 WatchdogSec=120
 ExecStart=/opt/paperpi/venv/bin/paperpi run
-ExecReload=/bin/kill -HUP $MAINPID
+# "systemctl reload paperpi" fails when the config file has a mistake (the old settings
+# keep running); "sudo paperpi reload" prints the mistake and what changed.
+ExecReload=/opt/paperpi/venv/bin/paperpi reload
 Restart=on-failure
 RestartSec=10
 # "Restart PaperPi" in the web interface: PaperPi exits with status 75 (it can't run

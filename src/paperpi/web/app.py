@@ -1222,7 +1222,7 @@ def _reload_command() -> tuple[str, bool]:
     """How to apply the config file from the command line, and whether PaperPi runs as a
     service (systemd sets ``INVOCATION_ID`` for the programs it starts)."""
     if os.environ.get("INVOCATION_ID"):
-        return "sudo systemctl reload paperpi", True
+        return "sudo paperpi reload", True
     return f"kill -HUP {os.getpid()}", False
 
 

@@ -38,9 +38,9 @@ Stopping clears the screen first, which can take up to 30 seconds.
 |---|---|
 | see whether it runs | `systemctl status paperpi` |
 | follow the log | `journalctl -u paperpi -f` |
-| apply a change to the config file made by hand | `sudo systemctl reload paperpi` |
+| apply a change to the config file made by hand | `sudo paperpi reload` (prints what changed, or the mistake that stops it; `--check` only checks) |
 | restart / stop / start | `sudo systemctl restart paperpi` (or `stop`, `start`) |
-| forget the web password | `sudo paperpi reset-password`, then `sudo systemctl reload paperpi` |
+| forget the web password | `sudo paperpi reset-password`, then `sudo paperpi reload` |
 | web interface unreachable after a new port or address | `sudo paperpi web-defaults`, then `sudo systemctl restart paperpi` |
 | check the health report | `paperpi health` |
 

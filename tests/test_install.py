@@ -40,7 +40,7 @@ SET = settings(SERVICE.read_text())
         ("StateDirectory", "paperpi"),  # /var/lib/paperpi, the default --state-dir
         ("User", "paperpi"),
         ("Restart", "on-failure"),
-        ("ExecReload", "/bin/kill -HUP $MAINPID"),  # applies config changes
+        ("ExecReload", "/opt/paperpi/venv/bin/paperpi reload"),  # applies config changes
     ],
 )
 def test_service_setting(key, value):

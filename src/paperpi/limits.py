@@ -136,8 +136,21 @@ PLUGIN_LOG_LINES = 100
 #: Longest sending one message to systemd may take.
 SYSTEMD_MESSAGE = 5.0
 
-#: Largest health file ``paperpi health`` reads. A report is under 200 bytes.
-HEALTH_FILE_BYTES = 1_000
+#: Largest health file ``paperpi health`` and ``paperpi reload`` read. A report is under
+#: 400 bytes, a little more after a reload that failed.
+HEALTH_FILE_BYTES = 2_000
+
+#: Most reasons a failed reload puts into the health report, and the most characters of
+#: each, so the report stays small. ``paperpi reload`` finds the mistakes in the file itself.
+RELOAD_ERRORS = 3
+RELOAD_ERROR_CHARS = 200
+#: Most bytes the reasons may take in the health report, as written (JSON writes a
+#: character such as "é" as 6 bytes), so the report stays under :data:`HEALTH_FILE_BYTES`.
+RELOAD_ERROR_BYTES = 1_000
+
+#: How long ``paperpi reload`` waits for PaperPi to say it loaded the config file. PaperPi
+#: does it between two screen writes, and loading may take up to :data:`CONFIG_RELOAD`.
+RELOAD_WAIT = 30.0
 
 #: Longest one screen write may take before its redraw time is measured.
 SCREEN_FIRST = 2 * 60.0
