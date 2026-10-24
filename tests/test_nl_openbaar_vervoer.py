@@ -450,7 +450,9 @@ def test_fetch_needs_a_stop_or_a_route(context, monkeypatch):
 def test_fetch_says_when_trains_need_a_key(context, monkeypatch):
     asked = fake_get(monkeypatch, b"{}")
     board = fetch(context(train_from_1="GVC", train_to_1="UT", train_walk_1=12)).data
-    assert board.sections == (Section("GVC → UT", 12, (), "Trains need an NS key (ns_key)"),)
+    assert board.sections == (
+        Section("GVC → UT", 12, (), "Trains need an NS key (ns_key)", "to UT"),
+    )
     assert asked == []
 
 
@@ -469,6 +471,7 @@ def test_fetch_asks_again_when_the_trips_end_too_soon(context, monkeypatch):
     assert all(headers == {"Ocp-Apim-Subscription-Key": "secret"} for _, headers in asked)
     route = fetched.data.sections[0]
     assert route.title == "Den Haag Centraal → Utrecht Centraal"
+    assert route.short == "to Utrecht Centraal"
     assert [f"{d.planned.astimezone(ZONE):%H:%M}" for d in route.departures] == [
         "08:12",
         "08:27",
@@ -613,3 +616,124 @@ def test_small_sections_leave_out_what_has_left(context):
     settings = {f"stop_{n}": "a" for n in range(1, 5)} | {"train_from_1": "A", "train_to_1": "B"}
     values = draw(board, context(**settings))
     assert values["time_0_0"] == "08:15"
+
+
+# --- The layouts "by_time" and "next" --------------------------------------------------------
+
+
+@pytest.fixture
+def layout_context(tmp_path, monkeypatch):
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW)
+
+    def make(layout, **settings):
+        settings = {"stop_1": "a"} | settings
+        return Context(Settings(**settings), 1200, 825, ScreenMode.gray(16), tmp_path, layout)
+
+    return make
+
+
+def test_every_layout_has_a_title_and_a_footer(monkeypatch):
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW)
+    for name in PLUGIN.layouts:
+        blocks = PLUGIN.layout(name, Settings(stop_1="a")).blocks
+        assert PLUGIN.layout_title(name) != name and {"notice", "footer"} <= set(blocks)
+
+
+def test_by_time_merges_the_stops_soonest_first(layout_context):
+    tram = Section("Tram", 4, (at(-2, left=True), at(6), at(20)))
+    train = Section("A → B", 0, (at(9, line="IC"),), short="to B")
+    values = draw(Board((tram, train), NOW, NOW), layout_context("by_time"))
+    rows = [(values[f"time_{i}"], values[f"line_{i}"], values[f"stop_{i}"]) for i in range(3)]
+    assert rows == [("08:16", "9", "Tram"), ("08:19", "IC", "to B"), ("08:30", "9", "Tram")]
+    assert values["note_0"] == "leave in 2 min" and values["note_1"] == ""
+    assert "time_3" not in values  # the one that left is left out
+
+
+def test_by_time_shows_problems_first_and_fills_twelve_rows(layout_context):
+    full = Section("Tram", 0, tuple(at(m) for m in range(1, 30)))
+    lost = Section("Bus", 0, (), "Stop not found: check its code")
+    values = draw(Board((full, lost), NOW, NOW), layout_context("by_time"))
+    assert (values["stop_0"], values["dest_0"]) == ("Bus", "Stop not found: check its code")
+    assert values["time_1"] == "08:11" and values["time_11"] == "08:21" and "time_12" not in values
+
+
+def test_by_time_without_departures_says_so(layout_context):
+    board = Board((Section("Tram", 0, (at(-1),)),), NOW, NOW)
+    assert draw(board, layout_context("by_time"))["dest_0"] == "No departures in the next 60 min"
+
+
+def test_next_shows_the_first_one_that_can_be_caught_large(layout_context):
+    section = Section(
+        "Tram",
+        4,
+        (at(-1, left=True), at(3), at(6, cancelled=True), at(8, line="12", delay=2), at(15)),
+    )
+    other = Section("Bus", 0, (at(1),))
+    values = draw(Board((section, other), NOW, NOW), layout_context("next"))
+    assert values["head_0"] == "Tram · 4 min walk"
+    assert values["next_dest"] == "12  Vrederust"
+    assert values["next_note"] == "Leave in 6 min"
+    assert values["next_time"] == "08:20 (+2)"
+    assert values["time_0_0"] == "08:25" and "time_0_1" not in values  # only those after it
+
+
+@pytest.mark.parametrize(("minutes", "text"), [(9, "Leaves in 9 min"), (0, "Leaves now")])
+def test_next_without_walking_time_says_when_it_leaves(layout_context, minutes, text):
+    board = Board((Section("Tram", 0, (at(minutes),)),), NOW, NOW)
+    assert draw(board, layout_context("next"))["next_note"] == text
+
+
+@pytest.mark.parametrize(
+    ("section", "text"),
+    [
+        (
+            Section("Tram", 0, (), "Stop not found: check its code"),
+            "Stop not found: check its code",
+        ),
+        (Section("Tram", 0, (at(2, cancelled=True),)), "No departures in the next 60 min"),
+    ],
+)
+def test_next_without_a_departure_says_why(layout_context, section, text):
+    values = draw(Board((section,), NOW, NOW), layout_context("next"))
+    assert values["next_dest"] == text and "next_note" not in values
+
+
+def test_next_with_nothing_today_only_has_the_footer(layout_context):
+    assert draw(Board((), NOW, NOW), layout_context("next")) == {"footer": "Updated 08:10"}
+
+
+def test_by_time_uses_the_title_without_a_short_one_and_shows_only_problems(layout_context):
+    lost = tuple(Section(f"Stop {n}", 0, (), "Stop not found: check its code") for n in range(13))
+    values = draw(Board(lost, NOW, NOW), layout_context("by_time"))
+    assert values["stop_11"] == "Stop 11" and "stop_12" not in values
+    assert all(values[f"dest_{i}"].startswith("Stop not found") for i in range(12))
+
+
+def test_next_uses_only_the_first_section(layout_context):
+    board = Board(
+        (Section("Tram", 0, (), "No saved times yet"), Section("Bus", 0, (at(5),))), NOW, NOW
+    )
+    values = draw(board, layout_context("next"))
+    assert values["next_dest"] == "No saved times yet" and "time_0_0" not in values
+
+
+def test_next_keeps_cancelled_ones_in_the_small_rows(layout_context):
+    board = Board((Section("Tram", 0, (at(2), at(5, cancelled=True), at(9))),), NOW, NOW)
+    values = draw(board, layout_context("next"))
+    assert values["note_0_0"] == "cancelled" and values["time_0_1"] == "08:19"
+
+
+def test_next_fetches_only_the_first_stop_or_route(tmp_path, monkeypatch):
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW)
+    asked = fake_get(monkeypatch, json.dumps({"31001118": PERRON_A}).encode())
+    settings = Settings(**TRAINS | {"stop_1": "31001118", "stop_2": "31001039"})
+    board = fetch(Context(settings, 1200, 825, ScreenMode.gray(16), tmp_path, "next")).data
+    assert [s.title for s in board.sections] == ["Rotterdam Centraal perron A"]
+    assert len(asked) == 1 and asked[0].endswith("/tpc/31001118")
+
+
+def test_next_with_only_trains_fetches_the_first_route(tmp_path, monkeypatch):
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW)
+    settings = Settings(**TRAINS | {"ns_key": "", "train_from_2": "UT", "train_to_2": "ASD"})
+    board = fetch(Context(settings, 1200, 825, ScreenMode.gray(16), tmp_path, "next")).data
+    assert [s.short for s in board.sections] == ["to UT"]  # no key: not asked

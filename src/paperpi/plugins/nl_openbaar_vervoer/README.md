@@ -7,6 +7,10 @@ When the next buses, trams and trains leave in the Netherlands, from up to four 
 | Layout | Shows |
 |---|---|
 | `sections` (default) | a heading per stop or train route (with the walking time when set), then its next departures; disruptions and planned works on the train routes on the bottom line |
+| `by_time` | the departures of all stops and routes in one list, the soonest first, with the stop's heading on each row (`to Den Haag Centraal` for a train route). Departures that already left are left out; cancelled ones and ones you can't reach any more (`too late`) stay in. A stop or route with a problem (for example `Stop not found`) comes first |
+| `next` | only the first stop or route shown today. The next departure you can still catch is shown large: the line and where it goes, `Leave in 3 min` (or `Leaves in 9 min` without a walking time) and its time; the 4 after it are small rows below. Only this stop or route is fetched, and only its disruptions show (and count for `alert_on_disruption`). For more stops in this layout, add one plugin entry per stop |
+
+Choose one with `layout = "by_time"` in the plugin's entry (or on its settings page).
 
 Each stop gets a heading, then one row per departure: the expected time, the delay in minutes (`+3`), the line, where it goes, and a note. For a train the row shows the type (`IC`, `SPR`), the platform and the arrival time (`spoor 7 → 09:47`), or `spoor 2 (was 7)` when the platform changed. The notes:
 
@@ -38,7 +42,7 @@ Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (
 | `alert_on_disruption` | `false` | While NS reports a disruption on a train route shown today, show the plugin as an alert (before the other plugins). Planned works don't count |
 | `ahead` | `60` | Minutes ahead to show departures for (10 to 80) |
 
-The plugin needs at least one stop or one train route. The stops and routes shown today share the screen, stops first: one gets 11 rows, two get 5 each, three get 3, four get 2, five or six get 1. With 1 or 2 rows, departures that already left are left out. On a day when none is shown, the plugin has nothing to show and the other plugins take its turn.
+The plugin needs at least one stop or one train route. In the `sections` layout, the stops and routes shown today share the screen, stops first: one gets 11 rows, two get 5 each, three get 3, four get 2, five or six get 1. With 1 or 2 rows, departures that already left are left out. On a day when none is shown, the plugin has nothing to show and the other plugins take its turn.
 
 ```toml
 [[plugin]]
@@ -102,3 +106,4 @@ The sample data is made up: the two tram platforms at Rotterdam Centraal on a Sa
 | 9.7" | 7.5" |
 |---|---|
 | ![stops and train](../../../../tests/images/nl_openbaar_vervoer-sections-stops-and-train-9in7.png) | ![two stops 7.5](../../../../tests/images/nl_openbaar_vervoer-sections-two-stops-7in5.png) |
+| ![by time](../../../../tests/images/nl_openbaar_vervoer-by_time-stops-and-train-9in7.png) | ![next 7.5](../../../../tests/images/nl_openbaar_vervoer-next-7in5.png) |
