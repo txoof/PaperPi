@@ -141,6 +141,16 @@ class UnknownScreenForm(EditError):
         )
 
 
+class UnknownWebForm(EditError):
+    """``[web]`` is written in a way these functions can't change safely."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "The web settings in the config file are written in a way the web interface "
+            "can't change safely. Make this change in the config file itself."
+        )
+
+
 @dataclass(frozen=True)
 class Block:
     """Where one ``[[plugin]]`` block is in the file (line numbers count from 0)."""
@@ -342,21 +352,40 @@ def set_display(
     """``text`` with settings in ``[display]`` changed, as :func:`set_settings` does for a
     plugin block. Raises :class:`UnknownScreenForm` when the file has no ``[display]`` line
     of its own, or the change can't be checked."""
+    return _set_part(text, "display", values, defaults, UnknownScreenForm)
+
+
+def set_web(text: str, values: Mapping[str, Any], defaults: Mapping[str, Any] | None = None) -> str:
+    """``text`` with settings in ``[web]`` changed, as :func:`set_display` does. A file
+    without ``[web]`` gets one at its end. Raises :class:`UnknownWebForm` when ``[web]``
+    is written in a way that can't be changed safely."""
+    if "web" not in load(text):
+        if all(value is None for value in values.values()):
+            return text  # nothing to take out
+        text += ("\n" if text and not text.endswith("\n") else "") + "\n[web]\n"
+    return _set_part(text, "web", values, defaults, UnknownWebForm)
+
+
+def _set_part(
+    text: str,
+    part: str,
+    values: Mapping[str, Any],
+    defaults: Mapping[str, Any] | None,
+    unknown: type[EditError],
+) -> str:
     data = load(text)
     scan = _scan(text)
-    at = [n for n, (_, name) in enumerate(scan.headers) if name == "display"]
-    if len(at) != 1 or not isinstance(data.get("display"), dict):
-        raise UnknownScreenForm()
+    at = [n for n, (_, name) in enumerate(scan.headers) if name == part]
+    if len(at) != 1 or not isinstance(data.get(part), dict):
+        raise unknown()
     header = scan.headers[at[0]][0]
     later = scan.headers[at[0] + 1 :]
     own_end = later[0][0] if later else len(scan.lines)
-    new, display = _with_values(
-        scan, header, own_end, data["display"], values, defaults or {}, UnknownScreenForm
-    )
+    new, settings = _with_values(scan, header, own_end, data[part], values, defaults or {}, unknown)
     try:
-        return _checked(new, data | {"display": display})
+        return _checked(new, data | {part: settings})
     except UnknownForm:
-        raise UnknownScreenForm() from None
+        raise unknown() from None
 
 
 def _with_values(

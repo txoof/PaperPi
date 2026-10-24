@@ -34,8 +34,10 @@ Address            What it does
 ``/warnings``      what needs attention now (``/warnings/reload`` loads the config file
                    again), and the recent warnings and errors; ``/log`` is the Full log
                    (``/log/new`` the lines after a number, ``/log/download`` all of them)
-``/system``        Screen & system: the screen in use, the ``[display]`` settings that
-                   apply at once (a POST to ``/system`` saves them all) and facts
+``/system``        Screen & system: the screen in use, the ``[display]`` and ``[web]``
+                   settings (a POST to ``/system`` saves them all; ``/system/port``
+                   checks a new port while it is typed, ``/system/web/undo`` keeps the
+                   address in use, ``/system/password`` changes the password) and facts
                    about this Pi (``/system/pi``, asked for again while the page is open);
                    ``/system/screen`` Change screen… (used from the next start;
                    ``/system/screen/undo`` and ``/system/screen/back`` put back the
@@ -75,7 +77,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
-from .. import __version__, limits
+from .. import __version__, config, limits
 from ..config import ConfigError, folder_name, read_text
 from ..logbook import Logbook
 from ..plugins import readme as readme_text
@@ -117,6 +119,7 @@ def create_app(
     controls: Controls | None = None,
     logbook: Logbook | None = None,
     state_dir: Path | None = None,
+    web: config.WebSettings | None = None,
 ) -> FastAPI:
     """The web interface, using ``auth`` for the password and log-in, ``editor`` to
     change the plugins in the config file, ``previewer`` to draw previews, ``pictures``
@@ -124,7 +127,8 @@ def create_app(
     settings helpers' searches, ``controls`` (the scheduler) for what is on screen
     (without it, the home page shows only the config file) and ``logbook`` for the Full
     log (without it, the page says the log is not kept). ``state_dir`` is PaperPi's state
-    folder, whose disk's free space the Screen & system page shows."""
+    folder, whose disk's free space the Screen & system page shows. ``web``: the ``[web]``
+    settings the web interface started with (its address and port)."""
     editor = editor or PluginEditor(auth.config_file)
     previewer = previewer or Previewer()
     pictures = pictures or Pictures(None)
@@ -147,8 +151,8 @@ def create_app(
     def page(request: Request, template: str, status: int = 200, **values) -> HTMLResponse:
         return templates.TemplateResponse(request, template, values, status_code=status)
 
-    def logged_in(request: Request, stored: str) -> RedirectResponse:
-        response = RedirectResponse("/", status_code=303)
+    def logged_in(request: Request, stored: str, then: str = "/") -> RedirectResponse:
+        response = RedirectResponse(then, status_code=303)
         response.set_cookie(
             COOKIE,
             new_cookie(stored),
@@ -858,6 +862,7 @@ def create_app(
         shown = summary()
         screen_state = shown.screen if shown is not None else None
         new_screen = system.waiting(file_display, editor.display)
+        new_web = system.web_waiting(system.file_web(text), web) if text is not None else None
         before = system.previous(state_dir)
         if before is not None and editor.display is not None and not new_screen:
             if before == system.screen_of(editor.display):
@@ -885,6 +890,11 @@ def create_app(
             go_back=before if screen_state in ("failing", "paused") and not new_screen else None,
             describe=system.describe,
             can_restart=can_restart(),
+            web_now=system.web_address(request.url.hostname or "", web) if web else None,
+            new_web=system.web_address(request.url.hostname or "", new_web) if new_web else None,
+            new_web_here=new_web is not None and system.only_here(new_web),
+            addresses=system.ADDRESSES,
+            change_password=auth.login and auth.password_hash is not None,
         )
 
     def can_restart() -> bool:
@@ -893,7 +903,15 @@ def create_app(
 
     def restarting(request: Request) -> Response:
         controls.restart()
-        return page(request, "restarting.html")
+        try:
+            new_web = system.web_waiting(system.file_web(read_config(editor.path)[1]), web)
+        except EditError:
+            new_web = None
+        moved = None
+        if new_web is not None:
+            moved = system.web_address(request.url.hostname or "", new_web)
+        here = new_web is not None and system.only_here(new_web)
+        return page(request, "restarting.html", moved=moved, here=here)
 
     def used_screen() -> dict | None:
         return system.screen_of(editor.display) if editor.display is not None else None
@@ -936,20 +954,97 @@ def create_app(
     async def save_system(request: Request):
         form = await request.form()
         sent = {k: [str(v) for v in form.getlist(k)] for k in form if k != "next"}
+        login = file_login()
         try:
             hand_edits = await run_in_threadpool(
-                editor.change, lambda text: system.with_values(text, sent)
+                editor.change, lambda text: system.with_values(text, sent, web)
             )
         except system.SectionErrors as error:
             return system_page(request, 400, str(error), error)
         except EditError as error:
             return system_page(request, 409, str(error))
+        use_login(login)
         # "Save and apply, then go" in the leave-this-page window: only PaperPi's own pages.
         then = str(form.get("next", ""))
         if then.startswith("/") and not then.startswith(("//", "/\\")):
             return RedirectResponse(then, status_code=303)
         query = urlencode({"done": "saved"} | ({"hand": "1"} if hand_edits else {}))
         return RedirectResponse(f"/system?{query}", status_code=303)
+
+    def file_web() -> config.WebSettings | None:
+        try:
+            return system.file_web(read_config(editor.path)[1])
+        except EditError:
+            return None
+
+    def file_login() -> bool | None:
+        found = file_web()
+        return found.login if found is not None else None
+
+    def use_login(before: bool | None) -> None:
+        """A log-in switched on or off applies at once, before the config file is loaded
+        again: the next page is shown with it (switched on: "Set a password")."""
+        found = file_web()
+        if found is not None and before is not None and found.login != before:
+            auth.use(found)
+
+    @app.get("/system/port", response_class=HTMLResponse)
+    def check_port(request: Request, port: str = "", address: str = ""):
+        """The port check under the Port field, while typing (htmx)."""
+        try:
+            saved = system.web_values(read_config(editor.path)[1])
+        except EditError:
+            return HTMLResponse("")
+        try:
+            number = int(port.strip())
+        except ValueError:
+            number = 0
+        address = address if address in system.ADDRESSES else str(saved["address"])
+        if number == saved["port"] and address == saved["address"]:
+            return HTMLResponse("")
+        if not 0 < number <= 65535:
+            problem = "Choose a whole number from 1 to 65535."
+        else:
+            problem = system.port_problem(address, number, web)
+        return page(request, "_port.html", port=number, problem=problem)
+
+    @app.post("/system/web/undo", response_class=HTMLResponse)
+    def undo_web(request: Request):
+        if web is None:
+            return system_done("")
+        try:
+            editor.change(lambda text: system.set_web_address(text, web))
+        except EditError as error:
+            return system_page(request, 409, str(error))
+        return system_done("web-undone")
+
+    def password_page(request: Request, status: int = 200, problem: str | None = None):
+        if not auth.login or auth.password_hash is None:
+            return RedirectResponse("/system#web", status_code=303)
+        return page(request, "password.html", status, problem=problem)
+
+    @app.get("/system/password", response_class=HTMLResponse)
+    def change_password_page(request: Request):
+        return password_page(request)
+
+    @app.post("/system/password", response_class=HTMLResponse)
+    async def change_password(request: Request):
+        if not auth.login or auth.password_hash is None:
+            return RedirectResponse("/system#web", status_code=303)
+        form = await request.form()
+        password, again = str(form.get("password", "")), str(form.get("again", ""))
+        problem = password_problem(password, again)
+        if problem is None:
+            try:
+                stored = await run_in_threadpool(
+                    auth.change_password, str(form.get("current", "")), password
+                )
+            except PasswordError as error:
+                problem = str(error)
+            else:
+                # This browser stays logged in; the others need the new password.
+                return logged_in(request, stored, "/system?done=password")
+        return password_page(request, 400, problem)
 
     @app.get("/system/screen", response_class=HTMLResponse)
     def change_screen_page(request: Request):
@@ -1041,6 +1136,8 @@ _SYSTEM_DONE = {
     "saved": "Saved. PaperPi applies the changes now.",
     "undone": "The new screen is undone: the config file names the screen in use again.",
     "back": "The previous screen is saved again. Restart PaperPi to use it.",
+    "web-undone": "Undone: the web interface stays at its current address.",
+    "password": "Password changed. Other phones and computers need to log in again.",
 }
 
 

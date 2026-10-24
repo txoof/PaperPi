@@ -512,6 +512,11 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 .sec .field.changed { background: var(--warn-bg); box-shadow: inset 3px 0 0 var(--warn);
   margin-inline: -0.5rem; padding-inline: 0.5rem; border-radius: 4px; }
 .not-saved { font-size: 0.8rem; font-weight: 600; color: var(--warn); }
+/* Web interface: when each setting applies, and the port check while typing. */
+.sec .ctl > .when { justify-self: start; }
+.sec input[name="port"] { justify-self: start; width: 7rem; }
+.port-ok { margin: 0; font-size: 0.9rem; color: var(--ok); }
+#port-check:empty { display: none; }
 .save-bar { display: flex; gap: 0.5rem 0.75rem; align-items: center; flex-wrap: wrap;
   margin: 0.9rem 0; }
 .save-bar p { margin: 0; flex: 1; min-width: 12rem; }

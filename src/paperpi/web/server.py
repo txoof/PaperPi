@@ -68,6 +68,7 @@ class WebServer:
                     controls,
                     logbook,
                     state_dir,
+                    settings,
                 ),
                 log_config=None,  # PaperPi's own logging stays as it is
                 log_level="warning",
@@ -149,7 +150,7 @@ def start(
     the log lines for the Full log page.
     """
     try:
-        sock = _listen(settings.address, settings.port)
+        sock = listen(settings.address, settings.port)
     except OSError as error:
         log.error(
             "the web interface can't start on %s port %s: %s",
@@ -170,7 +171,7 @@ def start(
     return server
 
 
-def _listen(address: str, port: int) -> socket.socket:
+def listen(address: str, port: int) -> socket.socket:
     family = socket.AF_INET6 if ":" in address else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_STREAM)
     try:

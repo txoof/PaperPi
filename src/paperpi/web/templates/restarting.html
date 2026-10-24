@@ -3,12 +3,26 @@
 {% set page = "system" %}
 {% block title %}Restarting · PaperPi{% endblock %}
 {#- Without JavaScript the browser opens Screen & system again after 30 seconds; system.js
-    opens it as soon as the restarted PaperPi answers. -#}
-{% block head %}<noscript><meta http-equiv="refresh" content="30;url=/system"></noscript>
-<script src="/static/system.js" defer></script>{% endblock %}
+    opens it as soon as the restarted PaperPi answers. At a new address the page can't ask
+    whether PaperPi is back (the browser only lets it ask its own address), so it opens the
+    new address after 30 seconds. -#}
+{% block head %}
+{% if moved and not here %}<meta http-equiv="refresh" content="30;url={{ moved }}/system">
+{% elif not moved %}<noscript><meta http-equiv="refresh" content="30;url=/system"></noscript>
+<script src="/static/system.js" defer></script>{% endif %}
+{% endblock %}
 {% block main %}
 <h1>Restarting PaperPi…</h1>
+{% if moved and here %}
+<p class="lead" role="status">PaperPi stops and starts again. From now on the web interface can
+  only be opened on the Pi itself, at <code>{{ moved }}</code>. The screen keeps its picture.</p>
+{% elif moved %}
+<p class="lead" role="status">PaperPi stops and starts again, with the web interface at its new
+  address: <a href="{{ moved }}/system">{{ moved }}</a>. This page opens it in 30 seconds. The
+  screen keeps its picture.</p>
+{% else %}
 <p class="lead" id="restarting" role="status">PaperPi stops and starts again. The web interface
   is gone for about 20 seconds, then <a href="/system">Screen &amp; system</a> opens again by
   itself. The screen keeps its picture.</p>
+{% endif %}
 {% endblock %}

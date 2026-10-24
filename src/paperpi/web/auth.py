@@ -96,6 +96,24 @@ class Auth:
             self._settings = self._settings.model_copy(update={"password_hash": stored})
         return stored
 
+    def change_password(self, current: str, password: str) -> str:
+        """Save ``password`` in place of the password ``current`` and return its hash.
+        Raises :class:`PasswordError` when ``current`` is wrong or no password is set."""
+        stored = self.password_hash
+        if stored is None:
+            raise PasswordError("No password is set.")
+        if not self.check(current, stored):
+            raise PasswordError("That is not the current password.")
+        with self._lock:
+            if self._settings.password_hash != stored:  # changed by someone else meanwhile
+                raise PasswordError("The password changed meanwhile. Log in again.")
+            with self._checking:
+                new = hash_password(password)
+            save_password_hash(self.config_file, new)
+            self._saved = new
+            self._settings = self._settings.model_copy(update={"password_hash": new})
+        return new
+
     def cookie_ok(self, cookie: str | None) -> bool:
         return cookie_ok(cookie, self.password_hash)
 

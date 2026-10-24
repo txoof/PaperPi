@@ -61,6 +61,9 @@
         }
       });
       var n = list.length;
+      // A port PaperPi can't use (found while typing) can't be saved.
+      var badPort = !!document.querySelector("#port-check .problem");
+      form.querySelector('.save-bar [type="submit"]').disabled = badPort;
       bar.classList.toggle("waiting", n > 0);
       undo.hidden = n === 0;
       count.firstChild.textContent = n + (n === 1 ? " change" : " changes") + " not saved yet";
@@ -68,6 +71,8 @@
     }
 
     function putBack() {
+      var check = document.getElementById("port-check");
+      if (check) check.innerHTML = "";  // the check of a port that is put back
       Object.keys(saved).forEach(function (name) {
         inputs(name).forEach(function (el) {
           if (el.type === "hidden") return;
@@ -82,6 +87,7 @@
     form.addEventListener("input", show);
     form.addEventListener("change", show);
     form.addEventListener("submit", function () { sending = true; });
+    document.body.addEventListener("htmx:afterSettle", show);
     undo.addEventListener("click", putBack);
 
     // Closing the tab or typing another address: the browser asks with its own words.

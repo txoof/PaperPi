@@ -1,0 +1,3 @@
+{#- The port check under the Port field on Screen & system (htmx). -#}
+{% if problem %}<p class="problem">{{ problem|sentence }}.</p>
+{% else %}<p class="port-ok">✓ Port {{ port }} is free on this Pi right now.</p>{% endif %}
