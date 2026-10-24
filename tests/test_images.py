@@ -38,7 +38,15 @@ VARIANTS = {
     },
     "xkcd_comic": {"own-size": {"enlarge": False}},
     "moon_phase": {"rio": {"lat": -22.91, "lon": -43.17}},  # south: the photo turned
-    "nl_openbaar_vervoer": {"two-stops": {"stop_1": "31001118", "stop_2": "31001039"}},
+    "nl_openbaar_vervoer": {
+        "two-stops": {"stop_1": "31001118", "stop_2": "31001039"},
+        "stops-and-train": {
+            "stop_1": "31001118",
+            "stop_2": "31001039",
+            "train_from_1": "RTD",
+            "train_to_1": "GVC",
+        },
+    },
 }
 # More screens for layouts made for a special shape, per plugin and layout.
 LAYOUT_SCREENS = {

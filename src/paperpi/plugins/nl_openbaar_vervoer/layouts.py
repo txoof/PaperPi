@@ -14,9 +14,10 @@ TEXT = 0.045
 #: Heading and departure lines on the screen, shared by the stops.
 LINES = 12
 STOPS = 4
+ROUTES = 2
 
 
-def _text(name, sample, size, align="left", font=None) -> dict:
+def _text(name, sample, size, align="left", font=None, **more) -> dict:
     block = {
         "name": name,
         "type": "text",
@@ -28,7 +29,7 @@ def _text(name, sample, size, align="left", font=None) -> dict:
     }
     if font:
         block["font"] = font
-    return block
+    return block | more
 
 
 def rows_per_stop(stops: int) -> int:
@@ -52,9 +53,10 @@ def _row(s: int, i: int) -> dict:
 def sections(settings) -> dict:
     """One section per stop shown today (at least one). The layout is made again at each
     update, so it follows the days."""
-    from . import _now, today_stops  # here: the plugin's module imports this one
+    from . import _now, today_routes, today_stops  # here: the plugin's module imports this one
 
-    count = max(1, len(today_stops(settings, _now())))
+    now = _now()
+    count = max(1, len(today_stops(settings, now)) + len(today_routes(settings, now)))
     rows = rows_per_stop(count)
     column = []
     for s in range(count):
@@ -63,7 +65,23 @@ def sections(settings) -> dict:
         )
         column += [_row(s, i) for i in range(rows)]
     column.append({"name": "line", "type": "shape", "shape": "hline", "pixels": 2})
-    column.append(_text("footer", "Not updated since 88:88", 0.8, align="right"))
+    column.append(
+        {
+            "row": [
+                # Long notices are made smaller to fit.
+                _text(
+                    "notice",
+                    "Disruption: Rotterdam - Den Haag",
+                    4,
+                    font=fonts.LATO_BOLD,
+                    shrink=True,
+                ),
+                _text("footer", "Not updated since 88:88", 1.6, align="right"),
+            ],
+            "gap": 0,
+            "size": 0.8,
+        }
+    )
     return {"column": column, "gap": 0}
 
 

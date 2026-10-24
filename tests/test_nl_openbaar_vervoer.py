@@ -20,10 +20,13 @@ from paperpi.plugins.nl_openbaar_vervoer import (
     Board,
     Section,
     Settings,
+    SettingsMissing,
     draw,
     fetch,
     lines_of,
     note,
+    ns,
+    today_routes,
     today_stops,
 )
 from paperpi.plugins.nl_openbaar_vervoer.departures import (
@@ -328,3 +331,188 @@ def test_layout_leaves_out_stops_not_shown_today(monkeypatch):
     settings = Settings(stop_1="a", days_1=("mon",), stop_2="b")
     blocks = PLUGIN.layout("sections", settings).blocks
     assert "head_1" not in blocks and sum(1 for n in blocks if n.startswith("dest_0_")) == 11
+
+
+# --- NS trains -------------------------------------------------------------------------------
+
+
+def trip(planned, actual=None, track="7", new_track=None, arrival="09:17", transfers=0, **more):
+    """One trip as the NS journey planner sends it (the fields the plugin reads, copied from a
+    real answer for Den Haag Centraal → Utrecht Centraal, 24 October 2026)."""
+    day = "2026-10-24T"
+    start = {"name": "Den Haag Centraal", "plannedDateTime": f"{day}{planned}:00+0200"}
+    start["plannedTrack"] = track
+    if actual:
+        start["actualDateTime"] = f"{day}{actual}:00+0200"
+    if new_track:
+        start["actualTrack"] = new_track
+    end = {"name": "Utrecht Centraal", "plannedDateTime": f"{day}{arrival}:00+0200"}
+    legs = [{"origin": start, "destination": end, "product": {"shortCategoryName": "IC"}}]
+    legs += [{"origin": {}, "destination": end, "product": {}} for _ in range(transfers)]
+    if transfers:
+        legs[0]["destination"] = {"name": "Leiden Centraal"}
+    return {"status": "NORMAL", "transfers": transfers, "legs": legs} | more
+
+
+def trips(*items) -> dict:
+    return {"source": "HARP", "trips": list(items)}
+
+
+def disruption(title, kind, *stations, active=True) -> dict:
+    section = {"stations": [{"stationCode": code} for code in stations]}
+    return {
+        "title": title,
+        "type": kind,
+        "isActive": active,
+        "publicationSections": [{"section": section}],
+    }
+
+
+def test_read_trips_keeps_direct_trains_and_marks_platform_changes():
+    answer = trips(
+        trip("08:40", "08:42", track="7", new_track="2"),
+        trip("08:58", transfers=1),
+        trip("08:55", arrival="09:32", track="8"),
+        trip("09:10", status="CANCELLED"),
+    )
+    route = ns.read_trips(answer, "GVC", "UT", changes=False)
+    assert (route.code, route.name) == ("GVC-UT", "Den Haag Centraal → Utrecht Centraal")
+    assert [d.destination for d in route.departures] == [
+        "spoor 2 (was 7)",
+        "spoor 8 → 09:32",
+        "spoor 7 → 09:17",
+    ]
+    assert route.departures[0].delay == 2 and route.departures[0].line == "IC"
+    assert route.departures[2].cancelled
+    with_changes = ns.read_trips(answer, "GVC", "UT", changes=True)
+    assert with_changes.departures[2].destination == "spoor 7 · 1 change"
+
+
+def test_read_trips_refuses_an_answer_it_cant_read():
+    with pytest.raises(AnswerError):
+        ns.read_trips({"trips": [{"legs": []}]}, "GVC", "UT", changes=False)
+
+
+def test_read_disruptions_keeps_the_ones_on_the_route():
+    answer = [
+        disruption("Utrecht - Leiden.", "MAINTENANCE", "UT", "LEDN", "GVC"),
+        disruption("Amsterdam - Köln.", "DISRUPTION", "ASD", "UT", "KOLN"),
+        disruption("Den Haag - Utrecht", "DISRUPTION", "GVC", "UT", active=False),
+    ]
+    assert ns.read_disruptions(answer, "GVC", "UT") == (
+        ns.Notice("Utrecht - Leiden", "MAINTENANCE"),
+    )
+    with pytest.raises(AnswerError):
+        ns.read_disruptions({}, "GVC", "UT")
+
+
+def test_station_codes_are_letters_in_capitals():
+    assert Settings(train_from_1="gvc").train_from_1 == "GVC"
+    with pytest.raises(ValidationError):
+        Settings(train_from_1="GV/C")
+
+
+def test_today_routes_needs_both_stations_and_keeps_the_days():
+    settings = Settings(
+        train_from_1="GVC", train_to_1="UT", train_days_1=("mon",), train_from_2="UT"
+    )
+    assert today_routes(settings, NOW) == []
+    assert today_routes(settings, NOW + timedelta(days=2)) == [1]  # Monday
+
+
+def fake_ns(monkeypatch, answers: dict) -> list:
+    """Answers by part of the address: "trips" (one answer, or a list of one per request),
+    "disruptions" and "tpc"."""
+    asked = []
+
+    def get(url, headers=None, **options):
+        asked.append((url, dict(headers or {})))
+        for key, body in answers.items():
+            if f"/{key}" in url:
+                body = body.pop(0) if key == "trips" and isinstance(body, list) else body
+                return webrequest.Answer(200, json.dumps(body).encode(), {}, url)
+        raise AssertionError(url)
+
+    monkeypatch.setattr(webrequest, "get", get)
+    return asked
+
+
+TRAINS = {"stop_1": "", "train_from_1": "GVC", "train_to_1": "UT", "ns_key": "secret"}
+
+
+def test_fetch_needs_a_stop_or_a_route(context, monkeypatch):
+    fake_get(monkeypatch, b"{}")
+    with pytest.raises(SettingsMissing):
+        fetch(context(train_from_1="GVC"))
+
+
+def test_fetch_says_when_trains_need_a_key(context, monkeypatch):
+    asked = fake_get(monkeypatch, b"{}")
+    board = fetch(context(train_from_1="GVC", train_to_1="UT", train_walk_1=12)).data
+    assert board.sections == (Section("GVC → UT", 12, (), "Trains need an NS key (ns_key)"),)
+    assert asked == []
+
+
+def test_fetch_asks_again_when_the_trips_end_too_soon(context, monkeypatch):
+    answers = {
+        "trips": [trips(trip("08:12"), trip("08:27")), trips(trip("08:27"), trip("08:42"))],
+        "disruptions": [disruption("Works", "MAINTENANCE", "GVC", "UT")],
+    }
+    asked = fake_ns(monkeypatch, answers)
+    fetched = fetch(context(**TRAINS))
+    assert fetched.state is State.READY
+    urls = [url for url, _ in asked]
+    assert "fromStation=GVC&toStation=UT&dateTime=2026-10-24T08%3A05%3A00%2B02%3A00" in urls[0]
+    assert "dateTime=2026-10-24T08%3A28%3A00" in urls[1]  # after the last one
+    assert urls[2].endswith("/v3/disruptions/station/GVC")
+    assert all(headers == {"Ocp-Apim-Subscription-Key": "secret"} for _, headers in asked)
+    route = fetched.data.sections[0]
+    assert route.title == "Den Haag Centraal → Utrecht Centraal"
+    assert [f"{d.planned.astimezone(ZONE):%H:%M}" for d in route.departures] == [
+        "08:12",
+        "08:27",
+        "08:42",
+    ]
+    assert fetched.data.notices == (ns.Notice("Works", "MAINTENANCE"),)
+
+
+def test_a_disruption_makes_an_alert_only_when_asked(context, monkeypatch):
+    def answers():
+        return {
+            "trips": trips(*(trip(f"0{h}:10") for h in range(8, 10))),
+            "disruptions": [disruption("Signal fault", "DISRUPTION", "UT", "GVC")],
+        }
+
+    fake_ns(monkeypatch, answers())
+    assert fetch(context(**TRAINS)).state is State.READY
+    for saved in context().storage.iterdir():
+        saved.unlink()
+    fake_ns(monkeypatch, answers())
+    assert fetch(context(**TRAINS, alert_on_disruption=True)).state is State.ALERT
+
+
+def test_disruptions_are_asked_at_most_every_10_minutes(context, monkeypatch):
+    answers = {"trips": trips(trip("09:30")), "disruptions": []}
+    asked = fake_ns(monkeypatch, answers)
+    fetch(context(**TRAINS))
+    monkeypatch.setattr(plugin_module, "_now", lambda: NOW + timedelta(minutes=9))
+    fetch(context(**TRAINS))
+    assert sum("disruptions" in url for url, _ in asked) == 1
+
+
+def test_a_refused_key_doesnt_hide_the_trams(context, monkeypatch):
+    def get(url, **options):
+        if "ovapi" in url:
+            return webrequest.Answer(200, json.dumps({"31001118": PERRON_A}).encode(), {}, url)
+        raise webrequest.WebError("gateway.apiportal.ns.nl answered 401 Unauthorized")
+
+    monkeypatch.setattr(webrequest, "get", get)
+    board = fetch(context(**TRAINS | {"stop_1": "31001118"})).data
+    assert board.sections[0].departures
+    assert board.sections[1].problem == "NS key not accepted"
+
+
+def test_draw_shows_the_notices(context):
+    notices = (ns.Notice("Signal fault", "DISRUPTION"), ns.Notice("Works", "MAINTENANCE"))
+    board = Board((Section("A", 0, (at(5),)),), NOW, NOW, notices)
+    assert draw(board, context(stop_1="a"))["notice"] == "Disruption: Signal fault; Works: Works"

@@ -1,9 +1,10 @@
 """nl_openbaar_vervoer: when the next buses and trams leave from up to four stops in the
-Netherlands, and when to leave the house to catch them.
+Netherlands, and the next trains on up to two routes, with when to leave the house.
 
-The departures come from OVapi (``v0.ovapi.nl``), a free service run by volunteers, with
-the live times of all Dutch buses and trams. It asks for no key, but at most one request a
-minute. Each stop is a "timing point": one side of the street, so one direction.
+Bus and tram departures come from OVapi (``v0.ovapi.nl``), a free service run by
+volunteers, with the live times of all Dutch buses and trams. It asks for no key, but at
+most one request a minute. Each stop is a "timing point": one side of the street, so one
+direction. Trains come from the NS API, which needs a free key (see :mod:`.ns`).
 """
 
 from __future__ import annotations
@@ -14,14 +15,15 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 
 from ... import webrequest
 from ...files import write_atomic
-from ...plugin import NOTHING, Context, Plugin, PluginSettings, ready, setting
-from . import departures
+from ...plugin import NOTHING, Context, Plugin, PluginSettings, alert, ready
+from . import departures, ns
 from .departures import ZONE, AnswerError, Departure, Saved
-from .layouts import LAYOUTS, STOPS
+from .layouts import LAYOUTS, ROUTES, STOPS
+from .ns import Notice
 
 log = logging.getLogger(__name__)
 
@@ -32,18 +34,27 @@ OLDEST = timedelta(minutes=30)
 #: OVapi asks for at most one request a minute: a quicker update uses the saved departures.
 QUICKEST = timedelta(minutes=1)
 SAVED = "departures.json"
+DISRUPTIONS = "disruptions.json"
 
 Day = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAYS: tuple[Day, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 #: A stop code: OVapi's TimingPointCode, e.g. 31001118.
 CODE = r"^[A-Za-z0-9]*$"
+#: An NS station code, e.g. GVC (Den Haag Centraal) or UT (Utrecht Centraal).
+STATION = r"^[A-Za-z]*$"
+
+
+class SettingsMissing(ValueError):
+    pass
 
 
 def _stop(n: int):
-    text = f"Code of stop {n}: one side of the street, e.g. 31001118"
-    if n == 1:
-        return setting("", required=True, pattern=CODE, max_length=20, description=text)
-    return Field("", pattern=CODE, max_length=20, description=text + " (or leave empty)")
+    return Field(
+        "",
+        pattern=CODE,
+        max_length=20,
+        description=f"Code of stop {n}: one side of the street, e.g. 31001118 (or leave empty)",
+    )
 
 
 def _name(n: int):
@@ -67,8 +78,35 @@ def _walk(n: int):
     )
 
 
-def _days(n: int):
-    return Field(DAYS, description=f"Days on which stop {n} is shown")
+def _days(n: int, what: str = "stop"):
+    return Field(DAYS, description=f"Days on which {what} {n} is shown")
+
+
+def _station(n: int, end: str):
+    return Field(
+        "",
+        pattern=STATION,
+        max_length=8,
+        description=f"NS code of the station train route {n} goes {end}, e.g. "
+        + ("GVC (Den Haag Centraal)" if end == "from" else "UT (Utrecht Centraal)")
+        + " (or leave empty)",
+    )
+
+
+def _train_walk(n: int):
+    return Field(
+        0,
+        ge=0,
+        le=90,
+        description=f"Minutes to walk or cycle to the station of train route {n} (0: off)",
+    )
+
+
+def _changes(n: int):
+    return Field(
+        False,
+        description=f"Train route {n}: also show trips with a change of train (off: direct only)",
+    )
 
 
 class Settings(PluginSettings):
@@ -92,6 +130,25 @@ class Settings(PluginSettings):
     lines_4: str = _lines(4)
     walk_4: int = _walk(4)
     days_4: tuple[Day, ...] = _days(4)
+    ns_key: SecretStr = Field(
+        SecretStr(""),
+        description="NS API key, needed for trains (free; the plugin's README says how to get it)",
+    )
+    train_from_1: str = _station(1, "from")
+    train_to_1: str = _station(1, "to")
+    train_walk_1: int = _train_walk(1)
+    train_days_1: tuple[Day, ...] = _days(1, "train route")
+    train_changes_1: bool = _changes(1)
+    train_from_2: str = _station(2, "from")
+    train_to_2: str = _station(2, "to")
+    train_walk_2: int = _train_walk(2)
+    train_days_2: tuple[Day, ...] = _days(2, "train route")
+    train_changes_2: bool = _changes(2)
+    alert_on_disruption: bool = Field(
+        False,
+        description="Show this plugin as an alert while NS reports a disruption on a train route "
+        "(not for planned works)",
+    )
     ahead: int = Field(60, ge=10, le=80, description="Minutes ahead to show departures for")
 
     @field_validator(
@@ -109,6 +166,11 @@ class Settings(PluginSettings):
     def _number_as_text(cls, value):
         # A code or line written without quotes in the config file is a number.
         return str(value) if isinstance(value, int) and not isinstance(value, bool) else value
+
+    @field_validator("train_from_1", "train_to_1", "train_from_2", "train_to_2")
+    @classmethod
+    def _upper(cls, value: str) -> str:
+        return value.upper()
 
 
 @dataclass(frozen=True)
@@ -130,6 +192,7 @@ class Board:
     sections: tuple[Section, ...]
     now: datetime
     fetched: datetime
+    notices: tuple[Notice, ...] = ()
 
 
 def lines_of(text: str) -> tuple[str, ...]:
@@ -147,6 +210,27 @@ def today_stops(settings: Settings, now: datetime) -> list[int]:
     ]
 
 
+def today_routes(settings: Settings, now: datetime) -> list[int]:
+    """The train routes (1 and 2) that are set and shown on ``now``'s day."""
+    day = DAYS[now.astimezone(ZONE).weekday()]
+    return [
+        n
+        for n in range(1, ROUTES + 1)
+        if getattr(settings, f"train_from_{n}")
+        and getattr(settings, f"train_to_{n}")
+        and day in getattr(settings, f"train_days_{n}")
+    ]
+
+
+def _anything_set(settings: Settings) -> bool:
+    stops = any(getattr(settings, f"stop_{n}") for n in range(1, STOPS + 1))
+    routes = any(
+        getattr(settings, f"train_from_{n}") and getattr(settings, f"train_to_{n}")
+        for n in range(1, ROUTES + 1)
+    )
+    return stops or routes
+
+
 def _now() -> datetime:
     """The time now in the Netherlands (replaced in tests)."""
     return datetime.now(ZONE)
@@ -154,43 +238,162 @@ def _now() -> datetime:
 
 def fetch(context: Context):
     settings = context.settings
+    if not _anything_set(settings):
+        raise SettingsMissing("nl_openbaar_vervoer needs a stop (stop_1) or a train route")
     now = _now()
-    wanted = today_stops(settings, now)
-    if not wanted:
+    stops, routes = today_stops(settings, now), today_routes(settings, now)
+    if not stops and not routes:
         return NOTHING
-    codes = sorted({getattr(settings, f"stop_{n}") for n in wanted})
-    path = context.storage / SAVED
+    found, times, errors = [], [], []
+    if stops:
+        _stop_sections(context, stops, now, found, times, errors)
+    notices: tuple[Notice, ...] = ()
+    if routes:
+        notices = _route_sections(context, routes, now, found, times, errors)
+    if errors and not any(section.departures for section in found):
+        raise errors[0]  # nothing to show at all
+    board = Board(tuple(found), now, min(times, default=now), notices)
+    if settings.alert_on_disruption and any(n.real for n in notices):
+        return alert(board)
+    return ready(board)
+
+
+def _latest(context, path, wanted: set[str], now, download) -> Saved:
+    """The newest answer for ``wanted``: the saved one when it is less than a minute old,
+    else a new one from ``download()`` (saved), else the saved one when it is less than
+    :data:`OLDEST` old."""
     saved = departures.load(path)
-    if saved and set(codes) <= saved.asked and timedelta(0) <= now - saved.fetched < QUICKEST:
-        latest = saved  # updated less than a minute ago
+    if saved and wanted <= saved.asked and timedelta(0) <= now - saved.fetched < QUICKEST:
+        return saved  # updated less than a minute ago
+    try:
+        latest = download()
+    except (webrequest.WebError, AnswerError) as error:
+        if saved is None or now - saved.fetched > OLDEST:
+            raise
+        log.warning("%s, showing the saved departures", error)
+        return saved
+    _save(context, path, departures.save(latest))
+    return latest
+
+
+def _stop_sections(context, wanted, now, found, times, errors) -> None:
+    settings = context.settings
+    codes = sorted({getattr(settings, f"stop_{n}") for n in wanted})
+    try:
+        latest = _latest(
+            context,
+            context.storage / SAVED,
+            set(codes),
+            now,
+            lambda: Saved(
+                departures.read(webrequest.get(f"{OVAPI}/tpc/{','.join(codes)}").json()),
+                frozenset(codes),
+                now,
+            ),
+        )
+    except (webrequest.WebError, AnswerError) as error:
+        log.warning("bus and tram times can't be updated: %s", error)
+        errors.append(error)
+        latest = Saved({}, frozenset(), now)
     else:
-        try:
-            answer = webrequest.get(f"{OVAPI}/tpc/{','.join(codes)}")
-            latest = Saved(departures.read(answer.json()), frozenset(codes), now)
-        except (webrequest.WebError, AnswerError) as error:
-            if saved is None or now - saved.fetched > OLDEST:
-                raise
-            log.warning("OVapi can't be reached, showing the saved departures: %s", error)
-            latest = saved
-        else:
-            _save(context, path, departures.save(latest))
-    found = []
+        times.append(latest.fetched)
     for n in wanted:
         code = getattr(settings, f"stop_{n}")
         stop = latest.stops.get(code)
         title = getattr(settings, f"name_{n}").strip() or (stop.name if stop else code)
         walk = getattr(settings, f"walk_{n}")
         if stop is None:
-            problem = (
-                "Stop not found: check its code" if code in latest.asked else "No saved times yet"
-            )
+            if code in latest.asked:
+                problem = "Stop not found: check its code"
+            else:
+                problem = "Not updated: OVapi can't be reached" if errors else "No saved times yet"
             found.append(Section(title, walk, (), problem))
             continue
         shown = departures.shown(
             stop, lines_of(getattr(settings, f"lines_{n}")), now, settings.ahead
         )
         found.append(Section(title, walk, tuple(shown)))
-    return ready(Board(tuple(found), now, latest.fetched))
+
+
+def _route_sections(context, wanted, now, found, times, errors) -> tuple[Notice, ...]:
+    settings = context.settings
+    key = settings.ns_key.get_secret_value().strip()
+    notices: list[Notice] = []
+    for n in wanted:
+        origin, destination = (
+            getattr(settings, f"train_from_{n}"),
+            getattr(settings, f"train_to_{n}"),
+        )
+        walk = getattr(settings, f"train_walk_{n}")
+        title = f"{origin} → {destination}"
+        if not key:
+            found.append(Section(title, walk, (), "Trains need an NS key (ns_key)"))
+            continue
+        changes = getattr(settings, f"train_changes_{n}")
+        code = f"{origin}-{destination}"
+        try:
+            latest = _latest(
+                context,
+                context.storage / f"trains_{code}{'_changes' if changes else ''}.json",
+                {code},
+                now,
+                lambda o=origin, d=destination, c=changes: ns.route_saved(
+                    _trips(key, o, d, c, now, settings.ahead), now
+                ),
+            )
+        except (webrequest.WebError, AnswerError) as error:
+            log.warning("train times %s can't be updated: %s", title, error)
+            errors.append(error)
+            unknown = "401" in str(error) or "403" in str(error)
+            problem = "NS key not accepted" if unknown else "Not updated: NS can't be reached"
+            found.append(Section(title, walk, (), problem))
+            continue
+        times.append(latest.fetched)
+        route = latest.stops[code]
+        shown = departures.shown(route, (), now, settings.ahead)
+        found.append(Section(route.name, walk, tuple(shown)))
+        notices += [
+            x for x in _disruptions(context, origin, destination, key, now) if x not in notices
+        ]
+    return tuple(notices)
+
+
+def _trips(key, origin, destination, changes, now, ahead) -> departures.Stop:
+    """The trains of a route, from 5 minutes ago to ``ahead`` minutes ahead. NS sends 5 trips
+    per request; when they end too soon, it is asked once more from the last one on."""
+    headers = {"Ocp-Apim-Subscription-Key": key}
+    start = now - departures.SHOWN_AFTER
+    answer = webrequest.get(ns.trips_url(origin, destination, start), headers=headers)
+    route = ns.read_trips(answer.json(), origin, destination, changes)
+    last = route.departures[-1].planned if route.departures else start
+    if last < now + timedelta(minutes=ahead):
+        url = ns.trips_url(origin, destination, last + timedelta(minutes=1))
+        more = ns.read_trips(
+            webrequest.get(url, headers=headers).json(), origin, destination, changes
+        )
+        seen = {(d.line, d.planned) for d in route.departures}
+        extra = tuple(d for d in more.departures if (d.line, d.planned) not in seen)
+        route = departures.Stop(route.code, route.name, route.departures + extra)
+    return route
+
+
+def _disruptions(context, origin, destination, key, now) -> tuple[Notice, ...]:
+    """The disruptions on a route, asked for at most every :data:`ns.DISRUPTIONS_EVERY`. When
+    NS can't be reached they are left out: the train times matter more."""
+    path = context.storage / f"disruptions_{origin}-{destination}.json"
+    saved = ns.load_notices(path)
+    if saved and timedelta(0) <= now - saved[1] < ns.DISRUPTIONS_EVERY:
+        return saved[0]
+    try:
+        answer = webrequest.get(
+            ns.disruptions_url(origin), headers={"Ocp-Apim-Subscription-Key": key}
+        )
+        notices = ns.read_disruptions(answer.json(), origin, destination)
+    except (webrequest.WebError, AnswerError) as error:
+        log.warning("NS disruptions can't be updated: %s", error)
+        return saved[0] if saved and now - saved[1] <= OLDEST else ()
+    _save(context, path, ns.save_notices(notices, now))
+    return notices
 
 
 def _save(context: Context, path, data: bytes) -> None:
@@ -239,6 +442,10 @@ def draw(board: Board, context: Context) -> dict:
             values[f"line_{s}_{i}"] = d.line
             values[f"dest_{s}_{i}"] = d.destination
             values[f"note_{s}_{i}"] = note(d, section.walk, board.now)
+    if "notice" in wanted and board.notices:
+        values["notice"] = "; ".join(
+            ("Disruption: " if n.real else "Works: ") + n.title for n in board.notices
+        )
     if board.fetched < board.now - timedelta(minutes=5):
         values["footer"] = f"Not updated since {board.fetched.astimezone(ZONE):%H:%M}"
     else:
@@ -269,13 +476,21 @@ def _sample() -> Board:
         at("5", "Carnisselande", 24, delay=2),
         at("5", "Carnisselande", 34),
     )
+    trains = (
+        at("IC", "spoor 11 → 08:43", 6, delay=2),
+        at("SPR", "spoor 12 → 09:06", 13),
+        at("IC", "spoor 9 (was 11)", 21),
+        at("IC", "spoor 11 → 09:13", 36),
+    )
     return Board(
         (
             Section("Centraal perron A", 6, platform_a),
             Section("Centraal perron B", 6, platform_b),
+            Section("Rotterdam Centraal → Den Haag Centraal", 6, trains),
         ),
         now,
         now,
+        (Notice("Rotterdam - Den Haag: fewer trains in the evening", "MAINTENANCE"),),
     )
 
 
@@ -283,8 +498,9 @@ PLUGIN = Plugin(
     type="nl_openbaar_vervoer",
     title="Dutch public transport",
     network="internet",
-    description="When the next buses and trams leave from up to four stops in the "
-    "Netherlands, and when to leave the house to catch them. Live times from OVapi.",
+    description="When the next buses, trams and trains leave in the Netherlands (up to four "
+    "stops and two train routes), and when to leave the house to catch them. Live times from "
+    "OVapi and NS.",
     settings=Settings,
     layouts=LAYOUTS,
     layout_titles={"sections": "A heading per stop"},
