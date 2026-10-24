@@ -296,6 +296,9 @@ class Scheduler:
     with :func:`paperpi.runner.stop_all`. ``writer`` runs the screen writes (default: one
     thread of their own). ``health`` (e.g. :meth:`paperpi.health.Health.report`)
     is called by the loop every :data:`~paperpi.limits.HEALTH_REPORT` seconds.
+    ``reloaded`` (e.g. :meth:`paperpi.health.Health.reloaded`) is called after each reload
+    with why the config could not be used (empty: it was applied); the next health report
+    then goes out at once.
     ``new_driver`` makes the screen driver for changed ``[display]`` settings, so a reload
     can change ``vcom`` and ``max_refresh`` (``None``: they apply at the next start).
     """
@@ -313,6 +316,7 @@ class Scheduler:
         update: Update | None = None,
         stop_updates: Callable[[], None] | None = None,
         health: Report | None = None,
+        reloaded: Callable[[tuple[str, ...]], None] | None = None,
         low_disk: LowDisk | None = None,
         new_driver: Callable[[DisplaySettings], MakeDriver] | None = None,
     ):
@@ -334,6 +338,7 @@ class Scheduler:
             stop_updates = stop_all if update is None else lambda: None
         self._stop_updates = stop_updates
         self._health = health
+        self._reloaded = reloaded
         self._low_disk = low_disk or LowDisk(self.state_dir)
         self._cleaned: dict[Path, float] = {}
         """When each storage folder was last cleaned (monotonic clock)."""
@@ -506,18 +511,25 @@ class Scheduler:
         elif isinstance(event, _TryAgain):
             self._try_again(event.plugin_id, now)
         elif event == _RELOAD and self._reload is not None:
-            try:
-                new = self._load_with_time_limit()
-            except Exception as error:  # noqa: BLE001 - a broken file keeps the old settings
-                log.error("config not applied, the old settings keep running: %s", error)
-                self._config_errors = _errors_of_exception(error)
-                return
+            self._load_again()
+
+    def _load_again(self) -> None:
+        try:
+            new = self._load_with_time_limit()
+        except Exception as error:  # noqa: BLE001 - a broken file keeps the old settings
+            log.error("config not applied, the old settings keep running: %s", error)
+            self._config_errors = _errors_of_exception(error)
+        else:
             if new.from_last_good:
                 log.error("config file can't be used; the old settings keep running")
                 self._config_errors = _errors_of(new)
-                return
-            self._config_errors = ()
-            self._apply(new)
+            else:
+                self._config_errors = ()
+                self._apply(new)
+        if self._reloaded is not None:
+            self._reloaded(self._config_errors)
+            # The health report carries the result: send it at once, not up to 30 s later.
+            self._next_report = -math.inf
 
     def _find(self, plugin_id: str) -> _Slot | None:
         """The plugin with this ID, when it is shown (switched on, with its settings)."""

@@ -239,7 +239,7 @@ def between(start, end, inside, outside="nothing"):
 
 
 class Sim:
-    def __init__(self, tmp_path, *blocks, display="", health=False, low_disk=None):
+    def __init__(self, tmp_path, *blocks, display="", health=False, low_disk=None, reloaded=None):
         self.clock = FakeTime()
         self.labels = Labels()
         self.updates = FakeUpdates(self.clock, self.labels)
@@ -256,6 +256,7 @@ class Sim:
             writer=FakeWriter(self.clock, self.screen),
             update=self.updates,
             health=self.health,
+            reloaded=reloaded,
             low_disk=low_disk,
         )
 
@@ -923,6 +924,20 @@ def test_broken_config_on_reload_keeps_the_old_settings(tmp_path, broken):
     sim.run(until=250)
     assert sim.shown == ["A", "B", "A"]
     assert sim.scheduler.summary.config_errors == ("paperpi.toml line 3: not valid TOML",)
+
+
+def test_each_reload_result_is_passed_on_and_reported_at_once(tmp_path):
+    results = []
+    sim = Sim(tmp_path, rotation("a"), health=True, reloaded=results.append)
+    sim.next_config = config.ConfigError([config.Problem("error", "not valid TOML", line=3)])
+    sim.at(40, sim.scheduler.reload)
+    sim.run(until=45)
+    sim.next_config = make_config(rotation("a"))
+    sim.at(50, sim.scheduler.reload)
+    sim.run(until=55)
+    assert results == [("config line 3: not valid TOML",), ()]
+    # Reports every 30 s, and one right after each reload.
+    assert [t for t, _ in sim.health.reports] == [0, 30, 40, 50]
 
 
 def test_a_reload_that_works_clears_the_config_errors(tmp_path):

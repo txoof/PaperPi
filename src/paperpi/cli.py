@@ -14,6 +14,8 @@
   for when a new address or port in the web interface can't be reached.
 - ``paperpi health`` says whether ``paperpi run`` still reports "healthy"; Docker's health
   check uses it.
+- ``paperpi reload`` tells the running ``paperpi run`` to apply changes to the config file,
+  and prints what changed, or the mistake that stops it (:mod:`paperpi.reload`).
 
 Run ``paperpi <command> --help`` for all options.
 """
@@ -33,7 +35,7 @@ from pathlib import Path
 from epdlib import ScreenMode
 from pydantic import ValidationError
 
-from . import __version__, config, example, health, limits, logbook, plugins, storage
+from . import __version__, config, example, health, limits, logbook, plugins, reload, storage
 from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
@@ -115,7 +117,7 @@ def _parser() -> argparse.ArgumentParser:
         description=(
             "Show the plugins of a config file: run the scheduler until Ctrl+C or the "
             "service is stopped. The virtual screen saves every screen write as a PNG file "
-            "(the newest is latest.png). Send SIGHUP (systemctl reload paperpi) to apply "
+            "(the newest is latest.png). paperpi reload (or the signal SIGHUP) applies "
             "changes to the config file."
         ),
     )
@@ -208,15 +210,49 @@ def _parser() -> argparse.ArgumentParser:
     )
     check.set_defaults(command=_health)
 
+    again = commands.add_parser(
+        "reload",
+        help="apply changes to the config file to the running PaperPi",
+        description=(
+            "Tell the running paperpi run to load the config file again, without a restart, "
+            "and print what changed. A file with a mistake is not applied: the mistake is "
+            "printed and the old settings keep running. Ends with exit status 0 when the "
+            "changes were applied, else 1. PaperPi is found by the process id in its health "
+            "report. Use the same --config, --state-dir and --health-file as paperpi run. "
+            "As a service, run it with sudo."
+        ),
+    )
+    again.add_argument(
+        "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    again.add_argument(
+        "--state-dir",
+        type=Path,
+        default=config.STATE_DIR,
+        help=f"where the last good copy of the config is, to list the changes ({config.STATE_DIR})",
+    )
+    again.add_argument(
+        "--health-file",
+        type=Path,
+        default=health.HEALTH_FILE,
+        help=f"the health report of paperpi run (default: {health.HEALTH_FILE})",
+    )
+    again.add_argument(
+        "--check",
+        action="store_true",
+        help="only print the mistakes and the changes; send nothing (PaperPi need not run)",
+    )
+    again.set_defaults(command=_reload)
+
     reset = commands.add_parser(
         "reset-password",
         help="remove the web password, for when it is forgotten",
         description=(
             "Remove the web password (password_hash in [web]) from the config file; the rest "
             "of the file stays as it is. Run it with sudo when the config file belongs to "
-            "root, as in /etc/paperpi. Then restart PaperPi, or send it the reload signal "
-            "(kill -HUP <process id>; sudo systemctl reload paperpi once it runs as a "
-            "service), and open the web interface to set a new password. Until then, anyone "
+            "root, as in /etc/paperpi. Then restart PaperPi, or run paperpi reload (sudo "
+            "paperpi reload once it runs as a service), and open the web interface to set a "
+            "new password. Until then, anyone "
             "on the home network can set it."
         ),
     )
@@ -374,6 +410,7 @@ def _keep_running(args: argparse.Namespace, book: logbook.Logbook) -> int:
         state_dir=args.state_dir,
         reload=load,
         health=reports.report,
+        reloaded=reports.reloaded,
         new_driver=lambda changed: driver_for(changed, out),
     )
     signal.signal(signal.SIGTERM, lambda *_: scheduler.stop())
@@ -401,7 +438,8 @@ def _keep_running(args: argparse.Namespace, book: logbook.Logbook) -> int:
             where = f"images in {out}" if display.type == "virtual" else f"screen {display.type}"
             print(
                 f"showing {count} plugin{'' if count == 1 else 's'}; {where}; "
-                f"process id {os.getpid()} (kill -HUP {os.getpid()} applies config changes)"
+                f"process id {os.getpid()} (paperpi reload or kill -HUP {os.getpid()} applies "
+                "config changes)"
             )
             scheduler.run()
             reports.stopping()
@@ -447,8 +485,8 @@ def _reset_password(args: argparse.Namespace) -> int:
         return 0
     print(
         f"removed the web password from {args.config}.\n"
-        "Next: restart PaperPi, or send it the reload signal: kill -HUP <process id> "
-        "(sudo systemctl reload paperpi once it runs as a service).\n"
+        "Next: restart PaperPi, or run paperpi reload (sudo paperpi reload once it runs as "
+        "a service).\n"
         "Then open the web interface and set a new password. Until then, anyone on your "
         "home network can set it."
     )
@@ -550,6 +588,12 @@ def _example_config(args: argparse.Namespace) -> int:
         return 1
     print(f"saved {args.output}")
     return 0
+
+
+def _reload(args: argparse.Namespace) -> int:
+    status, lines = reload.run(args.config, args.state_dir, args.health_file, check_only=args.check)
+    print("\n".join(lines), file=sys.stdout if status == reload.OK else sys.stderr)
+    return status
 
 
 def _health(args: argparse.Namespace) -> int:
