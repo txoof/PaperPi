@@ -17,7 +17,7 @@ at once, and facts about this Pi.
   address and port at the next start. :func:`port_problem` tries the new port on this Pi
   before it is saved, so a port PaperPi can't use doesn't cost the web interface;
   :func:`web_waiting` tells when the file names another address or port than the ones in
-  use.
+  use. After the restart the new ones are on trial (:mod:`.keep`).
 - :func:`screen_facts` describes the screen in use (the type and model PaperPi started
   with, see ``docs/decisions/live-config-reload.md``) and :func:`pi_facts` measures this Pi
   when the page asks.

@@ -60,6 +60,21 @@
   <div class="edits-bar" role="status"><p>The config file was changed outside the web interface, and
     PaperPi does not use the changes yet. <a href="/changes">Review changes</a></p></div>
   {% endif %}
+  {% set keep = keep_box(request) if logged_in and not going_back else none %}
+  {% if keep %}
+  {#- New web settings on trial after a restart (keep.py); keep.js counts the time down. -#}
+  <div class="keep-bar" role="status"><div>
+    <p><b>New web address:</b> PaperPi now uses <code>{{ keep.new }}</code>. Press <b>Keep these
+      settings</b> to go on using it.</p>
+    <p>If nobody presses it within <span class="timer" data-left="{{ keep.left }}">{{ "%d:%02d" % (keep.left // 60, keep.left % 60) }}</span>,
+      PaperPi goes back to <code>{{ keep.old }}</code> by itself. The screen keeps running either way.</p>
+    <div class="buttons">
+      <form method="post" action="/system/web/keep"><button class="go" type="submit">Keep these settings</button></form>
+      <form method="post" action="/system/web/back"><button class="quiet" type="submit">Go back to {{ keep.back }} now</button></form>
+    </div>
+  </div></div>
+  <script src="/static/keep.js" defer></script>
+  {% endif %}
   <main id="top" class="{% block main_class %}{% endblock %}">
     {% block main %}{% endblock %}
   </main>

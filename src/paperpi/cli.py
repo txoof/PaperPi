@@ -39,7 +39,7 @@ from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
 from .scheduler import Scheduler
 from .screen import Screen, ScreenStuck, driver_for
-from .web import config_file
+from .web import config_file, keep
 from .web.password import PasswordError, save_password_hash
 
 log = logging.getLogger("paperpi")
@@ -233,6 +233,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     defaults.add_argument(
         "--config", type=Path, default=config.CONFIG_FILE, help=f"default: {config.CONFIG_FILE}"
+    )
+    defaults.add_argument(
+        "--state-dir",
+        type=Path,
+        default=config.STATE_DIR,
+        help=f"PaperPi's state folder, where the old web address is kept ({config.STATE_DIR})",
     )
     defaults.set_defaults(command=_web_defaults)
     return parser
@@ -453,6 +459,11 @@ def _web_defaults(args: argparse.Namespace) -> int:
         hint = "; run it with sudo" if "Permission denied" in str(error) else ""
         print(f"paperpi: {error}{hint}", file=sys.stderr)
         return 1
+    # Else the next start would put the defaults on trial and go back to the old address.
+    try:
+        (args.state_dir / keep.PREVIOUS_FILE).unlink(missing_ok=True)
+    except OSError as error:
+        print(f"paperpi: can't remove the kept old web address: {error}", file=sys.stderr)
     where = f"port {every.port}, for every device on your home network"
     if new == text:
         print(f"the web interface already uses the defaults in {args.config}: {where}")

@@ -27,6 +27,10 @@ LIBRARY_PICTURES_WAIT = 60.0
 #: file, in seconds, before the page says it is still busy.
 APPLY_WAIT = 3.0
 
+#: After a restart to a new web address or port, how long PaperPi waits for Keep these
+#: settings before it goes back to the old ones by itself, in seconds.
+KEEP_WEB = 5 * 60.0
+
 #: Longest one search of a setting helper may take: one web request with its retry
 #: (``docs/decisions/setting-helpers.md``).
 HELPER_SEARCH = 30.0

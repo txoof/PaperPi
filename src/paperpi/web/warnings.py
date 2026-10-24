@@ -2,7 +2,8 @@
 
 "Needs attention now" is built from the scheduler's :class:`~paperpi.scheduler.Summary`
 and the config file's plugin blocks: a config file PaperPi could not use, a screen that
-does not answer, and the plugins whose card on the home page says they have a problem.
+does not answer, and the plugins whose card on the home page says they have a problem;
+also new web settings that nobody kept (:func:`went_back`).
 The menu shows how many there are. "Recent warnings and errors" are the newest log lines
 of level WARNING and up (see :mod:`paperpi.logbook`), as they are in the log.
 """
@@ -53,6 +54,8 @@ class Item:
     """The address of the plugin's settings page."""
     reload: bool = False
     """A Load the file again button."""
+    seen: str = ""
+    """The address of an OK button that hides the item."""
 
 
 @dataclass(frozen=True)
@@ -109,6 +112,12 @@ def needs_attention(
             title = f"{row.name}: not used, has errors"
             items.append(Item("warn", "✕", title, note, settings=settings))
     return items
+
+
+def went_back(note: str) -> Item:
+    """The web interface went back to its old address (see :mod:`.keep`)."""
+    title = "The web interface went back to its old address"
+    return Item("bad", "↩", title, note, seen="/warnings/web-seen")
 
 
 def filter_of(text: str | None) -> str:

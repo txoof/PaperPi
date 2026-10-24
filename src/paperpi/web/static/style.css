@@ -434,6 +434,11 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 .edits-bar { background: var(--warn-bg); color: var(--warn); border-bottom: 1px solid var(--line); }
 .edits-bar p { max-width: 64rem; margin: 0 auto; padding: 0.45rem 1rem; font-size: 0.9rem; }
 .edits-bar a { color: inherit; font-weight: 600; }
+.keep-bar { background: var(--warn-bg); border-bottom: 1px solid var(--line); }
+.keep-bar > div { max-width: 64rem; margin: 0 auto; padding: 0.6rem 1rem; }
+.keep-bar p { margin: 0 0 0.4rem; }
+.keep-bar b, .keep-bar .timer { color: var(--warn); }
+.keep-bar .timer { font-weight: 700; font-variant-numeric: tabular-nums; }
 .mistake { background: var(--bad-bg); color: var(--bad); border-radius: 8px;
   padding: 0.55rem 0.75rem; margin: 0 0 0.75rem; }
 .mistake p { margin: 0 0 0.3rem; }

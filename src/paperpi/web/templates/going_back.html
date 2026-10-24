@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% set logged_in = true %}
+{% set page = "system" %}
+{% set going_back = true %}
+{% block title %}Going back · PaperPi{% endblock %}
+{#- The web interface moves to its old address in a moment; this page can't ask the old
+    address whether it is there (the browser only lets it ask its own), so it opens it after
+    a few seconds. -#}
+{% block head %}<meta http-equiv="refresh" content="5;url={{ old }}/system">{% endblock %}
+{% block main %}
+<h1>Going back…</h1>
+<p class="lead" role="status">The web interface goes back to its old address:
+  <a href="{{ old }}/system">{{ old }}</a>. This page opens it in 5 seconds. The screen keeps
+  running.</p>
+{% endblock %}
