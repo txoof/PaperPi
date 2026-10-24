@@ -169,7 +169,61 @@ def test_more_than_ten_stops_says_so(monkeypatch):
     Fake(monkeypatch, stopareacode={"4862": AREAS["4862"]}, areas=many)
     result = find("stop_1", "Rotterdam Centraal")
     assert len(result["choices"]) == search.MOST
-    assert "Only the first 10" in result["note"]
+    assert "More stops match" in result["note"]
+
+
+def test_many_matching_areas_ask_to_narrow_it_down(monkeypatch):
+    many = {
+        f"a{i}": {"TimingPointTown": f"Town {i}", "TimingPointName": "Kerkstraat"} for i in range(6)
+    }
+    fake = Fake(monkeypatch, stopareacode=many, areas={"a0": {"1": stop("1", "Kerkstraat")}})
+    result = find("stop_1", "Kerkstraat")
+    assert fake.calls[1][0].endswith("/stopareacode/a0,a1,a2,a3")  # only the first 4 areas
+    assert "add the town" in result["note"]
+
+
+def test_codes_the_settings_wouldnt_take_are_left_out(monkeypatch):
+    areas = {
+        "4862": AREAS["4862"],
+        "48,62": AREAS["4862"],  # would break the address list
+        "C.S.": {"TimingPointTown": "Rotterdam", "TimingPointName": "Rotterdam Centraal perron F"},
+    }
+    platforms = {
+        "4862": {
+            "x": stop("NL:31001118", "A"),
+            "y": stop("3" * 21, "A"),
+            "z": stop("31001039", "B"),
+        },
+        "C.S.": {"f": stop("HA1423", "F")},
+    }
+    fake = Fake(monkeypatch, stopareacode=areas, areas=platforms)
+    choices = find("stop_1", "Rotterdam Centraal")["choices"]
+    assert fake.calls[1][0].endswith("/stopareacode/4862,C.S.")
+    assert [c["fill"]["stop_1"] for c in choices] == ["31001039", "HA1423"]
+    for choice in choices:  # every fill is one the form accepts
+        Settings(**choice["fill"])
+
+
+def test_missing_texts_show_as_nothing(monkeypatch):
+    info = {"TimingPointCode": "31001039", "TimingPointName": None, "TimingPointTown": None}
+    odd = {"Stop": info, "Passes": {"1": {"LinePublicNumber": "5", "DestinationName50": None}}}
+    areas = {"4862": {"TimingPointTown": None, "TimingPointName": "Rotterdam Centraal"}}
+    Fake(monkeypatch, stopareacode=areas, areas={"4862": {"b": odd}})
+    choice = find("stop_1", "Rotterdam Centraal")["choices"][0]
+    assert choice["show"] == {"Stop": "31001039", "Lines": "5", "Code": "31001039"}
+    assert find("stop_1", "none") == []
+
+
+def test_a_busy_stop_lists_eight_lines(monkeypatch):
+    lines = [vehicle(str(n), "Centrum") for n in range(1, 13)]
+    Fake(
+        monkeypatch,
+        stopareacode={"4862": AREAS["4862"]},
+        areas={"4862": {"b": stop("1", "B", *lines)}},
+    )
+    shown = find("stop_1", "Rotterdam Centraal")["choices"][0]["show"]["Lines"]
+    assert shown.startswith("1 → Centrum; 2 → Centrum")
+    assert shown.endswith("8 → Centrum; + 4 more lines")
 
 
 def test_ovapi_out_of_reach_or_odd_says_so(monkeypatch):
@@ -203,6 +257,28 @@ def test_stations_are_found_with_their_other_names(monkeypatch):
     url, options = fake.calls[0]
     assert url == f"{search.ns.BASE}/v2/stations"
     assert options["headers"] == {"Ocp-Apim-Subscription-Key": "secret"}
+
+
+def test_the_key_is_stripped_as_for_the_screen(monkeypatch):
+    fake = Fake(monkeypatch, stations=STATIONS)
+    find("train_from_1", "Rotterdam", ns_key=" secret\n")
+    assert fake.calls[0][1]["headers"] == {"Ocp-Apim-Subscription-Key": "secret"}
+
+
+def test_odd_stations_are_left_out(monkeypatch):
+    odd = [
+        {"code": "AMS-Z", "namen": {"lang": "Amsterdam Zuid"}},  # the setting takes letters only
+        {
+            "code": "RTD",
+            "land": None,
+            "namen": {"lang": "Rotterdam Centraal"},
+            "synoniemen": [None, 5],
+        },
+    ]
+    Fake(monkeypatch, stations={"payload": odd})
+    choices = find("train_from_1", "Amsterdam Zuid Rotterdam", ns_key="k")
+    assert [c["fill"] for c in choices] == [{"train_from_1": "RTD"}]
+    assert choices[0]["show"] == {"Station": "Rotterdam Centraal", "Code": "RTD"}
 
 
 def test_a_station_abroad_names_its_country(monkeypatch):
@@ -239,9 +315,11 @@ def test_an_odd_station_list_says_so(monkeypatch):
 
 def test_much_weaker_matches_are_left_out():
     names = ["Rotterdam Centraal", "Rotterdam Blaak", "Den Haag Centraal"]
-    assert search.best("rotterdam centraal", names, lambda n: [n], 10) == ["Rotterdam Centraal"]
-    # Without a full match, close ones stay.
-    assert search.best("roterdam", names, lambda n: [n], 10) == names[:2]
+    found = search.best("rotterdam centraal", names, lambda n: [n], 10)
+    assert found == (["Rotterdam Centraal"], False)
+    # Without a full match, close ones stay; more than asked for is said.
+    assert search.best("roterdam", names, lambda n: [n], 10) == (names[:2], False)
+    assert search.best("roterdam", names, lambda n: [n], 1) == (names[:1], True)
 
 
 def test_names_are_compared_without_case_accents_or_punctuation():

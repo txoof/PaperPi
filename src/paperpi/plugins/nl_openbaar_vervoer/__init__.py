@@ -38,7 +38,7 @@ DISRUPTIONS = "disruptions.json"
 
 Day = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAYS: tuple[Day, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
-#: A stop code: OVapi's TimingPointCode, e.g. 31001118.
+#: A stop code: OVapi's TimingPointCode, e.g. 31001118 (the search offers only these).
 CODE = r"^[A-Za-z0-9]*$"
 #: An NS station code, e.g. GVC (Den Haag Centraal) or UT (Utrecht Centraal).
 STATION = r"^[A-Za-z]*$"

@@ -85,9 +85,11 @@ For example, 5 minutes on the map, plus 1 for the door and 1 to spare, gives `wa
 
 On the plugin's settings page, each stop has a search box above its code:
 
-1. Type the stop's name, e.g. `Rotterdam Centraal` or `Amsterdam Dam`, and press **Search** (or Enter). Typos are fine, and adding the town helps when many towns have a stop of that name.
+1. Type the stop's name, e.g. `Rotterdam Centraal` or `Amsterdam Dam`, and press **Search** (or Enter). Typos are fine. When many towns have a stop of that name, the list says so: add the town.
 2. The list shows each side of the street as its own choice, with the lines and destinations that leave there in the next hour, and a link to see it on a map. Pick the side whose lines go your way and press **Use**.
 3. **Use** fills in the stop's code and empties its heading and lines (they belonged to the stop chosen before; an empty heading shows the stop's own name). Nothing is saved yet: change what you like, press **Preview**, then **Save**.
+
+![The stop search on the settings page](../../../../docs/images/web/ov-stop-search-light.png)
 
 The search downloads OVapi's list of stops (about 650 kB) and then asks for the best matches, so the name you type goes to OVapi. A stop missing from that list (see "Limits") can't be found this way.
 

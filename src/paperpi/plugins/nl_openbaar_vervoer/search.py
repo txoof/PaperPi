@@ -29,9 +29,18 @@ from . import ns
 # Only http: OVapi's https certificate is not valid (see OVAPI in __init__).
 OVAPI = "http://v0.ovapi.nl"
 #: Longest one request of a search may take, with its retry: a search makes two requests,
-#: which must fit in the helper's 30 seconds (``limits.HELPER_SEARCH``).
-REQUEST = 12.0
+#: which must fit in the helper's 30 seconds (``limits.HELPER_SEARCH``) together with
+#: starting the plugin process and matching the names (a few seconds on a Raspberry Pi).
+REQUEST = 10.0
 CONNECT = 5.0
+#: A stop code the ``stop_N`` settings take (OVapi's TimingPointCode, e.g. 31001118).
+CODE = re.compile(r"[A-Za-z0-9]{1,20}")
+#: An NS station code the ``train_from_N`` and ``train_to_N`` settings take, e.g. GVC.
+STATION = re.compile(r"[A-Za-z]{1,8}")
+#: A stop area code that can go into an address list such as ``/stopareacode/4862,C.S.``.
+AREA = re.compile(r"[A-Za-z0-9._-]+")
+#: Most lines listed with a stop; a busy stop says "+ N more".
+MOST_LINES = 8
 #: Most choices shown (the settings page shows at most 10).
 MOST = 10
 #: Stop areas asked for their stops in one search.
@@ -70,41 +79,71 @@ def plain(text: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", text).split())
 
 
+class Typed:
+    """What was typed, ready to be compared with many names (see :meth:`score`)."""
+
+    def __init__(self, typed: str):
+        self.words = plain(typed).split()
+        # SequenceMatcher prepares its second text once; each name is then its first.
+        self._whole = SequenceMatcher(None, "", "".join(self.words), autojunk=False)
+        self._pairs: dict[tuple[str, str], float] = {}  # place names share many words
+
+    def score(self, name: str) -> float:
+        """How well ``name`` matches, from 0 to about 1. Each typed word is compared with
+        the name's words (a word the name starts with counts fully, so "cs" and "rotter"
+        work), and the whole text with the whole name (so "niueweduinweg" finds "Nieuwe
+        Duinweg"). Longer names score a little lower, so "Utrecht Centraal" wins over
+        "Utrecht Centraal Jaarbeurszijde" when both match."""
+        target = plain(name).split()
+        if not self.words or not target:
+            return 0.0
+        found = sum(self._word(word, target) for word in self.words) / len(self.words)
+        whole = self._whole
+        whole.set_seq1("".join(target))
+        # The quick upper bounds skip the slow comparison when it can't do better.
+        if found < 1 and whole.real_quick_ratio() > found and whole.quick_ratio() > found:
+            found = max(found, whole.ratio())
+        return found - 0.001 * len(target)
+
+    def _word(self, word: str, target: list[str]) -> float:
+        best = 0.0
+        for other in target:
+            if other.startswith(word):
+                return 1.0
+            pair = (word, other)
+            if pair not in self._pairs:
+                self._pairs[pair] = SequenceMatcher(None, word, other, autojunk=False).ratio()
+            best = max(best, self._pairs[pair])
+        return best
+
+
 def score(typed: str, name: str) -> float:
-    """How well ``name`` matches what was typed, from 0 to about 1. Each typed word is
-    compared with the name's words (a word the name starts with counts fully, so "cs" and
-    "rotter" work), and the whole text with the whole name (so "niueweduinweg" finds
-    "Nieuwe Duinweg"). Longer names score a little lower, so "Utrecht Centraal" wins over
-    "Utrecht Centraal Jaarbeurszijde" when both match."""
-    words, target = plain(typed).split(), plain(name).split()
-    if not words or not target:
-        return 0.0
-    per_word = sum(_word(word, target) for word in words) / len(words)
-    whole = SequenceMatcher(None, "".join(words), "".join(target)).ratio()
-    return max(per_word, whole) - 0.001 * len(target)
+    """How well ``name`` matches ``typed`` (see :meth:`Typed.score`)."""
+    return Typed(typed).score(name)
 
 
-def _word(word: str, target: list[str]) -> float:
-    best = 0.0
-    for other in target:
-        if other.startswith(word):
-            return 1.0
-        matcher = SequenceMatcher(None, word, other)
-        if matcher.real_quick_ratio() > best and matcher.quick_ratio() > best:
-            best = max(best, matcher.ratio())
-    return best
-
-
-def best[T](typed: str, items: Iterable[T], names: Callable[[T], Iterable[str]], most: int):
+def best[T](
+    typed: str, items: Iterable[T], names: Callable[[T], Iterable[str]], most: int
+) -> tuple[list[T], bool]:
     """The ``most`` items whose names best match ``typed``, best first, each scoring at least
-    :data:`LOWEST` and at most :data:`BEHIND` below the best."""
+    :data:`LOWEST` and at most :data:`BEHIND` below the best; and whether more items
+    matched as well."""
+    matcher = Typed(typed)
     scored = []
     for item in items:
-        top = max((score(typed, name) for name in names(item)), default=0.0)
+        top = max((matcher.score(name) for name in names(item)), default=0.0)
         if top >= LOWEST:
             scored.append((top, item))
+    if not scored:
+        return [], False
     scored.sort(key=lambda pair: -pair[0])  # stable: equal scores keep the list's order
-    return [item for top, item in scored[:most] if top >= scored[0][0] - BEHIND]
+    kept = [item for top, item in scored if top >= scored[0][0] - BEHIND]
+    return kept[:most], len(kept) > most
+
+
+def _text(value: object) -> str:
+    """A text from an answer; ``""`` for a missing value (``null``) or one that isn't text."""
+    return value if isinstance(value, str) else ""
 
 
 def _get(url: str, **options) -> object:
@@ -135,8 +174,8 @@ class FoundStop:
 
 
 def find_stops(text: str) -> tuple[list[FoundStop], bool]:
-    """The stops whose area best matches ``text``, and whether more were found than
-    :data:`MOST`. Raises ``webrequest.WebError`` when OVapi can't be reached, and
+    """The stops whose area best matches ``text``, and whether more were found than are
+    listed. Raises ``webrequest.WebError`` when OVapi can't be reached, and
     :class:`HelperProblem` when its answer can't be read."""
     areas = _get(f"{OVAPI}/stopareacode")
     if not isinstance(areas, dict):
@@ -144,10 +183,13 @@ def find_stops(text: str) -> tuple[list[FoundStop], bool]:
 
     def names(item):
         area = item[1] if isinstance(item[1], dict) else {}
-        name, town = str(area.get("TimingPointName", "")), str(area.get("TimingPointTown", ""))
+        name, town = _text(area.get("TimingPointName")), _text(area.get("TimingPointTown"))
         return (name, f"{town} {name}")
 
-    chosen = [code for code, _ in best(text, areas.items(), names, AREAS)]
+    # Codes that would break the next address are left out.
+    usable = ((code, area) for code, area in areas.items() if AREA.fullmatch(code))
+    chosen, more = best(text, usable, names, AREAS)
+    chosen = [code for code, _ in chosen]
     if not chosen:
         return [], False
     answer = _get(f"{OVAPI}/stopareacode/{','.join(chosen)}")
@@ -159,21 +201,21 @@ def find_stops(text: str) -> tuple[list[FoundStop], bool]:
         for stop in platforms.values() if isinstance(platforms, dict) else ():
             if isinstance(stop, dict) and (read := _stop(stop)):
                 found.append(read)
-    return found[:MOST], len(found) > MOST
+    return found[:MOST], more or len(found) > MOST
 
 
 def _stop(item: dict) -> FoundStop | None:
     stop, passes = item.get("Stop"), item.get("Passes")
-    if not isinstance(stop, dict) or not stop.get("TimingPointCode"):
-        return None
+    if not isinstance(stop, dict) or not CODE.fullmatch(_text(stop.get("TimingPointCode"))):
+        return None  # a code the setting wouldn't take
     lines = set()
     for vehicle in passes.values() if isinstance(passes, dict) else ():
-        if isinstance(vehicle, dict) and vehicle.get("LinePublicNumber"):
-            lines.add((str(vehicle["LinePublicNumber"]), str(vehicle.get("DestinationName50", ""))))
+        if isinstance(vehicle, dict) and _text(vehicle.get("LinePublicNumber")):
+            lines.add((vehicle["LinePublicNumber"], _text(vehicle.get("DestinationName50"))))
     return FoundStop(
-        str(stop["TimingPointCode"]),
-        str(stop.get("TimingPointName", "")),
-        str(stop.get("TimingPointTown", "")),
+        stop["TimingPointCode"],
+        _text(stop.get("TimingPointName")),
+        _text(stop.get("TimingPointTown")),
         tuple(sorted(lines, key=lambda pair: (_line_order(pair[0]), pair[1]))),
         stop.get("Latitude"),
         stop.get("Longitude"),
@@ -192,7 +234,12 @@ def describe_lines(lines: tuple[tuple[str, str], ...]) -> str:
     grouped: dict[str, list[str]] = {}
     for line, destination in lines:
         grouped.setdefault(line, []).append(destination)
-    return "; ".join(f"{line} → {', '.join(d for d in to if d)}" for line, to in grouped.items())
+    shown = []
+    for line, to in grouped.items():
+        destinations = ", ".join(d for d in to if d)
+        shown.append(f"{line} → {destinations}" if destinations else line)
+    more = len(shown) - MOST_LINES
+    return "; ".join(shown[:MOST_LINES]) + (f"; + {more} more lines" if more > 0 else "")
 
 
 def stop_helper(n: int) -> Helper:
@@ -216,11 +263,9 @@ def stop_helper(n: int) -> Helper:
                     "link": _map(stop.lat, stop.lon),
                 }
             )
-        note = (
-            "Only the first 10 stops are shown; add the town or more of the name to narrow it down"
-            if more
-            else "Each stop is one side of the street: pick the one whose lines go your way"
-        )
+        note = "Each stop is one side of the street: pick the one whose lines go your way."
+        if more:
+            note += " More stops match than are shown: add the town or more of the name."
         return {"choices": choices, "note": note} if choices else []
 
     return Helper(
@@ -242,8 +287,9 @@ class Station:
     lon: object = None
 
 
-def find_stations(text: str, key: str) -> list[Station]:
-    """The NS stations whose names best match ``text``. Raises :class:`HelperProblem` when
+def find_stations(text: str, key: str) -> tuple[list[Station], bool]:
+    """The NS stations whose names best match ``text``, and whether more matched than are
+    listed. Raises :class:`HelperProblem` when
     NS doesn't accept the key or can't be reached."""
     try:
         answer = _get(f"{ns.BASE}/v2/stations", headers=ns.headers(key))
@@ -261,22 +307,24 @@ def find_stations(text: str, key: str) -> list[Station]:
 
 def _station(item: dict) -> Station | None:
     names = item.get("namen") if isinstance(item.get("namen"), dict) else {}
-    code, name = item.get("code"), names.get("lang")
-    if not (isinstance(code, str) and code and isinstance(name, str) and name):
-        return None
+    code, name = _text(item.get("code")), _text(names.get("lang"))
+    if not (STATION.fullmatch(code) and name):
+        return None  # no name, or a code the setting wouldn't take
     other = [names.get("middel"), names.get("kort")]
     if isinstance(item.get("synoniemen"), list):
         other += item["synoniemen"]
-    other = tuple(dict.fromkeys(str(o) for o in other if o and o != name))
-    return Station(code, name, str(item.get("land", "")), other, item.get("lat"), item.get("lng"))
+    other = tuple(dict.fromkeys(o for o in map(_text, other) if o and o != name))
+    return Station(code, name, _text(item.get("land")), other, item.get("lat"), item.get("lng"))
 
 
 def station_helper(n: int, end: str) -> Helper:
     """The search for the station train route ``n`` goes ``end`` ("from" or "to")."""
-    key = f"train_{end}_{n}"
+    setting = f"train_{end}_{n}"
 
     def find(query: Query):
-        stations = find_stations(query.text, query.settings.ns_key.get_secret_value())
+        # Stripped as for the screen (fetch), so a key pasted with a space works here too.
+        key = query.settings.ns_key.get_secret_value().strip()
+        stations, more = find_stations(query.text, key)
         choices = []
         for station in stations:
             show = {"Station": station.name, "Code": station.code}
@@ -285,8 +333,15 @@ def station_helper(n: int, end: str) -> Helper:
             if station.other:
                 show["Also called"] = ", ".join(station.other)
             choices.append(
-                {"fill": {key: station.code}, "show": show, "link": _map(station.lat, station.lon)}
+                {
+                    "fill": {setting: station.code},
+                    "show": show,
+                    "link": _map(station.lat, station.lon),
+                }
             )
+        if more and choices:
+            note = "More stations match than are shown: type more of the name to narrow it down"
+            return {"choices": choices, "note": note}
         return choices
 
     return Helper(
