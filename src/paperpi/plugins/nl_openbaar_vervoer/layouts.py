@@ -3,16 +3,30 @@
 ``sections``: a heading per stop (``head_<s>``), then its departures, one row each, with the
 blocks ``time_<s>_<i>``, ``delay_<s>_<i>``, ``line_<s>_<i>``, ``dest_<s>_<i>`` and
 ``note_<s>_<i>`` ("leave in 3 min", "left", ...). The screen is shared by the stops shown
-today, so the number of rows per stop depends on the settings and the day. ``footer`` says
-when the departures were fetched.
+today, so the number of rows per stop depends on the settings and the day.
+
+``by_time``: the departures of all stops in one list, the soonest first, each row with the
+stop's heading in ``stop_<i>`` (rows ``time_<i>``, ``delay_<i>``, ``line_<i>``, ``dest_<i>``,
+``note_<i>``).
+
+``next``: the first stop only. The next departure that can still be caught is large
+(``next_dest``: line and destination, ``next_note``: "Leave in 3 min", ``next_time``), the
+later ones are small rows below it (``time_0_<i>``, ...). Only the first stop is fetched.
+
+Every layout ends with ``notice`` (disruptions on the train routes) and ``footer`` (when the
+departures were fetched).
 """
 
 from ... import fonts
 
 PAD = 0.008
 TEXT = 0.045
+#: Smaller text for the ``by_time`` rows: they have one more column.
+LIST_TEXT = 0.037
 #: Heading and departure lines on the screen, shared by the stops.
 LINES = 12
+#: Small rows under the large departure of the ``next`` layout.
+LATER = 4
 STOPS = 4
 ROUTES = 2
 
@@ -64,6 +78,53 @@ def sections(settings) -> dict:
             _text(f"head_{s}", "Rotterdam Centraal · 8 min walk", 1, font=fonts.LATO_BOLD)
         )
         column += [_row(s, i) for i in range(rows)]
+    return _with_footer(column)
+
+
+def by_time(settings) -> dict:
+    """One list of :data:`LINES` rows, with the stop on each row."""
+    small = {"font_size": LIST_TEXT}
+    bold = small | {"font": fonts.LATO_BOLD}
+    column = []
+    for i in range(LINES):
+        column.append(
+            {
+                "row": [
+                    _text(f"time_{i}", "88:88", 1.1, **bold),
+                    _text(f"delay_{i}", "+88", 0.7, **small),
+                    _text(f"line_{i}", "888", 0.8, align="center", **bold),
+                    _text(f"dest_{i}", "Carnisselande", 2.6, **small),
+                    # Long headings are made smaller to fit.
+                    _text(f"stop_{i}", "Centraal perron A", 2.2, shrink=True, **small),
+                    _text(f"note_{i}", "leave in 88 min", 2.4, align="right", **small),
+                ],
+                "gap": 0,
+            }
+        )
+    return _with_footer(column)
+
+
+def next_departure(settings) -> dict:
+    """The next departure of the first stop, large, then :data:`LATER` small rows."""
+    column = [
+        _text("head_0", "Rotterdam Centraal · 8 min walk", 1, font=fonts.LATO_BOLD),
+        # No font_size: the text is made as large as its block allows.
+        _text("next_dest", "888 Heemraadsplein", 2.2, align="center", font_size=None, shrink=True),
+        _text(
+            "next_note",
+            "Leave in 88 min",
+            3,
+            align="center",
+            font=fonts.LATO_BOLD,
+            font_size=None,
+        ),
+        _text("next_time", "88:88 (+88)", 1.4, align="center", font_size=None),
+    ]
+    column += [_row(0, i) for i in range(LATER)]
+    return _with_footer(column)
+
+
+def _with_footer(column: list) -> dict:
     column.append({"name": "line", "type": "shape", "shape": "hline", "pixels": 2})
     column.append(
         {
@@ -85,4 +146,4 @@ def sections(settings) -> dict:
     return {"column": column, "gap": 0}
 
 
-LAYOUTS = {"sections": sections}
+LAYOUTS = {"sections": sections, "by_time": by_time, "next": next_departure}

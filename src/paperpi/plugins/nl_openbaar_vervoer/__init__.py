@@ -178,12 +178,14 @@ class Settings(PluginSettings):
 @dataclass(frozen=True)
 class Section:
     """One stop or train route on the screen: its heading, walking time and departures.
-    ``problem``: why there are no departures to show, e.g. OVapi doesn't know the stop."""
+    ``problem``: why there are no departures to show, e.g. OVapi doesn't know the stop.
+    ``short``: a shorter title for the rows of the ``by_time`` layout (empty: ``title``)."""
 
     title: str
     walk: int
     departures: tuple[Departure, ...]
     problem: str = ""
+    short: str = ""
 
 
 @dataclass(frozen=True)
@@ -245,6 +247,8 @@ def fetch(context: Context):
         raise SettingsMissing("nl_openbaar_vervoer needs a stop (stop_1) or a train route")
     now = _now()
     stops, routes = today_stops(settings, now), today_routes(settings, now)
+    if context.layout == "next":  # it shows only the first: don't ask for, or alert on, more
+        stops, routes = stops[:1], routes[:1] if not stops else []
     if not stops and not routes:
         return NOTHING
     found, times, errors = [], [], []
@@ -328,9 +332,9 @@ def _route_sections(context, wanted, now, found, times, errors) -> tuple[Notice,
             getattr(settings, f"train_to_{n}"),
         )
         walk = getattr(settings, f"train_walk_{n}")
-        title = f"{origin} → {destination}"
+        title, short = f"{origin} → {destination}", f"to {destination}"
         if not key:
-            found.append(Section(title, walk, (), "Trains need an NS key (ns_key)"))
+            found.append(Section(title, walk, (), "Trains need an NS key (ns_key)", short))
             continue
         changes = getattr(settings, f"train_changes_{n}")
         code = f"{origin}-{destination}"
@@ -357,12 +361,14 @@ def _route_sections(context, wanted, now, found, times, errors) -> tuple[Notice,
                 problem = (
                     "NS: too many requests today" if busy else "Not updated: NS can't be reached"
                 )
-            found.append(Section(title, walk, (), problem))
+            found.append(Section(title, walk, (), problem, short))
             continue
         times.append(latest.fetched)
         route = latest.stops[code]
         shown = departures.shown(route, (), now, settings.ahead)
-        found.append(Section(route.name, walk, tuple(shown)))
+        # route.name is "Rotterdam Centraal → Den Haag Centraal": too long for a row.
+        short = "to " + route.name.rpartition(" → ")[2]
+        found.append(Section(route.name, walk, tuple(shown), short=short))
         notices += [
             x for x in _disruptions(context, origin, destination, key, now) if x not in notices
         ]
@@ -419,12 +425,17 @@ def _save(context: Context, path, data: bytes) -> None:
 # --- Drawing ---------------------------------------------------------------------------------
 
 
+def gone(departure: Departure, now: datetime) -> bool:
+    """It left, or its time has passed."""
+    return departure.left or departure.expected < now
+
+
 def note(departure: Departure, walk: int, now: datetime) -> str:
     """What a row says after the destination: "cancelled", "left", or with a walking time
     "leave in 3 min", "leave now" or "too late"."""
     if departure.cancelled:
         return "cancelled"
-    if departure.left or departure.expected < now:  # gone, even if OVapi doesn't say so yet
+    if gone(departure, now):  # even if OVapi doesn't say so yet
         return "left"
     if not walk:
         return ""
@@ -436,26 +447,13 @@ def note(departure: Departure, walk: int, now: datetime) -> str:
 
 def draw(board: Board, context: Context) -> dict:
     wanted = PLUGIN.layout(context.layout, context.settings).blocks
-    values = {}
-    for s, section in enumerate(board.sections):
-        if f"head_{s}" not in wanted:
-            break  # more stops today than the layout has room for
-        walk = f" · {section.walk} min walk" if section.walk else ""
-        values[f"head_{s}"] = section.title + walk
-        rows = sum(1 for name in wanted if name.startswith(f"dest_{s}_"))
-        shown = section.departures
-        if rows <= 2:  # little room: only what can still be caught
-            shown = tuple(d for d in shown if not (d.left or d.expected < board.now))
-        if section.problem:
-            values[f"dest_{s}_0"] = section.problem
-        elif not shown:
-            values[f"dest_{s}_0"] = f"No departures in the next {context.settings.ahead} min"
-        for i, d in enumerate(shown[:rows]):
-            values[f"time_{s}_{i}"] = f"{d.expected.astimezone(ZONE):%H:%M}"
-            values[f"delay_{s}_{i}"] = f"+{d.delay}" if d.delay > 0 else ""
-            values[f"line_{s}_{i}"] = d.line
-            values[f"dest_{s}_{i}"] = d.destination
-            values[f"note_{s}_{i}"] = note(d, section.walk, board.now)
+    ahead = context.settings.ahead
+    if context.layout == "by_time":
+        values = _draw_by_time(board, wanted, ahead)
+    elif context.layout == "next":
+        values = _draw_next(board, wanted, ahead)
+    else:
+        values = _draw_sections(board, wanted, ahead)
     if "notice" in wanted and board.notices:
         values["notice"] = "; ".join(
             ("Disruption: " if n.real else "Works: ") + n.title for n in board.notices
@@ -465,6 +463,100 @@ def draw(board: Board, context: Context) -> dict:
     else:
         values["footer"] = f"Updated {board.fetched.astimezone(ZONE):%H:%M}"
     return {name: value for name, value in values.items() if name in wanted}
+
+
+def _fill_row(values: dict, at: str, d: Departure, walk: int, now: datetime) -> None:
+    """The blocks ``time_<at>``, ``delay_<at>``, ... of one departure row."""
+    values[f"time_{at}"] = f"{d.expected.astimezone(ZONE):%H:%M}"
+    values[f"delay_{at}"] = f"+{d.delay}" if d.delay > 0 else ""
+    values[f"line_{at}"] = d.line
+    values[f"dest_{at}"] = d.destination
+    values[f"note_{at}"] = note(d, walk, now)
+
+
+def _heading(section: Section) -> str:
+    return section.title + (f" · {section.walk} min walk" if section.walk else "")
+
+
+def _draw_sections(board: Board, wanted, ahead: int) -> dict:
+    values = {}
+    for s, section in enumerate(board.sections):
+        if f"head_{s}" not in wanted:
+            break  # more stops today than the layout has room for
+        values[f"head_{s}"] = _heading(section)
+        rows = sum(1 for name in wanted if name.startswith(f"dest_{s}_"))
+        shown = section.departures
+        if rows <= 2:  # little room: only what can still be caught
+            shown = tuple(d for d in shown if not gone(d, board.now))
+        if section.problem:
+            values[f"dest_{s}_0"] = section.problem
+        elif not shown:
+            values[f"dest_{s}_0"] = f"No departures in the next {ahead} min"
+        for i, d in enumerate(shown[:rows]):
+            _fill_row(values, f"{s}_{i}", d, section.walk, board.now)
+    return values
+
+
+def _draw_by_time(board: Board, wanted, ahead: int) -> dict:
+    """Problems first (so they are seen), then the departures that haven't left, soonest
+    first. Those that left are left out: from several stops they would fill the list."""
+    values = {}
+    rows = sum(1 for name in wanted if name.startswith("dest_"))
+    problems = [s for s in board.sections if s.problem]
+    for i, section in enumerate(problems[:rows]):
+        values[f"stop_{i}"] = section.title
+        values[f"dest_{i}"] = section.problem
+    waiting = sorted(
+        (
+            (d, section)
+            for section in board.sections
+            for d in section.departures
+            if not gone(d, board.now)
+        ),
+        key=lambda pair: pair[0].expected,
+    )
+    first = len(problems)
+    if not waiting and first < rows:
+        values[f"dest_{first}"] = f"No departures in the next {ahead} min"
+    for i, (d, section) in enumerate(waiting[: max(0, rows - first)], start=first):
+        _fill_row(values, str(i), d, section.walk, board.now)
+        values[f"stop_{i}"] = section.short or section.title
+    return values
+
+
+def _draw_next(board: Board, wanted, ahead: int) -> dict:
+    """The first stop: the next departure that can still be caught large, the ones after
+    it in small rows."""
+    if not board.sections:
+        return {}
+    section = board.sections[0]
+    values = {"head_0": _heading(section)}
+    if section.problem:
+        values["next_dest"] = section.problem
+        return values
+    catchable = [
+        d
+        for d in section.departures
+        if note(d, section.walk, board.now) not in ("cancelled", "left", "too late")
+    ]
+    if not catchable:
+        values["next_dest"] = f"No departures in the next {ahead} min"
+        return values
+    first = catchable[0]
+    values["next_dest"] = f"{first.line}  {first.destination}"
+    text = note(first, section.walk, board.now)
+    if not text:  # no walking time: when it leaves
+        minutes = math.floor((first.expected - board.now).total_seconds() / 60)
+        text = "leaves now" if minutes <= 0 else f"leaves in {minutes} min"
+    values["next_note"] = text[0].upper() + text[1:]
+    late = f" (+{first.delay})" if first.delay > 0 else ""
+    values["next_time"] = f"{first.expected.astimezone(ZONE):%H:%M}{late}"
+    rows = sum(1 for name in wanted if name.startswith("dest_0_"))
+    after = section.departures[section.departures.index(first) + 1 :]
+    later = [d for d in after if not gone(d, board.now)]
+    for i, d in enumerate(later[:rows]):
+        _fill_row(values, f"0_{i}", d, section.walk, board.now)
+    return values
 
 
 def _sample() -> Board:
@@ -500,7 +592,9 @@ def _sample() -> Board:
         (
             Section("Centraal perron A", 6, platform_a),
             Section("Centraal perron B", 6, platform_b),
-            Section("Rotterdam Centraal → Den Haag Centraal", 6, trains),
+            Section(
+                "Rotterdam Centraal → Den Haag Centraal", 6, trains, short="to Den Haag Centraal"
+            ),
         ),
         now,
         now,
@@ -517,7 +611,11 @@ PLUGIN = Plugin(
     "OVapi and NS.",
     settings=Settings,
     layouts=LAYOUTS,
-    layout_titles={"sections": "A heading per stop or route"},
+    layout_titles={
+        "sections": "A heading per stop or route",
+        "by_time": "One list sorted by time",
+        "next": "First stop, next departure large",
+    },
     fetch=fetch,
     draw=draw,
     sample=_sample(),
