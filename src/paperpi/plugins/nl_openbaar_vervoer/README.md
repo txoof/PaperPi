@@ -59,6 +59,18 @@ train_walk_1 = 6
 train_days_1 = ["mon", "tue", "wed", "thu", "fri"]
 ```
 
+## Setting the walking time
+
+`walk_1` (and `train_walk_1` for a train route) is the number of minutes from your front door to standing at the stop or on the platform. The plugin takes it off each departure time: a tram at 08:20 with `walk_1 = 6` says "leave in ..." until 08:14, then "too late".
+
+To estimate it:
+
+1. Time it once: walk to the stop at your normal pace, and note the minutes. Or ask a map app (OpenStreetMap, Google Maps) for the walking time from your address to the stop.
+2. Add what the walk or the map leaves out: putting on a coat and locking the door, waiting at a traffic light, and for a train the stairs or lift to the platform (2 to 5 minutes at a big station).
+3. Add a minute to spare. The screen updates every 2 minutes, so "leave in 3 min" can be up to 2 minutes old.
+
+For example, 5 minutes on the map, plus 1 for the door and 1 to spare, gives `walk_1 = 7`. If you often arrive just as the tram leaves, make it a minute or two longer. Leave it at `0` to show only the times, without "leave in".
+
 ## Getting an NS key
 
 1. Make a free account at <https://apiportal.ns.nl> (Sign up).

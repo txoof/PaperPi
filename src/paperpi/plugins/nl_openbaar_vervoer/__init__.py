@@ -74,7 +74,8 @@ def _walk(n: int):
         0,
         ge=0,
         le=60,
-        description=f"Minutes to walk to stop {n}; each row then says when to leave (0: off)",
+        description=f"Minutes from your front door to stop {n}, with a minute to spare (0: off). "
+        "Each row then says when to leave. See the README for how to estimate it",
     )
 
 
@@ -98,7 +99,8 @@ def _train_walk(n: int):
         0,
         ge=0,
         le=90,
-        description=f"Minutes to walk or cycle to the station of train route {n} (0: off)",
+        description=f"Minutes from your front door to the platform of train route {n}, walking "
+        "or cycling, with a minute to spare (0: off). See the README for how to estimate it",
     )
 
 
