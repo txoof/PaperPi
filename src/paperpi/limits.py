@@ -144,6 +144,9 @@ HEALTH_FILE_BYTES = 2_000
 #: each, so the report stays small. ``paperpi reload`` finds the mistakes in the file itself.
 RELOAD_ERRORS = 3
 RELOAD_ERROR_CHARS = 200
+#: Most bytes the reasons may take in the health report, as written (JSON writes a
+#: character such as "é" as 6 bytes), so the report stays under :data:`HEALTH_FILE_BYTES`.
+RELOAD_ERROR_BYTES = 1_000
 
 #: How long ``paperpi reload`` waits for PaperPi to say it loaded the config file. PaperPi
 #: does it between two screen writes, and loading may take up to :data:`CONFIG_RELOAD`.

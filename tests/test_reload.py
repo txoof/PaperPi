@@ -226,6 +226,83 @@ def test_without_a_last_good_copy_the_changes_are_not_listed(setup, tmp_path):
     assert lines[1].startswith("(The changes can't be listed: no last good copy")
 
 
+def test_odd_reasons_in_the_health_report_are_printed_safely(setup):
+    setup.paperpi.answer = None
+
+    numbers = iter(range(10, 20))
+
+    def answer(errors):
+        def kill(pid, number):
+            setup.paperpi.report()
+            values = health.read(setup.paperpi.health.path)
+            values["reload"] = {"number": next(numbers), "errors": errors}
+            setup.paperpi.health.path.write_text(json.dumps(values))
+
+        return kill
+
+    setup.paperpi.kill = answer("not a list")
+    assert setup()[1][1:] == ["  (the reason in the health report can't be read)"]
+    setup.paperpi.kill = answer(["red \x1b[31m text", "two", "three"])
+    assert setup()[1][1:] == ["  red ?[31m text", "  two", "  three"]
+
+
+def test_a_broken_report_while_waiting_is_read_again(setup):
+    setup.paperpi.answer = None
+    tries = []
+
+    def kill(pid, number):
+        setup.paperpi.health.path.write_text("{broken")
+        tries.append(number)
+
+    setup.paperpi.kill = kill
+    real_sleep = setup.clock.sleep
+
+    def sleep(seconds):
+        real_sleep(seconds)
+        if setup.clock.t > 1 and setup.paperpi.health.path.read_text() == "{broken":
+            setup.paperpi.health.reloaded(())
+            setup.paperpi.report()
+
+    status, lines = reload.run(
+        setup.path,
+        setup.path.parent,
+        setup.paperpi.health.path,
+        kill=kill,
+        is_paperpi=lambda pid: True,
+        clock=setup.clock,
+        sleep=sleep,
+    )
+    assert (status, lines[0]) == (reload.OK, "Applied.")
+
+
+def test_paperpi_gone_at_the_signal(setup):
+    setup.paperpi.refuse = ProcessLookupError()
+    assert setup() == (reload.FAILED, ["PaperPi is not running (it stopped just now)."])
+
+
+def test_an_unreadable_config_file_says_sudo(setup, monkeypatch):
+    def refuse(path):
+        raise config.ConfigError([config.Problem("error", "can't read: Permission denied")])
+
+    monkeypatch.setattr(config, "read_text", refuse)
+    status, lines = setup()
+    assert status == reload.FAILED and lines[0].endswith("sudo paperpi reload")
+
+
+@pytest.mark.parametrize(
+    ("cmdline", "is_run"),
+    [
+        (b"/opt/paperpi/venv/bin/python3\0/opt/paperpi/venv/bin/paperpi\0run\0", True),
+        (b"/usr/bin/python3\0-m\0paperpi\0run\0--config\0x.toml\0", True),
+        (b"/opt/paperpi/venv/bin/python3\0/opt/paperpi/venv/bin/paperpi\0reload\0", False),
+        (b"/usr/bin/python3\0foo.py\0run\0", False),
+        (b"/usr/bin/vim\0paperpi\0", False),
+    ],
+)
+def test_what_counts_as_paperpi_run(cmdline, is_run):
+    assert reload.runs_paperpi(cmdline) is is_run
+
+
 def test_this_process_is_not_paperpi_run():
     assert not reload._is_paperpi(os.getpid())
     assert not reload._is_paperpi(2**22 + 1)  # no such process

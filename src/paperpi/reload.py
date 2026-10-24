@@ -53,10 +53,23 @@ def run(
     ``kill``, ``is_paperpi`` (whether a process is ``paperpi run``), ``clock`` and ``sleep``
     are for tests.
     """
+    status, lines = _run(
+        config_path, state_dir, health_file, check_only, kill, is_paperpi, clock, sleep
+    )
+    # The texts come from files that others may write, and this may run as root: no
+    # characters that can change what the terminal shows.
+    return status, ["".join(c if c.isprintable() else "?" for c in line) for line in lines]
+
+
+def _run(config_path, state_dir, health_file, check_only, kill, is_paperpi, clock, sleep):
+    """:func:`run`, before its lines are made safe to print."""
     try:
         edited = config.read_text(config_path)
     except ConfigError as error:
-        return FAILED, [f"Can't read the config file: {error}"]
+        hint = (
+            "; run it with sudo: sudo paperpi reload" if "Permission denied" in str(error) else ""
+        )
+        return FAILED, [f"Can't read the config file: {error}{hint}"]
     found = review(_applied(state_dir) or "", edited, str(config_path))
     if found.mistakes:
         return FAILED, [
@@ -68,10 +81,9 @@ def run(
     if check_only:
         return OK, ["The config file can be used.", *listed]
 
-    pid, problem = _find(health_file, is_paperpi or _is_paperpi)
+    pid, before, problem = _find(health_file, is_paperpi or _is_paperpi)
     if pid is None:
         return FAILED, [problem]
-    before = _reload_number(health.read(health_file))
     try:
         kill(pid, signal.SIGHUP)
     except PermissionError:
@@ -95,7 +107,9 @@ def run(
             return FAILED, ["PaperPi started again before it loaded the config file."]
         result = values.get("reload")
         if _reload_number(values) > before and isinstance(result, dict):
-            errors = result.get("errors") or []
+            errors = result.get("errors")
+            if not isinstance(errors, list) or not all(isinstance(e, str) for e in errors):
+                errors = ["(the reason in the health report can't be read)"]
             if errors:
                 return FAILED, [
                     "PaperPi could not use the config file; the old settings keep running:",
@@ -162,26 +176,34 @@ def _applied(state_dir: Path) -> str | None:
         return None
 
 
-def _find(health_file: Path, is_paperpi: Callable[[int], bool]) -> tuple[int | None, str]:
-    """The process id of the running PaperPi, or ``None`` and why it can't be used."""
+def _find(health_file: Path, is_paperpi: Callable[[int], bool]) -> tuple[int | None, int, str]:
+    """The process id of the running PaperPi and the number of its last reload, or ``None``
+    and why it can't be used."""
     healthy, message = health.check(health_file)
     if not healthy:
         if not health_file.exists():
-            return None, (
-                f"PaperPi is not running: there is no health report in {health_file}. "
-                "A PaperPi started by hand writes it only where it may: give paperpi run and "
-                "paperpi reload the same --health-file (or use kill -HUP <process id>)."
+            return (
+                None,
+                0,
+                (
+                    f"PaperPi is not running: there is no health report in {health_file}. "
+                    "A PaperPi started by hand writes it only where it may: give paperpi run and "
+                    "paperpi reload the same --health-file (or use kill -HUP <process id>)."
+                ),
             )
-        return None, f"PaperPi can't be reached: {message}"
+        return None, 0, f"PaperPi can't be reached: {message}"
     try:
-        pid = health.read(health_file)["pid"]
+        values = health.read(health_file)
+        pid = values["pid"]
+    except FileNotFoundError:
+        return None, 0, "PaperPi is not running (it stopped just now)."
     except (OSError, ValueError, KeyError) as error:
-        return None, f"The health report in {health_file} can't be used: {error}"
+        return None, 0, f"The health report in {health_file} can't be used: {error}"
     if not isinstance(pid, int) or isinstance(pid, bool) or pid < 1:
-        return None, f"The health report in {health_file} has no process id."
+        return None, 0, f"The health report in {health_file} has no process id."
     if not is_paperpi(pid):
-        return None, f"Process {pid} from the health report is not PaperPi."
-    return pid, ""
+        return None, 0, f"Process {pid} from the health report is not PaperPi."
+    return pid, _reload_number(values), ""
 
 
 def _reload_number(values: dict) -> int:
@@ -194,9 +216,14 @@ def _is_paperpi(pid: int) -> bool:
     """Whether process ``pid`` runs ``paperpi run``: after a crash, the health report stays
     for a while, and its process id may then belong to another program."""
     try:
-        parts = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+        return runs_paperpi(Path(f"/proc/{pid}/cmdline").read_bytes())
     except OSError:
         return False
+
+
+def runs_paperpi(cmdline: bytes) -> bool:
+    """Whether a process's command line (as in ``/proc/<pid>/cmdline``) is ``paperpi run``."""
+    parts = cmdline.split(b"\0")
     # ".../bin/paperpi run ..." or "python -m paperpi run ...".
     names = [os.path.basename(part) for part in parts[:3]]
     return b"paperpi" in names and b"run" in parts

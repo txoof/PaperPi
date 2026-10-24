@@ -940,6 +940,17 @@ def test_each_reload_result_is_passed_on_and_reported_at_once(tmp_path):
     assert [t for t, _ in sim.health.reports] == [0, 30, 40, 50]
 
 
+def test_a_reload_on_the_last_good_copy_is_passed_on_as_failed(tmp_path):
+    results = []
+    sim = Sim(tmp_path, rotation("a"), reloaded=results.append)
+    sim.next_config = make_config(rotation("z"))
+    sim.next_config.from_last_good = True
+    sim.next_config.problems = [config.Problem("error", "not valid TOML", line=3)]
+    sim.at(10, sim.scheduler.reload)
+    sim.run(until=20)
+    assert results == [("config line 3: not valid TOML",)]
+
+
 def test_a_reload_that_works_clears_the_config_errors(tmp_path):
     sim = Sim(tmp_path, rotation("a"))
     sim.next_config = config.ConfigError([])

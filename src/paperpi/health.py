@@ -163,10 +163,21 @@ class Health:
         """Note the result of a reload for the next report: ``errors`` says why the config
         could not be used (empty: it was applied). Only the first few, shortened."""
         number = 1 if self._reload is None else self._reload["number"] + 1
+        kept = []
+        for error in errors[: limits.RELOAD_ERRORS]:
+            # Counted as written: JSON writes "é" as 6 characters.
+            if (
+                len(json.dumps([*kept, error[: limits.RELOAD_ERROR_CHARS]]))
+                > limits.RELOAD_ERROR_BYTES
+            ):
+                break
+            kept.append(error[: limits.RELOAD_ERROR_CHARS])
+        if errors and not kept:
+            kept = ["the config file can't be used (the reason is in the log)"]
         self._reload = {
             "number": number,
             "time": datetime.now().astimezone().isoformat(timespec="seconds"),
-            "errors": [e[: limits.RELOAD_ERROR_CHARS] for e in errors[: limits.RELOAD_ERRORS]],
+            "errors": kept,
         }
 
     def _write(self, measured: Report) -> None:
