@@ -10,9 +10,9 @@ from ... import fonts
 FONT = fonts.ANTON
 PADDING = 0.03
 
-#: The widest sentence in this font. Written out, because working it out from all 7140
+#: The widest sentence in this font. Written out, because working it out from all 2800
 #: sentences would take a noticeable time at every update; a test checks it stays right.
-WIDEST = "The time is nearly Twenty Before Crack Of Dawn"
+WIDEST = "The time is nearly Twenty After Really Late"
 
 
 def _words(size: float) -> dict:

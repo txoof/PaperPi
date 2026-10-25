@@ -39,7 +39,8 @@ def side_of_step(now: datetime) -> int:
 
 def openings(now: datetime) -> tuple[str, ...]:
     """The openings that are true for this time: "nearly" only before the step, "a bit
-    after" only after it, exactly on the step only the ones that are always true."""
+    after" only after it (the list is empty for now), exactly on the step only the ones
+    that are always true."""
     side = side_of_step(now)
     return words.ALWAYS + (words.BEFORE if side < 0 else words.AFTER if side > 0 else ())
 
@@ -68,7 +69,8 @@ def sentence(now: datetime) -> str:
     step = step_of(now)
     rng = step_rng(now, "words")
     plain = rng.choice(words.ALWAYS)
-    before, after = rng.choice(words.BEFORE), rng.choice(words.AFTER)
+    before = rng.choice(words.BEFORE)
+    after = rng.choice(words.AFTER) if words.AFTER else plain
     use_special = rng.random() < 0.5
     minute_words = rng.choice(words.MINUTES[step.minute])
     hour_words = rng.choice(words.HOURS[hour_of(step)])
