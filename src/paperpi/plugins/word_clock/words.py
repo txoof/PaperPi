@@ -16,7 +16,7 @@ ALWAYS = (
 )
 
 #: Openings that are only true when the real time is a little before the step.
-BEFORE = ("The time is nearly", "It is almost", "It's almost", "It's nearly")
+BEFORE = ("It is almost", "It's almost", "It's nearly")
 
 #: Openings that are only true when the real time is a little after the step. None at
 #: the moment (txoof, 2026-10-25): after the step the clock uses ALWAYS.
@@ -26,9 +26,8 @@ _NUMBERS = "twelve one two three four five six seven eight nine ten eleven".spli
 
 #: Extra names for some hours (0-23), used as well as the number word.
 NICKNAMES = {
-    0: ("midnight",),
     1: ("late",),
-    2: ("really late", "go to bed"),
+    2: ("go to bed",),
     3: ("too late",),
     12: ("noon", "lunch"),
     18: ("dinner",),
