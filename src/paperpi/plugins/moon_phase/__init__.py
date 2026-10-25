@@ -45,13 +45,19 @@ class Settings(PluginSettings):
     lat: float | None = setting(
         None,
         required=True,
+        group="Place",
         ge=-90,
         le=90,
         helper="location",
         description="Latitude of the place, e.g. 52.52",
     )
     lon: float | None = setting(
-        None, required=True, ge=-180, le=180, description="Longitude of the place, e.g. 13.40"
+        None,
+        required=True,
+        group="Place",
+        ge=-180,
+        le=180,
+        description="Longitude of the place, e.g. 13.40",
     )
     email: str = setting(
         "",

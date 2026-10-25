@@ -276,10 +276,15 @@ def test_a_plugin_without_groups_keeps_the_plain_page():
     assert forms.sections(forms.fields(TEST, T)) is None
 
 
-def test_the_weather_plugin_groups_place_and_units():
+def test_the_weather_and_moon_plugins_group_the_place():
     _, own = forms.sections(forms.fields(plugins.load("met_no"), WEATHER))
     assert [f.key for f in own.fields] == ["email"]
     assert [s.title for s in own.subs] == ["Place", "Units"]
+    _, own = forms.sections(
+        forms.fields(plugins.load("moon_phase"), {"id": "m", "type": "moon_phase"})
+    )
+    assert [f.key for f in own.fields] == ["email"]
+    assert [s.title for s in own.subs] == ["Place"]
 
 
 def test_sections_general_then_plugin_settings_with_a_sub_section_per_group():
