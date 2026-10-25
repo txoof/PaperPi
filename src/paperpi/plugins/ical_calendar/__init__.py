@@ -46,20 +46,32 @@ class Settings(PluginSettings):
     calendar_1: SecretStr = setting(
         SecretStr(""),
         required=True,
+        group="Calendar 1",
         description="Secret iCal address of a calendar (starts with https:// or webcal://). "
         "The plugin's README shows where to find it in Google, Outlook and iCloud",
     )
-    calendar_2: SecretStr = Field(
-        SecretStr(""), description="Secret iCal address of a second calendar (or leave empty)"
+    calendar_2: SecretStr = setting(
+        SecretStr(""),
+        group="Calendar 2",
+        description="Secret iCal address of a second calendar (or leave empty)",
     )
-    calendar_3: SecretStr = Field(
-        SecretStr(""), description="Secret iCal address of a third calendar (or leave empty)"
+    calendar_3: SecretStr = setting(
+        SecretStr(""),
+        group="Calendar 3",
+        description="Secret iCal address of a third calendar (or leave empty)",
     )
-    name_1: str = Field(
-        "", max_length=20, description="Short name of the first calendar, e.g. Personal"
+    name_1: str = setting(
+        "",
+        group="Calendar 1",
+        max_length=20,
+        description="Short name of the first calendar, e.g. Personal",
     )
-    name_2: str = Field("", max_length=20, description="Short name of the second, e.g. Family")
-    name_3: str = Field("", max_length=20, description="Short name of the third, e.g. Work")
+    name_2: str = setting(
+        "", group="Calendar 2", max_length=20, description="Short name of the second, e.g. Family"
+    )
+    name_3: str = setting(
+        "", group="Calendar 3", max_length=20, description="Short name of the third, e.g. Work"
+    )
     days: int = Field(7, ge=1, le=31, description="How many days to show, starting today")
     hours: Literal[12, 24] = Field(24, description="12-hour (3:45 PM) or 24-hour (15:45) times")
 

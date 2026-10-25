@@ -690,7 +690,6 @@ def create_app(
             return home_page(request, 409, str(error))
         errors = found.errors if found else {}
         shown = fields(plugin, block, found.sent if found else None, errors)
-        groups = {g: [f for f in shown if f.group == g] for g in ("name", "own", "common", "more")}
         # Errors that belong to no field on the page (a broken id, ...).
         other = [m for k, m in errors.items() if k not in {f.key for f in shown}]
         done = request.query_params.get("done")
@@ -700,9 +699,8 @@ def create_app(
             status,
             row=row,
             plugin=plugin,
-            groups=groups,
+            own=[f for f in shown if f.group == "own"],
             sections=sections(shown),
-            more_open=any(f.error or f.changed for f in groups["more"]),
             folder=folder_name(row.id),
             done=done if done in ("saved", "added") and not found else None,
             hand_edits=request.query_params.get("hand") == "1",

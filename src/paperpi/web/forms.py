@@ -3,9 +3,9 @@ the values a sent form holds, checked the same way as the config file.
 
 - :func:`fields` lists the settings the form shows, in groups: the plugin's ``name``, its
   own settings, the shared ones people change most (:data:`COMMON`), and the rest
-  ("More settings"). Each field shows the setting's value, or its default when the config
-  file doesn't set it. ``id`` and ``type`` can't change; ``enabled`` is switched on the
-  home page.
+  ("Time limit, alerts, storage"). Each field shows the setting's value, or its default when
+  the config file doesn't set it. ``id`` and ``type`` can't change; ``enabled`` is switched
+  on the home page.
 - :func:`read` turns a sent form into the changes to save, or an error per field (then
   nothing is saved). An empty field means "the default" (for a check box: off; for a list:
   nothing picked). A value changed to its default is taken out of the file, which only holds
@@ -16,10 +16,9 @@ the values a sent form holds, checked the same way as the config file.
   left as it is.
 - A setting of a kind the form can't show (a group of settings, a list of numbers) is shown
   as it is in the file, to be changed there.
-- :func:`sections` puts the fields of a plugin whose settings name a group
-  (``setting(group=...)``) in foldable sections: "General" (the shared settings) and "Plugin
-  settings" (one sub-section per group). Each section's heading says what is filled in
-  (issue #315).
+- :func:`sections` puts the fields in foldable sections: "General" (the shared settings) and
+  "Plugin settings" (the plugin's own, with a sub-section per ``setting(group=...)``). Each
+  section's heading says what is filled in (issues #315, #331).
 """
 
 from __future__ import annotations
@@ -37,8 +36,8 @@ from pydantic.fields import FieldInfo
 from .. import example, links
 from ..plugin import Plugin, PluginEntry, group_of, helper_of, holds_secret, is_required
 
-#: The shared settings shown right after the plugin's own ones; the others are folded away
-#: under "More settings" (agreed with txoof, M5 part 3a).
+#: The shared settings shown first under "General"; the others are folded away in its
+#: sub-section "Time limit, alerts, storage" (agreed with txoof, M5 part 3a and #315).
 COMMON = ("display_time", "refresh", "layout", "level")
 #: Settings of a ``[[plugin]]`` block the form doesn't change.
 NOT_IN_FORM = ("id", "type", "enabled")
@@ -224,11 +223,9 @@ class Section:
         return " · ".join(parts)
 
 
-def sections(shown: Sequence[FormField]) -> list[Section] | None:
-    """The settings page's sections for the fields :func:`fields` made, or ``None`` when
-    the plugin names no group (it keeps the plain page)."""
-    if not any(f.section for f in shown):
-        return None
+def sections(shown: Sequence[FormField]) -> list[Section]:
+    """The settings page's sections for the fields :func:`fields` made. A plugin without
+    settings of its own has no "Plugin settings" section."""
     group: dict[str, list[FormField]] = {}
     for f in shown:
         if f.group == "own" and f.section:
@@ -239,10 +236,10 @@ def sections(shown: Sequence[FormField]) -> list[Section] | None:
 
     more = Section("Time limit, alerts, storage", of("more"))
     subs = tuple(Section(title, tuple(found)) for title, found in group.items())
-    return [
-        Section("General", of("name", "common"), (more,)),
-        Section("Plugin settings", of("own"), subs, parts=True),
-    ]
+    general = Section("General", of("name", "common"), (more,))
+    if not any(f.group == "own" for f in shown):
+        return [general]
+    return [general, Section("Plugin settings", of("own"), subs, parts=bool(subs))]
 
 
 def summary(field: FormField) -> str:

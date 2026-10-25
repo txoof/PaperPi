@@ -51,12 +51,21 @@ class Settings(PluginSettings):
         description="States to report, one per update, then from the start, e.g. "
         '["nothing", "nothing", "alert"]',
     )
-    crash_every: int = Field(0, ge=0, description="Every Nth update raises an error; 0 = never")
-    hang_every: int = Field(
-        0, ge=0, description="Every Nth update hangs until its time limit; 0 = never"
+    crash_every: int = setting(
+        0, group="Faults", ge=0, description="Every Nth update raises an error; 0 = never"
     )
-    delay: float = Field(
-        0, ge=0, le=limits.PLUGIN_UPDATE_MAX, description="Seconds each update takes"
+    hang_every: int = setting(
+        0,
+        group="Faults",
+        ge=0,
+        description="Every Nth update hangs until its time limit; 0 = never",
+    )
+    delay: float = setting(
+        0,
+        group="Faults",
+        ge=0,
+        le=limits.PLUGIN_UPDATE_MAX,
+        description="Seconds each update takes",
     )
 
 

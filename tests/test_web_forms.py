@@ -272,9 +272,35 @@ def grouped(block=G, sent=None, errors=None):
     return forms.sections(forms.fields(GROUPED, block, sent, errors))
 
 
-def test_a_plugin_without_groups_keeps_the_plain_page():
-    assert forms.sections(forms.fields(TEST, T)) is None
-    assert forms.sections(forms.fields(plugins.load("met_no"), WEATHER)) is None
+def test_a_plugin_without_groups_has_its_settings_directly_under_the_heading():
+    general, own = forms.sections(forms.fields(TEST, T))
+    assert general.title == "General" and own.title == "Plugin settings"
+    assert [f.key for f in own.fields] == ["token", "words", "part", "loud"] and own.subs == ()
+    assert "parts set" not in own.line
+
+
+def test_a_plugin_without_settings_of_its_own_has_only_general():
+    (general,) = forms.sections(forms.fields(plugins.load("dec_binary_clock"), {"id": "d"}))
+    assert general.title == "General"
+
+
+def test_the_weather_and_moon_plugins_group_the_place():
+    _, own = forms.sections(forms.fields(plugins.load("met_no"), WEATHER))
+    assert [f.key for f in own.fields] == ["email"]
+    assert [s.title for s in own.subs] == ["Place", "Units"]
+    _, own = forms.sections(
+        forms.fields(plugins.load("moon_phase"), {"id": "m", "type": "moon_phase"})
+    )
+    assert [f.key for f in own.fields] == ["email"]
+    assert [s.title for s in own.subs] == ["Place"]
+
+
+def test_the_lms_plugin_keeps_server_and_player_in_view():
+    _, own = forms.sections(
+        forms.fields(plugins.load("lms_client"), {"id": "l", "type": "lms_client"})
+    )
+    assert [f.key for f in own.fields] == ["server", "player", "idle_timeout"]
+    assert [s.title for s in own.subs] == ["Login"]
 
 
 def test_sections_general_then_plugin_settings_with_a_sub_section_per_group():

@@ -14,7 +14,7 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import Field
 
 from ... import webrequest
-from ...plugin import Context, Plugin, PluginSettings, ready
+from ...plugin import Context, Plugin, PluginSettings, ready, setting
 from .layouts import LAYOUTS
 
 log = logging.getLogger(__name__)
@@ -42,14 +42,23 @@ class Settings(PluginSettings):
         description="Which comic: a random one, or the newest one (a random one when the "
         "newest can't be shown)",
     )
-    max_width: int = Field(
-        800, ge=1, le=4000, description="Comics wider than this many pixels are skipped"
+    max_width: int = setting(
+        800,
+        group="Size limits",
+        ge=1,
+        le=4000,
+        description="Comics wider than this many pixels are skipped",
     )
-    max_height: int = Field(
-        600, ge=1, le=4000, description="Comics taller than this many pixels are skipped"
+    max_height: int = setting(
+        600,
+        group="Size limits",
+        ge=1,
+        le=4000,
+        description="Comics taller than this many pixels are skipped",
     )
-    tries: int = Field(
+    tries: int = setting(
         10,
+        group="Size limits",
         ge=1,
         le=20,
         description="How many random comics to try before giving up, when they are too large "
