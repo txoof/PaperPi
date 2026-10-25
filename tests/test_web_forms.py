@@ -287,6 +287,14 @@ def test_the_weather_and_moon_plugins_group_the_place():
     assert [s.title for s in own.subs] == ["Place"]
 
 
+def test_the_lms_plugin_keeps_server_and_player_in_view():
+    _, own = forms.sections(
+        forms.fields(plugins.load("lms_client"), {"id": "l", "type": "lms_client"})
+    )
+    assert [f.key for f in own.fields] == ["server", "player", "idle_timeout"]
+    assert [s.title for s in own.subs] == ["Login"]
+
+
 def test_sections_general_then_plugin_settings_with_a_sub_section_per_group():
     general, own = grouped()
     assert general.title == "General" and own.title == "Plugin settings"

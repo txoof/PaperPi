@@ -66,11 +66,14 @@ class Settings(PluginSettings):
         max_length=100,
         description="Name of the player, as LMS shows it, e.g. Kitchen",
     )
-    user: str = Field(
-        "", max_length=100, description="User name, only when the LMS server has a password"
+    user: str = setting(
+        "",
+        group="Login",
+        max_length=100,
+        description="User name, only when the LMS server has a password",
     )
-    password: SecretStr = Field(
-        SecretStr(""), description="Password, only when the LMS server has one"
+    password: SecretStr = setting(
+        SecretStr(""), group="Login", description="Password, only when the LMS server has one"
     )
     idle_timeout: float = Field(
         15,
