@@ -199,8 +199,21 @@ def test_the_screen_menu_finds_a_waveshare_screen_by_size():
 def test_a_waveshare_model_given_as_an_option_is_checked_first():
     given = NEW | {"DISPLAY_TYPE": "waveshare", "MODEL": "epd2in13_V4"}
     assert run_functions(CHOSEN, ASK="no", **given).stdout == "<waveshare|epd2in13_V4|>\n"
+    # The short name of the menu works too.
+    done = run_functions(CHOSEN, ASK="no", **(given | {"MODEL": "2in13_V4"}))
+    assert done.stdout == "<waveshare|epd2in13_V4|>\n"
     done = run_functions(CHOSEN, ASK="no", **(given | {"MODEL": "epd7in5_v2"}))
     assert done.returncode == 1 and "unknown Waveshare model 'epd7in5_v2'" in done.stderr
+    done = run_functions(CHOSEN, ASK="no", **(given | {"MODEL": ""}))
+    assert done.returncode == 1 and "--display waveshare needs --model" in done.stderr
+
+
+def test_numbers_with_a_leading_zero_and_sizes_with_one_model():
+    # "010" is size 10 (3in0, one model: no model menu); a --vcom is dropped.
+    done = run_functions(CHOSEN, "02\n010\n", ASK="yes", **(NEW | {"VCOM": "-2"}))
+    assert done.stdout.endswith("<waveshare|epd3in0g|>\n"), done.stderr
+    assert "Which 3in0 model?" not in done.stdout and "Screen: 3in0g, 4 colours" in done.stdout
+    assert "(1.02 to 13.3 inch)" in done.stdout and "(6 to 10.3 inch)" in done.stdout
 
 
 def test_the_screen_menu_can_be_skipped():
@@ -219,9 +232,12 @@ def test_a_kept_config_tells_whether_spi_is_needed(tmp_path):
     config.write_text('[display]\ntype = "it8951"\n')
     done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
     assert done.stdout == "<it8951||>\n"
-    config.write_text('[display]\ntype = "waveshare"\nmodel = "epd5in83"\n')
+    config.write_text("[display]\ntype\t= 'waveshare'\nmodel = \"epd5in83\"\n")
     done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
     assert done.stdout == "<waveshare||>\n"
+    # --display is not used then, so its --model is not checked.
+    given = {"CONFIG": str(config), "DISPLAY_TYPE": "waveshare", "MODEL": "", "VCOM": ""}
+    assert run_functions(CHOSEN, ASK="no", **given).stdout == "<waveshare||>\n"
     config.write_text('[display]\ntype = "virtual"\n')
     done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
     assert done.stdout == "<virtual||>\n"

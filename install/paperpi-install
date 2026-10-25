@@ -121,7 +121,7 @@ Options:
                   (Waveshare's small screens) or virtual, which only saves pictures
                   (change it in the web interface later). Without it, install asks.
   --model MODEL   install only: the screen model, e.g. 9.7 for it8951, or the name of
-                  Waveshare's file for the screen for waveshare, e.g. epd7in5_V2
+                  Waveshare's file for the screen for waveshare, e.g. epd7in5_V2 or 7in5_V2
   --vcom VCOM     install only: the vcom printed on the screen's cable, e.g. -1.90
   --yes           ask nothing: install missing packages, use the virtual screen unless
                   --display is given, and don't restart the Pi (it says when one is
@@ -179,9 +179,10 @@ pick() {
         # An empty answer: 0 in the first menu, asked again in the others.
         if [[ -n ${2:-} ]]; then ask "  Number: " ''; else ask "  Number: " 0; fi
         [[ -n ${2:-} && $ANSWER == [Bb] ]] && return 1
-        CHOICE=$ANSWER
-        [[ $CHOICE =~ ^[0-9]+$ ]] && ((CHOICE <= $1)) && { [[ -z ${2:-} ]] || ((CHOICE > 0)); } \
-            && return 0
+        if [[ $ANSWER =~ ^[0-9]{1,3}$ ]]; then
+            CHOICE=$((10#$ANSWER)) # 10#: "010" is 10, not 8 (a leading 0 means base 8)
+            ((CHOICE <= $1)) && { [[ -z ${2:-} ]] || ((CHOICE > 0)); } && return 0
+        fi
         if [[ -n ${2:-} ]]; then echo "  Type a number, or b to go back."
         else echo "  Type a number from the list."; fi
     done
@@ -190,24 +191,28 @@ pick() {
 # The screen menu, unless --display was given or there is a config already. Sets
 # DISPLAY_TYPE, MODEL and VCOM. Short lines, so it fits a small terminal.
 choose_screen() {
+    if [[ -e $CONFIG ]]; then
+        # Only to know whether SPI is needed; the config stays as it is, and so do --display
+        # and --model.
+        DISPLAY_TYPE=$(sed -nE "s/^type[[:space:]]*=[[:space:]]*[\"'](it8951|waveshare)[\"'].*/\\1/p" \
+            "$CONFIG" | head -n 1)
+        DISPLAY_TYPE=${DISPLAY_TYPE:-virtual}
+        return 0
+    fi
     if [[ -n $DISPLAY_TYPE ]]; then
         check_model
         return
     fi
-    if [[ -e $CONFIG ]]; then
-        # Only to know whether SPI is needed; the config stays as it is.
-        DISPLAY_TYPE=$(sed -nE 's/^type *= *"(it8951|waveshare)".*/\1/p' "$CONFIG" | head -n 1)
-        DISPLAY_TYPE=${DISPLAY_TYPE:-virtual}
-        return 0
-    fi
     DISPLAY_TYPE=virtual
     [[ $ASK == yes ]] || return 0
+    local smallest=${WAVESHARE_MODELS[0]#*|} largest=${WAVESHARE_MODELS[-1]#*|}
+    smallest=${smallest%%[!0-9in]*} largest=${largest%%[!0-9in]*}
     while true; do
         step "Which screen is connected?"
         echo "  1  Waveshare IT8951 board"
-        echo "     (6 to 10.3 inch)"
+        echo "     (${IT8951_MODELS[0]} to ${IT8951_MODELS[-1]} inch)"
         echo "  2  Waveshare e-Paper HAT, small"
-        echo "     screen (1.02 to 13.3 inch)"
+        echo "     screen (${smallest/in/.} to ${largest/in/.} inch)"
         echo "  0  none yet: choose it later in"
         echo "     the web interface"
         pick 2
@@ -217,6 +222,7 @@ choose_screen() {
             2) choose_waveshare && break ;;
         esac
     done
+    [[ $DISPLAY_TYPE == it8951 ]] || VCOM='' # --vcom is for an IT8951 only
     if [[ $DISPLAY_TYPE == it8951 && -z $VCOM ]]; then
         echo "  The vcom is printed on the screen's"
         echo "  ribbon cable, e.g. -1.90."
@@ -231,15 +237,20 @@ choose_screen() {
     fi
 }
 
-# --display waveshare needs a --model of the menu, checked before the long install.
+# --display waveshare needs a --model of the menu, checked before the long install. The
+# short name of the menu (7in5_V2) is taken too.
 check_model() {
     [[ $DISPLAY_TYPE == waveshare ]] || return 0
-    local entry
+    local entry names="all names: $REPO/blob/main/docs/waveshare-screens.md"
+    [[ -n $MODEL ]] || fail "--display waveshare needs --model, e.g. epd7in5_V2 ($names)"
     for entry in "${WAVESHARE_MODELS[@]}"; do
-        [[ ${entry%%|*} == "$MODEL" ]] && return 0
+        if [[ ${entry%%|*} == "$MODEL" || ${entry%%|*} == "epd$MODEL" ]]; then
+            MODEL=${entry%%|*}
+            return 0
+        fi
     done
     fail "unknown Waveshare model '$MODEL'; the name of Waveshare's file for the screen, e.g." \
-        "epd7in5_V2 (all names: $REPO/blob/main/docs/waveshare-screens.md)"
+        "epd7in5_V2 ($names)"
 }
 
 # The IT8951 sizes; returns 1 for "back".
@@ -277,13 +288,17 @@ choose_waveshare() {
         for entry in "${WAVESHARE_MODELS[@]}"; do
             [[ ${entry#*|} =~ ^$size([^0-9]|$) ]] && models+=("$entry")
         done
-        step "Which $size model? (on the sticker)"
-        for i in "${!models[@]}"; do
-            printf "%3d  %s\n" $((i + 1)) "${models[i]#*|}"
-        done
-        echo "  b  back"
-        pick ${#models[@]} back || continue
+        CHOICE=1
+        if ((${#models[@]} > 1)); then
+            step "Which $size model? (on the sticker)"
+            for i in "${!models[@]}"; do
+                printf "%3d  %s\n" $((i + 1)) "${models[i]#*|}"
+            done
+            echo "  b  back"
+            pick ${#models[@]} back || continue
+        fi
         DISPLAY_TYPE=waveshare MODEL=${models[CHOICE - 1]%%|*}
+        echo "  Screen: ${models[CHOICE - 1]#*|}"
         echo "  On the HAT, set the Display Config"
         echo "  switch to B (most screens) and"
         echo "  Interface Config to 0."

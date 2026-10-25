@@ -475,7 +475,7 @@ def describe(screen: Mapping[str, Any]) -> str:
         volts = "" if vcom is None else f", {vcom:.2f} V".replace("-", "−")
         return f"IT8951, {screen.get('model')} inch{volts}"
     if screen.get("type") == "waveshare":
-        return f"Waveshare {waveshare_name(str(screen.get('model')))}"
+        return f"Waveshare {waveshare_name(screen.get('model') or '(no model)')}"
     width = screen.get("width") or config.VIRTUAL_WIDTH
     height = screen.get("height") or config.VIRTUAL_HEIGHT
     shows = SHOWS.get(screen.get("mode") or config.VIRTUAL_MODE, "")
