@@ -163,5 +163,27 @@
     }
     type.addEventListener("change", show);
     show();
+    waveshareModel();
+  }
+
+  // The facts of the chosen Waveshare model, and the report link for an untested one.
+  function waveshareModel() {
+    var model = document.getElementById("ws-model");
+    if (!model) return;
+    var facts = document.getElementById("ws-facts");
+    var untested = document.getElementById("ws-untested");
+    function show() {
+      var chosen = model.options[model.selectedIndex];
+      if (!chosen) return;
+      ["size", "shows", "fast"].forEach(function (name) {
+        facts.querySelector('[data-fact="' + name + '"]').textContent = chosen.dataset[name];
+      });
+      facts.querySelector('[data-fact="file"]').textContent = chosen.value;
+      facts.hidden = false;
+      untested.hidden = !chosen.dataset.report;
+      document.getElementById("ws-report").href = chosen.dataset.report || "#";
+    }
+    model.addEventListener("change", show);
+    show();
   }
 })();

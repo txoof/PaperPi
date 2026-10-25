@@ -13,7 +13,8 @@
 config_version = 1
 
 [display]
-# The kind of screen: "virtual" (writes PNG files) or "it8951" (Waveshare's IT8951 board)
+# The kind of screen: "virtual" (writes PNG files), "it8951" (Waveshare's IT8951 board) or
+# "waveshare" (Waveshare's small screens)
 type = "virtual"
 # Turn the picture, in degrees. One of: 0, 90, 180, 270
 # rotation = 0
@@ -31,8 +32,8 @@ type = "virtual"
 # height = 825
 # Virtual screen only: what it can show. One of: "bw", "gray4", "gray16", "7color", "rgb"
 # mode = "gray16"
-# Real screens (required for it8951): the screen model. For it8951 its size in inches: "6", "7.8",
-# "9.7" or "10.3"
+# Real screens, and required for them: the screen model. For it8951 its size in inches: "6", "7.8",
+# "9.7" or "10.3"; for waveshare the name of Waveshare's file for it, e.g. "epd7in5_V2"
 # model = "9.7"
 # it8951 only, and required: the voltage printed on the screen's ribbon cable, e.g. -1.9 (between
 # -3.0 and -0.5). Each screen has its own; a wrong value gives poor contrast

@@ -297,6 +297,21 @@ def test_driver_for_an_it8951_screen():
     assert (driver.info.width, driver.vcom, driver.max_refresh) == (1200, -1.90, 2)
 
 
+def test_driver_for_a_waveshare_screen():
+    from epdlib.drivers.waveshare import WaveshareDriver
+
+    from paperpi import config
+    from paperpi.screen import driver_for
+
+    text = 'config_version = 1\n[display]\ntype = "waveshare"\nmodel = "epd7in5_V2"\n'
+    display = config.parse(text + "max_refresh = 3\n").display
+    make = driver_for(display, Path("unused"))
+    assert make.func is WaveshareDriver
+    driver = make()  # claims no pins yet: that is init's job, in the helper process
+    assert (driver.model, driver.info.width, driver.max_refresh) == ("epd7in5_V2", 800, 3)
+    assert driver.power_pin == 18
+
+
 @pytest.mark.parametrize("on_exit, cleared", [("clear", True), ("keep", False)])
 def test_run_with_an_it8951_screen(tmp_path, monkeypatch, capsys, on_exit, cleared):
     """A real screen type, with a pretend driver: no SPI or pins are used."""

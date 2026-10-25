@@ -288,12 +288,52 @@ def test_only_a_new_vcom_applies_at_once(cfg, reloads):
     assert "waiting for a restart" not in client.get("/system").text
 
 
+WAVESHARE = {"type": "waveshare", "ws_model": "epd7in5_V2"}
+
+
+def test_a_waveshare_screen_is_saved_with_its_model(cfg, reloads):
+    client = make_client(cfg, reloads, VIRTUAL)
+    # Without JavaScript the IT8951 group sends its model too; the Waveshare list wins.
+    response = client.post("/system/screen", data=WAVESHARE | {"model": "9.7", "vcom": ""})
+    assert response.headers["location"] == "/system?done=screen"
+    assert display(cfg) == {"type": "waveshare", "model": "epd7in5_V2", "max_refresh": 6}
+    page = client.get("/system").text
+    assert 'the new screen is Waveshare 7.5" V2.' in page.replace("&#34;", '"')
+    assert "<code>sudo shutdown now</code>" in page
+
+
+def test_change_screen_lists_waveshare_models_tested_first(cfg, reloads):
+    cfg.write_text(CONFIG.replace('type = "virtual"', 'type = "waveshare"\nmodel = "epd2in13_V4"'))
+    page = make_client(cfg, reloads, VIRTUAL).get("/system/screen").text
+    assert '<option value="waveshare" selected>' in page
+    tested, untested = page.index('label="Tested with PaperPi"'), page.index('label="Not tested')
+    assert tested < page.index('value="epd5in83"') < untested < page.index('value="epd1in02"')
+    assert page.index('value="epd1in02"') < page.index('value="epd13in3k"')  # by size
+    chosen = page[page.index('value="epd2in13_V4"') :].split(">", 1)[0]
+    assert " selected" in chosen and "data-report=" in chosen and "model=epd2in13_V4" in chosen
+    assert '<option value="9.7" selected>' in page  # the IT8951 list keeps its own default
+
+
+def test_the_page_shows_a_waveshare_screen_and_the_report_link(cfg, reloads):
+    untested = config.DisplaySettings(type="waveshare", model="epd7in3f")
+    page = make_client(cfg, reloads, untested).get("/system").text
+    assert "Waveshare small screen" in page and "7.3&#34; F, 800 × 480, 7 colours" in page
+    assert "report how it works" in page and "template=screen-report.yml" in page
+    assert 'name="color" value="true" checked' in page
+    assert "This screen has no fast refreshes:</b>" in page
+    tested = config.DisplaySettings(type="waveshare", model="epd7in5_V2")
+    page = make_client(cfg, reloads, tested).get("/system").text
+    assert "800 × 480, black and white" in page and "report how it works" not in page
+    assert "no fast refreshes" not in page
+
+
 @pytest.mark.parametrize(
     ("sent", "key", "problem"),
     [
         (IT8951 | {"vcom": "-4"}, "vcom", "Must be a number from -3.00 to -0.50"),
         (IT8951 | {"vcom": ""}, "vcom", "Must be a number from -3.00 to -0.50"),
         (IT8951 | {"model": "13"}, "model", "Choose one of the models"),
+        ({"type": "waveshare", "ws_model": "epd4in2b_V2"}, "ws_model", "Choose one of the"),
         (
             {"type": "virtual", "width": "wide", "height": "1", "mode": "bw"},
             "width",

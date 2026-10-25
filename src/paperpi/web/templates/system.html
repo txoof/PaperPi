@@ -35,7 +35,7 @@
 <div class="waiting" id="waiting">
   <p><b>Saved, waiting for a restart:</b> the new screen is {{ describe(new_screen) }}.
     PaperPi keeps using the current screen until it starts again.</p>
-  {% if new_screen.type == "it8951" %}
+  {% if new_screen.type in ("it8951", "waveshare") %}
   <p>To connect the new screen:</p>
   <ol>
     <li>Shut the Pi down. On the Pi: <code>sudo shutdown now</code></li>
@@ -47,7 +47,7 @@
   <p>PaperPi was started by hand: stop it (Ctrl+C) and start it again.</p>
   {% endif %}
   <div class="buttons">
-    {% if new_screen.type != "it8951" and can_restart %}
+    {% if new_screen.type == "virtual" and can_restart %}
     <a class="button" href="/system?restart=1#pi">Restart PaperPi now</a>{% endif %}
     <form method="post" action="/system/screen/undo"><button type="submit">Undo: keep
       the current screen</button></form>
@@ -102,6 +102,8 @@
       <dt>Type</dt><dd>{{ screen.type }}</dd>
       <dt>Model</dt><dd>{{ screen.model }}</dd>
       {% if screen.vcom %}<dt>VCOM</dt><dd>{{ screen.vcom }}</dd>{% endif %}
+      {% if screen.report %}<dt>Tried</dt><dd>Not tested with PaperPi yet: please
+        <a href="{{ screen.report }}" target="_blank" rel="noopener">report how it works</a></dd>{% endif %}
       <dt>State</dt><dd>
         {%- if not running %}PaperPi's screen is not running here
         {%- elif screen_state == "ok" %}✓ Answers
@@ -150,7 +152,9 @@
 <section class="sec" id="care">
   <div class="sec-head"><h2>Screen care</h2><span class="when">at once</span>
     <p>E-paper screens keep faint leftovers of earlier pictures. These settings clean them
-      away.</p></div>
+      away.{% if screen and not screen.fast %} <b>This screen has no fast refreshes:</b> every
+      picture is a full refresh, which leaves no leftovers, so the first two settings are not
+      used.{% endif %}</p></div>
   <div class="sec-body">
     {{ row("max_refresh", "max_refresh", saved.max_refresh) }}
       {{ label("max_refresh", "Full refresh after", "Fast refreshes in a row before a full one, which removes most leftovers (0 = never force one).") }}

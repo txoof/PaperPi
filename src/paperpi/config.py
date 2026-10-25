@@ -31,13 +31,17 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlencode
 
 from epdlib import ScreenMode
+from epdlib.drivers import DisplayInfo
 from epdlib.drivers.it8951 import MODELS as IT8951_MODELS
 from epdlib.drivers.it8951 import VCOM_RANGE
+from epdlib.drivers.waveshare import MODELS as WAVESHARE_MODELS
+from epdlib.drivers.waveshare import NOT_WORKING as WAVESHARE_NOT_WORKING
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from . import limits, plugins
+from . import __version__, limits, plugins
 from .files import write_atomic
 from .plugin import (
     SHARED_SETTINGS,
@@ -58,8 +62,26 @@ LAST_GOOD_NAME = "paperpi.last-good.toml"
 CONFIG_VERSION = 1
 
 #: Screen types PaperPi knows: ``virtual`` writes PNG files, ``it8951`` is Waveshare's
-#: IT8951 board with one of the screens in :data:`IT8951_MODELS` (by size in inches).
-DISPLAY_TYPES = ("virtual", "it8951")
+#: IT8951 board with one of the screens in :data:`IT8951_MODELS` (by size in inches),
+#: ``waveshare`` one of Waveshare's small screens in :data:`WAVESHARE_MODELS` (by the name
+#: of Waveshare's file for it, e.g. ``epd7in5_V2``).
+DISPLAY_TYPES = ("virtual", "it8951", "waveshare")
+
+#: GitHub's form for telling how a screen works with PaperPi
+#: (``.github/ISSUE_TEMPLATE/screen-report.yml``).
+SCREEN_REPORT = "https://github.com/txoof/PaperPi/issues/new"
+
+
+def screen_report_url(model: str) -> str:
+    """The address of the screen report form, with ``model`` and PaperPi's version filled in."""
+    fields = {
+        "template": "screen-report.yml",
+        "title": f"Screen report: {model}",
+        "model": model,
+        "version": __version__,
+    }
+    return f"{SCREEN_REPORT}?{urlencode(fields)}"
+
 
 #: Colour modes a virtual screen can have, and what they mean in epdlib.
 MODES = {
@@ -99,8 +121,8 @@ class DisplaySettings(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
     type: str = Field(
-        description='The kind of screen: "virtual" (writes PNG files) or "it8951" (Waveshare\'s '
-        "IT8951 board)"
+        description='The kind of screen: "virtual" (writes PNG files), "it8951" (Waveshare\'s '
+        'IT8951 board) or "waveshare" (Waveshare\'s small screens)'
     )
     rotation: Literal[0, 90, 180, 270] = Field(0, description="Turn the picture, in degrees")
     color: bool = Field(True, description="false: draw in gray, even on a color screen")
@@ -128,8 +150,9 @@ class DisplaySettings(BaseModel):
     )
     model: str | None = Field(
         None,
-        description="Real screens (required for it8951): the screen model. For it8951 its "
-        'size in inches: "6", "7.8", "9.7" or "10.3"',
+        description="Real screens, and required for them: the screen model. For it8951 its "
+        'size in inches: "6", "7.8", "9.7" or "10.3"; for waveshare the name of Waveshare\'s '
+        'file for it, e.g. "epd7in5_V2"',
     )
     vcom: float | None = Field(
         None,
@@ -181,8 +204,8 @@ class DisplaySettings(BaseModel):
     @property
     def size(self) -> tuple[int, int]:
         """The screen's width and height in pixels, before rotation."""
-        if self.type == "it8951" and self.model in IT8951_MODELS:
-            info = IT8951_MODELS[self.model]
+        info = self.model_info
+        if info is not None:
             return (info.width, info.height)
         return (self.width or VIRTUAL_WIDTH, self.height or VIRTUAL_HEIGHT)
 
@@ -193,11 +216,29 @@ class DisplaySettings(BaseModel):
         return (height, width) if self.rotation in (90, 270) else (width, height)
 
     @property
+    def model_info(self) -> DisplayInfo | None:
+        """epdlib's facts about the real screen's model; ``None`` for a virtual screen or a
+        model epdlib doesn't know."""
+        if self.type == "it8951":
+            return IT8951_MODELS.get(self.model or "")
+        if self.type == "waveshare":
+            return WAVESHARE_MODELS.get(self.model or "")
+        return None
+
+    @property
+    def fast_writes(self) -> bool:
+        """The screen has fast writes. Without them every write is a full refresh, which
+        leaves no leftovers, so the screen is never cleaned (``clean_every`` is not used)."""
+        info = self.model_info
+        return info is None or info.fast_refresh
+
+    @property
     def screen_mode(self) -> ScreenMode:
         """What plugins draw in, with ``color = false`` applied."""
         if self.type == "it8951":
             return IT8951_MODELS[self.model or "9.7"].mode
-        mode = MODES[self.mode or VIRTUAL_MODE]
+        info = self.model_info
+        mode = info.mode if info is not None else MODES[self.mode or VIRTUAL_MODE]
         if not self.color and mode.kind == "palette":
             return ScreenMode.bw()
         if not self.color and mode.kind == "rgb":
@@ -603,7 +644,9 @@ class _Checker:
                     )
         if settings.type == "it8951":
             self.check_it8951(settings, section)
-        if settings.max_refresh == 0 and settings.clean_every == 0:
+        elif settings.type == "waveshare":
+            self.check_waveshare(settings, section)
+        if settings.max_refresh == 0 and settings.clean_every == 0 and settings.fast_writes:
             self.add(
                 "hint",
                 "max_refresh = 0 and clean_every = 0: the screen is never fully refreshed, so "
@@ -683,6 +726,55 @@ class _Checker:
                 "ribbon cable, e.g. -1.90",
                 section,
                 "type",
+                "[display]",
+            )
+
+    def check_waveshare(self, settings: DisplaySettings, section: tuple) -> None:
+        tested = ", ".join(f'"{name}"' for name, info in WAVESHARE_MODELS.items() if info.tested)
+        if settings.vcom is not None:
+            self.add(
+                "warning",
+                'vcom is only for type = "it8951"; a Waveshare small screen doesn\'t use it',
+                section,
+                "vcom",
+                "[display]",
+            )
+        if settings.model is None:
+            self.add(
+                "error",
+                "model: required setting is missing; the name of Waveshare's file for the "
+                f"screen, e.g. {tested} (the full list is in docs/waveshare-screens.md)",
+                section,
+                "type",
+                "[display]",
+            )
+        elif settings.model in WAVESHARE_NOT_WORKING:
+            self.add(
+                "error",
+                f"model: {settings.model} does not work with PaperPi: "
+                f"{WAVESHARE_NOT_WORKING[settings.model]}",
+                section,
+                "model",
+                "[display]",
+            )
+        elif settings.model not in WAVESHARE_MODELS:
+            hint = _did_you_mean(settings.model, WAVESHARE_MODELS)
+            self.add(
+                "error",
+                f"model: unknown waveshare model {settings.model!r}{hint}; the name of "
+                f"Waveshare's file for the screen, e.g. {tested} (the full list is in "
+                "docs/waveshare-screens.md)",
+                section,
+                "model",
+                "[display]",
+            )
+        elif not WAVESHARE_MODELS[settings.model].tested:
+            self.add(
+                "hint",
+                f"model: {settings.model} has not been tried on a real screen yet; please "
+                f"report how it works: {screen_report_url(settings.model)}",
+                section,
+                "model",
                 "[display]",
             )
 

@@ -4,8 +4,8 @@
   uses the plugin's sample data and default settings, so it needs no network and no config
   file.
 - ``paperpi run`` shows the plugins of a config file: it runs the scheduler until it is
-  stopped. With ``type = "virtual"`` it writes PNG files; with ``type = "it8951"`` it writes
-  to the real screen.
+  stopped. With ``type = "virtual"`` it writes PNG files; with ``type = "it8951"`` or
+  ``"waveshare"`` it writes to the real screen.
 - ``paperpi list`` shows the plugins of a config file; ``paperpi example-config`` prints an
   example config file.
 - ``paperpi reset-password`` removes the web password, so a new one can be set in the web
