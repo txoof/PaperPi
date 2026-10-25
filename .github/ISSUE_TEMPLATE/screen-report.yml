@@ -1,5 +1,5 @@
 name: Screen report
-description: Tell us how a Waveshare screen works with PaperPi, good or bad
+description: Tell us how a Waveshare screen works with PaperPi, or ask for a screen it doesn't know
 title: "Screen report: "
 labels: [hardware]
 body:
@@ -9,11 +9,18 @@ body:
         Thank you! Most Waveshare models have not been tried with PaperPi yet, so every
         report helps, also "it just works". PaperPi's web interface fills in the first two
         fields when you come from its Change screen page.
+
+        **Is your screen not in PaperPi's list?** Use this form to ask for it: write the
+        screen's name and version as printed on its box or sticker (e.g. 7.5" V3) under
+        Screen model, a link to its page on waveshare.com, and choose "My screen is not in
+        PaperPi's list" below.
   - type: input
     id: model
     attributes:
       label: Screen model
-      description: The name of Waveshare's file for the screen, as in PaperPi's config file.
+      description: >-
+        The name of Waveshare's file for the screen, as in PaperPi's config file. For a screen
+        that is not in the list: its name and version from the box or sticker.
       placeholder: "epd7in5_V2"
     validations:
       required: true
@@ -40,6 +47,7 @@ body:
         - Works well
         - Works, with problems (please describe them below)
         - Does not work
+        - My screen is not in PaperPi's list (please add it)
     validations:
       required: true
   - type: checkboxes
@@ -73,7 +81,9 @@ body:
     id: problems
     attributes:
       label: Problems, and anything else
-      description: What went wrong, and what you expected. A photo of the screen helps a lot; drag it here.
+      description: >-
+        What went wrong, and what you expected. A photo of the screen helps a lot; drag it
+        here. For a screen to add: a link to its page on waveshare.com.
   - type: textarea
     id: logs
     attributes:

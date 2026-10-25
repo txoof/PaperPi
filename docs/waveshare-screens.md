@@ -27,6 +27,8 @@ Only a few models have been tried on a real screen with PaperPi (Tested: yes in 
 
 **Please tell us how your screen works**, good or bad: the [screen report form](https://github.com/txoof/PaperPi/issues/new?template=screen-report.yml) takes a few minutes. The web interface's links to it fill in the model and PaperPi's version for you.
 
+**Screen not in the list?** Use the same [form](https://github.com/txoof/PaperPi/issues/new?template=screen-report.yml) to ask for it, with the name and version from its box and a link to its page on waveshare.com. PaperPi uses a fixed, tested copy of Waveshare's program code (in epdlib), so a new model comes with an epdlib update.
+
 ## What to know
 
 - **Fast writes:** only the 7.5" V2 has them now. A new picture from the plugin already on screen then takes about 4 seconds instead of 7; every 5th fast write in a row is a full one (`max_refresh = 4`). On every other model each picture is a full refresh, with the screen flashing black and white. That leaves no leftovers, so PaperPi doesn't clean these screens (`clean_every` and `max_refresh` are not used).
