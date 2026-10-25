@@ -21,7 +21,7 @@ The script prints each step before it does it. At the end the screen shows a clo
 sudo paperpi-install update
 ```
 
-It gets the newest `main` from GitHub, installs its Python packages and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead, for example to go back to an older commit or to try a branch. The config and the saved files stay as they are.
+It gets the newest `main` from GitHub, installs its Python packages and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead, for example to go back to an older commit or to try a branch. The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
 
 ## Remove
 
