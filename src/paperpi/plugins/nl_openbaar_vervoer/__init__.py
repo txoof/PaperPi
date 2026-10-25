@@ -53,6 +53,7 @@ def _stop(n: int):
     return setting(
         "",
         helper=f"stop_{n}",
+        group=f"Stop {n}",
         pattern=CODE,
         max_length=20,
         description=f"Code of stop {n}: one side of the street, e.g. 31001118 (or leave empty)",
@@ -60,20 +61,24 @@ def _stop(n: int):
 
 
 def _name(n: int):
-    return Field("", max_length=30, description=f"Heading of stop {n} (empty: its name)")
+    return setting(
+        "", group=f"Stop {n}", max_length=30, description=f"Heading of stop {n} (empty: its name)"
+    )
 
 
 def _lines(n: int):
-    return Field(
+    return setting(
         "",
+        group=f"Stop {n}",
         max_length=60,
         description=f"Lines to show at stop {n}, e.g. 9, 12 (empty: all lines)",
     )
 
 
 def _walk(n: int):
-    return Field(
+    return setting(
         0,
+        group=f"Stop {n}",
         ge=0,
         le=60,
         description=f"Minutes from your front door to stop {n}, with a minute to spare (0: off). "
@@ -82,7 +87,8 @@ def _walk(n: int):
 
 
 def _days(n: int, what: str = "stop"):
-    return Field(DAYS, description=f"Days on which {what} {n} is shown")
+    group = f"{what.capitalize()} {n}"
+    return setting(DAYS, group=group, description=f"Days on which {what} {n} is shown")
 
 
 def _station(n: int, end: str):
@@ -90,6 +96,7 @@ def _station(n: int, end: str):
     return setting(
         "",
         helper=f"train_{end}_{n}",
+        group=f"Train route {n}",
         pattern=STATION,
         max_length=8,
         description=f"NS code of the station train route {n} goes {end}, e.g. {example} "
@@ -98,8 +105,9 @@ def _station(n: int, end: str):
 
 
 def _train_walk(n: int):
-    return Field(
+    return setting(
         0,
+        group=f"Train route {n}",
         ge=0,
         le=90,
         description=f"Minutes from your front door to the platform of train route {n}, walking "
@@ -108,8 +116,9 @@ def _train_walk(n: int):
 
 
 def _changes(n: int):
-    return Field(
+    return setting(
         False,
+        group=f"Train route {n}",
         description=f"Train route {n}: also show trips with a change of train (off: direct only)",
     )
 
@@ -135,8 +144,9 @@ class Settings(PluginSettings):
     lines_4: str = _lines(4)
     walk_4: int = _walk(4)
     days_4: tuple[Day, ...] = _days(4)
-    ns_key: SecretStr = Field(
+    ns_key: SecretStr = setting(
         SecretStr(""),
+        group="NS key",
         description="NS API key needed for trains. See the [README](readme) for information on "
         "obtaining a free key",
     )

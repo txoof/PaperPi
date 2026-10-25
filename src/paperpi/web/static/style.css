@@ -40,8 +40,9 @@
 }
 
 * { box-sizing: border-box; }
-/* Room for the scroll bar on every page, so a page without one does not move sideways. */
-html { scrollbar-gutter: stable; }
+/* Room for the scroll bar on every page, so a page without one does not move sideways; it is
+   always shown, so folding a section open or shut never moves the page sideways either. */
+html { scrollbar-gutter: stable; overflow-y: scroll; }
 body { margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 a { color: var(--accent); }
@@ -334,6 +335,8 @@ dialog.window:has(.look-view) { width: min(44rem, calc(100% - 32px)); }
 .settings select { padding: 0.3rem 0.4rem; }
 .settings label.check { display: flex; gap: 0.4rem; align-items: center; margin: 0.25rem 0; }
 .settings label.check input { width: auto; display: inline; margin: 0; }
+/* A list to tick (days of the week, ...) in a row, wrapping on a narrow screen. */
+.settings .choices { display: flex; flex-wrap: wrap; gap: 0 1rem; }
 .settings .wrong input, .settings .wrong select { border: 2px solid var(--bad); }
 .settings .problem { margin: 0.25rem 0 0; }
 .technical dt { font-weight: 600; margin-top: 0.5rem; }
@@ -348,6 +351,32 @@ dialog.window:has(.look-view) { width: min(44rem, calc(100% - 32px)); }
 .helper > label { display: block; margin: 0 0 0.25rem; }
 .helper .search { display: flex; gap: 0.5rem; }
 .helper .search input { flex: 1; margin: 0; }
+/* Foldable sections of a plugin whose settings name groups (#315): a line between them, one
+   level of sub-sections at most. The heading shows a mark and the values filled in. */
+.groups { border-top: 1px solid var(--line); margin-top: 1rem; }
+details.group { margin: 0; border-bottom: 1px solid var(--line); }
+details.group:last-child { border-bottom: 0; }
+.groups > details.group:last-child { border-bottom: 1px solid var(--line); }
+details.group > summary { list-style: none; display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: 0.25rem 0.75rem; padding: 0.7rem 0.2rem; }
+details.group > summary::-webkit-details-marker { display: none; }
+details.group > summary::before { content: "▸"; color: var(--muted); width: 0.9rem;
+  transition: transform 0.12s; }
+details.group[open] > summary::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { details.group > summary::before { transition: none; } }
+details.group > summary:hover .group-title { text-decoration: underline; }
+.group-title { font-weight: 600; }
+.groups > details.group > summary .group-title { font-size: 1.05rem; }
+.group-state { display: inline-flex; gap: 0.4rem; align-items: baseline; min-width: 0;
+  flex: 1 1 12rem; font-size: 0.9rem; color: var(--muted); }
+.group-mark { flex: none; font-weight: 600; }
+.group-state.is-set .group-mark { color: var(--ok); }
+.group-state.is-error .group-mark, .group-state.is-error .group-line { color: var(--bad);
+  font-weight: 600; }
+.group-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.group-body { padding: 0 0.2rem 0.8rem 1.15rem; }
+.group-subs { border-top: 1px solid var(--line); margin-left: 1.15rem; }
+.group-subs details.group > summary { padding-block: 0.55rem; }
 .found { padding-left: 1.25rem; }
 .found li { margin: 0.5rem 0; }
 .found button { margin-top: 0.25rem; }

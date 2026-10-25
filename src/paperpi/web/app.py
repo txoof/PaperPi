@@ -90,7 +90,7 @@ from . import changes, keep, logs, readme, system, warnings
 from .auth import COOKIE_SECONDS, Auth, new_cookie
 from .config_file import EditError, UnknownForm, fingerprint, kept_path, saved_here
 from .config_file import read as read_config
-from .forms import Read, fields, form_texts
+from .forms import Read, fields, form_texts, sections
 from .helpers import Searcher, SearchFailed, language
 from .home import Controls, Now, Snapshots, card_key, cards, now_part
 from .password import PasswordError, password_problem
@@ -701,6 +701,7 @@ def create_app(
             row=row,
             plugin=plugin,
             groups=groups,
+            sections=sections(shown),
             more_open=any(f.error or f.changed for f in groups["more"]),
             folder=folder_name(row.id),
             done=done if done in ("saved", "added") and not found else None,
