@@ -1,6 +1,7 @@
 """Layouts for nl_openbaar_vervoer. The first one is the default.
 
-``sections``: a heading per stop (``head_<s>``), then its departures, one row each, with the
+``sections``: a heading per stop (a black bar with ``head_<s>``: the stop's name in bold, and
+``walk_<s>``: "6 min walk" at the right), then its departures, one row each, with the
 blocks ``time_<s>_<i>``, ``delay_<s>_<i>``, ``line_<s>_<i>``, ``dest_<s>_<i>`` and
 ``note_<s>_<i>`` ("leave in 3 min", "left", ...). The screen is shared by the stops shown
 today, so the number of rows per stop depends on the settings and the day.
@@ -9,9 +10,10 @@ today, so the number of rows per stop depends on the settings and the day.
 stop's heading in ``stop_<i>`` (rows ``time_<i>``, ``delay_<i>``, ``line_<i>``, ``dest_<i>``,
 ``note_<i>``).
 
-``next``: the first stop only. The next departure that can still be caught is large
-(``next_dest``: line and destination, ``next_note``: "Leave in 3 min", ``next_time``), the
-later ones are small rows below it (``time_0_<i>``, ...). Only the first stop is fetched.
+``next``: the first stop only, with the same heading. The next departure that can still be
+caught is large (``next_dest``: line and destination, ``next_note``: "Leave in 3 min",
+``next_time``), the later ones are small rows below it (``time_0_<i>``, ...). Only the first
+stop is fetched.
 
 Every layout ends with ``notice`` (disruptions on the train routes) and ``footer`` (when the
 departures were fetched).
@@ -51,17 +53,53 @@ def rows_per_stop(stops: int) -> int:
     return (LINES - stops) // stops
 
 
-def _row(s: int, i: int) -> dict:
+def _row(s: int, i: int, train: bool = False) -> dict:
+    """One departure row. A train row has the platform in a box (``track_<s>_<i>``, as on
+    NS's signs) before the station the train is signed with."""
+    if train:
+        # A picture: drawn by the plugin (see sign() in __init__), so a row without a
+        # platform has no empty box. A text block's border is always drawn.
+        box = {"name": f"track_{s}_{i}", "type": "image", "size": 0.6, "padding": PAD}
+        # Station names are long ("Amsterdam Centraal"): the note column gives room.
+        middle = [box, _text(f"dest_{s}_{i}", "Amsterdam Centraal", 3.2, shrink=True)]
+        note = 2.4
+    else:
+        middle = [_text(f"dest_{s}_{i}", "Carnisselande", 3.2)]
+        note = 3.0
     return {
         "row": [
             _text(f"time_{s}_{i}", "88:88", 1.3, font=fonts.LATO_BOLD),
             _text(f"delay_{s}_{i}", "+88", 0.9),
             _text(f"line_{s}_{i}", "888", 0.9, align="center", font=fonts.LATO_BOLD),
-            _text(f"dest_{s}_{i}", "Carnisselande", 3.2),
-            _text(f"note_{s}_{i}", "leave in 88 min", 3.0, align="right"),
+            *middle,
+            _text(f"note_{s}_{i}", "leave in 88 min", note, align="right"),
         ],
         "gap": 0,
     }
+
+
+def _heading(s: int) -> list:
+    """The heading of stop ``s``: a black bar with white text, the stop's name in bold and
+    the walking time at the right (two blocks: a text block has one font). The bar sets the
+    sections apart, so the walking time can't be read as one more departure."""
+    bar = {"background": "black", "fill": "white"}
+    return [
+        {
+            "row": [
+                # Long names (train routes) are made smaller to fit.
+                _text(
+                    f"head_{s}",
+                    "Rotterdam Centraal",
+                    3.6,
+                    font=fonts.LATO_BOLD,
+                    shrink=True,
+                    **bar,
+                ),
+                _text(f"walk_{s}", "88 min walk", 1.4, align="right", **bar),
+            ],
+            "gap": 0,
+        },
+    ]
 
 
 def sections(settings) -> dict:
@@ -70,14 +108,13 @@ def sections(settings) -> dict:
     from . import _now, today_routes, today_stops  # here: the plugin's module imports this one
 
     now = _now()
-    count = max(1, len(today_stops(settings, now)) + len(today_routes(settings, now)))
+    stops, routes = len(today_stops(settings, now)), len(today_routes(settings, now))
+    count = max(1, stops + routes)
     rows = rows_per_stop(count)
     column = []
-    for s in range(count):
-        column.append(
-            _text(f"head_{s}", "Rotterdam Centraal · 8 min walk", 1, font=fonts.LATO_BOLD)
-        )
-        column += [_row(s, i) for i in range(rows)]
+    for s in range(count):  # stops first, then train routes
+        column += _heading(s)
+        column += [_row(s, i, train=stops <= s < stops + routes) for i in range(rows)]
     return _with_footer(column)
 
 
@@ -105,9 +142,14 @@ def by_time(settings) -> dict:
 
 
 def next_departure(settings) -> dict:
-    """The next departure of the first stop, large, then :data:`LATER` small rows."""
+    """The next departure of the first stop (or train route), large, then :data:`LATER`
+    small rows."""
+    from . import _now, today_routes, today_stops  # here: the plugin's module imports this one
+
+    now = _now()
+    train = not today_stops(settings, now) and bool(today_routes(settings, now))
     column = [
-        _text("head_0", "Rotterdam Centraal · 8 min walk", 1, font=fonts.LATO_BOLD),
+        *_heading(0),
         # No font_size: the text is made as large as its block allows.
         _text("next_dest", "888 Heemraadsplein", 2.2, align="center", font_size=None, shrink=True),
         _text(
@@ -120,7 +162,7 @@ def next_departure(settings) -> dict:
         ),
         _text("next_time", "88:88 (+88)", 1.4, align="center", font_size=None),
     ]
-    column += [_row(0, i) for i in range(LATER)]
+    column += [_row(0, i, train=train) for i in range(LATER)]
     return _with_footer(column)
 
 

@@ -58,10 +58,6 @@ def _time(text: str) -> datetime:
     return datetime.fromisoformat(text).astimezone(UTC)
 
 
-def _clock(t: datetime) -> str:
-    return f"{t.astimezone(ZONE):%H:%M}"
-
-
 def read_trips(
     answer: object, origin: str, destination: str, changes: bool
 ) -> tuple[Stop, datetime | None]:
@@ -85,19 +81,20 @@ def read_trips(
             if transfers and not changes:
                 continue
             expected = _time(start.get("actualDateTime") or start["plannedDateTime"])
-            arrival = _time(end.get("actualDateTime") or end["plannedDateTime"])
             track = start.get("actualTrack") or start.get("plannedTrack") or "?"
+            # The station the train is signed with (Groningen), as on the platform.
+            where = legs[0].get("direction") or legs[0]["destination"]["name"]
             if start.get("plannedTrack") and track != start["plannedTrack"]:
-                where = f"spoor {track} (was {start['plannedTrack']})"
-            elif transfers:  # no room for the arrival as well
-                where = f"spoor {track} · {transfers} change" + ("s" if transfers > 1 else "")
-            else:
-                where = f"spoor {track} → {_clock(arrival)}"
+                where += f" · was {start['plannedTrack']}"
+            elif transfers:
+                where += f" · {transfers} change" + ("s" if transfers > 1 else "")
             cancelled = trip.get("status") == "CANCELLED" or any(
                 leg.get("cancelled") for leg in legs
             )
             category = legs[0].get("product", {}).get("shortCategoryName") or "?"
-            found.append(Departure(category, where, planned, expected, cancelled=cancelled))
+            found.append(
+                Departure(category, where, planned, expected, cancelled=cancelled, track=track)
+            )
     except (AttributeError, IndexError, KeyError, TypeError, ValueError) as error:
         raise AnswerError(f"the NS answer can't be read: {error!r}") from None
     found.sort(key=lambda d: d.expected)

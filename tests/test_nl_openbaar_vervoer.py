@@ -296,7 +296,7 @@ def test_draw_fills_each_stop_and_says_when_it_was_updated(context):
         NOW - timedelta(minutes=6),
     )
     values = draw(board, context(stop_1="a", stop_2="b", stop_3="c"))
-    assert values["head_0"] == "Tram 9 · 4 min walk"
+    assert (values["head_0"], values["walk_0"]) == ("Tram 9", "4 min walk")
     assert [values[f"{b}_0_0"] for b in ("time", "delay", "line", "dest", "note")] == [
         "08:14",
         "+2",
@@ -336,7 +336,16 @@ def test_layout_leaves_out_stops_not_shown_today(monkeypatch):
 # --- NS trains -------------------------------------------------------------------------------
 
 
-def trip(planned, actual=None, track="7", new_track=None, arrival="09:17", transfers=0, **more):
+def trip(
+    planned,
+    actual=None,
+    track="7",
+    new_track=None,
+    arrival="09:17",
+    transfers=0,
+    direction="Groningen",
+    **more,
+):
     """One trip as the NS journey planner sends it (the fields the plugin reads, copied from a
     real answer for Den Haag Centraal → Utrecht Centraal, 24 October 2026)."""
     day = "2026-10-24T"
@@ -347,7 +356,8 @@ def trip(planned, actual=None, track="7", new_track=None, arrival="09:17", trans
     if new_track:
         start["actualTrack"] = new_track
     end = {"name": "Utrecht Centraal", "plannedDateTime": f"{day}{arrival}:00+0200"}
-    legs = [{"origin": start, "destination": end, "product": {"shortCategoryName": "IC"}}]
+    first = {"origin": start, "destination": end, "product": {"shortCategoryName": "IC"}}
+    legs = [first | ({"direction": direction} if direction else {})]
     legs += [{"origin": {}, "destination": end, "product": {}} for _ in range(transfers)]
     if transfers:
         legs[0]["destination"] = {"name": "Leiden Centraal"}
@@ -372,21 +382,22 @@ def test_read_trips_keeps_direct_trains_and_marks_platform_changes():
     answer = trips(
         trip("08:40", "08:42", track="7", new_track="2"),
         trip("08:58", transfers=1),
-        trip("08:55", arrival="09:32", track="8"),
+        trip("08:55", arrival="09:32", track="8", direction=None),
         trip("09:10", status="CANCELLED"),
     )
     route, last = ns.read_trips(answer, "GVC", "UT", changes=False)
     assert f"{last.astimezone(ZONE):%H:%M}" == "09:10"
     assert (route.code, route.name) == ("GVC-UT", "Den Haag Centraal → Utrecht Centraal")
-    assert [d.destination for d in route.departures] == [
-        "spoor 2 (was 7)",
-        "spoor 8 → 09:32",
-        "spoor 7 → 09:17",
+    # The station each train is signed with (the last one without it: where it arrives).
+    assert [(d.track, d.destination) for d in route.departures] == [
+        ("2", "Groningen · was 7"),
+        ("8", "Utrecht Centraal"),
+        ("7", "Groningen"),
     ]
     assert route.departures[0].delay == 2 and route.departures[0].line == "IC"
     assert route.departures[2].cancelled
     with_changes, _ = ns.read_trips(answer, "GVC", "UT", changes=True)
-    assert with_changes.departures[2].destination == "spoor 7 · 1 change"
+    assert with_changes.departures[2].destination == "Groningen · 1 change"
 
 
 def test_read_trips_refuses_an_answer_it_cant_read():
@@ -611,6 +622,40 @@ def test_layout_counts_stops_and_routes_and_has_a_notice(monkeypatch):
     assert sum(1 for n in blocks if n.startswith("head_")) == 3 and "notice" in blocks
 
 
+def test_a_train_row_has_its_platform_in_a_box(context, layout_context):
+    settings = {"stop_1": "a", "train_from_1": "A", "train_to_1": "B", "ns_key": "k"}
+    blocks = PLUGIN.layout("sections", Settings(**settings)).blocks
+    assert blocks["track_1_0"].type == "image"
+    assert not any(name.startswith("track_0_") for name in blocks)  # the tram stop has none
+    tram = Section("Tram", 0, (at(5),))
+    train = Section("A → B", 0, (replace(at(9, line="IC"), track="7", destination="Groningen"),))
+    values = draw(Board((tram, train), NOW, NOW), context(**settings))
+    assert values["dest_1_0"] == "Groningen"
+    box = values["track_1_0"]  # a picture of the sign, as large as its block
+    size = PLUGIN.layout("sections", Settings(**settings)).prepare(1200, 825, ScreenMode.gray(16))
+    assert box.size == size.content_size("track_1_0")
+    assert set(box.get_flattened_data()) == {0, 255}  # black and white only: no screen dithers it
+    assert "track_1_1" not in values  # an empty row has no box
+    # In one list by time, rows have no box: the platform goes before the station.
+    values = draw(Board((tram, train), NOW, NOW), layout_context("by_time", **settings))
+    assert values["dest_1"] == "[7] Groningen"
+
+
+def test_a_long_platform_number_still_fits():
+    from paperpi.plugins.nl_openbaar_vervoer import sign
+
+    for track in ("7", "14b", "1234"):
+        picture = sign(track, (40, 28))
+        assert picture.size == (40, 28) and 0 in set(picture.get_flattened_data())
+
+
+def test_a_saved_train_keeps_its_platform(tmp_path):
+    train = replace(at(9, line="IC"), track="7")
+    path = tmp_path / SAVED
+    path.write_bytes(save(Saved({"A-B": Stop("A-B", "A → B", (train,))}, frozenset(), NOW)))
+    assert load(path).stops["A-B"].departures == (train,)
+
+
 def test_small_sections_leave_out_what_has_left(context):
     board = Board((Section("A", 0, (at(-2, left=True), at(-1), at(5), at(9))),), NOW, NOW)
     settings = {f"stop_{n}": "a" for n in range(1, 5)} | {"train_from_1": "A", "train_to_1": "B"}
@@ -670,7 +715,7 @@ def test_next_shows_the_first_one_that_can_be_caught_large(layout_context):
     )
     other = Section("Bus", 0, (at(1),))
     values = draw(Board((section, other), NOW, NOW), layout_context("next"))
-    assert values["head_0"] == "Tram · 4 min walk"
+    assert (values["head_0"], values["walk_0"]) == ("Tram", "4 min walk")
     assert values["next_dest"] == "12  Vrederust"
     assert values["next_note"] == "Leave in 6 min"
     assert values["next_time"] == "08:20 (+2)"

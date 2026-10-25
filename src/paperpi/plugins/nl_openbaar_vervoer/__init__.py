@@ -15,9 +15,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
 
+from PIL import Image, ImageDraw, ImageFont
 from pydantic import Field, SecretStr, field_validator
 
-from ... import webrequest
+from ... import fonts, webrequest
 from ...files import write_atomic
 from ...plugin import NOTHING, Context, Plugin, PluginSettings, alert, ready, setting
 from . import departures, ns, search
@@ -449,7 +450,8 @@ def note(departure: Departure, walk: int, now: datetime) -> str:
 
 
 def draw(board: Board, context: Context) -> dict:
-    wanted = PLUGIN.layout(context.layout, context.settings).blocks
+    layout = PLUGIN.layout(context.layout, context.settings)
+    wanted = layout.blocks
     ahead = context.settings.ahead
     if context.layout == "by_time":
         values = _draw_by_time(board, wanted, ahead)
@@ -465,20 +467,55 @@ def draw(board: Board, context: Context) -> dict:
         values["footer"] = f"Not updated since {board.fetched.astimezone(ZONE):%H:%M}"
     else:
         values["footer"] = f"Updated {board.fetched.astimezone(ZONE):%H:%M}"
+    tracks = [name for name, value in values.items() if name.startswith("track_") and value]
+    if tracks:
+        prepared = layout.prepare(context.width, context.height, context.mode)
+        for name in tracks:
+            values[name] = sign(values[name], prepared.content_size(name))
     return {name: value for name, value in values.items() if name in wanted}
 
 
-def _fill_row(values: dict, at: str, d: Departure, walk: int, now: datetime) -> None:
-    """The blocks ``time_<at>``, ``delay_<at>``, ... of one departure row."""
+def sign(track: str, area: tuple[int, int]) -> Image.Image:
+    """The platform number in a box, as on NS's signs, ``size`` pixels large (the box a
+    little lower than the row, so the boxes of rows after each other don't touch). Drawn in
+    black and white only, without smoothed edges, so no screen turns it into dots."""
+    width, height = area
+    picture = Image.new("L", (max(1, width), max(1, height)), 255)
+    pen = ImageDraw.Draw(picture)
+    pen.fontmode = "1"
+    margin = round(height * 0.06)
+    line = max(1, round(height / 16))
+    # About as wide as high, as NS's signs; wider only when the number needs it.
+    box = min(width, round(height * 1.25))
+    left = (width - box) // 2
+    pen.rectangle((left, margin, left + box - 1, height - 1 - margin), outline=0, width=line)
+    size = max(4, round((height - 2 * margin - 2 * line) * 0.85))
+    font = ImageFont.truetype(fonts.LATO_BOLD, size)
+    while size > 4 and pen.textlength(track, font=font) > box - 4 * line:
+        size -= 1
+        font = ImageFont.truetype(fonts.LATO_BOLD, size)
+    pen.text((width / 2, height / 2), track, font=font, fill=0, anchor="mm")
+    return picture
+
+
+def _fill_row(values: dict, at: str, d: Departure, walk: int, now: datetime, wanted) -> None:
+    """The blocks ``time_<at>``, ``delay_<at>``, ... of one departure row. A train's
+    platform goes in its box (``track_<at>``), or before the station in a row without one."""
     values[f"time_{at}"] = f"{d.expected.astimezone(ZONE):%H:%M}"
     values[f"delay_{at}"] = f"+{d.delay}" if d.delay > 0 else ""
     values[f"line_{at}"] = d.line
     values[f"dest_{at}"] = d.destination
+    if f"track_{at}" in wanted:
+        if d.track:
+            values[f"track_{at}"] = d.track
+    elif d.track:
+        values[f"dest_{at}"] = f"[{d.track}] {d.destination}"
     values[f"note_{at}"] = note(d, walk, now)
 
 
-def _heading(section: Section) -> str:
-    return section.title + (f" · {section.walk} min walk" if section.walk else "")
+def _heading(values: dict, s: int, section: Section) -> None:
+    values[f"head_{s}"] = section.title
+    values[f"walk_{s}"] = f"{section.walk} min walk" if section.walk else ""
 
 
 def _draw_sections(board: Board, wanted, ahead: int) -> dict:
@@ -486,7 +523,7 @@ def _draw_sections(board: Board, wanted, ahead: int) -> dict:
     for s, section in enumerate(board.sections):
         if f"head_{s}" not in wanted:
             break  # more stops today than the layout has room for
-        values[f"head_{s}"] = _heading(section)
+        _heading(values, s, section)
         rows = sum(1 for name in wanted if name.startswith(f"dest_{s}_"))
         shown = section.departures
         if rows <= 2:  # little room: only what can still be caught
@@ -496,7 +533,7 @@ def _draw_sections(board: Board, wanted, ahead: int) -> dict:
         elif not shown:
             values[f"dest_{s}_0"] = f"No departures in the next {ahead} min"
         for i, d in enumerate(shown[:rows]):
-            _fill_row(values, f"{s}_{i}", d, section.walk, board.now)
+            _fill_row(values, f"{s}_{i}", d, section.walk, board.now, wanted)
     return values
 
 
@@ -522,7 +559,7 @@ def _draw_by_time(board: Board, wanted, ahead: int) -> dict:
     if not waiting and first < rows:
         values[f"dest_{first}"] = f"No departures in the next {ahead} min"
     for i, (d, section) in enumerate(waiting[: max(0, rows - first)], start=first):
-        _fill_row(values, str(i), d, section.walk, board.now)
+        _fill_row(values, str(i), d, section.walk, board.now, wanted)
         values[f"stop_{i}"] = section.short or section.title
     return values
 
@@ -533,7 +570,8 @@ def _draw_next(board: Board, wanted, ahead: int) -> dict:
     if not board.sections:
         return {}
     section = board.sections[0]
-    values = {"head_0": _heading(section)}
+    values = {}
+    _heading(values, 0, section)
     if section.problem:
         values["next_dest"] = section.problem
         return values
@@ -553,12 +591,13 @@ def _draw_next(board: Board, wanted, ahead: int) -> dict:
         text = "leaves now" if minutes <= 0 else f"leaves in {minutes} min"
     values["next_note"] = text[0].upper() + text[1:]
     late = f" (+{first.delay})" if first.delay > 0 else ""
-    values["next_time"] = f"{first.expected.astimezone(ZONE):%H:%M}{late}"
+    platform = f" · spoor {first.track}" if first.track else ""
+    values["next_time"] = f"{first.expected.astimezone(ZONE):%H:%M}{late}{platform}"
     rows = sum(1 for name in wanted if name.startswith("dest_0_"))
     after = section.departures[section.departures.index(first) + 1 :]
     later = [d for d in after if not gone(d, board.now)]
     for i, d in enumerate(later[:rows]):
-        _fill_row(values, f"0_{i}", d, section.walk, board.now)
+        _fill_row(values, f"0_{i}", d, section.walk, board.now, wanted)
     return values
 
 
@@ -586,10 +625,10 @@ def _sample() -> Board:
         at("5", "Carnisselande", 34),
     )
     trains = (
-        at("IC", "spoor 11 → 08:43", 6, delay=2),
-        at("SPR", "spoor 12 → 09:06", 13),
-        at("IC", "spoor 9 (was 11)", 21),
-        at("IC", "spoor 11 → 09:13", 36),
+        at("IC", "Amsterdam Centraal", 6, delay=2, track="11"),
+        at("SPR", "Den Haag Centraal", 13, track="12"),
+        at("IC", "Amsterdam Centraal · was 11", 21, track="9"),
+        at("IC", "Amsterdam Centraal", 36, track="11"),
     )
     return Board(
         (
