@@ -48,24 +48,10 @@
 <form method="post" action="/plugins/{{ row.index }}/settings" class="settings"
   id="settings-form">
   <input type="hidden" name="id" value="{{ row.id }}">
-  {% if sections %}
-  {# A plugin whose settings name groups: foldable sections (issue #315). #}
+  {# Foldable sections (issues #315, #331). #}
   <div class="groups">
     {% for sec in sections %}{{ section(sec) }}{% endfor %}
   </div>
-  {% else %}
-  {% for f in groups.name %}{{ field(f) }}{% endfor %}
-  {% if groups.own %}
-  <h2>Settings of this plugin</h2>
-  {{ own_fields(groups.own) }}
-  {% endif %}
-  <h2>When and how it is shown</h2>
-  {% for f in groups.common %}{{ field(f) }}{% endfor %}
-  <details{% if more_open %} open{% endif %}>
-    <summary>More settings</summary>
-    {% for f in groups.more %}{{ field(f) }}{% endfor %}
-  </details>
-  {% endif %}
   <div class="buttons">
     <button type="submit">Save</button>
     {# htmx sends this form's values; the answer replaces the picture below. #}
@@ -79,7 +65,7 @@
 </form>
 {# A form of its own for each search box, so Enter searches instead of saving. It sends the
    settings form's values too. #}
-{% for f in groups.own %}{% if plugin.helper(f.key) %}
+{% for f in own %}{% if plugin.helper(f.key) %}
 <form id="search-form-{{ f.key }}" hx-post="/plugins/{{ row.index }}/search/{{ f.key }}"
   hx-include="#settings-form" hx-target="#found-{{ f.key }}"
   hx-indicator="#search-wait-{{ f.key }}" hx-disabled-elt="#search-button-{{ f.key }}"></form>

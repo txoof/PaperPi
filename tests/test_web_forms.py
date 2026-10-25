@@ -272,8 +272,16 @@ def grouped(block=G, sent=None, errors=None):
     return forms.sections(forms.fields(GROUPED, block, sent, errors))
 
 
-def test_a_plugin_without_groups_keeps_the_plain_page():
-    assert forms.sections(forms.fields(TEST, T)) is None
+def test_a_plugin_without_groups_has_its_settings_directly_under_the_heading():
+    general, own = forms.sections(forms.fields(TEST, T))
+    assert general.title == "General" and own.title == "Plugin settings"
+    assert [f.key for f in own.fields] == ["token", "words", "part", "loud"] and own.subs == ()
+    assert "parts set" not in own.line
+
+
+def test_a_plugin_without_settings_of_its_own_has_only_general():
+    (general,) = forms.sections(forms.fields(plugins.load("dec_binary_clock"), {"id": "d"}))
+    assert general.title == "General"
 
 
 def test_the_weather_and_moon_plugins_group_the_place():

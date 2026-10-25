@@ -81,13 +81,15 @@ def test_the_home_page_links_to_each_settings_page(client):
 def test_the_page_shows_the_settings_in_their_groups(client):
     page = client.get("/plugins/1/settings", params={"id": "Weather"}).text
     assert "<h1>Weather Berlin</h1>" in page
-    assert page.index('name="name"') < page.index("Settings of this plugin")
-    assert page.index('name="lat"') < page.index("When and how it is shown")
-    assert page.index('name="display_time"') < page.index("More settings")
-    assert page.index("More settings") < page.index('name="storage_mb"')
+    titles = re.findall(r'<span class="group-title">([^<]+)</span>', page)
+    assert titles == ["General", "Time limit, alerts, storage", "Plugin settings", "Place", "Units"]
+    assert page.index('name="name"') < page.index('name="display_time"')
+    assert page.index('name="display_time"') < page.index('name="storage_mb"')
+    assert page.index('name="storage_mb"') < page.index('name="email"')
+    assert page.index('name="email"') < page.index('name="lat"')
     assert 'value="52.52"' in page and "(required)" in page
     assert "Not shown until these settings are filled in: email." in page
-    assert "<details>\n    <summary>More settings" in page  # folded: all defaults
+    assert '<details class="group" open>' not in page  # all folded at the start
     assert "<dt>ID</dt><dd><code>Weather</code></dd>" in page
     assert '<p class="type">Weather: The weather' in page
     assert "<dt>Type</dt><dd>Weather (<code>met_no</code>)</dd>" in page
@@ -97,9 +99,9 @@ def test_the_page_shows_the_settings_in_their_groups(client):
     assert "<code>plugins/weather/</code>" in page
 
 
-def test_more_settings_open_by_themselves_when_one_is_not_the_default(client):
+def test_a_folded_heading_shows_a_setting_that_is_not_the_default(client):
     page = client.get("/plugins/2/settings", params={"id": "Comic"}).text
-    assert "<details open>\n    <summary>More settings" in page
+    assert '<span class="group-line">time limit 30</span>' in page
 
 
 def test_saving_changes_the_file_and_applies_at_once(client, cfg, reloads):
