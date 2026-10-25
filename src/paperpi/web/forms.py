@@ -16,6 +16,10 @@ the values a sent form holds, checked the same way as the config file.
   left as it is.
 - A setting of a kind the form can't show (a group of settings, a list of numbers) is shown
   as it is in the file, to be changed there.
+- :func:`sections` puts the fields of a plugin whose settings name a group
+  (``setting(group=...)``) in foldable sections: "General" (the shared settings) and "Plugin
+  settings" (one sub-section per group). Each section's heading says what is filled in
+  (issue #315).
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ from pydantic import BaseModel, SecretStr, ValidationError
 from pydantic.fields import FieldInfo
 
 from .. import example, links
-from ..plugin import Plugin, PluginEntry, helper_of, holds_secret, is_required
+from ..plugin import Plugin, PluginEntry, group_of, helper_of, holds_secret, is_required
 
 #: The shared settings shown right after the plugin's own ones; the others are folded away
 #: under "More settings" (agreed with txoof, M5 part 3a).
@@ -82,7 +86,9 @@ class FormField:
     helper: str | None = None
     """The name of the plugin's helper shown under the field (see :mod:`paperpi.helper`)."""
     changed: bool = False
-    """The config file sets a value that is not the default."""
+    """The value shown is not the default."""
+    section: str = ""
+    """The plugin's group for this setting (``setting(group=...)``; ``""``: none)."""
 
 
 @dataclass(frozen=True)
@@ -154,13 +160,14 @@ def fields(
                 ),
                 required=is_required(info),
                 is_set=kind == "secret" and bool(_text(value)),
-                changed=example.plain(value) != example.plain(shown[key]),
+                changed=_changed(kind, texts, value, shown[key]),
                 minimum=_limit(info, "ge", "gt"),
                 maximum=_limit(info, "le", "lt"),
                 whole=_plain_type(info.annotation) is int,
                 max_length=_limit(info, "max_length"),
                 error=errors.get(key, ""),
                 helper=helper_of(info),
+                section=group_of(info) or "",
             )
         )
     order: list[Group] = ["name", "own", "common", "more"]
@@ -168,6 +175,89 @@ def fields(
         found,
         key=lambda f: (order.index(f.group), COMMON.index(f.key) if f.group == "common" else 0),
     )
+
+
+@dataclass(frozen=True)
+class Section:
+    """A foldable section of the settings page, with its heading's mark and short line."""
+
+    title: str
+    fields: tuple[FormField, ...]
+    subs: tuple[Section, ...] = ()
+    parts: bool = False
+    """The short line also says how many sub-sections are filled in ("Plugin settings")."""
+
+    @property
+    def errors(self) -> int:
+        """Fields with an error, in this section and its sub-sections."""
+        return sum(1 for f in self.fields if f.error) + sum(s.errors for s in self.subs)
+
+    @property
+    def values(self) -> list[str]:
+        """The values filled in (not the default), as the short line shows them."""
+        own = [summary(f) for f in self.fields if f.changed]
+        return own if self.parts else own + [v for s in self.subs for v in s.values]
+
+    @property
+    def state(self) -> Literal["error", "set", "empty"]:
+        if self.errors:
+            return "error"
+        return "set" if self.values or any(s.values for s in self.subs) else "empty"
+
+    @property
+    def mark(self) -> str:
+        return {"error": "❗", "set": "●", "empty": "○"}[self.state]
+
+    @property
+    def line(self) -> str:
+        """The short gray line next to the heading."""
+        parts = list(self.values)
+        if self.parts:
+            filled = sum(1 for s in self.subs if s.values)
+            parts.append(f"{filled} of {len(self.subs)} parts set")
+        elif not parts:
+            every = [f for s in (self, *self.subs) for f in s.fields]
+            parts.append("empty" if all(_blank(f) for f in every) else "defaults")
+        if self.errors:
+            parts.insert(0, f"{self.errors} error{'s' if self.errors > 1 else ''}")
+        return " · ".join(parts)
+
+
+def sections(shown: Sequence[FormField]) -> list[Section] | None:
+    """The settings page's sections for the fields :func:`fields` made, or ``None`` when
+    the plugin names no group (it keeps the plain page)."""
+    if not any(f.section for f in shown):
+        return None
+    group: dict[str, list[FormField]] = {}
+    for f in shown:
+        if f.group == "own" and f.section:
+            group.setdefault(f.section, []).append(f)
+
+    def of(*kinds: Group) -> tuple[FormField, ...]:
+        return tuple(f for f in shown if f.group in kinds and not f.section)
+
+    more = Section("Time limit, alerts, storage", of("more"))
+    subs = tuple(Section(title, tuple(found)) for title, found in group.items())
+    return [
+        Section("General", of("name", "common"), (more,)),
+        Section("Plugin settings", of("own"), subs, parts=True),
+    ]
+
+
+def summary(field: FormField) -> str:
+    """A field's value as a section's short line shows it, e.g. "walk 6" for ``walk_1``."""
+    label = re.sub(r"_[0-9]+$", "", field.key).replace("_", " ")
+    if field.kind == "secret":
+        return f"{label} set"
+    if field.kind == "check":
+        return label if field.value == "true" else f"no {label}"
+    if field.kind == "number":
+        return f"{label} {field.value or field.default}"
+    if field.kind == "choices":
+        return f"{label}: {', '.join(field.selected) or 'none'}"
+    if field.kind == "choice" and field.labels and field.value in field.choices:
+        return field.labels[field.choices.index(field.value)]
+    return field.value
 
 
 def read(plugin: Plugin, block: Mapping[str, Any], form: Mapping[str, Sequence[str]]) -> Read:
@@ -216,6 +306,24 @@ def read(plugin: Plugin, block: Mapping[str, Any], form: Mapping[str, Sequence[s
 def form_texts(value: Any) -> list[str]:
     """``value`` as the texts a form sends for it (several for a list)."""
     return [_text(v) for v in value] if isinstance(value, list | tuple) else [_text(value)]
+
+
+def _changed(kind: Kind, texts: list[str], value: Any, default: Any) -> bool:
+    """Whether a field shows a value that is not the default; an empty field is the default."""
+    if kind == "file":
+        return example.plain(value) != example.plain(default)
+    if kind == "secret":
+        return bool(_text(value))
+    if kind not in ("check", "choices") and texts in ([], [""]):
+        return False
+    return texts != form_texts(default)
+
+
+def _blank(field: FormField) -> bool:
+    """A field whose default is empty, off or 0, or every choice of a list (no filter)."""
+    if field.kind == "choices":
+        return field.default == ", ".join(field.choices)
+    return field.default in ("", "off", "0")
 
 
 def _infos(plugin: Plugin) -> dict[str, FieldInfo]:

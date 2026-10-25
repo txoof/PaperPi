@@ -112,7 +112,12 @@ _OPTIONS = "paperpi"
 
 
 def setting(
-    default: Any, *, required: bool = False, helper: str | None = None, **field: Any
+    default: Any,
+    *,
+    required: bool = False,
+    helper: str | None = None,
+    group: str | None = None,
+    **field: Any,
 ) -> Any:
     """A plugin setting: pydantic's ``Field`` (with the same ``description``, ``ge``,
     ``max_length``, ...) plus what PaperPi needs to know about it. This is the one place a
@@ -128,6 +133,10 @@ def setting(
     ``helper``: the name of one of the plugin's ``helpers`` (a search, such as finding a
     place's latitude and longitude), shown just before this setting's field on the settings page.
     See :mod:`paperpi.helper`.
+
+    ``group``: the heading of a foldable section on the settings page, e.g. ``"Stop 1"``.
+    Settings with the same group are shown together, and groups in the order their first
+    setting comes. A plugin that names no group keeps the plain settings page.
     """
     extra = field.pop("json_schema_extra", None) or {}
     if not isinstance(extra, dict):
@@ -135,6 +144,10 @@ def setting(
     options = {"required": True} if required else {}
     if helper is not None:
         options["helper"] = helper
+    if group is not None:
+        if not group.strip():
+            raise ValueError("setting() needs a group name with text in it")
+        options["group"] = group
     if options:
         extra = extra | {_OPTIONS: options}
     return Field(default, json_schema_extra=extra or None, **field)
@@ -156,6 +169,12 @@ def helper_of(info: FieldInfo) -> str | None:
     """The helper a setting names (``setting(helper=...)``), or ``None``."""
     helper = _options(info).get("helper")
     return helper if isinstance(helper, str) else None
+
+
+def group_of(info: FieldInfo) -> str | None:
+    """The group a setting is in (``setting(group=...)``), or ``None``."""
+    group = _options(info).get("group")
+    return group if isinstance(group, str) else None
 
 
 def holds_secret(annotation: Any) -> bool:

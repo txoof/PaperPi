@@ -5,6 +5,29 @@
 
 {% from "_field.html" import field %}
 
+{# A search box comes before the setting that names its helper: it fills that setting and
+   often the ones after it (latitude, longitude, ...). #}
+{% macro own_fields(found) %}
+  {% for f in found %}
+  {%- set helper = plugin.helper(f.key) %}{% if helper %}{% include "helper.html" %}{% endif %}
+  {{- field(f) }}
+  {%- endfor %}
+{% endmacro %}
+
+{# Folded at the start; open when it holds an error. The heading shows a mark and the values
+   filled in. #}
+{% macro section(sec) %}
+<details class="group"{% if sec.errors %} open{% endif %}>
+  <summary><span class="group-title">{{ sec.title }}</span>
+    <span class="group-state is-{{ sec.state }}"><span class="group-mark" aria-hidden="true">{{ sec.mark }}</span>
+      <span class="group-line">{{ sec.line }}</span></span></summary>
+  {% if sec.fields %}<div class="group-body">{{ own_fields(sec.fields) }}</div>{% endif %}
+  {% if sec.subs %}
+  <div class="group-subs">{% for sub in sec.subs %}{{ section(sub) }}{% endfor %}</div>
+  {% endif %}
+</details>
+{% endmacro %}
+
 {% block main %}
 <p class="crumbs"><a href="/">Home</a> › {{ row.name }}</p>
 <h1>{{ row.name }}</h1>
@@ -25,15 +48,16 @@
 <form method="post" action="/plugins/{{ row.index }}/settings" class="settings"
   id="settings-form">
   <input type="hidden" name="id" value="{{ row.id }}">
+  {% if sections %}
+  {# A plugin whose settings name groups: foldable sections (issue #315). #}
+  <div class="groups">
+    {% for sec in sections %}{{ section(sec) }}{% endfor %}
+  </div>
+  {% else %}
   {% for f in groups.name %}{{ field(f) }}{% endfor %}
   {% if groups.own %}
   <h2>Settings of this plugin</h2>
-  {# A search box comes before the setting that names its helper: it fills that setting
-     and often the ones after it (latitude, longitude, ...). #}
-  {% for f in groups.own %}
-  {%- set helper = plugin.helper(f.key) %}{% if helper %}{% include "helper.html" %}{% endif %}
-  {{- field(f) }}
-  {%- endfor %}
+  {{ own_fields(groups.own) }}
   {% endif %}
   <h2>When and how it is shown</h2>
   {% for f in groups.common %}{{ field(f) }}{% endfor %}
@@ -41,6 +65,7 @@
     <summary>More settings</summary>
     {% for f in groups.more %}{{ field(f) }}{% endfor %}
   </details>
+  {% endif %}
   <div class="buttons">
     <button type="submit">Save</button>
     {# htmx sends this form's values; the answer replaces the picture below. #}

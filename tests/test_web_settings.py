@@ -1,3 +1,4 @@
+import re
 import tomllib
 from typing import Literal
 
@@ -6,7 +7,15 @@ from fastapi.testclient import TestClient
 from pydantic import Field, SecretStr
 
 from paperpi import config
-from paperpi.plugin import Plugin, PluginSettings, helper_of, is_required, ready, setting
+from paperpi.plugin import (
+    Plugin,
+    PluginSettings,
+    group_of,
+    helper_of,
+    is_required,
+    ready,
+    setting,
+)
 from paperpi.web import auth
 from paperpi.web import plugins as web_plugins
 from paperpi.web.app import create_app
@@ -162,6 +171,50 @@ def test_setting_takes_a_helper_name():
     fields = Settings.model_fields
     assert [helper_of(fields[k]) for k in fields] == ["location", "location", None]
     assert [is_required(fields[k]) for k in fields] == [True, False, False]
+
+
+def test_setting_takes_a_group_name():
+    class Settings(PluginSettings):
+        stop: str = setting("", group="Stop 1")
+        place: str = setting("")
+
+    fields = Settings.model_fields
+    assert [group_of(fields[k]) for k in fields] == ["Stop 1", None]
+    with pytest.raises(ValueError, match="group name"):
+        setting("", group=" ")
+
+
+OV = '\n[[plugin]]\nid = "Trams"\ntype = "nl_openbaar_vervoer"\nstop_1 = "31001118"\n'
+
+
+def test_a_plugin_with_groups_gets_folded_sections(client, cfg):
+    # nl_openbaar_vervoer names a group for each stop, each train route and the NS key.
+    cfg.write_text(CONFIG + OV)
+    page = client.get("/plugins/3/settings", params={"id": "Trams"}).text
+    assert "Settings of this plugin" not in page and "More settings" not in page
+    titles = re.findall(r'<span class="group-title">([^<]+)</span>', page)
+    assert titles == [
+        *["General", "Time limit, alerts, storage", "Plugin settings"],
+        *["Stop 1", "Stop 2", "Stop 3", "Stop 4", "NS key", "Train route 1", "Train route 2"],
+    ]
+    assert '<details class="group" open>' not in page  # all folded at the start
+    assert '<span class="group-line">31001118</span>' in page
+    assert '<span class="group-line">ahead 60' not in page  # the default
+    # A search box still comes just before its field, inside the group.
+    assert page.index(">Stop 1<") < page.index('id="helper-stop_1"') < page.index(">Stop 2<")
+    assert 'id="search-form-train_from_1"' in page
+
+
+def test_a_section_with_an_error_opens_with_the_one_around_it(client, cfg):
+    cfg.write_text(CONFIG + OV)
+    response = client.post("/plugins/3/settings", data={"id": "Trams", "train_from_1": "DEN HAAG"})
+    page = response.text
+    assert response.status_code == 400 and cfg.read_text() == CONFIG + OV
+    assert page.count('<details class="group" open>') == 2
+    opened = [m.start() for m in re.finditer('<details class="group" open>', page)]
+    assert page.index(">Plugin settings<") > opened[0]
+    assert opened[1] < page.index(">Train route 1<") < page.index(">Train route 2<")
+    assert "1 error · DEN HAAG" in page
 
 
 class KindsSettings(PluginSettings):

@@ -241,3 +241,88 @@ def test_a_secret_is_not_sent_back_with_errors():
 def test_a_default_written_in_the_file_stays_until_it_is_changed():
     block = WEATHER | {"display_time": 120}
     assert forms.read(plugins.load("met_no"), block, {"display_time": ["120"]}).changes == {}
+
+
+class GroupSettings(PluginSettings):
+    stop_1: str = setting("", group="Stop 1", description="Stop 1")
+    walk_1: int = setting(0, group="Stop 1", description="Walk to stop 1")
+    days_1: tuple[Literal["mon", "tue"], ...] = setting(
+        ("mon", "tue"), group="Stop 1", description="Days"
+    )
+    key: SecretStr = setting(SecretStr(""), group="Key", description="API key")
+    loud: bool = Field(False, description="Loud")
+    stop_2: str = setting("", group="Stop 2", description="Stop 2")
+    late: bool = setting(True, group="Stop 2", description="Show late ones")
+
+
+GROUPED = Plugin(
+    type="grouped",
+    description="For the section tests",
+    settings=GroupSettings,
+    layouts={"one": {"column": [{"name": "t", "type": "text"}]}},
+    fetch=lambda context: ready(None),
+    draw=lambda data, context: {},
+    sample=None,
+    refresh=60,
+)
+G = {"id": "g", "type": "grouped"}
+
+
+def grouped(block=G, sent=None, errors=None):
+    return forms.sections(forms.fields(GROUPED, block, sent, errors))
+
+
+def test_a_plugin_without_groups_keeps_the_plain_page():
+    assert forms.sections(forms.fields(TEST, T)) is None
+    assert forms.sections(forms.fields(plugins.load("met_no"), WEATHER)) is None
+
+
+def test_sections_general_then_plugin_settings_with_a_sub_section_per_group():
+    general, own = grouped()
+    assert general.title == "General" and own.title == "Plugin settings"
+    assert [f.key for f in general.fields] == ["name", "display_time", "refresh", "layout", "level"]
+    (more,) = general.subs
+    assert more.title == "Time limit, alerts, storage"
+    assert [f.key for f in more.fields][:2] == ["time_limit", "alert_reminder"]
+    # Settings without a group sit directly under the heading; groups in the code's order.
+    assert [f.key for f in own.fields] == ["loud"]
+    assert [s.title for s in own.subs] == ["Stop 1", "Key", "Stop 2"]
+    assert [f.key for f in own.subs[0].fields] == ["stop_1", "walk_1", "days_1"]
+
+
+def test_folded_headings_say_what_is_filled_in():
+    block = G | {"name": "Home", "stop_1": "31001118", "walk_1": 6, "days_1": ["mon"]}
+    general, own = grouped(block | {"key": "s3cret", "late": False, "loud": True})
+    stop_1, key, stop_2 = own.subs
+    assert (stop_1.mark, stop_1.line) == ("●", "31001118 · walk 6 · days: mon")
+    assert (key.state, key.line) == ("set", "key set")  # never the secret itself
+    assert stop_2.line == "no late"
+    assert (own.state, own.line) == ("set", "loud · 3 of 3 parts set")
+    assert general.line == "Home"
+    assert "s3cret" not in str(grouped(block | {"key": "s3cret"}))
+
+
+def test_a_heading_with_nothing_changed_says_empty_or_defaults():
+    general, own = grouped()
+    stop_1, key, stop_2 = own.subs
+    # Every day ticked is no filter, so stop 1 is empty; stop 2 shows late ones by default.
+    assert (stop_1.mark, stop_1.line) == ("○", "empty")
+    assert (key.line, stop_2.line) == ("empty", "defaults")
+    assert (own.state, own.line) == ("empty", "0 of 3 parts set")
+    assert (general.state, general.line) == ("empty", "defaults")
+
+
+def test_an_error_marks_its_section_and_the_one_around_it():
+    sent = {"walk_1": ["x"], "stop_2": [""]}
+    general, own = grouped(sent=sent, errors={"walk_1": "enter a whole number"})
+    stop_1 = own.subs[0]
+    assert (stop_1.errors, stop_1.mark, stop_1.line) == (1, "❗", "1 error · walk x")
+    assert (own.state, own.line) == ("error", "1 error · 1 of 3 parts set")
+    assert general.errors == 0
+    # A field sent empty is the default, so it is not filled in.
+    assert not by_key(own.subs[2].fields)["stop_2"].changed
+
+
+def test_the_layout_is_named_by_its_title_in_a_heading():
+    weather = forms.fields(plugins.load("met_no"), WEATHER | {"layout": "steps_3h"})
+    assert forms.summary(by_key(weather)["layout"]) == "Every 3 hours"
