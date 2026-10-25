@@ -298,7 +298,7 @@ def test_a_waveshare_screen_is_saved_with_its_model(cfg, reloads):
     assert response.headers["location"] == "/system?done=screen"
     assert display(cfg) == {"type": "waveshare", "model": "epd7in5_V2", "max_refresh": 6}
     page = client.get("/system").text
-    assert 'the new screen is Waveshare 7.5" V2.' in page.replace("&#34;", '"')
+    assert "the new screen is Waveshare 7in5_V2." in page
     assert "<code>sudo shutdown now</code>" in page
 
 
@@ -317,7 +317,7 @@ def test_change_screen_lists_waveshare_models_tested_first(cfg, reloads):
 def test_the_page_shows_a_waveshare_screen_and_the_report_link(cfg, reloads):
     untested = config.DisplaySettings(type="waveshare", model="epd7in3f")
     page = make_client(cfg, reloads, untested).get("/system").text
-    assert "Waveshare small screen" in page and "7.3&#34; F, 800 × 480, 7 colours" in page
+    assert "Waveshare small screen" in page and "7in3f, 800 × 480, 7 colours" in page
     assert "report how it works" in page and "template=screen-report.yml" in page
     assert 'name="color" value="true" checked' in page
     assert "This screen has no fast refreshes:</b>" in page
