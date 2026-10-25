@@ -83,7 +83,7 @@ def test_service_starts_what_the_script_installs():
 
 @pytest.mark.skipif(shutil.which("systemd-analyze") is None, reason="needs systemd")
 def test_an_update_installs_the_new_paperpi_code():
-    # uv keeps an installed package of the same version; PaperPi's stays 2.0.0.dev0 between
+    # uv keeps an installed package of the same version; PaperPi's stays the same between
     # commits, so without this an update would keep running the old code (issue #319).
     sync = re.search(r'"\$TOOLS/bin/uv" sync [^)]*', SCRIPT.read_text())
     assert sync and "--reinstall-package paperpi" in sync[0]
@@ -194,3 +194,37 @@ def test_no_command_installs_when_paperpi_is_not_there(tmp_path):
     installed = run_functions("main", CODE=str(tmp_path))
     assert installed.returncode == 2
     assert "Usage:" in installed.stderr
+
+
+@pytest.mark.parametrize(
+    ("tags", "newest"),
+    [
+        ([], "main"),
+        (["v1-final"], "main"),
+        (["v1-final", "v2.0.0a1", "v2.0.0a2"], "v2.0.0a2"),
+        (["v2.0.0b1", "v2.0.0rc1"], "v2.0.0rc1"),
+        # A test release only while there is no full one.
+        (["v2.0.0a1", "v2.0.0", "v2.1.0b1"], "v2.0.0"),
+        (["v2.0.0", "v2.0.1", "v2.0.10", "v2.1.0a1"], "v2.0.10"),
+    ],
+)
+def test_the_newest_release(tmp_path, tags, newest):
+    def git(*command):
+        subprocess.run(["git", "-C", str(tmp_path), *command], check=True, capture_output=True)
+
+    git("init", "-q")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "c")
+    for tag in tags:
+        git("tag", tag)
+    done = run_functions("newest_release", CODE=str(tmp_path))
+    assert done.stdout == f"{newest}\n", done.stderr
+
+
+def test_the_version_can_be_a_release_tag():
+    # .github/workflows/release.yml: the tag is "v" + this version; newest_release sorts
+    # the tags by number, so the version must be numbers with an optional a, b or rc part.
+    import tomllib
+
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    version = tomllib.loads(pyproject.read_text())["project"]["version"]
+    assert re.fullmatch(r"\d+\.\d+\.\d+((a|b|rc)\d+)?", version)

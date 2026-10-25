@@ -15,7 +15,7 @@ It prints each step before it does it:
 1. It asks which screen is connected: a numbered list of the sizes of Waveshare's IT8951 board, and for those the `vcom`, the number printed on the screen's ribbon cable (each screen has its own). `0` means none yet: PaperPi then uses the virtual screen, which only saves pictures in `/var/lib/paperpi/screen/`, and you choose the screen in the web interface later.
 2. It installs what the install needs from Debian, after asking: `git`, `python3-venv`, and `gcc` and `python3-dev` (they build `spidev`, the SPI library).
 3. For a real screen, it turns on SPI, the data line to the screen (`raspi-config nonint do_spi 0`, the same as raspi-config's menu Interface Options, SPI). When SPI only works after a restart, it asks before restarting the Pi; PaperPi then starts by itself after the restart.
-4. It installs PaperPi and starts it (see "Where the files are" below).
+4. It installs the newest PaperPi release and starts it (see "Where the files are" below). To install the newest code instead, end the command with `sudo bash -s -- --ref main`.
 
 At the end the screen shows a clock and the set-up screen in turn. The set-up screen has the address of the web interface and a QR code for it: open it, set a password and choose which plugins to display. Until a password is set, anyone on your home network can set it.
 
@@ -34,7 +34,7 @@ sudo bash paperpi-install install --yes --display it8951 --model 9.7 --vcom -1.9
 sudo paperpi-install update
 ```
 
-It gets the newest `main` from GitHub, installs what is missing from Debian and PaperPi's Python packages, and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead, for example to go back to an older commit or to try a branch. The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
+It gets the newest release from GitHub, installs what is missing from Debian and PaperPi's Python packages, and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead: `--ref main` for the newest code, a version tag such as `v2.0.0a1` to go back to an older release, or a branch to try it. The next `update` without `--ref` goes back to the newest release. How releases are made: [releasing.md](releasing.md). The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
 
 ## Remove
 

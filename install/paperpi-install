@@ -11,7 +11,8 @@
 set -euo pipefail
 
 REPO=https://github.com/txoof/PaperPi
-REF=main
+# Empty: the newest release (see newest_release).
+REF=''
 # The uv version that installs PaperPi's Python packages (from uv.lock).
 UV_VERSION=0.12.23
 
@@ -45,7 +46,8 @@ Commands:
               saved files ($STATE_DIR) stay, unless --purge
 
 Options:
-  --ref REF       branch, tag or commit to install (default: $REF)
+  --ref REF       branch, tag or commit to install, e.g. main for the newest code
+                  (default: the newest release)
   --repo URL      where to get PaperPi from (default: $REPO)
   --display TYPE  install only, for a new config: the screen type, e.g. it8951, or
                   virtual, which only saves pictures (change it in the web interface
@@ -170,15 +172,29 @@ get_uv() {
     "$TOOLS/bin/pip" install --quiet --disable-pip-version-check "uv==$UV_VERSION"
 }
 
+# The newest release: its version tag (v2.0.0, or v2.0.0a1 for a test release, as
+# .github/workflows/release.yml makes them). A test release only while there is no full
+# one; "main" while there is no release at all.
+newest_release() {
+    local tags
+    tags=$(git -C "$CODE" tag --list 'v[0-9]*' --sort=-v:refname)
+    grep -m1 -E '^v[0-9]+(\.[0-9]+)*$' <<<"$tags" \
+        || grep -m1 -E '^v[0-9]+(\.[0-9]+)*(a|b|rc)[0-9]+$' <<<"$tags" \
+        || echo main
+}
+
 get_code() {
     if [[ -d $CODE/.git ]]; then
-        step "Getting $REF from $REPO"
+        step "Getting ${REF:-the newest release} from $REPO"
         git -C "$CODE" remote set-url origin "$REPO"
         git -C "$CODE" fetch --quiet --tags --force origin
     else
         step "Getting PaperPi from $REPO into $CODE"
         mkdir -p "$PREFIX"
         git clone --quiet "$REPO" "$CODE"
+    fi
+    if [[ -z $REF ]]; then
+        REF=$(newest_release)
     fi
     # A branch name means the newest commit of that branch on GitHub.
     local target=$REF
@@ -187,7 +203,7 @@ get_code() {
     fi
     git -C "$CODE" -c advice.detachedHead=false checkout --quiet --force "$target" \
         || fail "no branch, tag or commit $REF in $REPO"
-    printf '    %s\n' "$(git -C "$CODE" log -1 --format='%h %s')"
+    printf '    %s: %s\n' "$REF" "$(git -C "$CODE" log -1 --format='%h %s')"
 }
 
 install_packages() {
