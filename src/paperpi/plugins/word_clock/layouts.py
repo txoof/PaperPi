@@ -1,10 +1,10 @@
 """Layouts for word_clock. The first one is the default.
 
 The text blocks use ``random`` alignment, so the text moves around the screen at every
-update. Their sample is the widest sentence the clock can make, so every sentence fits
+update. Their sample is the sentence that needs the smallest text, so every sentence fits
 and the font size never changes.
 Tight lines: Anton leaves much room above its letters, and 3 lines of it are what limits
-the size (148 px instead of 178 px on the 9.7" with normal lines).
+the size (148 px instead of 191 px on the 9.7" with normal lines).
 """
 
 from ... import fonts
@@ -12,9 +12,10 @@ from ... import fonts
 FONT = fonts.ANTON
 PADDING = 0.03
 
-#: The widest sentence in this font. Written out, because working it out from all 2800
-#: sentences would take a noticeable time at every update; a test checks it stays right.
-WIDEST = "The time is nearly Twenty After Really Late"
+#: The sentence that needs the smallest text in 3 lines. Not simply the widest one: where
+#: the lines break matters too. Written out, because working it out from all 2268 sentences
+#: would take a noticeable time at every update; a test checks that every sentence fits.
+HARDEST = "It's more or less Thirty After Go To Bed"
 
 
 def _words(size: float) -> dict:
@@ -23,7 +24,7 @@ def _words(size: float) -> dict:
         "type": "text",
         "size": size,
         "font": FONT,
-        "sample": WIDEST,
+        "sample": HARDEST,
         "max_lines": 3,
         "line_spacing": "tight",
         "align": "random",

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 from epdlib import ScreenMode
-from PIL import ImageFont
 
 from paperpi.plugin import Context, draw_update
 from paperpi.plugins.word_clock import (
@@ -20,7 +19,7 @@ from paperpi.plugins.word_clock import (
     step_of,
     words,
 )
-from paperpi.plugins.word_clock.layouts import FONT, WIDEST
+from paperpi.plugins.word_clock.layouts import HARDEST
 
 
 def at(hour, minute):
@@ -90,10 +89,11 @@ def test_full_hour_puts_the_hour_first():
 
 def test_all_sentences():
     found = all_sentences()
-    assert len(found) == 2800
-    assert max(map(len, found)) == 43
+    assert len(found) == 2268
+    assert max(map(len, found)) == 40
     assert not any("Why Aren't You In Bed" in s for s in found)
-    assert "It's nearly Ten 'Til Midnight" in found
+    assert "It's nearly Ten 'Til Twelve" in found
+    assert not any("Midnight" in s or "The Time Is Nearly" in s.title() for s in found)
     assert "It is about Dinner Sharp" in found
     assert not any("Breakfast" in s or "Before" in s for s in found)
 
@@ -123,36 +123,37 @@ def test_words_vary_between_steps():
     assert len(over_a_day) > 3
 
 
-@functools.cache
-def by_width() -> list[str]:
-    """All sentences, narrowest first. Pillow's basic text layout (the one epdlib uses)
-    doesn't move letters closer together, so a sentence's width is the sum of its letters'
-    widths: much quicker than measuring all 2800 sentences."""
-    font = ImageFont.truetype(FONT, 100, layout_engine=ImageFont.Layout.BASIC)
-    width = functools.cache(font.getlength)
-    return sorted(sorted(all_sentences()), key=lambda s: sum(width(c) for c in s))
-
-
-def test_widest_is_still_the_widest():
-    assert by_width()[-1] == WIDEST
-
-
 @pytest.mark.parametrize("screen", [(1200, 825), (600, 448), (480, 800)])
 @pytest.mark.parametrize("layout", ["words_time", "words"])
 def test_every_sentence_fits(screen, layout):
-    """No sentence is cut off with "…". The widest 40 are checked (each check takes about
-    0.1 s on a Pi); the others are narrower."""
+    """No sentence is cut off with "…". All of them are checked: the widest sentence is not
+    always the hardest to fit, because where the lines break matters too."""
     from epdlib import Layout, text
 
     prepared = Layout(PLUGIN.layouts[layout](Settings())).prepare(*screen, ScreenMode.gray(16))
     block = prepared.layout.blocks["words"]
     inner = prepared._inner(block)
-    widest = by_width()[-40:]
     o = block.options
-    for sentence_ in widest:
+    font = text.load_font(o["font"], prepared.font_sizes["words"])
+    width = functools.cache(font.getlength)
+    # Room for letters that reach past their normal width, and for rounding.
+    room = inner.width * 0.97 - font.size * 0.1
+    for sentence_ in sorted(all_sentences()):
+        # Quick check with each word measured once (the exact check takes about 20 ms):
+        # wrap the words into lines that keep some room to spare.
+        lines, length = 1, 0.0
+        for word in sentence_.split(" "):
+            grown = length + width(" ") + width(word) if length else width(word)
+            if grown <= room:
+                length = grown
+            else:
+                lines, length = lines + 1, width(word)
+        if lines <= o["max_lines"]:
+            continue
+        # Close to the edge: check exactly, the way the text block wraps it.
         fit = text.fit_text(
             o["font"],
-            prepared.font_sizes["words"],
+            font.size,
             sentence_,
             inner.width,
             inner.height,
@@ -162,6 +163,22 @@ def test_every_sentence_fits(screen, layout):
             o["line_spacing"],
         )
         assert "…" not in "".join(fit.lines), sentence_
+
+
+def test_hardest_sets_the_size():
+    """HARDEST really needs the size it gives: one size larger, it is cut off."""
+    from epdlib import Layout, text
+
+    prepared = Layout(PLUGIN.layouts["words"](Settings())).prepare(1200, 825, ScreenMode.gray(16))
+    block = prepared.layout.blocks["words"]
+    inner = prepared._inner(block)
+    o = block.options
+    size = prepared.font_sizes["words"]
+    assert size < text.size_for_height(o["font"], inner.height // 3, "tight")
+    bigger = text.fit_text(
+        o["font"], size + 1, HARDEST, inner.width, inner.height, 3, False, "…", "tight"
+    )
+    assert not bigger.complete
 
 
 def test_same_minute_same_picture_next_minute_moves(tmp_path):

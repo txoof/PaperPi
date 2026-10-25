@@ -1,11 +1,11 @@
 # word_clock
 
-Shows the time in words, rounded to the nearest 10 minutes: "It's roughly Twenty After Eight", "It's nearly Ten 'Til Midnight", "It is about Dinner Sharp". It needs no network.
+Shows the time in words, rounded to the nearest 10 minutes: "It's roughly Twenty After Eight", "It's nearly Ten 'Til Lunch", "It is about Dinner Sharp". It needs no network.
 
 - **Rounding:** from :05 on the time rounds up (20:25 is "half past"), and from :35 on the sentence counts to the next hour (20:35 is "twenty 'til nine").
 - **The words vary.** The opening, the minute words and the hour (a number or a nickname such as "lunch", "too late" or "go to bed") are picked anew for each 10-minute step. Within a step the time words stay the same. Only the opening may change, where the truth does: openings like "nearly" are used only while the time is a little before the step; on the minute of the step and after it a plain one ("It is about").
 - **The text moves.** At every update the text is placed somewhere else on the screen, as in v1.
-- The text size is chosen for the widest sentence the clock can make ("The time is nearly Twenty After Really Late"), so every sentence fits and the size never changes. The lines sit close together (epdlib's `line_spacing: "tight"`), because Anton leaves a lot of room above its letters: 178 px on the 9.7", as in v1.
+- The text size is chosen for the sentence that needs the smallest text ("It's more or less Thirty After Go To Bed": the widest is not always the hardest, because where the lines break matters too), so every sentence fits and the size never changes. A test checks every sentence on three screen sizes. The lines sit close together (epdlib's `line_spacing: "tight"`), because Anton leaves a lot of room above its letters: 191 px on the 9.7" (v1: 178 px). At that size the 3 lines fill the whole height, so shorter words would not make it larger.
 
 The word lists are in [`words.py`](words.py).
 
