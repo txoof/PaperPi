@@ -527,7 +527,8 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 .sec .field:first-child { border-top: 0; }
 .sec .lbl { display: grid; gap: 0.15rem; font-weight: 500; align-content: start; }
 .sec .help { font-size: 0.85rem; color: var(--muted); font-weight: 400; }
-.sec .ctl { display: grid; gap: 0.4rem; align-content: start; min-width: 0; }
+.sec .ctl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; align-content: start;
+  min-width: 0; }
 .sec .problem { margin: 0.2rem 0 0; font-size: 0.9rem; }
 .sec .wrong input[type="text"] { border: 2px solid var(--bad); }
 .sec label { margin: 0; }
@@ -538,7 +539,9 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
   gap: 0.1rem 0.8rem; font-size: 0.9rem; }
 .model-facts dt { color: var(--muted); }
 .model-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.sec .ctl select { max-width: 100%; }
 .sec select#ws-model { width: 100%; }
+.sec .ctl p.help { margin: 0; }
 .unit input { display: inline-block; width: 6rem; }
 .unit select { padding: 0.35rem 0.4rem; }
 .rot { display: flex; gap: 0.4rem; flex-wrap: wrap; }
@@ -586,7 +589,7 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 .stat b { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .stat span { font-size: 0.8rem; color: var(--muted); }
 @media (max-width: 40rem) {
-  .sec .field { grid-template-columns: 1fr; }
+  .sec .field { grid-template-columns: minmax(0, 1fr); }
 }
 #leave #leave-save { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   font-weight: 500; }

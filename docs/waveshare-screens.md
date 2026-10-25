@@ -23,7 +23,7 @@ PaperPi then uses the screen from its next start.
 
 ## Tested and untested models
 
-Only a few models have been tried on a real screen with PaperPi (Tested: yes in the table). The others use Waveshare's own program code unchanged, so they should work, but nobody has checked yet. The web interface marks them "not tested yet", and `paperpi check` gives a hint.
+Only a few models have been tried on a real screen with PaperPi (Tested: yes in the table). The others use Waveshare's own program code unchanged, so they should work, but nobody has checked yet. The web interface marks them "not tested yet", and at each start PaperPi writes a hint with a link to the report form in its log (also on the Warnings page).
 
 **Please tell us how your screen works**, good or bad: the [screen report form](https://github.com/txoof/PaperPi/issues/new?template=screen-report.yml) takes a few minutes. The web interface's links to it fill in the model and PaperPi's version for you.
 

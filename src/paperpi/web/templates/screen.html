@@ -24,7 +24,7 @@
     {{ label("type", "Type") }}
     <div class="ctl"><select name="type" id="screen-type" aria-labelledby="name-type">
       {% for value, text in (("it8951", "Waveshare IT8951 board (6, 7.8, 9.7 or 10.3 inch)"),
-        ("waveshare", "Waveshare small screen (1.02 to 13.3 inch, no IT8951 board)"),
+        ("waveshare", "Waveshare small screen (no IT8951 board)"),
         ("virtual", "Virtual screen (writes pictures to files, for testing)")) %}
       <option value="{{ value }}"{% if values.type == value %} selected{% endif %}>{{ text }}</option>
       {% endfor %}
