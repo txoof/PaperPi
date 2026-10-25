@@ -90,11 +90,12 @@ def test_full_hour_puts_the_hour_first():
 
 def test_all_sentences():
     found = all_sentences()
-    assert len(found) == 7140
-    assert max(map(len, found)) == 46
+    assert len(found) == 2800
+    assert max(map(len, found)) == 43
     assert not any("Why Aren't You In Bed" in s for s in found)
-    assert "It's nearly Ten 'Til Bedtime" in found
-    assert "Give or take, it's Breakfast Sharp" in found
+    assert "It's nearly Ten 'Til Midnight" in found
+    assert "It is about Dinner Sharp" in found
+    assert not any("Breakfast" in s or "Before" in s for s in found)
 
 
 def split_opening(text):
@@ -126,7 +127,7 @@ def test_words_vary_between_steps():
 def by_width() -> list[str]:
     """All sentences, narrowest first. Pillow's basic text layout (the one epdlib uses)
     doesn't move letters closer together, so a sentence's width is the sum of its letters'
-    widths: much quicker than measuring all 7140 sentences."""
+    widths: much quicker than measuring all 2800 sentences."""
     font = ImageFont.truetype(FONT, 100, layout_engine=ImageFont.Layout.BASIC)
     width = functools.cache(font.getlength)
     return sorted(sorted(all_sentences()), key=lambda s: sum(width(c) for c in s))
@@ -158,6 +159,7 @@ def test_every_sentence_fits(screen, layout):
             o["max_lines"],
             o["shrink"],
             o["ellipsis"],
+            o["line_spacing"],
         )
         assert "…" not in "".join(fit.lines), sentence_
 

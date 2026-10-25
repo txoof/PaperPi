@@ -58,7 +58,7 @@ wheels = [
 [[package]]
 name = "epdlib"
 version = "1.0.0.dev0"
-source = { git = "https://github.com/txoof/epdlib?rev=fd3e2f32a11f2dce4ea9f71f0a5950c5e776603e#fd3e2f32a11f2dce4ea9f71f0a5950c5e776603e" }
+source = { git = "https://github.com/txoof/epdlib?rev=83d960f6b6456dcbb550c5a9a7b6ab8a55a67615#83d960f6b6456dcbb550c5a9a7b6ab8a55a67615" }
 dependencies = [
     { name = "pillow" },
 ]
@@ -376,8 +376,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=fd3e2f32a11f2dce4ea9f71f0a5950c5e776603e" },
-    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=fd3e2f32a11f2dce4ea9f71f0a5950c5e776603e" },
+    { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=83d960f6b6456dcbb550c5a9a7b6ab8a55a67615" },
+    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=83d960f6b6456dcbb550c5a9a7b6ab8a55a67615" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "icalendar", specifier = ">=7.3.0" },
     { name = "jinja2", specifier = ">=3.1" },
