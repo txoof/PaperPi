@@ -53,14 +53,26 @@ def rows_per_stop(stops: int) -> int:
     return (LINES - stops) // stops
 
 
-def _row(s: int, i: int) -> dict:
+def _row(s: int, i: int, train: bool = False) -> dict:
+    """One departure row. A train row has the platform in a box (``track_<s>_<i>``, as on
+    NS's signs) before the station the train is signed with."""
+    if train:
+        # A picture: drawn by the plugin (see sign() in __init__), so a row without a
+        # platform has no empty box. A text block's border is always drawn.
+        box = {"name": f"track_{s}_{i}", "type": "image", "size": 0.6, "padding": PAD}
+        # Station names are long ("Amsterdam Centraal"): the note column gives room.
+        middle = [box, _text(f"dest_{s}_{i}", "Amsterdam Centraal", 3.2, shrink=True)]
+        note = 2.4
+    else:
+        middle = [_text(f"dest_{s}_{i}", "Carnisselande", 3.2)]
+        note = 3.0
     return {
         "row": [
             _text(f"time_{s}_{i}", "88:88", 1.3, font=fonts.LATO_BOLD),
             _text(f"delay_{s}_{i}", "+88", 0.9),
             _text(f"line_{s}_{i}", "888", 0.9, align="center", font=fonts.LATO_BOLD),
-            _text(f"dest_{s}_{i}", "Carnisselande", 3.2),
-            _text(f"note_{s}_{i}", "leave in 88 min", 3.0, align="right"),
+            *middle,
+            _text(f"note_{s}_{i}", "leave in 88 min", note, align="right"),
         ],
         "gap": 0,
     }
@@ -96,12 +108,13 @@ def sections(settings) -> dict:
     from . import _now, today_routes, today_stops  # here: the plugin's module imports this one
 
     now = _now()
-    count = max(1, len(today_stops(settings, now)) + len(today_routes(settings, now)))
+    stops, routes = len(today_stops(settings, now)), len(today_routes(settings, now))
+    count = max(1, stops + routes)
     rows = rows_per_stop(count)
     column = []
-    for s in range(count):
+    for s in range(count):  # stops first, then train routes
         column += _heading(s)
-        column += [_row(s, i) for i in range(rows)]
+        column += [_row(s, i, train=stops <= s < stops + routes) for i in range(rows)]
     return _with_footer(column)
 
 
@@ -129,7 +142,12 @@ def by_time(settings) -> dict:
 
 
 def next_departure(settings) -> dict:
-    """The next departure of the first stop, large, then :data:`LATER` small rows."""
+    """The next departure of the first stop (or train route), large, then :data:`LATER`
+    small rows."""
+    from . import _now, today_routes, today_stops  # here: the plugin's module imports this one
+
+    now = _now()
+    train = not today_stops(settings, now) and bool(today_routes(settings, now))
     column = [
         *_heading(0),
         # No font_size: the text is made as large as its block allows.
@@ -144,7 +162,7 @@ def next_departure(settings) -> dict:
         ),
         _text("next_time", "88:88 (+88)", 1.4, align="center", font_size=None),
     ]
-    column += [_row(0, i) for i in range(LATER)]
+    column += [_row(0, i, train=train) for i in range(LATER)]
     return _with_footer(column)
 
 

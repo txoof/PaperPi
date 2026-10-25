@@ -12,7 +12,7 @@ When the next buses, trams and trains leave in the Netherlands, from up to four 
 
 Choose one with `layout = "by_time"` in the plugin's entry (or on its settings page).
 
-Each stop gets a heading, then one row per departure: the expected time, the delay in minutes (`+3`), the line, where it goes, and a note. For a train the row shows the type (`IC`, `SPR`), the platform and the arrival time (`spoor 7 → 09:47`), or `spoor 2 (was 7)` when the platform changed. The notes:
+Each stop gets a heading, then one row per departure: the expected time, the delay in minutes (`+3`), the line, where it goes, and a note. For a train the row shows the type (`IC`, `SPR`), the platform in a box as on NS's signs, and the station the train is signed with (`Groningen`), which is often beyond your destination; `Groningen · was 7` when the platform changed. In the "one list by time" layout the platform is in brackets (`[7] Groningen`), and in "next departure large" after the time (`08:18 · spoor 7`). The notes:
 
 - `leave in 3 min` or `leave now`: when you set a walking time for the stop. `too late`: you can't reach it any more.
 - `left`: it left in the last 5 minutes (or its time has passed). `cancelled`: it doesn't run.
@@ -37,7 +37,7 @@ Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (
 | `train_from_1`, `train_to_1` | empty | NS codes of the stations of train route 1, e.g. `GVC` (Den Haag Centraal) and `UT` (Utrecht Centraal). See "Finding a station's code" |
 | `train_walk_1` | `0` (off) | Minutes to walk or cycle to the station; each row then says when to leave |
 | `train_days_1` | every day | Days on which the route is shown |
-| `train_changes_1` | `false` | Also show trips with a change of train (`spoor 6 · 1 change`); off: direct trains only |
+| `train_changes_1` | `false` | Also show trips with a change of train (`Uitgeest · 1 change`); off: direct trains only |
 | `train_from_2` ... | empty | A second route, with the same settings ending in `_2` |
 | `alert_on_disruption` | `false` | While NS reports a disruption on a train route shown today, show the plugin as an alert (before the other plugins). Planned works don't count |
 | `ahead` | `60` | Minutes ahead to show departures for (10 to 80) |

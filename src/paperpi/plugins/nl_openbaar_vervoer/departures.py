@@ -35,6 +35,8 @@ class Departure:
     expected: datetime
     left: bool = False
     cancelled: bool = False
+    track: str = ""
+    """The platform a train leaves from (``""`` for buses and trams), shown in a box."""
 
     @property
     def delay(self) -> int:
@@ -141,6 +143,7 @@ def load(path: Path) -> Saved | None:
                     datetime.fromisoformat(d["expected"]),
                     d["left"],
                     d["cancelled"],
+                    d.get("track", ""),  # saved before trains had their own platform
                 )
                 for d in s["departures"]
             )
