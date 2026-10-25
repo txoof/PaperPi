@@ -12,14 +12,20 @@ This branch (`main`) holds PaperPi **version 2**, which is being written from sc
 - Support for the IT8951 displays (such as the Waveshare 9.7") on Raspberry Pi OS "trixie"
 - A web page for changing settings and plugin options, with a preview before sending to the display
 - Settings changes without a restart
-- Installation with one command, using Docker (a tool that runs a program together with everything it needs, separate from the rest of the system)
+- Installation with one command
 - Generated documentation with example images for every plugin
 
 Progress is tracked in [milestones](https://github.com/txoof/PaperPi/milestones).
 
 ## Install on a Raspberry Pi
 
-For now, PaperPi installs as a systemd service (it starts with the Pi and is started again after a crash): [docs/install-systemd.md](docs/install-systemd.md). The one-command Docker install follows in milestone M6.
+One command on Raspberry Pi OS "trixie" installs PaperPi as a systemd service (it starts with the Pi and is started again after a crash). It asks which screen is connected:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install | sudo bash
+```
+
+What it does, and how to update and remove PaperPi: [docs/install-systemd.md](docs/install-systemd.md).
 
 ## Development
 

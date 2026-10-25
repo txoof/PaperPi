@@ -1,0 +1,48 @@
+name: Release
+
+# Pushing a version tag makes a GitHub release: v2.0.0, or v2.0.0a1 for a test release
+# ("pre-release" on GitHub). install/paperpi-install installs the newest one. The tag must
+# be "v" + the version in pyproject.toml, so the installed PaperPi says the same version.
+# How to make a release: docs/releasing.md.
+on:
+  push:
+    tags: ["v[0-9]*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to make the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the history of main, for the next check
+      - name: Check that the tag is on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::the tag is not on main; every install would get this commit"
+            exit 1
+          fi
+      - name: Check the tag against pyproject.toml
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [[ $TAG != "v$version" ]]; then
+            echo "::error::tag $TAG, but pyproject.toml says version $version (tag v$version)"
+            exit 1
+          fi
+      - name: Make the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # A version with a letter (a, b, rc) is a test release.
+          pre=()
+          if [[ $TAG =~ [a-z] ]]; then pre=(--prerelease); fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "PaperPi ${TAG#v}" --generate-notes "${pre[@]}"

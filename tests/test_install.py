@@ -83,7 +83,7 @@ def test_service_starts_what_the_script_installs():
 
 @pytest.mark.skipif(shutil.which("systemd-analyze") is None, reason="needs systemd")
 def test_an_update_installs_the_new_paperpi_code():
-    # uv keeps an installed package of the same version; PaperPi's stays 2.0.0.dev0 between
+    # uv keeps an installed package of the same version; PaperPi's stays the same between
     # commits, so without this an update would keep running the old code (issue #319).
     sync = re.search(r'"\$TOOLS/bin/uv" sync [^)]*', SCRIPT.read_text())
     assert sync and "--reinstall-package paperpi" in sync[0]
@@ -124,3 +124,120 @@ def test_install_script_needs_root():
     done = subprocess.run([str(SCRIPT), "update"], capture_output=True, text=True)
     assert done.returncode == 1
     assert "run it with sudo" in done.stderr
+
+
+def run_functions(snippet: str, answers: str = "", **variables: str):
+    """Run ``snippet`` after the install script's settings and functions (not ``main``),
+    with ``answers`` as what is typed in the terminal and ``variables`` set first."""
+    body = SCRIPT.read_text().rsplit('\nmain "$@"', 1)[0]
+    # The terminal is the test's input here.
+    body = body.replace("</dev/tty", "")
+    setup = "".join(f"{name}={value}\n" for name, value in variables.items())
+    return subprocess.run(
+        ["bash", "-c", body + "\n" + setup + snippet],
+        input=answers,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_the_screen_menu_has_every_it8951_size():
+    from epdlib.drivers.it8951 import MODELS
+
+    sizes = re.search(r"^IT8951_MODELS=\(([^)]*)\)$", SCRIPT.read_text(), re.MULTILINE)[1]
+    assert sizes.split() == list(MODELS)
+
+
+CHOSEN = 'choose_screen; echo "<$DISPLAY_TYPE|$MODEL|$VCOM>"'
+NEW = {"CONFIG": "/nonexistent/paperpi.toml", "DISPLAY_TYPE": "", "MODEL": "", "VCOM": ""}
+
+
+def test_the_screen_menu_asks_the_size_and_the_vcom():
+    # A wrong number and a wrong vcom are asked again.
+    done = run_functions(CHOSEN, "7\n3\n1.9\n-4\n-1.90\n", ASK="yes", **NEW)
+    assert done.stdout.endswith("<it8951|9.7|-1.90>\n"), done.stderr
+    assert done.stdout.count("Type a number from the list.") == 1
+    assert done.stdout.count("between -3.0 and -0.5") == 2
+
+
+def test_the_screen_menu_can_be_skipped():
+    done = run_functions(CHOSEN, "\n", ASK="yes", **NEW)
+    assert done.stdout.endswith("<virtual||>\n")
+
+
+def test_no_questions_with_yes_or_a_display():
+    assert run_functions(CHOSEN, ASK="no", **NEW).stdout == "<virtual||>\n"
+    given = NEW | {"DISPLAY_TYPE": "it8951", "MODEL": "6", "VCOM": "-2"}
+    assert run_functions(CHOSEN, ASK="yes", **given).stdout == "<it8951|6|-2>\n"
+
+
+def test_a_kept_config_tells_whether_spi_is_needed(tmp_path):
+    config = tmp_path / "paperpi.toml"
+    config.write_text('[display]\ntype = "it8951"\n')
+    done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
+    assert done.stdout == "<it8951||>\n"
+
+
+def test_an_ended_input_stops_the_questions():
+    done = run_functions(CHOSEN, "3\n", ASK="yes", **NEW)
+    assert done.returncode == 1
+    assert "no answer" in done.stderr
+
+
+@pytest.mark.parametrize(
+    ("tags", "newest"),
+    [
+        ([], "main"),
+        (["v1-final"], "main"),
+        (["v1-final", "v2.0.0a1", "v2.0.0a2"], "v2.0.0a2"),
+        (["v2.0.0b1", "v2.0.0rc1"], "v2.0.0rc1"),
+        # A test release only while there is no full one.
+        (["v2.0.0a1", "v2.0.0", "v2.1.0b1"], "v2.0.0"),
+        (["v2.0.0", "v2.0.1", "v2.0.10", "v2.1.0a1"], "v2.0.10"),
+    ],
+)
+def test_the_newest_release(tmp_path, tags, newest):
+    def git(*command):
+        subprocess.run(["git", "-C", str(tmp_path), *command], check=True, capture_output=True)
+
+    git("init", "-q")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "c")
+    for tag in tags:
+        git("tag", tag)
+    done = run_functions("newest_release", CODE=str(tmp_path))
+    assert done.stdout == f"{newest}\n", done.stderr
+
+
+def test_the_version_can_be_a_release_tag():
+    # .github/workflows/release.yml: the tag is "v" + this version; newest_release sorts
+    # the tags by number, so the version must be numbers with an optional a, b or rc part.
+    import tomllib
+
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    version = tomllib.loads(pyproject.read_text())["project"]["version"]
+    assert re.fullmatch(r"\d+\.\d+\.\d+((a|b|rc)\d+)?", version)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="as root it would really install")
+@pytest.mark.parametrize("options", [[], ["--ref", "main"], ["--yes", "--display", "virtual"]])
+def test_the_piped_script_installs(options):
+    # "curl ... | sudo bash -s -- OPTIONS": the script is bash's input, options come
+    # without a command. Not root here, so it stops at once, after choosing install (or
+    # saying how to update, on a Pi with PaperPi).
+    done = subprocess.run(
+        ["bash", "-s", "--", *options], input=SCRIPT.read_text(), capture_output=True, text=True
+    )
+    assert done.returncode == 1
+    assert "run it with sudo" in done.stderr or "installed already" in done.stderr
+
+
+def test_nothing_reads_the_rest_of_the_piped_script():
+    assert SCRIPT.read_text().endswith('\nmain "$@" </dev/null\nexit\n')
+
+
+def test_the_one_command_on_an_installed_pi_says_how_to_update(tmp_path):
+    (tmp_path / ".git").mkdir()
+    done = run_functions("main", CODE=str(tmp_path))
+    assert done.returncode == 1
+    assert "sudo paperpi-install update" in done.stderr

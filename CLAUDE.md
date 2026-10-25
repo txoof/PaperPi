@@ -70,7 +70,7 @@ Column IDs: Todo `f75ad846`, In Progress `47fc9ee4`, In Review `b470c173`, Done 
 | core | `src/paperpi/` (except the folders below) |
 | web | `src/paperpi/web/` |
 | plugins/<name> | `src/paperpi/plugins/<name>/` |
-| install | `install/`, `Dockerfile` |
+| install | `install/` |
 | docs | `docs/` |
 | bench | `bench/` (test programs that are not part of the app, e.g. the M2 driver test round) |
 | ci | `.github/`, `pyproject.toml`, `uv.lock`, `.python-version` |
