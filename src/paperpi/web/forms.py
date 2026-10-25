@@ -135,8 +135,9 @@ def fields(
             if holds_secret(info.annotation) and texts[0]:
                 texts = ["(set; it holds a secret, so it is not shown)"]
         if sent is not None and key in sent and kind not in ("secret", "file"):
-            # Without the empty value the page sends for a check box or list.
-            texts = [t for t in sent[key] if t] or [""]
+            # Without the empty value the page sends for a check box or list, and without
+            # spaces around a value, as read() takes it.
+            texts = [t.strip() for t in sent[key] if t.strip()] or [""]
             if kind == "check":
                 texts = ["true" if texts[-1] not in ("", "false") else "false"]
             elif kind == "choices":

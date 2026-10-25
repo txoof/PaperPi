@@ -313,13 +313,13 @@ def test_a_heading_with_nothing_changed_says_empty_or_defaults():
 
 
 def test_an_error_marks_its_section_and_the_one_around_it():
-    sent = {"walk_1": ["x"], "stop_2": [""]}
+    sent = {"walk_1": ["x"], "stop_2": ["  "]}
     general, own = grouped(sent=sent, errors={"walk_1": "enter a whole number"})
     stop_1 = own.subs[0]
     assert (stop_1.errors, stop_1.mark, stop_1.line) == (1, "❗", "1 error · walk x")
     assert (own.state, own.line) == ("error", "1 error · 1 of 3 parts set")
     assert general.errors == 0
-    # A field sent empty is the default, so it is not filled in.
+    # A field sent empty (or only spaces) is the default, so it is not filled in.
     assert not by_key(own.subs[2].fields)["stop_2"].changed
 
 
