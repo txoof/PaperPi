@@ -110,10 +110,11 @@ get_code() {
 install_packages() {
     step "Installing PaperPi's Python packages into $VENV"
     # The system's Python (it gets Debian's security updates), never a downloaded one; the
-    # exact versions of uv.lock; no development tools.
+    # exact versions of uv.lock; no development tools. PaperPi itself is always built again:
+    # uv would keep the old copy while the version number stays the same (issue #319).
     (cd "$CODE" && UV_PROJECT_ENVIRONMENT=$VENV UV_PYTHON=/usr/bin/python3 \
         UV_PYTHON_DOWNLOADS=never UV_CACHE_DIR=$PREFIX/cache \
-        "$TOOLS/bin/uv" sync --quiet --frozen --no-dev --no-editable)
+        "$TOOLS/bin/uv" sync --quiet --frozen --no-dev --no-editable --reinstall-package paperpi)
     ln -sfn "$VENV/bin/paperpi" "$COMMAND"
     # Kept outside $CODE, so the next update can't change it while it runs.
     install -m 0755 "$CODE/install/paperpi-install" "$SELF"

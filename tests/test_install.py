@@ -82,6 +82,13 @@ def test_service_starts_what_the_script_installs():
 
 
 @pytest.mark.skipif(shutil.which("systemd-analyze") is None, reason="needs systemd")
+def test_an_update_installs_the_new_paperpi_code():
+    # uv keeps an installed package of the same version; PaperPi's stays 2.0.0.dev0 between
+    # commits, so without this an update would keep running the old code (issue #319).
+    sync = re.search(r'"\$TOOLS/bin/uv" sync [^)]*', SCRIPT.read_text())
+    assert sync and "--reinstall-package paperpi" in sync[0]
+
+
 def test_systemd_accepts_the_service_file(tmp_path):
     # The installed program isn't here, so the check gets one that is.
     text = SERVICE.read_text().replace("/opt/paperpi/venv/bin/paperpi", shutil.which("true"))
