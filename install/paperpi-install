@@ -33,6 +33,74 @@ APT_PACKAGES=(git python3-venv gcc python3-dev)
 # The IT8951 screen sizes of the screen menu, in inches (epdlib's it8951 MODELS; a test
 # checks they match).
 IT8951_MODELS=(6 7.8 9.7 10.3)
+# The Waveshare small screens of the screen menu, as "Waveshare's file name|name in the
+# menu", by size, tested ones first (epdlib's waveshare MODELS; a test checks they match).
+# The menu uses Waveshare's own notation, as on their files: 7in5 is 7.5 inch, 7in5_V2 its V2.
+WAVESHARE_MODELS=(
+    'epd1in02|1in02'
+    'epd1in54|1in54'
+    'epd1in54_V2|1in54_V2'
+    'epd1in54b|1in54b, black/white only'
+    'epd1in54b_V2|1in54b_V2, black/white only'
+    'epd1in54c|1in54c, black/white only'
+    'epd1in64g|1in64g, 4 colours'
+    'epd2in13|2in13'
+    'epd2in13_V2|2in13_V2'
+    'epd2in13_V3|2in13_V3'
+    'epd2in13_V4|2in13_V4'
+    'epd2in13d|2in13d'
+    'epd2in13g|2in13g, 4 colours'
+    'epd2in13b_V3|2in13b_V3, black/white only'
+    'epd2in13b_V4|2in13b_V4, black/white only'
+    'epd2in13bc|2in13bc, black/white only'
+    'epd2in15g|2in15g, 4 colours'
+    'epd2in15b|2in15b, black/white only'
+    'epd2in36g|2in36g, 4 colours'
+    'epd2in66|2in66'
+    'epd2in66g|2in66g, 4 colours'
+    'epd2in66b|2in66b, black/white only'
+    'epd2in7|2in7'
+    'epd2in7_V2|2in7_V2'
+    'epd2in7b|2in7b, black/white only'
+    'epd2in7b_V2|2in7b_V2, black/white only'
+    'epd2in9|2in9'
+    'epd2in9_V2|2in9_V2'
+    'epd2in9_V3|2in9_V3'
+    'epd2in9d|2in9d'
+    'epd2in9b_V3|2in9b_V3, black/white only'
+    'epd2in9b_V4|2in9b_V4, black/white only'
+    'epd2in9bc|2in9bc, black/white only'
+    'epd3in0g|3in0g, 4 colours'
+    'epd3in52|3in52'
+    'epd3in7|3in7'
+    'epd4in01f|4in01f, 7 colours'
+    'epd4in2|4in2'
+    'epd4in2_V2|4in2_V2'
+    'epd4in2bc|4in2bc, black/white only'
+    'epd4in26|4in26'
+    'epd4in37g|4in37g, 4 colours'
+    'epd5in65f|5in65f, 7 colours (tested)'
+    'epd5in79|5in79'
+    'epd5in79g|5in79g, 4 colours'
+    'epd5in79b|5in79b, black/white only'
+    'epd5in83|5in83 (tested)'
+    'epd5in83_V2|5in83_V2'
+    'epd5in83b_V2|5in83b_V2, black/white only'
+    'epd5in83bc|5in83bc, black/white only'
+    'epd7in3e|7in3e, 6 colours'
+    'epd7in3f|7in3f, 7 colours'
+    'epd7in3g|7in3g, 4 colours'
+    'epd7in5_V2|7in5_V2 (tested)'
+    'epd7in5|7in5'
+    'epd7in5_HD|7in5_HD'
+    'epd7in5_V2_old|7in5_V2_old'
+    'epd7in5b_HD|7in5b_HD, black/white only'
+    'epd7in5b_V2|7in5b_V2, black/white only'
+    'epd7in5b_V2_old|7in5b_V2_old, black/white only'
+    'epd7in5bc|7in5bc, black/white only'
+    'epd13in3k|13in3k'
+    'epd13in3b|13in3b, black/white only'
+)
 
 usage() {
     cat <<EOF
@@ -49,10 +117,11 @@ Options:
   --ref REF       branch, tag or commit to install, e.g. main for the newest code
                   (default: the newest release)
   --repo URL      where to get PaperPi from (default: $REPO)
-  --display TYPE  install only, for a new config: the screen type, e.g. it8951, or
-                  virtual, which only saves pictures (change it in the web interface
-                  later). Without it, install asks.
-  --model MODEL   install only: the screen model, e.g. 9.7
+  --display TYPE  install only, for a new config: the screen type: it8951, waveshare
+                  (Waveshare's small screens) or virtual, which only saves pictures
+                  (change it in the web interface later). Without it, install asks.
+  --model MODEL   install only: the screen model, e.g. 9.7 for it8951, or the name of
+                  Waveshare's file for the screen for waveshare, e.g. epd7in5_V2 or 7in5_V2
   --vcom VCOM     install only: the vcom printed on the screen's cable, e.g. -1.90
   --yes           ask nothing: install missing packages, use the virtual screen unless
                   --display is given, and don't restart the Pi (it says when one is
@@ -102,43 +171,139 @@ get_apt_packages() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}" >/dev/null
 }
 
+# pick COUNT [back]: a number from 1 to COUNT (0 too, without "back") typed in the
+# terminal, in CHOICE; with "back", b is allowed too and returns 1. Asks again until the
+# answer fits.
+pick() {
+    while true; do
+        # An empty answer: 0 in the first menu, asked again in the others.
+        if [[ -n ${2:-} ]]; then ask "  Number: " ''; else ask "  Number: " 0; fi
+        [[ -n ${2:-} && $ANSWER == [Bb] ]] && return 1
+        if [[ $ANSWER =~ ^[0-9]{1,3}$ ]]; then
+            CHOICE=$((10#$ANSWER)) # 10#: "010" is 10, not 8 (a leading 0 means base 8)
+            ((CHOICE <= $1)) && { [[ -z ${2:-} ]] || ((CHOICE > 0)); } && return 0
+        fi
+        if [[ -n ${2:-} ]]; then echo "  Type a number, or b to go back."
+        else echo "  Type a number from the list."; fi
+    done
+}
+
 # The screen menu, unless --display was given or there is a config already. Sets
-# DISPLAY_TYPE, MODEL and VCOM.
+# DISPLAY_TYPE, MODEL and VCOM. Short lines, so it fits a small terminal.
 choose_screen() {
-    [[ -n $DISPLAY_TYPE ]] && return
     if [[ -e $CONFIG ]]; then
-        # Only to know whether SPI is needed; the config stays as it is.
-        DISPLAY_TYPE=virtual
-        grep -q '^type *= *"it8951"' "$CONFIG" && DISPLAY_TYPE=it8951
+        # Only to know whether SPI is needed; the config stays as it is, and so do --display
+        # and --model.
+        DISPLAY_TYPE=$(sed -nE "s/^type[[:space:]]*=[[:space:]]*[\"'](it8951|waveshare)[\"'].*/\\1/p" \
+            "$CONFIG" | head -n 1)
+        DISPLAY_TYPE=${DISPLAY_TYPE:-virtual}
         return 0
+    fi
+    if [[ -n $DISPLAY_TYPE ]]; then
+        check_model
+        return
     fi
     DISPLAY_TYPE=virtual
     [[ $ASK == yes ]] || return 0
-    local i choice
-    step "Which screen is connected?"
-    for i in "${!IT8951_MODELS[@]}"; do
-        printf "    %d  %s inch screen with Waveshare's IT8951 board\n" $((i + 1)) \
-            "${IT8951_MODELS[i]}"
-    done
-    echo "    0  none yet, or another one: choose it in the web interface later"
+    local smallest=${WAVESHARE_MODELS[0]#*|} largest=${WAVESHARE_MODELS[-1]#*|}
+    smallest=${smallest%%[!0-9in]*} largest=${largest%%[!0-9in]*}
     while true; do
-        ask "    Number: " 0
-        choice=$ANSWER
-        [[ $choice =~ ^[0-9]+$ ]] && ((choice <= ${#IT8951_MODELS[@]})) && break
-        echo "    Type a number from the list."
+        step "Which screen is connected?"
+        echo "  1  Waveshare IT8951 board"
+        echo "     (${IT8951_MODELS[0]} to ${IT8951_MODELS[-1]} inch)"
+        echo "  2  Waveshare e-Paper HAT, small"
+        echo "     screen (${smallest/in/.} to ${largest/in/.} inch)"
+        echo "  0  none yet: choose it later in"
+        echo "     the web interface"
+        pick 2
+        case $CHOICE in
+            0) return 0 ;;
+            1) choose_it8951 && break ;;
+            2) choose_waveshare && break ;;
+        esac
     done
-    ((choice == 0)) && return
-    DISPLAY_TYPE=it8951 MODEL=${IT8951_MODELS[choice - 1]}
-    if [[ -z $VCOM ]]; then
-        echo "    The vcom is printed on the screen's ribbon cable, e.g. -1.90."
+    [[ $DISPLAY_TYPE == it8951 ]] || VCOM='' # --vcom is for an IT8951 only
+    if [[ $DISPLAY_TYPE == it8951 && -z $VCOM ]]; then
+        echo "  The vcom is printed on the screen's"
+        echo "  ribbon cable, e.g. -1.90."
         while true; do
-            ask "    vcom: " ''
+            ask "  vcom: " ''
             [[ $ANSWER =~ ^-[0-9]+(\.[0-9]+)?$ ]] \
                 && awk -v v="$ANSWER" 'BEGIN { exit !(v >= -3.0 && v <= -0.5) }' && break
-            echo "    Type the number on the cable: between -3.0 and -0.5."
+            echo "  Type the number on the cable:"
+            echo "  between -3.0 and -0.5."
         done
         VCOM=$ANSWER
     fi
+}
+
+# --display waveshare needs a --model of the menu, checked before the long install. The
+# short name of the menu (7in5_V2) is taken too.
+check_model() {
+    [[ $DISPLAY_TYPE == waveshare ]] || return 0
+    local entry names="all names: $REPO/blob/main/docs/waveshare-screens.md"
+    [[ -n $MODEL ]] || fail "--display waveshare needs --model, e.g. epd7in5_V2 ($names)"
+    for entry in "${WAVESHARE_MODELS[@]}"; do
+        if [[ ${entry%%|*} == "$MODEL" || ${entry%%|*} == "epd$MODEL" ]]; then
+            MODEL=${entry%%|*}
+            return 0
+        fi
+    done
+    fail "unknown Waveshare model '$MODEL'; the name of Waveshare's file for the screen, e.g." \
+        "epd7in5_V2 ($names)"
+}
+
+# The IT8951 sizes; returns 1 for "back".
+choose_it8951() {
+    local i
+    step "Which size? (inches, on the box)"
+    for i in "${!IT8951_MODELS[@]}"; do
+        printf "  %d  %s\n" $((i + 1)) "${IT8951_MODELS[i]}"
+    done
+    echo "  b  back"
+    pick ${#IT8951_MODELS[@]} back || return 1
+    DISPLAY_TYPE=it8951 MODEL=${IT8951_MODELS[CHOICE - 1]}
+}
+
+# The Waveshare sizes (in two columns), then the models of that size; returns 1 for "back".
+choose_waveshare() {
+    local entry size sizes=() models=() i half
+    for entry in "${WAVESHARE_MODELS[@]}"; do
+        size=${entry#*|}
+        size=${size%%[!0-9in]*}
+        [[ ${#sizes[@]} -gt 0 && ${sizes[-1]} == "$size" ]] || sizes+=("$size")
+    done
+    while true; do
+        step "Which size? (7in5 = 7.5 inch)"
+        half=$(((${#sizes[@]} + 1) / 2))
+        for ((i = 0; i < half; i++)); do
+            printf "%3d  %-6s" $((i + 1)) "${sizes[i]}"
+            ((i + half < ${#sizes[@]})) && printf "  %3d  %s" $((i + half + 1)) "${sizes[i + half]}"
+            echo
+        done
+        echo "  b  back"
+        pick ${#sizes[@]} back || return 1
+        size=${sizes[CHOICE - 1]}
+        models=()
+        for entry in "${WAVESHARE_MODELS[@]}"; do
+            [[ ${entry#*|} =~ ^$size([^0-9]|$) ]] && models+=("$entry")
+        done
+        CHOICE=1
+        if ((${#models[@]} > 1)); then
+            step "Which $size model? (on the sticker)"
+            for i in "${!models[@]}"; do
+                printf "%3d  %s\n" $((i + 1)) "${models[i]#*|}"
+            done
+            echo "  b  back"
+            pick ${#models[@]} back || continue
+        fi
+        DISPLAY_TYPE=waveshare MODEL=${models[CHOICE - 1]%%|*}
+        echo "  Screen: ${models[CHOICE - 1]#*|}"
+        echo "  On the HAT, set the Display Config"
+        echo "  switch to B (most screens) and"
+        echo "  Interface Config to 0."
+        return 0
+    done
 }
 
 # Turns on SPI for a real screen. Sets RESTART=yes when the Pi must restart before

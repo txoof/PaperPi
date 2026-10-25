@@ -51,7 +51,7 @@
   <div class="for-type" data-type="waveshare">
     <h2 class="no-js">For a Waveshare small screen</h2>
     <div class="field{% if errors.ws_model %} wrong{% endif %}">
-      {{ label("ws_model", "Model", "Waveshare's name for the screen, on its box or the sticker on its back, e.g. 7.5\" V2. Models tested with PaperPi come first.") }}
+      {{ label("ws_model", "Model", "Waveshare's name for the screen, as on their program files: 7in5_V2 is the 7.5 inch screen, version 2 (on the sticker on its back). Models tested with PaperPi come first.") }}
       <div class="ctl"><select name="ws_model" id="ws-model" aria-labelledby="name-ws_model">
         {% for group, choices in waveshare %}<optgroup label="{{ group }}">
           {% for c in choices %}

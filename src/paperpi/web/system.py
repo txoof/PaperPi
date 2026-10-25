@@ -356,20 +356,25 @@ class WaveshareChoice:
     report: str
 
 
+def waveshare_name(model: str) -> str:
+    """Waveshare's name for a model, as on their files: "epd7in5_V2" -> "7in5_V2" (the
+    7.5 inch screen, version 2)."""
+    return model.removeprefix("epd")
+
+
 @functools.cache
 def waveshare_choices() -> tuple[tuple[str, tuple[WaveshareChoice, ...]], ...]:
     """The Waveshare models for the Change screen page, by size: the tested ones first."""
 
     def inches(item: tuple[str, Any]) -> tuple[float, str]:
-        # From epdlib's name, e.g. 'Waveshare 2.13" V4'; a name without a size goes last.
-        found = re.search(r'(\d+(?:\.\d+)?)"', item[1].model)
-        return (float(found.group(1)) if found else math.inf, item[0])
+        # From the file name, e.g. "epd2in13_V4"; a name without a size goes last.
+        found = re.match(r"epd(\d+)in(\d+)", item[0])
+        return (float(f"{found[1]}.{found[2]}") if found else math.inf, item[0])
 
     choices = []
     for file, info in sorted(WAVESHARE_MODELS.items(), key=inches):
-        name = info.model.removeprefix("Waveshare ")
-        two_colour = name.endswith(" (black and white only)")
-        name = name.removesuffix(" (black and white only)")
+        name = waveshare_name(file)
+        two_colour = info.model.endswith(" (black and white only)")
         shows = "black and white" if info.mode.kind == "bw" else f"{info.mode.levels} colours"
         size = f"{info.width} × {info.height}"
         text = f"{name}, {size}, {shows}" + (" (tested)" if info.tested else "")
@@ -470,8 +475,7 @@ def describe(screen: Mapping[str, Any]) -> str:
         volts = "" if vcom is None else f", {vcom:.2f} V".replace("-", "−")
         return f"IT8951, {screen.get('model')} inch{volts}"
     if screen.get("type") == "waveshare":
-        info = WAVESHARE_MODELS.get(screen.get("model") or "")
-        return info.model if info is not None else f"Waveshare {screen.get('model')}"
+        return f"Waveshare {waveshare_name(screen.get('model') or '(no model)')}"
     width = screen.get("width") or config.VIRTUAL_WIDTH
     height = screen.get("height") or config.VIRTUAL_HEIGHT
     shows = SHOWS.get(screen.get("mode") or config.VIRTUAL_MODE, "")
@@ -581,7 +585,7 @@ def screen_facts(display: config.DisplaySettings) -> ScreenFacts:
         kind, model = "Waveshare IT8951 board", f"{display.model} inch, {width} × {height}"
     elif display.type == "waveshare" and info is not None:
         mode = info.mode
-        name = info.model.removeprefix("Waveshare ")
+        name = waveshare_name(display.model or "")
         kind, model = "Waveshare small screen", f"{name}, {width} × {height}"
     else:
         mode = config.MODES[display.mode or config.VIRTUAL_MODE]

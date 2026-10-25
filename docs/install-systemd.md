@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-
 
 It prints each step before it does it:
 
-1. It asks which screen is connected: a numbered list of the sizes of Waveshare's IT8951 board, and for those the `vcom`, the number printed on the screen's ribbon cable (each screen has its own). `0` means none yet: PaperPi then uses the virtual screen, which only saves pictures in `/var/lib/paperpi/screen/`, and you choose the screen in the web interface later.
+1. It asks which screen is connected, in short numbered menus that fit a small terminal (`b` goes back): first the kind of board, Waveshare's IT8951 board or Waveshare's e-Paper HAT with a small screen ([docs/waveshare-screens.md](waveshare-screens.md)); then the size in inches (for a small screen in Waveshare's notation, as on their files: `7in5` is 7.5 inch); for a small screen then the model of that size, such as `7in5_V2` (tested ones first), and for the IT8951 the `vcom`, the number printed on the screen's ribbon cable (each screen has its own). `0` in the first menu means none yet: PaperPi then uses the virtual screen, which only saves pictures in `/var/lib/paperpi/screen/`, and you choose the screen in the web interface later.
 2. It installs what the install needs from Debian, after asking: `git`, `python3-venv`, and `gcc` and `python3-dev` (they build `spidev`, the SPI library).
 3. For a real screen, it turns on SPI, the data line to the screen (`raspi-config nonint do_spi 0`, the same as raspi-config's menu Interface Options, SPI). When SPI only works after a restart, it asks before restarting the Pi; PaperPi then starts by itself after the restart.
 4. It installs the newest PaperPi release and starts it (see "Where the files are" below). To install the newest code instead, end the command with `sudo bash -s -- --ref main`.
@@ -24,6 +24,7 @@ To install without questions (for example from another script), download the scr
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install
 sudo bash paperpi-install install --yes --display it8951 --model 9.7 --vcom -1.90
+sudo bash paperpi-install install --yes --display waveshare --model epd7in5_V2
 ```
 
 `sudo bash paperpi-install --help` lists every option. With a config already in `/etc/paperpi` (from an earlier install), it is kept and nothing is asked about the screen.

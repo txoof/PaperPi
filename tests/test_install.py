@@ -153,12 +153,67 @@ CHOSEN = 'choose_screen; echo "<$DISPLAY_TYPE|$MODEL|$VCOM>"'
 NEW = {"CONFIG": "/nonexistent/paperpi.toml", "DISPLAY_TYPE": "", "MODEL": "", "VCOM": ""}
 
 
+def test_the_screen_menu_lists_every_waveshare_model():
+    from epdlib.drivers.waveshare import MODELS
+
+    rows = []
+    for file, info in MODELS.items():
+        three = info.model.endswith(" (black and white only)")
+        size = re.match(r"epd(\d+)in(\d+)", file)
+        label = file.removeprefix("epd")  # Waveshare's notation: 7in5_V2
+        if info.mode.kind == "palette":
+            label += f", {info.mode.levels} colours"
+        if three:
+            label += ", black/white only"
+        if info.tested:
+            label += " (tested)"
+        # By size; tested first, three-colour screens last.
+        inches = float(f"{size[1]}.{size[2]}")
+        rows.append(((inches, not info.tested, three, file), f"{file}|{label}"))
+    listed = re.search(r"^WAVESHARE_MODELS=\(\n(.*?)^\)$", SCRIPT.read_text(), re.M | re.S)[1]
+    assert re.findall(r"'([^']*)'", listed) == [row for _, row in sorted(rows)]
+
+
 def test_the_screen_menu_asks_the_size_and_the_vcom():
     # A wrong number and a wrong vcom are asked again.
-    done = run_functions(CHOSEN, "7\n3\n1.9\n-4\n-1.90\n", ASK="yes", **NEW)
+    done = run_functions(CHOSEN, "7\n1\n3\n1.9\n-4\n-1.90\n", ASK="yes", **NEW)
     assert done.stdout.endswith("<it8951|9.7|-1.90>\n"), done.stderr
     assert done.stdout.count("Type a number from the list.") == 1
     assert done.stdout.count("between -3.0 and -0.5") == 2
+
+
+def test_the_screen_menu_finds_a_waveshare_screen_by_size():
+    # The 5in83 sizes, back, the 7in5 ones, a wrong number, back to the first menu at the
+    # IT8951 sizes, then Waveshare again: 7in5, the first (tested) one.
+    answers = "2\n19\nb\n21\n9\nb\nb\n1\nb\n2\n21\n1\n"
+    done = run_functions(CHOSEN, answers, ASK="yes", **NEW)
+    assert done.stdout.endswith("<waveshare|epd7in5_V2|>\n"), done.stderr
+    assert " 21  7in5\n" in done.stdout and "  1  5in83 (tested)\n" in done.stdout
+    assert "  8  7in5bc, black/white only\n" in done.stdout
+    assert done.stdout.count("Type a number, or b to go back.") == 1
+    assert "Display Config" in done.stdout and "vcom" not in done.stdout
+    # Every line fits a small terminal.
+    assert max(len(line) for line in done.stdout.splitlines()) <= 40
+
+
+def test_a_waveshare_model_given_as_an_option_is_checked_first():
+    given = NEW | {"DISPLAY_TYPE": "waveshare", "MODEL": "epd2in13_V4"}
+    assert run_functions(CHOSEN, ASK="no", **given).stdout == "<waveshare|epd2in13_V4|>\n"
+    # The short name of the menu works too.
+    done = run_functions(CHOSEN, ASK="no", **(given | {"MODEL": "2in13_V4"}))
+    assert done.stdout == "<waveshare|epd2in13_V4|>\n"
+    done = run_functions(CHOSEN, ASK="no", **(given | {"MODEL": "epd7in5_v2"}))
+    assert done.returncode == 1 and "unknown Waveshare model 'epd7in5_v2'" in done.stderr
+    done = run_functions(CHOSEN, ASK="no", **(given | {"MODEL": ""}))
+    assert done.returncode == 1 and "--display waveshare needs --model" in done.stderr
+
+
+def test_numbers_with_a_leading_zero_and_sizes_with_one_model():
+    # "010" is size 10 (3in0, one model: no model menu); a --vcom is dropped.
+    done = run_functions(CHOSEN, "02\n010\n", ASK="yes", **(NEW | {"VCOM": "-2"}))
+    assert done.stdout.endswith("<waveshare|epd3in0g|>\n"), done.stderr
+    assert "Which 3in0 model?" not in done.stdout and "Screen: 3in0g, 4 colours" in done.stdout
+    assert "(1.02 to 13.3 inch)" in done.stdout and "(6 to 10.3 inch)" in done.stdout
 
 
 def test_the_screen_menu_can_be_skipped():
@@ -177,6 +232,15 @@ def test_a_kept_config_tells_whether_spi_is_needed(tmp_path):
     config.write_text('[display]\ntype = "it8951"\n')
     done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
     assert done.stdout == "<it8951||>\n"
+    config.write_text("[display]\ntype\t= 'waveshare'\nmodel = \"epd5in83\"\n")
+    done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
+    assert done.stdout == "<waveshare||>\n"
+    # --display is not used then, so its --model is not checked.
+    given = {"CONFIG": str(config), "DISPLAY_TYPE": "waveshare", "MODEL": "", "VCOM": ""}
+    assert run_functions(CHOSEN, ASK="no", **given).stdout == "<waveshare||>\n"
+    config.write_text('[display]\ntype = "virtual"\n')
+    done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
+    assert done.stdout == "<virtual||>\n"
 
 
 def test_an_ended_input_stops_the_questions():
