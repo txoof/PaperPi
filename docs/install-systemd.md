@@ -34,7 +34,9 @@ sudo bash paperpi-install install --yes --display it8951 --model 9.7 --vcom -1.9
 sudo paperpi-install update
 ```
 
-It gets the newest release from GitHub, installs what is missing from Debian and PaperPi's Python packages, and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead: `--ref main` for the newest code, a version tag such as `v2.0.0a1` to go back to an older release, or a branch to try it. The next `update` without `--ref` goes back to the newest release. How releases are made: [releasing.md](releasing.md). The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
+It gets the newest release from GitHub, installs what is missing from Debian and PaperPi's Python packages, and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead: `--ref main` for the newest code, a version tag such as `v2.0.0a1` to go back to an older release, or a branch to try it. The next `update` without `--ref` goes back to the newest release, also when that is older than what is installed (it says so). With `--yes` or without a terminal, it installs missing Debian packages without asking.
+
+The first `update` after a change to this script still runs the old copy in `/usr/local/sbin`; it installs the new one, which the next `update` uses. So run `update` twice after such a change (for example the change to releases: the first update still installs `main`). How releases are made: [releasing.md](releasing.md). The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
 
 ## Remove
 
@@ -43,7 +45,7 @@ sudo paperpi-install uninstall           # keeps /etc/paperpi and /var/lib/paper
 sudo paperpi-install uninstall --purge   # also removes them and the paperpi user
 ```
 
-Stopping clears the screen first, which can take up to 30 seconds.
+Stopping clears the screen first, which can take up to 45 seconds.
 
 ## Use
 

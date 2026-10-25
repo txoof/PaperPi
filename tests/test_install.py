@@ -185,17 +185,6 @@ def test_an_ended_input_stops_the_questions():
     assert "no answer" in done.stderr
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="as root it would really install")
-def test_no_command_installs_when_paperpi_is_not_there(tmp_path):
-    # "curl ... | sudo bash" gives no command.
-    done = run_functions("main", CODE=str(tmp_path / "code"))
-    assert "run it with sudo" in done.stderr
-    (tmp_path / ".git").mkdir()
-    installed = run_functions("main", CODE=str(tmp_path))
-    assert installed.returncode == 2
-    assert "Usage:" in installed.stderr
-
-
 @pytest.mark.parametrize(
     ("tags", "newest"),
     [
@@ -228,3 +217,27 @@ def test_the_version_can_be_a_release_tag():
     pyproject = Path(__file__).parent.parent / "pyproject.toml"
     version = tomllib.loads(pyproject.read_text())["project"]["version"]
     assert re.fullmatch(r"\d+\.\d+\.\d+((a|b|rc)\d+)?", version)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="as root it would really install")
+@pytest.mark.parametrize("options", [[], ["--ref", "main"], ["--yes", "--display", "virtual"]])
+def test_the_piped_script_installs(options):
+    # "curl ... | sudo bash -s -- OPTIONS": the script is bash's input, options come
+    # without a command. Not root here, so it stops at once, after choosing install (or
+    # saying how to update, on a Pi with PaperPi).
+    done = subprocess.run(
+        ["bash", "-s", "--", *options], input=SCRIPT.read_text(), capture_output=True, text=True
+    )
+    assert done.returncode == 1
+    assert "run it with sudo" in done.stderr or "installed already" in done.stderr
+
+
+def test_nothing_reads_the_rest_of_the_piped_script():
+    assert SCRIPT.read_text().endswith('\nmain "$@" </dev/null\nexit\n')
+
+
+def test_the_one_command_on_an_installed_pi_says_how_to_update(tmp_path):
+    (tmp_path / ".git").mkdir()
+    done = run_functions("main", CODE=str(tmp_path))
+    assert done.returncode == 1
+    assert "sudo paperpi-install update" in done.stderr

@@ -20,8 +20,10 @@ The installer takes the newest full release. While there is none, it takes the n
    git tag v2.0.0a1 origin/main
    git push origin v2.0.0a1
    ```
-3. The workflow `.github/workflows/release.yml` checks that the tag matches the version in `pyproject.toml` and makes the GitHub release, with notes listing the PRs merged since the last release. A version with a letter becomes a "pre-release" on GitHub.
+3. The workflow `.github/workflows/release.yml` checks that the tag is on `main` and matches the version in `pyproject.toml`, and makes the GitHub release, with notes listing the PRs merged since the last release. A version with a letter becomes a "pre-release" on GitHub.
 
 If the check fails, delete the tag (`git push origin :refs/tags/v2.0.0a1`, then `git tag -d v2.0.0a1`), fix the version and start again. Never move a tag that has a release: installs may already use it.
+
+The install script itself always comes from `main` (the one-line command downloads it from there), but it installs the code of the newest release. So a change to the script must keep working with the code of the last release: when it needs something new from PaperPi (such as a new option of `paperpi example-config`), make a release with that first.
 
 Between releases `main` keeps the version of the last release; the next release PR changes it.

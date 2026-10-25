@@ -20,6 +20,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # the history of main, for the next check
+      - name: Check that the tag is on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::the tag is not on main; every install would get this commit"
+            exit 1
+          fi
       - name: Check the tag against pyproject.toml
         env:
           TAG: ${{ github.ref_name }}

@@ -184,7 +184,9 @@ newest_release() {
 }
 
 get_code() {
+    local installed=''
     if [[ -d $CODE/.git ]]; then
+        installed=$(git -C "$CODE" rev-parse HEAD)
         step "Getting ${REF:-the newest release} from $REPO"
         git -C "$CODE" remote set-url origin "$REPO"
         git -C "$CODE" fetch --quiet --tags --force origin
@@ -200,6 +202,11 @@ get_code() {
     local target=$REF
     if git -C "$CODE" rev-parse --verify --quiet "refs/remotes/origin/$REF" >/dev/null; then
         target=origin/$REF
+    fi
+    # Going back, e.g. from main to the last release, is allowed; just say so.
+    if [[ -n $installed ]] && ! git -C "$CODE" merge-base --is-ancestor "$installed" "$target" 2>/dev/null; then
+        echo "    Note: this is not newer than the code installed now (${installed:0:7});" \
+            "--ref main gets the newest code."
     fi
     git -C "$CODE" -c advice.detachedHead=false checkout --quiet --force "$target" \
         || fail "no branch, tag or commit $REF in $REPO"
@@ -273,7 +280,9 @@ cmd_install() {
     step "Starting PaperPi, also at every start of the Pi"
     systemctl restart paperpi
     if [[ $DISPLAY_TYPE == virtual ]]; then
-        wait_for_start "Open http://$(hostname -I | cut -d' ' -f1):8080 to set it up."
+        local address
+        address=$(hostname -I | cut -d' ' -f1)
+        wait_for_start "Open http://${address:-$(hostname).local}:8080 to set it up."
     else
         wait_for_start "The screen shows the web address to set it up."
     fi
@@ -311,8 +320,12 @@ cmd_uninstall() {
 }
 
 main() {
-    local command=${1:-}
-    [[ -n $command ]] && shift
+    # "curl ... | sudo bash -s -- --ref main": options without a command.
+    local command=''
+    if [[ $# -gt 0 && $1 != -[!h]* ]]; then
+        command=$1
+        shift
+    fi
     DISPLAY_TYPE='' MODEL='' VCOM='' PURGE=no RESTART=no ASK=yes
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -332,7 +345,9 @@ main() {
         ASK=no
     fi
     # "curl ... | sudo bash" gives no command.
-    if [[ -z $command && ! -d $CODE/.git ]]; then
+    if [[ -z $command ]]; then
+        [[ ! -d $CODE/.git ]] \
+            || fail "PaperPi is installed already; to update it: sudo paperpi-install update"
         command=install
     fi
     case $command in
