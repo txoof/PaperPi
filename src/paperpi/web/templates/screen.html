@@ -24,6 +24,7 @@
     {{ label("type", "Type") }}
     <div class="ctl"><select name="type" id="screen-type" aria-labelledby="name-type">
       {% for value, text in (("it8951", "Waveshare IT8951 board (6, 7.8, 9.7 or 10.3 inch)"),
+        ("waveshare", "Waveshare small screen (1.02 to 13.3 inch, no IT8951 board)"),
         ("virtual", "Virtual screen (writes pictures to files, for testing)")) %}
       <option value="{{ value }}"{% if values.type == value %} selected{% endif %}>{{ text }}</option>
       {% endfor %}
@@ -45,6 +46,36 @@
       {{ label("vcom", "VCOM", "The voltage printed on the screen's ribbon cable, e.g. −1.90. Each screen has its own; a wrong value gives poor contrast.") }}
       <div class="ctl"><div class="unit"><input type="text" inputmode="decimal" name="vcom"
         value="{{ values.vcom }}" aria-labelledby="name-vcom"> V</div></div>
+    </div>
+  </div>
+  <div class="for-type" data-type="waveshare">
+    <h2 class="no-js">For a Waveshare small screen</h2>
+    <div class="field{% if errors.ws_model %} wrong{% endif %}">
+      {{ label("ws_model", "Model", "Waveshare's name for the screen, on its box or the sticker on its back, e.g. 7.5\" V2. Models tested with PaperPi come first.") }}
+      <div class="ctl"><select name="ws_model" id="ws-model" aria-labelledby="name-ws_model">
+        {% for group, choices in waveshare %}<optgroup label="{{ group }}">
+          {% for c in choices %}
+          <option value="{{ c.file }}" data-size="{{ c.size }}" data-shows="{{ c.shows }}"
+            data-fast="{{ 'yes' if c.fast else 'no, every picture is a full refresh' }}"
+            {%- if not c.tested %} data-report="{{ c.report }}"{% endif %}
+            {%- if values.ws_model == c.file %} selected{% endif %}>{{ c.text }}</option>
+          {% endfor %}</optgroup>
+        {% endfor %}
+      </select>
+        <dl class="model-facts" id="ws-facts" hidden>
+          <dt>Size</dt><dd data-fact="size"></dd>
+          <dt>Shows</dt><dd data-fact="shows"></dd>
+          <dt>Fast writes</dt><dd data-fact="fast"></dd>
+          <dt>File name</dt><dd><code data-fact="file"></code></dd>
+        </dl>
+        <p class="help" id="ws-untested" hidden>Nobody has tried this model with PaperPi yet. It
+          should work; please <a id="ws-report" href="#" target="_blank" rel="noopener">report how
+          it works</a> (a short form on GitHub).</p>
+        <p class="help">On the Waveshare HAT (the board between the Pi and the screen), set the
+          <b>Display Config</b> switch to <b>B</b> for most screens, and <b>Interface Config</b>
+          to <b>0</b>. <a href="https://github.com/txoof/PaperPi/blob/main/docs/waveshare-screens.md"
+          target="_blank" rel="noopener">More about Waveshare screens</a></p>
+      </div>
     </div>
   </div>
   <div class="for-type" data-type="virtual">

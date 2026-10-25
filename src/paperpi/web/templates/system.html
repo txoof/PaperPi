@@ -35,7 +35,7 @@
 <div class="waiting" id="waiting">
   <p><b>Saved, waiting for a restart:</b> the new screen is {{ describe(new_screen) }}.
     PaperPi keeps using the current screen until it starts again.</p>
-  {% if new_screen.type == "it8951" %}
+  {% if new_screen.type in ("it8951", "waveshare") %}
   <p>To connect the new screen:</p>
   <ol>
     <li>Shut the Pi down. On the Pi: <code>sudo shutdown now</code></li>
@@ -47,7 +47,7 @@
   <p>PaperPi was started by hand: stop it (Ctrl+C) and start it again.</p>
   {% endif %}
   <div class="buttons">
-    {% if new_screen.type != "it8951" and can_restart %}
+    {% if new_screen.type == "virtual" and can_restart %}
     <a class="button" href="/system?restart=1#pi">Restart PaperPi now</a>{% endif %}
     <form method="post" action="/system/screen/undo"><button type="submit">Undo: keep
       the current screen</button></form>
@@ -102,6 +102,8 @@
       <dt>Type</dt><dd>{{ screen.type }}</dd>
       <dt>Model</dt><dd>{{ screen.model }}</dd>
       {% if screen.vcom %}<dt>VCOM</dt><dd>{{ screen.vcom }}</dd>{% endif %}
+      {% if screen.report %}<dt>Tried</dt><dd>Not tested with PaperPi yet: please
+        <a href="{{ screen.report }}" target="_blank" rel="noopener">report how it works</a></dd>{% endif %}
       <dt>State</dt><dd>
         {%- if not running %}PaperPi's screen is not running here
         {%- elif screen_state == "ok" %}✓ Answers

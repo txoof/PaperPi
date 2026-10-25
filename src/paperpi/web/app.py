@@ -992,6 +992,7 @@ def create_app(
             errors=wrong.errors if wrong is not None else {},
             problem=problem,
             models=list(IT8951_MODELS.items()),
+            waveshare=system.waveshare_choices(),
             shows=system.SHOWS,
         )
 

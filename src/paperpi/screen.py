@@ -68,6 +68,10 @@ def driver_for(display: DisplaySettings, folder: Path) -> MakeDriver:
         return partial(
             IT8951Driver, display.model, vcom=display.vcom, max_refresh=display.max_refresh
         )
+    if display.type == "waveshare":
+        from epdlib.drivers.waveshare import WaveshareDriver
+
+        return partial(WaveshareDriver, display.model, max_refresh=display.max_refresh)
     from epdlib.drivers.virtual import VirtualDriver
 
     width, height = display.size

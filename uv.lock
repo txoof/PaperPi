@@ -68,6 +68,10 @@ it8951 = [
     { name = "gpiod" },
     { name = "spidev" },
 ]
+waveshare = [
+    { name = "gpiod" },
+    { name = "spidev" },
+]
 
 [[package]]
 name = "execnet"
@@ -351,7 +355,7 @@ version = "2.0.0a1"
 source = { editable = "." }
 dependencies = [
     { name = "epdlib" },
-    { name = "epdlib", extra = ["it8951"], marker = "sys_platform == 'linux'" },
+    { name = "epdlib", extra = ["it8951", "waveshare"], marker = "sys_platform == 'linux'" },
     { name = "fastapi" },
     { name = "icalendar" },
     { name = "jinja2" },
@@ -377,7 +381,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "epdlib", git = "https://github.com/txoof/epdlib?rev=83d960f6b6456dcbb550c5a9a7b6ab8a55a67615" },
-    { name = "epdlib", extras = ["it8951"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=83d960f6b6456dcbb550c5a9a7b6ab8a55a67615" },
+    { name = "epdlib", extras = ["it8951", "waveshare"], marker = "sys_platform == 'linux'", git = "https://github.com/txoof/epdlib?rev=83d960f6b6456dcbb550c5a9a7b6ab8a55a67615" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "icalendar", specifier = ">=7.3.0" },
     { name = "jinja2", specifier = ">=3.1" },

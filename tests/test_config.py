@@ -6,7 +6,7 @@ import textwrap
 import pytest
 from epdlib import ScreenMode
 
-from paperpi import config, limits, plugins
+from paperpi import __version__, config, limits, plugins
 from paperpi.config import ConfigError, DisplaySettings, folder_name, load, parse
 from paperpi.plugin import PluginEntry
 
@@ -146,7 +146,7 @@ def test_unknown_display_type_suggests_a_name():
     (message,) = errors_of('config_version = 1\n[display]\ntype = "virtul"\n')
     assert message == (
         "paperpi.toml line 3 [display]: unknown screen type 'virtul' "
-        "(did you mean 'virtual'?); known: virtual, it8951"
+        "(did you mean 'virtual'?); known: virtual, it8951, waveshare"
     )
 
 
@@ -216,6 +216,80 @@ def test_it8951_unknown_model():
         "paperpi.toml line 4 [display]: model: unknown it8951 model '9.8' (did you mean "
         '\'9.7\'?); known: "6", "7.8", "9.7", "10.3"'
     )
+
+
+WAVESHARE = 'config_version = 1\n[display]\ntype = "waveshare"\n'
+TESTED = '"epd5in83", "epd7in5_V2", "epd5in65f"'
+
+
+def test_waveshare_screen_size_and_mode_come_from_the_model():
+    cfg = parse(WAVESHARE + 'model = "epd7in5_V2"\nmax_refresh = 2\nrotation = 90\n')
+    display = cfg.display
+    assert display.size == (800, 480) and display.layout_size == (480, 800)
+    assert display.screen_mode == ScreenMode.bw() and display.max_refresh == 2
+    assert not cfg.problems
+
+
+def test_waveshare_colour_screen_draws_in_black_and_white_with_color_false():
+    colour = parse(WAVESHARE + 'model = "epd5in65f"\n').display
+    assert colour.screen_mode.kind == "palette" and colour.screen_mode.levels == 7
+    plain = parse(WAVESHARE + 'model = "epd5in65f"\ncolor = false\n').display
+    assert plain.screen_mode == ScreenMode.bw()
+
+
+def test_waveshare_needs_a_model():
+    assert errors_of(WAVESHARE) == [
+        "paperpi.toml line 3 [display]: model: required setting is missing; the name of "
+        f"Waveshare's file for the screen, e.g. {TESTED} (the full list is in "
+        "docs/waveshare-screens.md)"
+    ]
+
+
+def test_waveshare_unknown_model():
+    (message,) = errors_of(WAVESHARE + 'model = "epd7in5_v2"\n')
+    assert message == (
+        "paperpi.toml line 4 [display]: model: unknown waveshare model 'epd7in5_v2' (did you "
+        f"mean 'epd7in5_V2'?); the name of Waveshare's file for the screen, e.g. {TESTED} "
+        "(the full list is in docs/waveshare-screens.md)"
+    )
+
+
+def test_waveshare_model_that_does_not_work_is_refused():
+    (message,) = errors_of(WAVESHARE + 'model = "epd4in2b_V2"\n')
+    assert message.startswith(
+        "paperpi.toml line 4 [display]: model: epd4in2b_V2 does not work with PaperPi: it "
+        "sends data through Waveshare's own compiled helper"
+    )
+
+
+def test_waveshare_untested_model_gives_a_hint():
+    cfg = parse(WAVESHARE + 'model = "epd2in13_V4"\n')
+    assert cfg.display.size == (250, 122)
+    assert problems(cfg, "hint") == [
+        "config line 4 [display]: model: epd2in13_V4 has not been tried on a real "
+        "screen yet; please report how it works: https://github.com/txoof/PaperPi/issues/new"
+        "?template=screen-report.yml&title=Screen+report%3A+epd2in13_V4&model=epd2in13_V4"
+        f"&version={__version__}"
+    ]
+
+
+def test_the_waveshare_docs_list_every_model_and_whether_it_was_tested():
+    from pathlib import Path
+
+    from epdlib.drivers.waveshare import MODELS
+
+    docs = Path(__file__).parent.parent / "docs" / "waveshare-screens.md"
+    rows = {
+        row.split("|")[2].strip(" `"): row.split("|")[6].strip()
+        for row in docs.read_text().splitlines()
+        if row.startswith("| ") and "`epd" in row
+    }
+    assert rows == {name: "yes" if info.tested else "no" for name, info in MODELS.items()}
+
+
+def test_waveshare_screen_has_no_size_setting():
+    (message,) = errors_of(WAVESHARE + 'model = "epd7in5_V2"\nmode = "bw"\n')
+    assert message.startswith('paperpi.toml line 5 [display]: mode is only for type = "virtual"')
 
 
 @pytest.mark.parametrize(

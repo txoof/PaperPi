@@ -1,0 +1,82 @@
+name: Screen report
+description: Tell us how a Waveshare screen works with PaperPi, good or bad
+title: "Screen report: "
+labels: [hardware]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! Most Waveshare models have not been tried with PaperPi yet, so every
+        report helps, also "it just works". PaperPi's web interface fills in the first two
+        fields when you come from its Change screen page.
+  - type: input
+    id: model
+    attributes:
+      label: Screen model
+      description: The name of Waveshare's file for the screen, as in PaperPi's config file.
+      placeholder: "epd7in5_V2"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PaperPi version
+      description: Shown on the Screen & system page, under This Pi.
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: pi
+    attributes:
+      label: Raspberry Pi model
+      placeholder: "Pi 4 Model B, 2 GB"
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: How does it work?
+      options:
+        - Works well
+        - Works, with problems (please describe them below)
+        - Does not work
+    validations:
+      required: true
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: What did you see?
+      description: Tick what worked.
+      options:
+        - label: The picture fits the screen (nothing cut off or shifted)
+        - label: Text and lines are sharp, with no streaks
+        - label: Colours are right (colour screens only)
+        - label: The screen is cleared when PaperPi stops
+        - label: It keeps working for a day or more
+  - type: dropdown
+    id: display-config
+    attributes:
+      label: Display Config switch on the HAT
+      description: The switch on the Waveshare HAT (the board between the Pi and the screen).
+      options:
+        - B
+        - A
+        - My HAT has no such switch
+        - I don't know
+  - type: input
+    id: write-time
+    attributes:
+      label: Seconds per picture
+      description: About how long one new picture takes to appear, if you timed it.
+      placeholder: "7"
+  - type: textarea
+    id: problems
+    attributes:
+      label: Problems, and anything else
+      description: What went wrong, and what you expected. A photo of the screen helps a lot; drag it here.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log lines
+      description: "Error messages from the Warnings page, or from: journalctl -u paperpi -n 50"
+      render: text

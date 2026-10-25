@@ -8,8 +8,8 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
     "epdlib",
-    # The pin and SPI libraries for the IT8951 screen; they build only on Linux.
-    "epdlib[it8951]; sys_platform == 'linux'",
+    # The pin and SPI libraries for the IT8951 and Waveshare screens; they build only on Linux.
+    "epdlib[it8951,waveshare]; sys_platform == 'linux'",
     "fastapi>=0.115",
     "icalendar>=7.3.0",
     "jinja2>=3.1",

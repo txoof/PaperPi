@@ -37,6 +37,7 @@ from typing import Any
 
 from epdlib.drivers.it8951 import MODELS as IT8951_MODELS
 from epdlib.drivers.it8951 import VCOM_RANGE
+from epdlib.drivers.waveshare import MODELS as WAVESHARE_MODELS
 from pydantic import ValidationError
 
 from .. import __version__, config, example, health
@@ -326,13 +327,63 @@ def screen_form(display: config.DisplaySettings | None) -> dict[str, str]:
         "width": str(config.VIRTUAL_WIDTH),
         "height": str(config.VIRTUAL_HEIGHT),
         "mode": config.VIRTUAL_MODE,
+        "ws_model": "epd7in5_V2",
     }
     if display is None:
         return shown
     values = screen_of(display)
     if "vcom" in values:
         values["vcom"] = f"{values['vcom']:.2f}"
+    if display.type == "waveshare" and "model" in values:
+        # Its own field, as the IT8951 model list also sends "model".
+        values["ws_model"] = values.pop("model")
     return shown | {key: str(value) for key, value in values.items()}
+
+
+@dataclass(frozen=True)
+class WaveshareChoice:
+    """One Waveshare model in the Change screen page's list."""
+
+    file: str
+    text: str
+    size: str
+    shows: str
+    fast: bool
+    tested: bool
+    report: str
+
+
+def waveshare_choices() -> list[tuple[str, list[WaveshareChoice]]]:
+    """The Waveshare models for the Change screen page, by size: the tested ones first."""
+
+    def inches(file: str) -> float:
+        whole, rest = file[3:].split("in", 1)
+        return float(f"{whole}.{''.join(c for c in rest if c.isdigit()) or 0}")
+
+    choices = []
+    for file, info in sorted(WAVESHARE_MODELS.items(), key=lambda item: (inches(item[0]), item[0])):
+        name = info.model.removeprefix("Waveshare ")
+        two_colour = name.endswith(" (black and white only)")
+        name = name.removesuffix(" (black and white only)")
+        shows = "black and white" if info.mode.kind == "bw" else f"{info.mode.levels} colours"
+        size = f"{info.width} × {info.height}"
+        text = f"{name}, {size}, {shows}" + (" (tested)" if info.tested else "")
+        if two_colour:
+            shows += " (a three-colour screen; its red or yellow is not used yet)"
+        choice = WaveshareChoice(
+            file,
+            text,
+            f"{size} pixels",
+            shows,
+            info.fast_refresh,
+            info.tested,
+            config.screen_report_url(file),
+        )
+        choices.append(choice)
+    return [
+        ("Tested with PaperPi", [c for c in choices if c.tested]),
+        ("Not tested yet", [c for c in choices if not c.tested]),
+    ]
 
 
 def with_screen(text: str, sent: Mapping[str, Sequence[str]]) -> str:
@@ -354,6 +405,10 @@ def with_screen(text: str, sent: Mapping[str, Sequence[str]]) -> str:
         low, high = VCOM_RANGE
         if values["vcom"] is None or not low <= values["vcom"] <= high:
             errors["vcom"] = f"must be a number from {low:.2f} to {high:.2f}, e.g. -1.90"
+    elif kind == "waveshare":
+        values["model"] = one.get("ws_model")
+        if values["model"] not in WAVESHARE_MODELS:
+            errors["ws_model"] = "choose one of the models"
     elif kind == "virtual":
         for key in ("width", "height"):
             try:
@@ -409,6 +464,9 @@ def describe(screen: Mapping[str, Any]) -> str:
         vcom = screen.get("vcom")
         volts = "" if vcom is None else f", {vcom:.2f} V".replace("-", "−")
         return f"IT8951, {screen.get('model')} inch{volts}"
+    if screen.get("type") == "waveshare":
+        info = WAVESHARE_MODELS.get(screen.get("model") or "")
+        return info.model if info is not None else f"Waveshare {screen.get('model')}"
     width = screen.get("width") or config.VIRTUAL_WIDTH
     height = screen.get("height") or config.VIRTUAL_HEIGHT
     shows = SHOWS.get(screen.get("mode") or config.VIRTUAL_MODE, "")
@@ -504,6 +562,8 @@ class ScreenFacts:
     """The screen can show colour, so the Colour setting is offered."""
     shows: str
     """What it can show, e.g. "16 grays"."""
+    report: str | None = None
+    """For a model nobody tried with PaperPi yet: the address of the screen report form."""
 
 
 def screen_facts(display: config.DisplaySettings) -> ScreenFacts:
@@ -511,6 +571,10 @@ def screen_facts(display: config.DisplaySettings) -> ScreenFacts:
     if display.type == "it8951":
         mode = IT8951_MODELS[display.model or "9.7"].mode
         kind, model = "Waveshare IT8951 board", f"{display.model} inch, {width} × {height}"
+    elif display.type == "waveshare" and display.model_info is not None:
+        mode = display.model_info.mode
+        name = display.model_info.model.removeprefix("Waveshare ")
+        kind, model = "Waveshare small screen", f"{name}, {width} × {height}"
     else:
         mode = config.MODES[display.mode or config.VIRTUAL_MODE]
         kind, model = "Virtual screen (writes PNG files)", f"{width} × {height}"
@@ -521,7 +585,12 @@ def screen_facts(display: config.DisplaySettings) -> ScreenFacts:
         "rgb": "full colour",
     }.get(mode.kind, config.mode_name(mode))
     vcom = None if display.vcom is None else f"{display.vcom:.2f} V".replace("-", "−")
-    return ScreenFacts(kind, f"{model}, {shows}", vcom, mode.kind in ("palette", "rgb"), shows)
+    info = display.model_info
+    report = None
+    if display.type == "waveshare" and info is not None and not info.tested:
+        report = config.screen_report_url(display.model or "")
+    color = mode.kind in ("palette", "rgb")
+    return ScreenFacts(kind, f"{model}, {shows}", vcom, color, shows, report)
 
 
 @dataclass(frozen=True)

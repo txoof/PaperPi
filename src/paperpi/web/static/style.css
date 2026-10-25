@@ -534,6 +534,11 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 .sec label.check { display: flex; gap: 0.4rem; align-items: center; }
 .sec label.check input { width: auto; margin: 0; }
 .unit { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.model-facts { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.1rem 0.8rem; font-size: 0.9rem; }
+.model-facts dt { color: var(--muted); }
+.model-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.sec select#ws-model { width: 100%; }
 .unit input { display: inline-block; width: 6rem; }
 .unit select { padding: 0.35rem 0.4rem; }
 .rot { display: flex; gap: 0.4rem; flex-wrap: wrap; }
