@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Install, update or remove PaperPi as a systemd service on a Raspberry Pi (Raspberry Pi OS
 # trixie). Run it with sudo; "paperpi-install --help" lists the commands. Where everything
-# goes, and why: docs/install-systemd.md.
+# goes, and why: docs/install-systemd.md. A new install is one command:
+#
+#   curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install | sudo bash
 #
 # Everything is inside main(), called on the last line: bash reads a script while it runs it,
-# and "update" replaces this file.
+# also from a pipe, and "update" replaces this file.
 
 set -euo pipefail
 
@@ -24,13 +26,20 @@ UNIT=/etc/systemd/system/paperpi.service
 COMMAND=/usr/local/bin/paperpi
 SELF=/usr/local/sbin/paperpi-install
 USER_NAME=paperpi
+# What the install needs from Debian: git gets the code; the venv module makes PaperPi's
+# Python environment; the compiler and header files build spidev, the SPI library.
+APT_PACKAGES=(git python3-venv gcc python3-dev)
+# The IT8951 screen sizes of the screen menu, in inches (epdlib's it8951 MODELS; a test
+# checks they match).
+IT8951_MODELS=(6 7.8 9.7 10.3)
 
 usage() {
     cat <<EOF
 Usage: sudo paperpi-install COMMAND [OPTIONS]
 
 Commands:
-  install     install PaperPi in $PREFIX and start the paperpi service
+  install     install PaperPi in $PREFIX and start the paperpi service (the command
+              when none is given and PaperPi is not installed yet)
   update      get the newest PaperPi (or --ref) and restart the service
   uninstall   stop the service and remove PaperPi; the config ($CONFIG_DIR) and the
               saved files ($STATE_DIR) stay, unless --purge
@@ -38,11 +47,14 @@ Commands:
 Options:
   --ref REF       branch, tag or commit to install (default: $REF)
   --repo URL      where to get PaperPi from (default: $REPO)
-  --display TYPE  install only, for a new config: the screen type, e.g. it8951
-                  (default: virtual, which only saves pictures; change it in the web
-                  interface later)
+  --display TYPE  install only, for a new config: the screen type, e.g. it8951, or
+                  virtual, which only saves pictures (change it in the web interface
+                  later). Without it, install asks.
   --model MODEL   install only: the screen model, e.g. 9.7
   --vcom VCOM     install only: the vcom printed on the screen's cable, e.g. -1.90
+  --yes           ask nothing: install missing packages, use the virtual screen unless
+                  --display is given, and don't restart the Pi (it says when one is
+                  needed). Also what happens without a terminal to ask in.
   --purge         uninstall only: also remove the config, the saved files and the
                   $USER_NAME user
 EOF
@@ -51,20 +63,91 @@ EOF
 step() { printf '\n==> %s\n' "$*"; }
 fail() { printf 'paperpi-install: %s\n' "$*" >&2; exit 1; }
 
+# ask PROMPT DEFAULT: the answer typed in the terminal (in ANSWER), or DEFAULT for an empty
+# answer, with --yes or without a terminal. It reads the terminal itself, because with
+# "curl ... | sudo bash" the script's input is the pipe.
+ask() {
+    ANSWER=''
+    if [[ $ASK == yes ]]; then
+        read -r -p "$1" ANSWER </dev/tty || fail "no answer (the input ended)"
+    fi
+    ANSWER=${ANSWER:-$2}
+}
+
+yes_no() {
+    ask "$1 [Y/n] " y
+    [[ $ANSWER == [Yy]* ]]
+}
+
 check_system() {
     [[ $EUID -eq 0 ]] || fail "run it with sudo"
     command -v systemctl >/dev/null || fail "systemd is needed"
-    command -v git >/dev/null || fail "git is needed: sudo apt install git"
+    command -v apt-get >/dev/null || fail "this works on Raspberry Pi OS (trixie) only"
     python3 -c 'import sys; sys.exit(sys.version_info < (3, 13))' 2>/dev/null \
-        || fail "Python 3.13 or newer is needed (Raspberry Pi OS trixie has it)"
-    python3 -c 'import venv, ensurepip' 2>/dev/null \
-        || fail "Python's venv module is needed: sudo apt install python3-venv"
-    # spidev, the SPI library for the screen, is built during the install.
-    if ! command -v gcc >/dev/null \
-        || ! python3 -c 'import os, sys, sysconfig
-sys.exit(not os.path.exists(os.path.join(sysconfig.get_paths()["include"], "Python.h")))'; then
-        fail "a C compiler and Python's header files are needed: sudo apt install gcc python3-dev"
+        || fail "Python 3.13 or newer is needed: Raspberry Pi OS trixie has it"
+}
+
+get_apt_packages() {
+    local missing=() package
+    for package in "${APT_PACKAGES[@]}"; do
+        dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'ok installed' \
+            || missing+=("$package")
+    done
+    [[ ${#missing[@]} -eq 0 ]] && return
+    step "Installing what the install needs from Debian: ${missing[*]}"
+    yes_no "    Install them?" || fail "these are needed: sudo apt install ${missing[*]}"
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}" >/dev/null
+}
+
+# The screen menu, unless --display was given or there is a config already. Sets
+# DISPLAY_TYPE, MODEL and VCOM.
+choose_screen() {
+    [[ -n $DISPLAY_TYPE ]] && return
+    if [[ -e $CONFIG ]]; then
+        # Only to know whether SPI is needed; the config stays as it is.
+        DISPLAY_TYPE=virtual
+        grep -q '^type *= *"it8951"' "$CONFIG" && DISPLAY_TYPE=it8951
+        return 0
     fi
+    DISPLAY_TYPE=virtual
+    [[ $ASK == yes ]] || return 0
+    local i choice
+    step "Which screen is connected?"
+    for i in "${!IT8951_MODELS[@]}"; do
+        printf "    %d  %s inch screen with Waveshare's IT8951 board\n" $((i + 1)) \
+            "${IT8951_MODELS[i]}"
+    done
+    echo "    0  none yet, or another one: choose it in the web interface later"
+    while true; do
+        ask "    Number: " 0
+        choice=$ANSWER
+        [[ $choice =~ ^[0-9]+$ ]] && ((choice <= ${#IT8951_MODELS[@]})) && break
+        echo "    Type a number from the list."
+    done
+    ((choice == 0)) && return
+    DISPLAY_TYPE=it8951 MODEL=${IT8951_MODELS[choice - 1]}
+    if [[ -z $VCOM ]]; then
+        echo "    The vcom is printed on the screen's ribbon cable, e.g. -1.90."
+        while true; do
+            ask "    vcom: " ''
+            [[ $ANSWER =~ ^-[0-9]+(\.[0-9]+)?$ ]] \
+                && awk -v v="$ANSWER" 'BEGIN { exit !(v >= -3.0 && v <= -0.5) }' && break
+            echo "    Type the number on the cable: between -3.0 and -0.5."
+        done
+        VCOM=$ANSWER
+    fi
+}
+
+# Turns on SPI for a real screen. Sets RESTART=yes when the Pi must restart before
+# /dev/spidev0.0 is there.
+turn_on_spi() {
+    [[ $DISPLAY_TYPE == virtual || -e /dev/spidev0.0 ]] && return
+    command -v raspi-config >/dev/null \
+        || fail "SPI is off and raspi-config is missing; turn on SPI, then run this again"
+    step "Turning on SPI, the data line to the screen"
+    raspi-config nonint do_spi 0
+    [[ -e /dev/spidev0.0 ]] || RESTART=yes
 }
 
 make_user() {
@@ -152,23 +235,38 @@ wait_for_start() {
 
 cmd_install() {
     check_system
-    [[ -e /dev/spidev0.0 ]] || echo "Note: SPI is off; the screen needs it (sudo raspi-config," \
-        "Interface Options, SPI), then a restart of the Pi."
+    choose_screen
+    get_apt_packages
+    turn_on_spi
     make_user
     get_uv
     get_code
     install_packages
     make_config
     install_service
-    step "Starting PaperPi, also at every start of the Pi"
     systemctl enable --quiet paperpi
+    if [[ $RESTART == yes ]]; then
+        step "PaperPi starts at every start of the Pi; SPI works after a restart of the Pi"
+        if [[ $ASK == yes ]] && yes_no "    Restart the Pi now?"; then
+            systemctl reboot
+        else
+            echo "    Restart it when you are ready: sudo reboot"
+        fi
+        return
+    fi
+    step "Starting PaperPi, also at every start of the Pi"
     systemctl restart paperpi
-    wait_for_start "The screen shows the web address to set it up."
+    if [[ $DISPLAY_TYPE == virtual ]]; then
+        wait_for_start "Open http://$(hostname -I | cut -d' ' -f1):8080 to set it up."
+    else
+        wait_for_start "The screen shows the web address to set it up."
+    fi
 }
 
 cmd_update() {
     check_system
     [[ -d $CODE/.git ]] || fail "PaperPi is not installed; use: sudo paperpi-install install"
+    get_apt_packages
     get_uv
     get_code
     install_packages
@@ -199,7 +297,7 @@ cmd_uninstall() {
 main() {
     local command=${1:-}
     [[ -n $command ]] && shift
-    DISPLAY_TYPE=virtual MODEL='' VCOM='' PURGE=no
+    DISPLAY_TYPE='' MODEL='' VCOM='' PURGE=no RESTART=no ASK=yes
     while [[ $# -gt 0 ]]; do
         case $1 in
             --ref) REF=${2:?--ref needs a value}; shift 2 ;;
@@ -207,11 +305,20 @@ main() {
             --display) DISPLAY_TYPE=${2:?--display needs a value}; shift 2 ;;
             --model) MODEL=${2:?--model needs a value}; shift 2 ;;
             --vcom) VCOM=${2:?--vcom needs a value}; shift 2 ;;
+            --yes) ASK=no; shift ;;
             --purge) PURGE=yes; shift ;;
             -h | --help) usage; exit 0 ;;
             *) usage >&2; fail "unknown option: $1" ;;
         esac
     done
+    # No terminal to ask in (e.g. run by another program): as --yes.
+    if [[ $ASK == yes ]] && ! { true </dev/tty; } 2>/dev/null; then
+        ASK=no
+    fi
+    # "curl ... | sudo bash" gives no command.
+    if [[ -z $command && ! -d $CODE/.git ]]; then
+        command=install
+    fi
     case $command in
         install) cmd_install ;;
         update) cmd_update ;;
@@ -221,5 +328,6 @@ main() {
     esac
 }
 
-main "$@"
+# Nothing reads the script's input: with "curl ... | bash" that is the rest of this file.
+main "$@" </dev/null
 exit

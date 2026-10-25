@@ -1,19 +1,32 @@
 # Install PaperPi as a systemd service
 
-This installs PaperPi on a Raspberry Pi with Raspberry Pi OS "trixie", so it starts at every start of the Pi and is started again after a crash. systemd is the part of Linux that starts and watches programs like this one (a "service"). This comes before the Docker install of milestone M6; the Docker install will use the same config and state folders, so settings carry over.
+This installs PaperPi on a Raspberry Pi with Raspberry Pi OS "trixie", so it starts at every start of the Pi and is started again after a crash. systemd is the part of Linux that starts and watches programs like this one (a "service"). This is PaperPi's install; a Docker install was planned for milestone M6 but dropped (2026-10-25, #325).
 
 ## Install
 
-1. Turn on SPI, the data line to the screen: `sudo raspi-config nonint do_spi 0` (the same as raspi-config's menu Interface Options, SPI), then restart the Pi.
-2. Install what the install needs: `sudo apt install git python3-venv gcc python3-dev` (the compiler and header files build `spidev`, the SPI library).
-3. Get the install script and run it. For the 9.7" IT8951 screen (`vcom` is printed on the screen's ribbon cable; each screen has its own):
-   ```bash
-   curl -fsSLO https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install
-   sudo bash paperpi-install install --display it8951 --model 9.7 --vcom -1.90
-   ```
-   Without `--display`, the first config uses the virtual screen, which only saves pictures in `/var/lib/paperpi/screen/`; set the screen in the web interface later.
+One command on the Pi:
 
-The script prints each step before it does it. At the end the screen shows a clock and the set-up screen in turn. The set-up screen has the address of the web interface and a QR code for it: open it, set a password and choose which plugins to display. Until a password is set, anyone on your home network can set it.
+```bash
+curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install | sudo bash
+```
+
+It prints each step before it does it:
+
+1. It asks which screen is connected: a numbered list of the sizes of Waveshare's IT8951 board, and for those the `vcom`, the number printed on the screen's ribbon cable (each screen has its own). `0` means none yet: PaperPi then uses the virtual screen, which only saves pictures in `/var/lib/paperpi/screen/`, and you choose the screen in the web interface later.
+2. It installs what the install needs from Debian, after asking: `git`, `python3-venv`, and `gcc` and `python3-dev` (they build `spidev`, the SPI library).
+3. For a real screen, it turns on SPI, the data line to the screen (`raspi-config nonint do_spi 0`, the same as raspi-config's menu Interface Options, SPI). When SPI only works after a restart, it asks before restarting the Pi; PaperPi then starts by itself after the restart.
+4. It installs PaperPi and starts it (see "Where the files are" below).
+
+At the end the screen shows a clock and the set-up screen in turn. The set-up screen has the address of the web interface and a QR code for it: open it, set a password and choose which plugins to display. Until a password is set, anyone on your home network can set it.
+
+To install without questions (for example from another script), download the script and give the answers as options; `--yes` asks nothing and uses the virtual screen unless `--display` is given:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install
+sudo bash paperpi-install install --yes --display it8951 --model 9.7 --vcom -1.90
+```
+
+`sudo bash paperpi-install --help` lists every option. With a config already in `/etc/paperpi` (from an earlier install), it is kept and nothing is asked about the screen.
 
 ## Update
 
@@ -21,7 +34,7 @@ The script prints each step before it does it. At the end the screen shows a clo
 sudo paperpi-install update
 ```
 
-It gets the newest `main` from GitHub, installs its Python packages and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead, for example to go back to an older commit or to try a branch. The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
+It gets the newest `main` from GitHub, installs what is missing from Debian and PaperPi's Python packages, and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead, for example to go back to an older commit or to try a branch. The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
 
 ## Remove
 

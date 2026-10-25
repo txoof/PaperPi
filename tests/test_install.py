@@ -124,3 +124,73 @@ def test_install_script_needs_root():
     done = subprocess.run([str(SCRIPT), "update"], capture_output=True, text=True)
     assert done.returncode == 1
     assert "run it with sudo" in done.stderr
+
+
+def run_functions(snippet: str, answers: str = "", **variables: str):
+    """Run ``snippet`` after the install script's settings and functions (not ``main``),
+    with ``answers`` as what is typed in the terminal and ``variables`` set first."""
+    body = SCRIPT.read_text().rsplit('\nmain "$@"', 1)[0]
+    # The terminal is the test's input here.
+    body = body.replace("</dev/tty", "")
+    setup = "".join(f"{name}={value}\n" for name, value in variables.items())
+    return subprocess.run(
+        ["bash", "-c", body + "\n" + setup + snippet],
+        input=answers,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_the_screen_menu_has_every_it8951_size():
+    from epdlib.drivers.it8951 import MODELS
+
+    sizes = re.search(r"^IT8951_MODELS=\(([^)]*)\)$", SCRIPT.read_text(), re.MULTILINE)[1]
+    assert sizes.split() == list(MODELS)
+
+
+CHOSEN = 'choose_screen; echo "<$DISPLAY_TYPE|$MODEL|$VCOM>"'
+NEW = {"CONFIG": "/nonexistent/paperpi.toml", "DISPLAY_TYPE": "", "MODEL": "", "VCOM": ""}
+
+
+def test_the_screen_menu_asks_the_size_and_the_vcom():
+    # A wrong number and a wrong vcom are asked again.
+    done = run_functions(CHOSEN, "7\n3\n1.9\n-4\n-1.90\n", ASK="yes", **NEW)
+    assert done.stdout.endswith("<it8951|9.7|-1.90>\n"), done.stderr
+    assert done.stdout.count("Type a number from the list.") == 1
+    assert done.stdout.count("between -3.0 and -0.5") == 2
+
+
+def test_the_screen_menu_can_be_skipped():
+    done = run_functions(CHOSEN, "\n", ASK="yes", **NEW)
+    assert done.stdout.endswith("<virtual||>\n")
+
+
+def test_no_questions_with_yes_or_a_display():
+    assert run_functions(CHOSEN, ASK="no", **NEW).stdout == "<virtual||>\n"
+    given = NEW | {"DISPLAY_TYPE": "it8951", "MODEL": "6", "VCOM": "-2"}
+    assert run_functions(CHOSEN, ASK="yes", **given).stdout == "<it8951|6|-2>\n"
+
+
+def test_a_kept_config_tells_whether_spi_is_needed(tmp_path):
+    config = tmp_path / "paperpi.toml"
+    config.write_text('[display]\ntype = "it8951"\n')
+    done = run_functions(CHOSEN, ASK="yes", **(NEW | {"CONFIG": str(config)}))
+    assert done.stdout == "<it8951||>\n"
+
+
+def test_an_ended_input_stops_the_questions():
+    done = run_functions(CHOSEN, "3\n", ASK="yes", **NEW)
+    assert done.returncode == 1
+    assert "no answer" in done.stderr
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="as root it would really install")
+def test_no_command_installs_when_paperpi_is_not_there(tmp_path):
+    # "curl ... | sudo bash" gives no command.
+    done = run_functions("main", CODE=str(tmp_path / "code"))
+    assert "run it with sudo" in done.stderr
+    (tmp_path / ".git").mkdir()
+    installed = run_functions("main", CODE=str(tmp_path))
+    assert installed.returncode == 2
+    assert "Usage:" in installed.stderr

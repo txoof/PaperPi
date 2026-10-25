@@ -34,7 +34,7 @@ PaperPi is a system service: it starts at boot and always runs as exactly one co
 | saved data, cache, "last good" config | `/var/lib/paperpi/` |
 | logs | the system log: `journalctl -u paperpi` |
 
-Inside Docker, these folders are shared with the container, so they survive updates and reinstalls.
+Updates and reinstalls keep these folders (Docker, which would have shared them with a container, was dropped in 2026-10, #325).
 
 All settings are in **one file**, so there is only one place to look when something breaks. Each plugin has its own `[[plugin]]` block. The same plugin can be used more than once, for example weather for two cities.
 
