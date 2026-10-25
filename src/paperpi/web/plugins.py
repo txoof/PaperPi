@@ -22,7 +22,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from .. import config, example, plugins
+from .. import config, example, links, plugins
 from ..plugin import Plugin, PluginEntry, helper_of, label, new_id
 from . import config_file, forms, helpers, preview
 
@@ -126,7 +126,7 @@ class LibraryItem:
         if self.plugin is None:
             return []
         fields = self.plugin.settings.model_fields
-        return [(key, fields[key].description or "") for key in self.plugin.required]
+        return [(key, links.plain(fields[key].description or "")) for key in self.plugin.required]
 
 
 class PluginEditor:

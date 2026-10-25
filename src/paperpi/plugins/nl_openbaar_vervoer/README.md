@@ -27,14 +27,14 @@ Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (
 
 | Setting | Default | What it does |
 |---|---|---|
-| `stop_1` | empty | Code of the stop: one side of the street, so one direction. See "Finding a stop's code" |
+| `stop_1` | empty | Code of the stop: one side of the street, so one direction. See "Finding a stop" |
 | `name_1` | the stop's name | Heading shown above its departures, e.g. `Tram 9` |
 | `lines_1` | all lines | Only these lines, e.g. `"9, 12"` |
 | `walk_1` | `0` (off) | Minutes to walk to the stop; each row then says when to leave |
 | `days_1` | every day | Days on which the stop is shown, e.g. `["mon", "tue", "wed", "thu", "fri"]` |
 | `stop_2` ... `stop_4` | empty | Up to three more stops, each with its own `name_`, `lines_`, `walk_` and `days_` |
 | `ns_key` | empty | NS API key, needed for trains. Kept secret: it is never shown in the web interface or the log |
-| `train_from_1`, `train_to_1` | empty | NS codes of the stations of train route 1, e.g. `GVC` (Den Haag Centraal) and `UT` (Utrecht Centraal). See "Finding a station's code" |
+| `train_from_1`, `train_to_1` | empty | NS codes of the stations of train route 1, e.g. `GVC` (Den Haag Centraal) and `UT` (Utrecht Centraal). See "Finding a station" |
 | `train_walk_1` | `0` (off) | Minutes to walk or cycle to the station; each row then says when to leave |
 | `train_days_1` | every day | Days on which the route is shown |
 | `train_changes_1` | `false` | Also show trips with a change of train (`spoor 6 · 1 change`); off: direct trains only |
@@ -46,7 +46,7 @@ The plugin needs at least one stop or one train route. In the `sections` layout,
 
 ```toml
 [[plugin]]
-id = "trams_centraal"
+id = "nl_openbaar_vervoer-6e1f3b92"
 type = "nl_openbaar_vervoer"
 stop_1 = "31001118"
 name_1 = "Centraal perron A"
@@ -81,17 +81,29 @@ For example, 5 minutes on the map, plus 1 for the door and 1 to spare, gives `wa
 2. Under **Products**, open **Ns-App** and subscribe to it.
 3. Under your **Profile**, copy the **Primary key** into `ns_key` (or the NS key field on the plugin's settings page).
 
-## Finding a station's code
+## Finding a stop
 
-Every Dutch station has a short code, such as `ASD` (Amsterdam Centraal), `RTD` (Rotterdam Centraal), `GVC` (Den Haag Centraal) and `UT` (Utrecht Centraal). Wikipedia's [list of railway stations in the Netherlands](https://nl.wikipedia.org/wiki/Lijst_van_spoorwegstations_in_Nederland) gives the code of each one ("afkorting"). A search by name is planned for the settings page.
+On the plugin's settings page, each stop has a search box above its code:
 
-## Finding a stop's code
+1. Type the stop's name, e.g. `Rotterdam Centraal` or `Amsterdam Dam`, and press **Search** (or Enter). Typos are fine. When many towns have a stop of that name, the list says so: add the town.
+2. The list shows each side of the street as its own choice, with the lines and destinations that leave there in the next hour, and a link to see it on a map. Pick the side whose lines go your way and press **Use**.
+3. **Use** fills in the stop's code and empties its heading and lines (they belonged to the stop chosen before; an empty heading shows the stop's own name). Nothing is saved yet: change what you like, press **Preview**, then **Save**.
 
-A search by name is planned for the settings page. Until then, look the code up in OVapi:
+![The stop search on the settings page](../../../../docs/images/web/ov-stop-search-light.png)
+
+The search downloads OVapi's list of stops (about 650 kB) and then asks for the best matches, so the name you type goes to OVapi. A stop missing from that list (see "Limits") can't be found this way.
+
+Without the web interface, look the code up in OVapi:
 
 1. Open <http://v0.ovapi.nl/stopareacode> and search the page for your stop's name (with your browser's Find), for example `Rotterdam Centraal perron A`. Note its `StopAreaCode`, e.g. `4862`.
 2. Open `http://v0.ovapi.nl/stopareacode/4862` (with your code). It lists each side of the street, under a number such as `31001118`, with the lines and destinations that leave there. Pick the side that goes your way.
 3. Put that number in `stop_1`.
+
+## Finding a station
+
+Every Dutch station has a short code, such as `ASD` (Amsterdam Centraal), `RTD` (Rotterdam Centraal), `GVC` (Den Haag Centraal) and `UT` (Utrecht Centraal). On the settings page, each station of a train route has a search box: type the name (`DH Centraal` and `utrcht cs` work too), press **Search**, and **Use** the right one. The search asks NS for its list of stations, so fill in `ns_key` first (the box says so until you do); one search is one of the key's 5,000 requests a day.
+
+Without the web interface: Wikipedia's [list of railway stations in the Netherlands](https://nl.wikipedia.org/wiki/Lijst_van_spoorwegstations_in_Nederland) gives the code of each one ("afkorting").
 
 ## Limits
 

@@ -70,8 +70,8 @@ A choice is a dictionary. Each key is a **kind** that says what PaperPi does wit
 
 | Kind | What it would do | Likely first user |
 |---|---|---|
-| `add` | Adds an item to a list setting instead of replacing a field (each **Use** adds one stop). | Dutch transport plugin |
-| `next` | Choosing starts a second search instead of filling in fields: pick a stop, then a direction or line; pick a music server, then a player on it. | Dutch transport plugin, `lms_client` |
+| `add` | Adds an item to a list setting instead of replacing a field (each **Use** adds one item). | none yet: the Dutch transport plugin (`nl_openbaar_vervoer`) chose numbered settings (`stop_1` to `stop_4`) with a search each, so it didn't need it |
+| `next` | Choosing starts a second search instead of filling in fields: pick a music server, then a player on it. | `lms_client` (the Dutch transport plugin lists each side of the street as its own choice instead) |
 | `disabled` | The choice is shown but can't be used, with the reason ("No trains to Utrecht from this station"). | NS trains |
 | `picture` | A small image next to the choice (a station logo, an album cover), sent inside the page like preview images. | music plugins |
 | `wait` | For logging in to an outside account: show a message, a link and a code ("Open example.com/device on your phone and enter ABCD-1234"), and ask the helper again every few seconds, each call in its own process with its own time limit, until it returns a choice (e.g. a token in a secret setting) or stops with a message. | a Spotify plugin |

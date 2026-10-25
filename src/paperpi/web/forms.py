@@ -30,7 +30,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, SecretStr, ValidationError
 from pydantic.fields import FieldInfo
 
-from .. import example
+from .. import example, links
 from ..plugin import Plugin, PluginEntry, helper_of, holds_secret, is_required
 
 #: The shared settings shown right after the plugin's own ones; the others are folded away
@@ -49,6 +49,7 @@ class FormField:
 
     key: str
     help: str
+    """The help text without links (see :mod:`paperpi.links`); :attr:`help_parts` has them."""
     kind: Kind
     """``choice``: pick one; ``check``: on or off; ``number``; ``text``; ``secret``: text
     that is never shown; ``choices``: pick several; ``file``: change it in the file."""
@@ -58,6 +59,8 @@ class FormField:
     selected: tuple[str, ...] = ()
     """``choices``: the ones picked, as text."""
     choices: tuple[str, ...] = ()
+    help_parts: tuple[tuple[str, str], ...] = ()
+    """The help text as (text, address) pairs; the address is ``""`` for plain text."""
     """``choice`` and ``choices``: every value it may have, as text."""
     values: tuple[Any, ...] = ()
     """The values of ``choices`` themselves (``12`` for ``"12"``)."""
@@ -135,7 +138,8 @@ def fields(
         found.append(
             FormField(
                 key=key,
-                help=info.description or key,
+                help=links.plain(info.description or key),
+                help_parts=links.parts(info.description or key, f"/library/{plugin.type}/readme"),
                 kind=kind,
                 group=_group(key, plugin),
                 value="" if kind in ("secret", "choices") else (texts[-1] if texts else ""),

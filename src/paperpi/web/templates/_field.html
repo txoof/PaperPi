@@ -1,5 +1,11 @@
 {#- One field of the settings form (settings.html). With oob, htmx puts it in place of the
     field with the same id (after Use in a helper's choices). -#}
+{% macro help(f) -%}
+  {%- for text, href in f.help_parts or [(f.help, "")] -%}
+  {%- if href %}<a href="{{ href }}"{% if href.startswith("http") %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ text }}</a>
+  {%- else %}{{ text }}{% endif -%}
+  {%- endfor -%}
+{%- endmacro %}
 {% macro field(f, oob=false) %}
 <div class="field{% if f.error %} wrong{% endif %}" id="field-{{ f.key }}"
   {%- if oob %} hx-swap-oob="true"{% endif %}>
@@ -7,9 +13,9 @@
   {# A browser sends nothing for a box that is off, so "false" goes first. #}
   <input type="hidden" name="{{ f.key }}" value="false">
   <label class="check"><input type="checkbox" name="{{ f.key }}" value="true"
-    {%- if f.value == "true" %} checked{% endif %}> {{ f.help }} <code>{{ f.key }}</code></label>
+    {%- if f.value == "true" %} checked{% endif %}> {{ help(f) }} <code>{{ f.key }}</code></label>
   {% else %}
-  <label for="setting-{{ f.key }}">{{ f.help }}
+  <label for="setting-{{ f.key }}">{{ help(f) }}
     {%- if f.required %} <span class="required">(required)</span>{% endif %}
     <code>{{ f.key }}</code></label>
   {% if f.kind == "choice" %}

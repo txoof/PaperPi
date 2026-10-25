@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from pydantic_core import to_jsonable_python
 
-from . import plugins
+from . import links, plugins
 from .config import (
     CONFIG_VERSION,
     VIRTUAL_HEIGHT,
@@ -240,7 +240,7 @@ def _settings(
 
 def _setting(key: str, info: FieldInfo, value: Any, *, comment: bool = False) -> list[str]:
     """The help line and the ``key = value`` line of one setting."""
-    help_text = info.description or key
+    help_text = links.plain(info.description or key)
     if is_required(info):
         help_text += " (required)"
     allowed = choices(info.annotation)

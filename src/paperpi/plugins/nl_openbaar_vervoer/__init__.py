@@ -19,8 +19,8 @@ from pydantic import Field, SecretStr, field_validator
 
 from ... import webrequest
 from ...files import write_atomic
-from ...plugin import NOTHING, Context, Plugin, PluginSettings, alert, ready
-from . import departures, ns
+from ...plugin import NOTHING, Context, Plugin, PluginSettings, alert, ready, setting
+from . import departures, ns, search
 from .departures import ZONE, AnswerError, Departure, Saved
 from .layouts import LAYOUTS, ROUTES, STOPS
 from .ns import Notice
@@ -38,7 +38,7 @@ DISRUPTIONS = "disruptions.json"
 
 Day = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAYS: tuple[Day, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
-#: A stop code: OVapi's TimingPointCode, e.g. 31001118.
+#: A stop code: OVapi's TimingPointCode, e.g. 31001118 (the search offers only these).
 CODE = r"^[A-Za-z0-9]*$"
 #: An NS station code, e.g. GVC (Den Haag Centraal) or UT (Utrecht Centraal).
 STATION = r"^[A-Za-z]*$"
@@ -49,8 +49,9 @@ class SettingsMissing(ValueError):
 
 
 def _stop(n: int):
-    return Field(
+    return setting(
         "",
+        helper=f"stop_{n}",
         pattern=CODE,
         max_length=20,
         description=f"Code of stop {n}: one side of the street, e.g. 31001118 (or leave empty)",
@@ -85,8 +86,9 @@ def _days(n: int, what: str = "stop"):
 
 def _station(n: int, end: str):
     example = "GVC (Den Haag Centraal)" if end == "from" else "UT (Utrecht Centraal)"
-    return Field(
+    return setting(
         "",
+        helper=f"train_{end}_{n}",
         pattern=STATION,
         max_length=8,
         description=f"NS code of the station train route {n} goes {end}, e.g. {example} "
@@ -134,7 +136,8 @@ class Settings(PluginSettings):
     days_4: tuple[Day, ...] = _days(4)
     ns_key: SecretStr = Field(
         SecretStr(""),
-        description="NS API key, needed for trains (free; the plugin's README says how to get it)",
+        description="NS API key needed for trains. See the [README](readme) for information on "
+        "obtaining a free key",
     )
     train_from_1: str = _station(1, "from")
     train_to_1: str = _station(1, "to")
@@ -620,4 +623,12 @@ PLUGIN = Plugin(
     draw=draw,
     sample=_sample(),
     refresh=120,
+    helpers={
+        **{f"stop_{n}": search.stop_helper(n) for n in range(1, STOPS + 1)},
+        **{
+            f"train_{end}_{n}": search.station_helper(n, end)
+            for n in range(1, ROUTES + 1)
+            for end in ("from", "to")
+        },
+    },
 )
