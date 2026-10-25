@@ -158,10 +158,9 @@ def test_the_screen_menu_lists_every_waveshare_model():
 
     rows = []
     for file, info in MODELS.items():
-        name = info.model.removeprefix("Waveshare ")
-        three = name.endswith(" (black and white only)")
-        label = name.removesuffix(" (black and white only)")
-        size = float(re.match(r'([\d.]+)"', label)[1])
+        three = info.model.endswith(" (black and white only)")
+        size = re.match(r"epd(\d+)in(\d+)", file)
+        label = file.removeprefix("epd")  # Waveshare's notation: 7in5_V2
         if info.mode.kind == "palette":
             label += f", {info.mode.levels} colours"
         if three:
@@ -169,7 +168,8 @@ def test_the_screen_menu_lists_every_waveshare_model():
         if info.tested:
             label += " (tested)"
         # By size; tested first, three-colour screens last.
-        rows.append(((size, not info.tested, three, file), f"{file}|{label}"))
+        inches = float(f"{size[1]}.{size[2]}")
+        rows.append(((inches, not info.tested, three, file), f"{file}|{label}"))
     listed = re.search(r"^WAVESHARE_MODELS=\(\n(.*?)^\)$", SCRIPT.read_text(), re.M | re.S)[1]
     assert re.findall(r"'([^']*)'", listed) == [row for _, row in sorted(rows)]
 
@@ -183,13 +183,13 @@ def test_the_screen_menu_asks_the_size_and_the_vcom():
 
 
 def test_the_screen_menu_finds_a_waveshare_screen_by_size():
-    # The 5.83" sizes, back, the 7.5" ones, a wrong number, back to the first menu at the
-    # IT8951 sizes, then Waveshare again: 7.5", the first (tested) one.
+    # The 5in83 sizes, back, the 7in5 ones, a wrong number, back to the first menu at the
+    # IT8951 sizes, then Waveshare again: 7in5, the first (tested) one.
     answers = "2\n19\nb\n21\n9\nb\nb\n1\nb\n2\n21\n1\n"
     done = run_functions(CHOSEN, answers, ASK="yes", **NEW)
     assert done.stdout.endswith("<waveshare|epd7in5_V2|>\n"), done.stderr
-    assert " 21  7.5\n" in done.stdout and '  1  5.83" (tested)\n' in done.stdout
-    assert '  8  7.5" B/C, black/white only\n' in done.stdout
+    assert " 21  7in5\n" in done.stdout and "  1  5in83 (tested)\n" in done.stdout
+    assert "  8  7in5bc, black/white only\n" in done.stdout
     assert done.stdout.count("Type a number, or b to go back.") == 1
     assert "Display Config" in done.stdout and "vcom" not in done.stdout
     # Every line fits a small terminal.

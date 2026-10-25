@@ -35,70 +35,71 @@ APT_PACKAGES=(git python3-venv gcc python3-dev)
 IT8951_MODELS=(6 7.8 9.7 10.3)
 # The Waveshare small screens of the screen menu, as "Waveshare's file name|name in the
 # menu", by size, tested ones first (epdlib's waveshare MODELS; a test checks they match).
+# The menu uses Waveshare's own notation, as on their files: 7in5 is 7.5 inch, 7in5_V2 its V2.
 WAVESHARE_MODELS=(
-    'epd1in02|1.02"'
-    'epd1in54|1.54"'
-    'epd1in54_V2|1.54" V2'
-    'epd1in54b|1.54" B, black/white only'
-    'epd1in54b_V2|1.54" B V2, black/white only'
-    'epd1in54c|1.54" C, black/white only'
-    'epd1in64g|1.64" G, 4 colours'
-    'epd2in13|2.13"'
-    'epd2in13_V2|2.13" V2'
-    'epd2in13_V3|2.13" V3'
-    'epd2in13_V4|2.13" V4'
-    'epd2in13d|2.13" D'
-    'epd2in13g|2.13" G, 4 colours'
-    'epd2in13b_V3|2.13" B V3, black/white only'
-    'epd2in13b_V4|2.13" B V4, black/white only'
-    'epd2in13bc|2.13" B/C, black/white only'
-    'epd2in15g|2.15" G, 4 colours'
-    'epd2in15b|2.15" B, black/white only'
-    'epd2in36g|2.36" G, 4 colours'
-    'epd2in66|2.66"'
-    'epd2in66g|2.66" G, 4 colours'
-    'epd2in66b|2.66" B, black/white only'
-    'epd2in7|2.7"'
-    'epd2in7_V2|2.7" V2'
-    'epd2in7b|2.7" B, black/white only'
-    'epd2in7b_V2|2.7" B V2, black/white only'
-    'epd2in9|2.9"'
-    'epd2in9_V2|2.9" V2'
-    'epd2in9_V3|2.9" V3'
-    'epd2in9d|2.9" D'
-    'epd2in9b_V3|2.9" B V3, black/white only'
-    'epd2in9b_V4|2.9" B V4, black/white only'
-    'epd2in9bc|2.9" B/C, black/white only'
-    'epd3in0g|3.0" G, 4 colours'
-    'epd3in52|3.52"'
-    'epd3in7|3.7"'
-    'epd4in01f|4.01" F, 7 colours'
-    'epd4in2|4.2"'
-    'epd4in2_V2|4.2" V2'
-    'epd4in2bc|4.2" B/C, black/white only'
-    'epd4in26|4.26"'
-    'epd4in37g|4.37" G, 4 colours'
-    'epd5in65f|5.65" F, 7 colours (tested)'
-    'epd5in79|5.79"'
-    'epd5in79g|5.79" G, 4 colours'
-    'epd5in79b|5.79" B, black/white only'
-    'epd5in83|5.83" (tested)'
-    'epd5in83_V2|5.83" V2'
-    'epd5in83b_V2|5.83" B V2, black/white only'
-    'epd5in83bc|5.83" B/C, black/white only'
-    'epd7in3e|7.3" E, 6 colours'
-    'epd7in3f|7.3" F, 7 colours'
-    'epd7in3g|7.3" G, 4 colours'
-    'epd7in5_V2|7.5" V2 (tested)'
-    'epd7in5|7.5"'
-    'epd7in5_HD|7.5" HD'
-    'epd7in5_V2_old|7.5" V2 (old)'
-    'epd7in5b_HD|7.5" B HD, black/white only'
-    'epd7in5b_V2|7.5" B V2, black/white only'
-    'epd7in5b_V2_old|7.5" B V2 (old), black/white only'
-    'epd7in5bc|7.5" B/C, black/white only'
-    'epd13in3k|13.3" K'
-    'epd13in3b|13.3" B, black/white only'
+    'epd1in02|1in02'
+    'epd1in54|1in54'
+    'epd1in54_V2|1in54_V2'
+    'epd1in54b|1in54b, black/white only'
+    'epd1in54b_V2|1in54b_V2, black/white only'
+    'epd1in54c|1in54c, black/white only'
+    'epd1in64g|1in64g, 4 colours'
+    'epd2in13|2in13'
+    'epd2in13_V2|2in13_V2'
+    'epd2in13_V3|2in13_V3'
+    'epd2in13_V4|2in13_V4'
+    'epd2in13d|2in13d'
+    'epd2in13g|2in13g, 4 colours'
+    'epd2in13b_V3|2in13b_V3, black/white only'
+    'epd2in13b_V4|2in13b_V4, black/white only'
+    'epd2in13bc|2in13bc, black/white only'
+    'epd2in15g|2in15g, 4 colours'
+    'epd2in15b|2in15b, black/white only'
+    'epd2in36g|2in36g, 4 colours'
+    'epd2in66|2in66'
+    'epd2in66g|2in66g, 4 colours'
+    'epd2in66b|2in66b, black/white only'
+    'epd2in7|2in7'
+    'epd2in7_V2|2in7_V2'
+    'epd2in7b|2in7b, black/white only'
+    'epd2in7b_V2|2in7b_V2, black/white only'
+    'epd2in9|2in9'
+    'epd2in9_V2|2in9_V2'
+    'epd2in9_V3|2in9_V3'
+    'epd2in9d|2in9d'
+    'epd2in9b_V3|2in9b_V3, black/white only'
+    'epd2in9b_V4|2in9b_V4, black/white only'
+    'epd2in9bc|2in9bc, black/white only'
+    'epd3in0g|3in0g, 4 colours'
+    'epd3in52|3in52'
+    'epd3in7|3in7'
+    'epd4in01f|4in01f, 7 colours'
+    'epd4in2|4in2'
+    'epd4in2_V2|4in2_V2'
+    'epd4in2bc|4in2bc, black/white only'
+    'epd4in26|4in26'
+    'epd4in37g|4in37g, 4 colours'
+    'epd5in65f|5in65f, 7 colours (tested)'
+    'epd5in79|5in79'
+    'epd5in79g|5in79g, 4 colours'
+    'epd5in79b|5in79b, black/white only'
+    'epd5in83|5in83 (tested)'
+    'epd5in83_V2|5in83_V2'
+    'epd5in83b_V2|5in83b_V2, black/white only'
+    'epd5in83bc|5in83bc, black/white only'
+    'epd7in3e|7in3e, 6 colours'
+    'epd7in3f|7in3f, 7 colours'
+    'epd7in3g|7in3g, 4 colours'
+    'epd7in5_V2|7in5_V2 (tested)'
+    'epd7in5|7in5'
+    'epd7in5_HD|7in5_HD'
+    'epd7in5_V2_old|7in5_V2_old'
+    'epd7in5b_HD|7in5b_HD, black/white only'
+    'epd7in5b_V2|7in5b_V2, black/white only'
+    'epd7in5b_V2_old|7in5b_V2_old, black/white only'
+    'epd7in5bc|7in5bc, black/white only'
+    'epd13in3k|13in3k'
+    'epd13in3b|13in3b, black/white only'
 )
 
 usage() {
@@ -258,11 +259,11 @@ choose_waveshare() {
     local entry size sizes=() models=() i half
     for entry in "${WAVESHARE_MODELS[@]}"; do
         size=${entry#*|}
-        size=${size%%\"*}
+        size=${size%%[!0-9in]*}
         [[ ${#sizes[@]} -gt 0 && ${sizes[-1]} == "$size" ]] || sizes+=("$size")
     done
     while true; do
-        step "Which size? (inches, on the box)"
+        step "Which size? (7in5 = 7.5 inch)"
         half=$(((${#sizes[@]} + 1) / 2))
         for ((i = 0; i < half; i++)); do
             printf "%3d  %-6s" $((i + 1)) "${sizes[i]}"
@@ -274,9 +275,9 @@ choose_waveshare() {
         size=${sizes[CHOICE - 1]}
         models=()
         for entry in "${WAVESHARE_MODELS[@]}"; do
-            [[ ${entry#*|} == "$size\""* ]] && models+=("$entry")
+            [[ ${entry#*|} =~ ^$size([^0-9]|$) ]] && models+=("$entry")
         done
-        step "Which $size\" model? (on the sticker)"
+        step "Which $size model? (on the sticker)"
         for i in "${!models[@]}"; do
             printf "%3d  %s\n" $((i + 1)) "${models[i]#*|}"
         done
