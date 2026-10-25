@@ -29,7 +29,7 @@ Only a few models have been tried on a real screen with PaperPi (Tested: yes in 
 
 ## What to know
 
-- **Fast writes:** only the 7.5" V2 has them now. A new picture from the plugin already on screen then takes about 4 seconds instead of 7; every 5th fast write in a row is a full one (`max_refresh = 4`). On every other model each picture is a full refresh, with the screen flashing black and white.
+- **Fast writes:** only the 7.5" V2 has them now. A new picture from the plugin already on screen then takes about 4 seconds instead of 7; every 5th fast write in a row is a full one (`max_refresh = 4`). On every other model each picture is a full refresh, with the screen flashing black and white. That leaves no leftovers, so PaperPi doesn't clean these screens (`clean_every` and `max_refresh` are not used).
 - **Three-colour screens** (models with "B" or "C" in the name, such as the 2.7" B) show only black and white for now. Red and yellow are epdlib issue [#96](https://github.com/txoof/epdlib/issues/96).
 - **Colour screens** (the "F", "E" and "G" models: 4, 6 or 7 colours) draw in colour. `color = false` in `[display]` (**Draw in colour** on the web page) makes them draw in black and white.
 - **Slow screens:** a full refresh takes about 7 seconds on the 7.5" V2, about 9 on the 5.83" and about 34 on the 5.65" colour screen.

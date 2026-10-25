@@ -226,6 +226,13 @@ class DisplaySettings(BaseModel):
         return None
 
     @property
+    def fast_writes(self) -> bool:
+        """The screen has fast writes. Without them every write is a full refresh, which
+        leaves no leftovers, so the screen is never cleaned (``clean_every`` is not used)."""
+        info = self.model_info
+        return info is None or info.fast_refresh
+
+    @property
     def screen_mode(self) -> ScreenMode:
         """What plugins draw in, with ``color = false`` applied."""
         if self.type == "it8951":
@@ -639,7 +646,7 @@ class _Checker:
             self.check_it8951(settings, section)
         elif settings.type == "waveshare":
             self.check_waveshare(settings, section)
-        if settings.max_refresh == 0 and settings.clean_every == 0:
+        if settings.max_refresh == 0 and settings.clean_every == 0 and settings.fast_writes:
             self.add(
                 "hint",
                 "max_refresh = 0 and clean_every = 0: the screen is never fully refreshed, so "
@@ -724,6 +731,14 @@ class _Checker:
 
     def check_waveshare(self, settings: DisplaySettings, section: tuple) -> None:
         tested = ", ".join(f'"{name}"' for name, info in WAVESHARE_MODELS.items() if info.tested)
+        if settings.vcom is not None:
+            self.add(
+                "warning",
+                'vcom is only for type = "it8951"; a Waveshare small screen doesn\'t use it',
+                section,
+                "vcom",
+                "[display]",
+            )
         if settings.model is None:
             self.add(
                 "error",

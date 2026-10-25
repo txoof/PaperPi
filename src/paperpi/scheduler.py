@@ -28,7 +28,8 @@ The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. I
   new image, and a full one when another plugin comes on screen. The screen driver makes
   every ``max_refresh``-th fast write in a row a full one. Every ``[display] clean_every``
   seconds, at the next write (and at the first write after a start), the screen is first
-  cleared, which removes all leftovers of earlier images, and the image is drawn in full.
+  cleared, which removes all leftovers of earlier images, and the image is drawn in full;
+  not on a screen without fast writes, where every write is full already.
 - At start, a check in the writer thread starts the screen (the driver's ``init``) to see
   that it answers; when it does not, the error is logged and PaperPi keeps running.
 - Screen writes run in their own thread (and, with :class:`paperpi.screen.Screen`, in a
@@ -1030,7 +1031,8 @@ class Scheduler:
         rotation = self.display.rotation
         # Rotation turns the picture clockwise.
         image = image.rotate(-rotation, expand=True) if rotation else image
-        every = self.display.clean_every
+        # A screen without fast writes has no leftovers to clean: every write is full.
+        every = self.display.clean_every if self.display.fast_writes else 0
         # After Refresh; not when another plugin's turn has started since.
         refresh = self._clean_next and not new_turn
         clean = refresh or (bool(every) and now - self._last_clean >= every)

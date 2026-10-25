@@ -287,6 +287,22 @@ def test_the_waveshare_docs_list_every_model_and_whether_it_was_tested():
     assert rows == {name: "yes" if info.tested else "no" for name, info in MODELS.items()}
 
 
+def test_waveshare_screen_without_fast_writes_is_never_cleaned():
+    fast = parse(WAVESHARE + 'model = "epd7in5_V2"\n').display
+    full = parse(WAVESHARE + 'model = "epd5in65f"\nmax_refresh = 0\nclean_every = 0\n')
+    assert fast.fast_writes and not full.display.fast_writes
+    assert not problems(full, "hint")  # no leftovers build up: no hint about them
+    assert parse(GOOD).display.fast_writes
+
+
+def test_waveshare_screen_warns_about_a_vcom():
+    cfg = parse(WAVESHARE + 'model = "epd7in5_V2"\nvcom = -1.9\n')
+    assert problems(cfg, "warning") == [
+        'config line 5 [display]: vcom is only for type = "it8951"; a Waveshare small '
+        "screen doesn't use it"
+    ]
+
+
 def test_waveshare_screen_has_no_size_setting():
     (message,) = errors_of(WAVESHARE + 'model = "epd7in5_V2"\nmode = "bw"\n')
     assert message.startswith('paperpi.toml line 5 [display]: mode is only for type = "virtual"')

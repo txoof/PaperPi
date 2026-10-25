@@ -1217,6 +1217,15 @@ def test_no_cleaning_with_clean_every_0(tmp_path):
     assert sim.screen.fast[0] is False and all(sim.screen.fast[1:])
 
 
+def test_no_cleaning_on_a_screen_without_fast_writes(tmp_path, monkeypatch):
+    # Such as most Waveshare small screens: every write is full already.
+    monkeypatch.setattr(config.DisplaySettings, "fast_writes", property(lambda self: False))
+    sim = Sim(tmp_path, rotation("a", refresh=300), display="clean_every = 600")
+    sim.plan(a=lambda t: f"A{t:g}")
+    sim.run(until=1300)
+    assert sim.screen.clears == []
+
+
 def test_check_at_start_that_fails_keeps_running(tmp_path, caplog):
     sim = Sim(tmp_path, rotation("a"), health=True)
     sim.screen.fail = True

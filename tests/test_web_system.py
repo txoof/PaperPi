@@ -320,9 +320,11 @@ def test_the_page_shows_a_waveshare_screen_and_the_report_link(cfg, reloads):
     assert "Waveshare small screen" in page and "7.3&#34; F, 800 × 480, 7 colours" in page
     assert "report how it works" in page and "template=screen-report.yml" in page
     assert 'name="color" value="true" checked' in page
+    assert "This screen has no fast refreshes:</b>" in page
     tested = config.DisplaySettings(type="waveshare", model="epd7in5_V2")
     page = make_client(cfg, reloads, tested).get("/system").text
     assert "800 × 480, black and white" in page and "report how it works" not in page
+    assert "no fast refreshes" not in page
 
 
 @pytest.mark.parametrize(

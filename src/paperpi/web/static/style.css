@@ -540,7 +540,7 @@ a.button { display: inline-block; text-decoration: none; font-size: 0.95rem; pad
 .model-facts dt { color: var(--muted); }
 .model-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
 .sec .ctl select { max-width: 100%; }
-.sec select#ws-model { width: 100%; }
+.sec .ctl select#ws-model { width: 100%; }
 .sec .ctl p.help { margin: 0; }
 .unit input { display: inline-block; width: 6rem; }
 .unit select { padding: 0.35rem 0.4rem; }

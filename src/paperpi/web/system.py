@@ -26,8 +26,11 @@ at once, and facts about this Pi.
 from __future__ import annotations
 
 import errno
+import functools
 import ipaddress
+import math
 import os
+import re
 import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -353,15 +356,17 @@ class WaveshareChoice:
     report: str
 
 
-def waveshare_choices() -> list[tuple[str, list[WaveshareChoice]]]:
+@functools.cache
+def waveshare_choices() -> tuple[tuple[str, tuple[WaveshareChoice, ...]], ...]:
     """The Waveshare models for the Change screen page, by size: the tested ones first."""
 
-    def inches(file: str) -> float:
-        whole, rest = file[3:].split("in", 1)
-        return float(f"{whole}.{''.join(c for c in rest if c.isdigit()) or 0}")
+    def inches(item: tuple[str, Any]) -> tuple[float, str]:
+        # From epdlib's name, e.g. 'Waveshare 2.13" V4'; a name without a size goes last.
+        found = re.search(r'(\d+(?:\.\d+)?)"', item[1].model)
+        return (float(found.group(1)) if found else math.inf, item[0])
 
     choices = []
-    for file, info in sorted(WAVESHARE_MODELS.items(), key=lambda item: (inches(item[0]), item[0])):
+    for file, info in sorted(WAVESHARE_MODELS.items(), key=inches):
         name = info.model.removeprefix("Waveshare ")
         two_colour = name.endswith(" (black and white only)")
         name = name.removesuffix(" (black and white only)")
@@ -380,10 +385,10 @@ def waveshare_choices() -> list[tuple[str, list[WaveshareChoice]]]:
             config.screen_report_url(file),
         )
         choices.append(choice)
-    return [
-        ("Tested with PaperPi", [c for c in choices if c.tested]),
-        ("Not tested yet", [c for c in choices if not c.tested]),
-    ]
+    return (
+        ("Tested with PaperPi", tuple(c for c in choices if c.tested)),
+        ("Not tested yet", tuple(c for c in choices if not c.tested)),
+    )
 
 
 def with_screen(text: str, sent: Mapping[str, Sequence[str]]) -> str:
@@ -562,18 +567,21 @@ class ScreenFacts:
     """The screen can show colour, so the Colour setting is offered."""
     shows: str
     """What it can show, e.g. "16 grays"."""
+    fast: bool = True
+    """The screen has fast writes; without them, the Screen care settings are not used."""
     report: str | None = None
     """For a model nobody tried with PaperPi yet: the address of the screen report form."""
 
 
 def screen_facts(display: config.DisplaySettings) -> ScreenFacts:
     width, height = display.size
+    info = display.model_info
     if display.type == "it8951":
         mode = IT8951_MODELS[display.model or "9.7"].mode
         kind, model = "Waveshare IT8951 board", f"{display.model} inch, {width} × {height}"
-    elif display.type == "waveshare" and display.model_info is not None:
-        mode = display.model_info.mode
-        name = display.model_info.model.removeprefix("Waveshare ")
+    elif display.type == "waveshare" and info is not None:
+        mode = info.mode
+        name = info.model.removeprefix("Waveshare ")
         kind, model = "Waveshare small screen", f"{name}, {width} × {height}"
     else:
         mode = config.MODES[display.mode or config.VIRTUAL_MODE]
@@ -585,12 +593,12 @@ def screen_facts(display: config.DisplaySettings) -> ScreenFacts:
         "rgb": "full colour",
     }.get(mode.kind, config.mode_name(mode))
     vcom = None if display.vcom is None else f"{display.vcom:.2f} V".replace("-", "−")
-    info = display.model_info
     report = None
     if display.type == "waveshare" and info is not None and not info.tested:
         report = config.screen_report_url(display.model or "")
     color = mode.kind in ("palette", "rgb")
-    return ScreenFacts(kind, f"{model}, {shows}", vcom, color, shows, report)
+    fast = display.fast_writes
+    return ScreenFacts(kind, f"{model}, {shows}", vcom, color, shows, fast, report)
 
 
 @dataclass(frozen=True)
