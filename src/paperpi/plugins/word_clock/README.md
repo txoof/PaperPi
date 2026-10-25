@@ -5,7 +5,7 @@ Shows the time in words, rounded to the nearest 10 minutes: "It's roughly Twenty
 - **Rounding:** from :05 on the time rounds up (20:25 is "half past"), and from :35 on the sentence counts to the next hour (20:35 is "twenty 'til nine").
 - **The words vary.** The opening, the minute words and the hour (a number or a nickname such as "lunch", "too late" or "go to bed") are picked anew for each 10-minute step. Within a step the time words stay the same. Only the opening may change, where the truth does: openings like "nearly" are used only while the time is a little before the step; on the minute of the step and after it a plain one ("It is about").
 - **The text moves.** At every update the text is placed somewhere else on the screen, as in v1.
-- The text size is chosen for the widest sentence the clock can make ("The time is nearly Twenty After Really Late"), so every sentence fits and the size never changes.
+- The text size is chosen for the widest sentence the clock can make ("The time is nearly Twenty After Really Late"), so every sentence fits and the size never changes. The lines sit close together (epdlib's `line_spacing: "tight"`), because Anton leaves a lot of room above its letters: 178 px on the 9.7", as in v1.
 
 The word lists are in [`words.py`](words.py).
 

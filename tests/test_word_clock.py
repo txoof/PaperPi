@@ -159,6 +159,7 @@ def test_every_sentence_fits(screen, layout):
             o["max_lines"],
             o["shrink"],
             o["ellipsis"],
+            o["line_spacing"],
         )
         assert "…" not in "".join(fit.lines), sentence_
 

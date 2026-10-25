@@ -3,6 +3,8 @@
 The text blocks use ``random`` alignment, so the text moves around the screen at every
 update. Their sample is the widest sentence the clock can make, so every sentence fits
 and the font size never changes.
+Tight lines: Anton leaves much room above its letters, and 3 lines of it are what limits
+the size (148 px instead of 178 px on the 9.7" with normal lines).
 """
 
 from ... import fonts
@@ -23,6 +25,7 @@ def _words(size: float) -> dict:
         "font": FONT,
         "sample": WIDEST,
         "max_lines": 3,
+        "line_spacing": "tight",
         "align": "random",
         "valign": "random",
         "padding": PADDING,
