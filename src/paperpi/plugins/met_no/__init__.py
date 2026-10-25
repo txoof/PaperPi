@@ -12,7 +12,6 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw
-from pydantic import Field
 
 from ... import webrequest
 from ...files import write_atomic
@@ -39,24 +38,34 @@ class Settings(PluginSettings):
     lat: float | None = setting(
         None,
         required=True,
+        group="Place",
         ge=-90,
         le=90,
         helper="location",
         description="Latitude of the place, e.g. 52.52",
     )
     lon: float | None = setting(
-        None, required=True, ge=-180, le=180, description="Longitude of the place, e.g. 13.40"
+        None,
+        required=True,
+        group="Place",
+        ge=-180,
+        le=180,
+        description="Longitude of the place, e.g. 13.40",
     )
     altitude: int | None = setting(
         None,
+        group="Place",
         ge=-500,
         le=9000,
         description="Height of the ground at the place, in whole metres, e.g. 34. Makes the "
         "temperatures more exact in hills and mountains (else met.no guesses it from its own "
         "map)",
     )
-    place: str = Field(
-        "", max_length=60, description="Name shown on the screen, e.g. Berlin (else lat, lon)"
+    place: str = setting(
+        "",
+        group="Place",
+        max_length=60,
+        description="Name shown on the screen, e.g. Berlin (else lat, lon)",
     )
     email: str = setting(
         "",
@@ -66,8 +75,12 @@ class Settings(PluginSettings):
         description="Your own, real email address, sent only to met.no (their terms of "
         "service ask for one)",
     )
-    temperature: Literal["C", "F"] = Field("C", description="Degrees Celsius or Fahrenheit")
-    rain: Literal["mm", "inch"] = Field("mm", description="Rain in millimetres or inches")
+    temperature: Literal["C", "F"] = setting(
+        "C", group="Units", description="Degrees Celsius or Fahrenheit"
+    )
+    rain: Literal["mm", "inch"] = setting(
+        "mm", group="Units", description="Rain in millimetres or inches"
+    )
 
 
 @dataclass(frozen=True)
