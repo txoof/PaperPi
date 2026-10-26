@@ -61,7 +61,7 @@ For sample images and tests, `fetch` is skipped and the sample data goes straigh
 
 ### When a plugin is updated
 
-- **Rotation plugins** (clock, weather, moon) update just before their turn, unless their last image is still fresh. While on screen, they keep updating at their refresh rate, e.g. the word clock moves its text at every update (every 2 minutes).
+- **Rotation plugins** (clock, weather, moon) update just before their turn, unless their last image is still fresh. While on screen, they keep updating at their refresh rate, e.g. the word clock moves its text at every update (every minute).
 - **Interrupt and alert plugins** (music, future alarms) check in the background all the time at their refresh rate, so they can report "I have something" right away.
 - Plugins that are not on screen and not about to be use no network and no processor time.
 

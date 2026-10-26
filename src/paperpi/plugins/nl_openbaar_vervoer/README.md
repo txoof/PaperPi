@@ -19,9 +19,9 @@ Each stop gets a heading, then one row per departure: the expected time, the del
 
 The bottom line says when the times were fetched, after any disruptions (`Disruption: ...`) or planned works (`Works: ...`) that NS reports for both stations of a train route. When OVapi or NS can't be reached, the plugin shows the departures it saved, for up to 30 minutes, and the bottom line says "Not updated since 08:10".
 
-The times come from [OVapi](http://v0.ovapi.nl), a free service run by volunteers with the live times of all Dutch buses and trams. It needs no account or key. It asks for at most one request a minute: the plugin updates every 2 minutes, and with a shorter `refresh` it asks OVapi (and NS) at most once a minute and shows the saved times in between.
+The times come from [OVapi](http://v0.ovapi.nl), a free service run by volunteers with the live times of all Dutch buses and trams. It needs no account or key. It asks for at most one request a minute: the plugin updates every 90 seconds, and with a shorter `refresh` it asks OVapi at most once a minute and shows the saved times in between.
 
-Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (see "Getting an NS key"). The key allows 5,000 requests a day. Each train route takes one or two requests (NS sends 5 trips at a time). Train times are asked for at most every 110 seconds, whatever the `refresh`, and disruptions every 10 minutes, so two routes stay under about 3,500 requests a day.
+Trains come from the [NS API](https://apiportal.ns.nl), which needs a free key (see "Getting an NS key"). The key allows 5,000 requests a day. Each train route takes one or two requests (NS sends 5 trips at a time). Train times are asked for at most every 85 seconds, whatever the `refresh` (so every 90 seconds with the default), and disruptions every 10 minutes, so two routes stay under about 4,400 requests a day.
 
 ## Settings
 
@@ -71,7 +71,7 @@ To estimate it:
 
 1. Time it once: walk to the stop at your normal pace, and note the minutes. Or ask a map app (OpenStreetMap, Google Maps) for the walking time from your address to the stop.
 2. Add what the walk or the map leaves out: putting on a coat and locking the door, waiting at a traffic light, and for a train the stairs or lift to the platform (2 to 5 minutes at a big station).
-3. Add a minute to spare. The screen updates every 2 minutes, so "leave in 3 min" can be up to 2 minutes old.
+3. Add a minute to spare. The screen updates every 90 seconds, so "leave in 3 min" can be up to 90 seconds old.
 
 For example, 5 minutes on the map, plus 1 for the door and 1 to spare, gives `walk_1 = 7`. If you often arrive just as the tram leaves, make it a minute or two longer. Leave it at `0` to show only the times, without "leave in".
 
@@ -108,7 +108,7 @@ Without the web interface: Wikipedia's [list of railway stations in the Netherla
 ## Limits
 
 - Some stops are missing from OVapi's list of stop names (for example Padualaan in Utrecht), and the Utrecht trams showed no data in a test in October 2026.
-- Times on the screen are as old as the last update: with the default `refresh` of 2 minutes, "leave in 3 min" can be up to 2 minutes old.
+- Times on the screen are as old as the last update: with the default `refresh` of 90 seconds, "leave in 3 min" can be up to 90 seconds old.
 - A route shows the trips NS's journey planner suggests, the same ones the NS app shows.
 
 ## Sample images

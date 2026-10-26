@@ -169,6 +169,6 @@ PLUGIN = Plugin(
         version="2.0.0",
         time="09:04",
     ),
-    refresh=120,
+    refresh=60,
     refresh_on_minute=True,
 )

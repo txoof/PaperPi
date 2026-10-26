@@ -6,7 +6,7 @@ import pytest
 from epdlib import ScreenMode
 
 from paperpi import plugins
-from paperpi.plugin import Context, Drawn, State, draw_update
+from paperpi.plugin import Context, Drawn, PluginEntry, State, draw_update
 
 ALL = plugins.available()
 FOLDER = Path(plugins.__file__).parent
@@ -20,6 +20,13 @@ def test_plugin_loads_and_describes_itself(plugin_type):
     assert (FOLDER / plugin_type / "README.md").is_file()
     for name, field in plugin.settings.model_fields.items():
         assert field.description, f"setting {name} needs a help text (description)"
+
+
+@pytest.mark.parametrize("plugin_type", ALL)
+def test_default_refresh_is_not_the_display_time(plugin_type):
+    """Equal values give the config check's "refresh equals display time" hint (#335)."""
+    display_time = PluginEntry.model_fields["display_time"].default
+    assert plugins.load(plugin_type).refresh != display_time
 
 
 @pytest.mark.parametrize("plugin_type", ALL)
