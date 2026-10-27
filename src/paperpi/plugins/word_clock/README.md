@@ -25,7 +25,7 @@ The word lists are in [`words.py`](words.py).
 
 The colours are used as they are on colour screens. On gray and black-and-white screens each colour becomes black or white, whichever is closer (yellow becomes white, blue black). `random` picks a new colour for each 10-minute step, always one that is easy to read with the other colour (pairs too close in brightness, such as white and yellow or red and orange, are skipped). If both colours would look the same, the clock uses white on black and writes a warning to the log.
 
-It suggests a refresh every 120 seconds, starting just after the minute changes. Each update moves the text, so each update is a screen write.
+It suggests a refresh every 60 seconds, starting just after the minute changes. Each update moves the text, so each update is a screen write (once a minute while the clock is shown).
 
 In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
 

@@ -123,6 +123,6 @@ PLUGIN = Plugin(
     fetch=fetch,
     draw=draw,
     sample=datetime(2026, 10, 5, 20, 21),
-    refresh=120,
+    refresh=60,
     refresh_on_minute=True,
 )

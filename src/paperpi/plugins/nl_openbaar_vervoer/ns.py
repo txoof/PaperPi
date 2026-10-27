@@ -21,8 +21,8 @@ BASE = "https://gateway.apiportal.ns.nl/reisinformatie-api/api"
 #: Disruptions change slowly; asking less often keeps within the key's 5,000 requests a day.
 DISRUPTIONS_EVERY = timedelta(minutes=10)
 #: Train times are asked for at most this often, whatever the refresh: two routes of two
-#: requests each then stay under about 3,500 requests a day.
-TRIPS_EVERY = timedelta(seconds=110)
+#: requests each then stay under about 4,400 requests a day, disruptions included.
+TRIPS_EVERY = timedelta(seconds=85)
 #: Disruption types that are not planned works; only these can make the plugin an alert.
 REAL = ("DISRUPTION", "CALAMITY")
 

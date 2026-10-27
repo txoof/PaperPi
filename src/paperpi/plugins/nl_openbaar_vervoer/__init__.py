@@ -671,7 +671,7 @@ PLUGIN = Plugin(
     fetch=fetch,
     draw=draw,
     sample=_sample(),
-    refresh=120,
+    refresh=90,
     helpers={
         **{f"stop_{n}": search.stop_helper(n) for n in range(1, STOPS + 1)},
         **{
