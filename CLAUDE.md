@@ -12,8 +12,8 @@ These rules apply to every person and agent working in this repository.
 
 ## Related repositories
 - `txoof/epdlib`: the display and layout library PaperPi uses. Developed alongside PaperPi. Changes to rendering or display drivers go there, not here.
-- Until epdlib is on PyPI, `pyproject.toml` gets epdlib from GitHub at one fixed commit, so CI and every install use the same code. When PaperPi needs a newer epdlib, move that commit forward in the PR that needs it.
-- To try out epdlib changes that are not on GitHub yet, install the local copy into your worktree (`uv pip install -e ~/src/epdlib`) and run commands with `uv run --no-sync ...` (for example `uv run --no-sync pytest`). A plain `uv run` puts the fixed commit back first. Never commit the local copy; `uv sync` undoes it.
+- epdlib comes from PyPI. `uv.lock` fixes its exact version, so CI and every install use the same code. When PaperPi needs a newer epdlib, release it on PyPI first (epdlib's `docs/releasing.md`), then raise the lowest version in `pyproject.toml` and run `uv lock --upgrade-package epdlib` in the PR that needs it.
+- To try out epdlib changes that are not released yet, install the local copy into your worktree (`uv pip install -e ~/src/epdlib`) and run commands with `uv run --no-sync ...` (for example `uv run --no-sync pytest`). A plain `uv run` puts the locked version back first. Never commit the local copy; `uv sync` undoes it.
 
 ## How work is tracked
 - **GitHub Issues are the only to-do list.** Every change starts from an issue in a milestone (M0–M10).
@@ -71,7 +71,7 @@ Column IDs: Todo `f75ad846`, In Progress `47fc9ee4`, In Review `b470c173`, Done 
 | web | `src/paperpi/web/` |
 | plugins/<name> | `src/paperpi/plugins/<name>/` |
 | install | `install/` |
-| docs | `docs/` |
+| docs | `docs/`, `mkdocs.yml` (the manual website), `README.md` |
 | bench | `bench/` (test programs that are not part of the app, e.g. the M2 driver test round) |
 | ci | `.github/`, `pyproject.toml`, `uv.lock`, `.python-version` |
 

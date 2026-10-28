@@ -1,161 +1,31 @@
 # PaperPi
 
-> **Looking for the working version?** PaperPi version 1 is on the [`v1` branch](https://github.com/txoof/PaperPi/tree/v1). See its [install instructions](https://github.com/txoof/PaperPi/blob/v1/README.md). The last state of version 1 is marked with the tag [`v1-final`](https://github.com/txoof/PaperPi/tree/v1-final).
+PaperPi shows information on an e-paper screen attached to a Raspberry Pi: clocks, the weather, your calendar, what music is playing, comics, public transport departures and more. You set it up in a web page on your phone or computer.
 
-PaperPi shows information (weather, clocks, music, comics and more) on e-paper displays attached to a Raspberry Pi.
+**The manual: <https://txoof.github.io/PaperPi/>**
 
-## Status: version 2 is being rewritten
+## Version 1 is no longer maintained
 
-This branch (`main`) holds PaperPi **version 2**, which is being written from scratch. It is not usable yet.
-
-### What version 2 will add
-- Support for the IT8951 displays (such as the Waveshare 9.7") on Raspberry Pi OS "trixie"
-- A web page for changing settings and plugin options, with a preview before sending to the display
-- Settings changes without a restart
-- Installation with one command
-- Generated documentation with example images for every plugin
-
-Progress is tracked in [milestones](https://github.com/txoof/PaperPi/milestones).
+This branch (`main`) holds PaperPi **version 2**, a rewrite from scratch. Version 1 gets no fixes, and version 2 does not read its config files. Its code stays on the [`v1` branch](https://github.com/txoof/PaperPi/tree/v1), with the last state marked by the tag [`v1-final`](https://github.com/txoof/PaperPi/tree/v1-final).
 
 ## Install on a Raspberry Pi
 
-One command on Raspberry Pi OS "trixie" installs PaperPi as a systemd service (it starts with the Pi and is started again after a crash). It asks which screen is connected:
+PaperPi needs a Raspberry Pi 3 or 4 with Raspberry Pi OS "trixie", and a screen with Waveshare's IT8951 board (such as the Waveshare 9.7") or one of Waveshare's small screens. One command installs PaperPi as a systemd service (it starts with the Pi and is started again after a crash). It asks which screen is connected:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install | sudo bash
 ```
 
-What it does, and how to update and remove PaperPi: [docs/install-systemd.md](docs/install-systemd.md).
+What it does, and how to update and remove PaperPi: [Install on a Raspberry Pi](https://txoof.github.io/PaperPi/install-systemd/).
 
 ## Development
 
-PaperPi needs Python 3.13, the version in Raspberry Pi OS "trixie".
-
-It uses [uv](https://docs.astral.sh/uv/), a tool that installs the right Python version and all the packages PaperPi needs into a separate folder (`.venv`), and [ruff](https://docs.astral.sh/ruff/), a tool that checks code style.
-
-On the Pi, first install a C compiler and Python's header files: `sudo apt install gcc python3-dev`. `spidev`, the library for SPI (the data line to the screen), is built during the install. It and `gpiod` (for the screen's pins) are only installed on Linux, so on other computers PaperPi works with the virtual screen only.
+PaperPi needs Python 3.13 and [uv](https://docs.astral.sh/uv/) (a tool that installs the right Python version and all the packages into `.venv`):
 
 ```bash
 uv sync                    # install everything
-uv run pytest              # run the tests (tests that need a real display are skipped)
-uv run pytest -m hardware  # run only the tests that need a real display (on the Pi)
-uv run ruff check .        # check code style
-uv run ruff format .       # fix code formatting
+uv run pytest -n auto      # run the tests
+uv run paperpi render basic_clock   # draw a plugin to basic_clock.png, without a screen
 ```
 
-### Draw a plugin without a screen
-
-`paperpi render` draws one plugin to a PNG file. It needs no screen and no config file, and with the plugin's sample data (the default) also no network:
-
-```bash
-uv run paperpi render basic_clock                    # writes basic_clock.png (1200x825, gray16)
-uv run paperpi render basic_clock --layout time_date --set hours=12 --size 800x480 --mode bw
-uv run paperpi render basic_clock --live             # real data (here: the current time)
-```
-
-It can also draw one `[[plugin]]` block from a config file, at the size and colours of its `[display]` part. A complete small config file:
-
-```toml
-config_version = 1
-
-[display]
-type = "virtual"      # no screen: PNG files only
-width = 800
-height = 480
-mode = "bw"
-
-[[plugin]]
-id = "basic_clock-5c1e0a7b"
-type = "basic_clock"
-layout = "time_date"
-```
-
-Every `[[plugin]]` block has its own `id`, which names the plugin's storage folder. The web interface and `paperpi example-config` make it: the plugin type and 8 random letters and digits, as in the examples here.
-
-```bash
-uv run paperpi render --config paperpi.toml --id basic_clock-5c1e0a7b   # writes basic-clock-5c1e0a7b.png, named after the plugin's ID
-```
-
-Run `uv run paperpi render --help` for all options. How to write a plugin: [docs/writing-plugins.md](docs/writing-plugins.md).
-
-### A config file
-
-`paperpi example-config` prints an example config file that loads without errors: a virtual screen, a clock, and weather blocks for Berlin and Rio. Every other setting is a comment with its default and a short help text. [paperpi.example.toml](paperpi.example.toml) is the same text, except that the printed copy gives each plugin a new random `id`. The weather blocks are not shown until you remove the `#` in front of `email` and fill in your own, real email address: met.no's terms of service ask for it, so the example leaves it empty. Until then `paperpi list` shows them as "needs email". `-o` doesn't replace a file that is already there, unless you add `--force`.
-
-```bash
-uv run paperpi example-config -o paperpi.toml
-uv run paperpi list --config paperpi.toml
-```
-
-`paperpi list` shows the plugins of a config file, one line each, in the order of the file: id, name (the id when it has none), type, on (`yes`, `no`, or `needs <settings>` when a required setting is missing), level, display time, refresh, layout and storage (the ones used: the setting, or else the plugin's suggestion or first layout; storage is the size limit and the age limit, for example `500 MB, 30 d`, or `500 MB, no age limit`). Anything wrong with the file is shown first; a block with an error is left out of the list.
-
-```
-name            type         on   level     display  refresh  layout
-Clock           basic_clock  yes  rotation  120 s    60 s     time
-Weather Berlin  met_no       yes  rotation  120 s    1800 s   hours_12
-Weather Rio     met_no       yes  rotation  120 s    1800 s   hours_12
-```
-
-### Run PaperPi without a screen
-
-`paperpi run` shows the plugins of a config file, the way they will appear on the screen: they take turns, alerts and interrupts take over, failing plugins are skipped. With `type = "virtual"` in `[display]`, every screen write is saved as a numbered PNG file (the newest 50 are kept), and the newest is also `latest.png`. The numbers start again at `0001.png` at every start, so the files of an earlier run are removed first. The first write after a start, and the first write after each hour, first clear the screen (a white PNG; on a real screen this removes leftovers of earlier images); `clean_every = 0` switches this off. When PaperPi is stopped on purpose, the screen is cleared, so `latest.png` is white afterwards; `on_exit = "keep"` keeps the last image.
-
-```bash
-uv run paperpi run --config paperpi.toml --out screen/ --state-dir state/ --health-file /run/user/$(id -u)/paperpi-health
-```
-
-- It runs until Ctrl+C, or until it gets the stop signal (`kill <process id>`).
-- After changing the config file, run `paperpi reload`. It tells the running PaperPi to read the file again and apply the changes without a restart, and prints what changed (the same list as the web interface's Review changes page). A file with a mistake is not applied: it prints the mistake with its line, and the old settings keep running. It ends with exit status 0 when the changes were applied, else 1. `paperpi reload --check` only prints the mistakes and the changes, and applies nothing. It finds PaperPi by the process id in the health report, which PaperPi writes to `/run/paperpi/health`; started by hand, PaperPi may not write there, so give both commands the same `--health-file` (and `--config` and `--state-dir`), for example `paperpi run --config my.toml --state-dir state --health-file state/health`, then `paperpi reload --config my.toml --state-dir state --health-file state/health`. Once PaperPi is installed as a service ([docs/install-systemd.md](docs/install-systemd.md)), use `sudo paperpi reload` (`sudo systemctl reload paperpi` does the same, but shows no details). Instead of `paperpi reload`, the reload signal SIGHUP (a standard message to a running program, here meaning "read your settings again") does the same without the report: `kill -HUP <process id>`. The process id is printed at the start. Use exactly that number: `pkill -f` would also reach PaperPi's helper processes and stop them.
-- While it runs, it says "still running" every 30 seconds: to systemd, when it runs as a service, and in the file `/run/paperpi/health`. Only root or the service can make `/run/paperpi`, so the example above uses `--health-file` to put the file in your own folder in `/run/user/`, which is also kept in memory (a file that can't be written is only a warning). `paperpi health` (with the same `--health-file`) prints the last report and ends with an error when there is no report or the last one is more than 2 minutes old. Once an hour the same values (time since the last screen write, whether screen writes work, memory use, open files, free disk) also go to the log, starting with a `health:` line at the start. If PaperPi gets stuck, systemd (or Docker, from M6) uses this to restart it: [docs/decisions/errors-and-time-limits.md](docs/decisions/errors-and-time-limits.md).
-- **Logs:** warnings and errors go to the terminal (with `-v`, every line), or the system log when PaperPi runs as a service. The web interface's **Warnings** page lists what needs attention now (a paused plugin, missing settings, a config file mistake, a screen that does not answer, each with a button that helps) and the last 100 warnings and errors; its menu entry shows how many things need attention. Its **Full log** tab has more: every line of level INFO and up since the start (the last 5,000; DEBUG lines too with `-v`), after the lines kept in the file from before the start, with a level filter, search, new lines as they come and **Download log**. Warnings, errors, starts and stops, crashes and the hourly health line are also kept in `paperpi.log` in the state folder (at most about 2 MB with the older `paperpi.log.1`), so they are still there after a restart of the Pi.
-- `--state-dir` holds the plugins' own folders, the log file, the last good copy of the config, the Plugin Library's example pictures (`library-pictures/`, a few hundred KB) and the time PaperPi last exited because of a stuck screen (default `/var/lib/paperpi`). The PNG files go to `screen/` in it, unless `--out` names another folder.
-
-### The web interface
-
-`paperpi run` also starts the web interface, on port 8080. Every page has a menu (on a phone: one **☰ Menu** button) and a **Dark**/**Light** button; otherwise the pages follow your device's light or dark setting.
-
-![The Home page of the web interface](docs/images/web/home-light.png)
- Open it by the Pi's IP address on a phone or computer on the same home network, for example `http://192.168.1.20:8080` (your router's list of devices shows the Pi's address; on the Pi, `hostname -I` prints it). Names such as `paperpi.local` are refused for now, for safety (see [docs/decisions/web-interface.md](docs/decisions/web-interface.md)). It has three pages for plugins: **Home** (at the top, the picture on the screen now, which updates by itself while the page is open, with **Skip to next**, **Refresh** (fetch new data and draw again) and **Dismiss alert**; below it a card for every plugin, as a list or a grid, with its latest picture, its place in the order and its status: **Show now**, switch it on or off, move it with the arrows or drag it after **Change order**, remove it, open its settings), **Plugin Library** (a card for every plugin that comes with PaperPi, with its name, labels such as "Requires setup" and "Requires internet", the names you already added it under, a link to its README, a search box, and an example picture drawn at your screen's size from the plugin's sample data (in 256 shades of gray, or in color for a color screen), in the background: it starts a minute after PaperPi starts or when you open the page, and until then the page says "Drawing the example picture…"; its name or picture opens **Look closer**, with a bigger picture of each of its layouts (a layout made for upright screens is drawn upright); **+ Add** adds it at the end of the list) and each plugin's **Settings** (every setting with its help text and default; errors are shown next to the field; **Preview** draws the plugin with the settings in the form before you save them, at your screen's size, without touching the screen; if the real data can't be drawn, it shows sample data and says why). A change there is saved in the config file and applies at once. Comments in the file stay, except the comments of a plugin you remove and a comment written after a setting, on the same line, when the web interface changes that setting. After you edit the config file by hand, a bar on every page says that PaperPi does not use the changes yet; its **Review changes** page lists them (old and new value, per plugin) and has **Apply changes** (or run `paperpi reload`; the page shows the command) and **Undo hand edits**, which puts back the file PaperPi uses and keeps your edited file as `paperpi.toml.undone` next to it. If the config file changed since the page was opened, is written in a way the web interface can't change safely, or has a problem that stops PaperPi from using it, nothing is saved and the page says so. A plugin that needs settings (such as `met_no`, which needs a place and your email address) is added switched off, and its Settings page opens to fill them in.
-
-- **First visit:** the first person to open it sets the web password (at least 8 characters). The browser then stays logged in for a year, until **Log out**. Log out only logs out that browser; a new password logs out every browser.
-- **Forgotten password:** you need access to the Pi itself (a keyboard and screen, or SSH).
-  1. Run `sudo paperpi reset-password` (with this development copy: `uv run paperpi reset-password --config paperpi.toml`). It removes the `password_hash` line from `[web]` in the config file and leaves the rest of the file as it is. Removing the line by hand does the same.
-  2. Restart PaperPi (Ctrl+C, then start `paperpi run` again), or run `paperpi reload` (`sudo paperpi reload` once it runs as a service).
-  3. Open the web interface and set a new password. Until then, anyone on your home network can set it.
-- **No password at all:** `login = false` in `[web]`. Then anyone on your home network can change PaperPi's settings; the home page says so.
-- **Other `[web]` settings:** `enabled = false` (no web interface; `paperpi run --no-web` does the same for one run), `port`, and `address = "127.0.0.1"` to reach it from the Pi only. These three apply at the next start; `login` and the password apply at a reload. **Screen & system** sets the port, the address and the password switch, and has **Change password…**; it tries a new port before saving it.
-- **After changing the port or address:** every page asks you to press **Keep these settings** within 5 minutes after the restart. If nobody does, or the new port can't be used, PaperPi goes back to the old address by itself, and the Warnings page says so.
-- **Can't reach it after changing the port or address:** on the Pi, run `sudo paperpi web-defaults` (development copy: `uv run paperpi web-defaults --config paperpi.toml --state-dir <the same folder as for paperpi run>`) and restart PaperPi. It goes back to port 8080 for every device on your home network.
-- It uses plain HTTP, not HTTPS: it is for the home network only. Do not open it to the internet.
-- If the port is taken by another program, the log says so and PaperPi runs without the web interface.
-
-### Run PaperPi on the 9.7" IT8951 screen
-
-Turn on SPI first: `sudo raspi-config nonint do_spi 0` (the same as raspi-config's menu Interface Options, SPI; `0` means on), then reboot. See epdlib's `docs/it8951.md`. Then set the screen in `[display]`. `vcom` is printed on the screen's ribbon cable; each screen has its own:
-
-```toml
-[display]
-type = "it8951"
-model = "9.7"
-vcom = -1.90
-```
-
-Then start `paperpi run` as above, as a user in the `spi` and `gpio` groups (the first user on Raspberry Pi OS already is; otherwise `sudo usermod -aG spi,gpio $USER`, then log in again). A new image from the plugin already on screen is a fast refresh of only the changed area. Another plugin gets a full refresh, and so does every 5th fast refresh in a row (`max_refresh = 4`). If the screen does not answer at start, the error is in the log and PaperPi keeps running and tries again.
-
-### Run PaperPi on a small Waveshare screen
-
-Waveshare's small screens (1.02" to 13.3", on Waveshare's e-Paper HAT, without an IT8951 board) work too: set the HAT's **Display Config** switch to **B** for most screens, turn on SPI as above, and set the screen's model, the name of Waveshare's file for it. [docs/waveshare-screens.md](docs/waveshare-screens.md) has the steps, every model, and which ones were tested:
-
-```toml
-[display]
-type = "waveshare"
-model = "epd7in5_V2"
-```
-
-At start, PaperPi first shows its name, version and the address of its web interface (with a QR code to open it on a phone) for a minute, while the plugins get their first pictures. `splash_time` in `[display]` sets how long, in seconds (`0`: not at all). With no plugin ready to show, for example right after installing, it stays on screen until one is, so the address to set PaperPi up is always there.
-
-When no plugin has anything to show (e.g. no music is playing), a small clock is shown at the bottom of the screen, so you can tell the screen still works. `fallback_clock = false` in `[display]` switches it off, which is not recommended.
-
-Which plugin is shown and when: [docs/decisions/plugin-scheduling.md](docs/decisions/plugin-scheduling.md). The `debugging` plugin can crash, hang and switch states on purpose, to try this out.
-
-See [CLAUDE.md](CLAUDE.md) for how work is organized.
+More in the manual: [Running from source](https://txoof.github.io/PaperPi/development/), [Writing plugins](https://txoof.github.io/PaperPi/writing-plugins/). See [CLAUDE.md](CLAUDE.md) for how work is organized.

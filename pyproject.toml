@@ -7,9 +7,10 @@ requires-python = ">=3.13"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
-    "epdlib",
+    # ">=1.0.0a1" also lets pip take epdlib's pre-releases (plain "epdlib" gives the old 0.6).
+    "epdlib>=1.0.0a1",
     # The pin and SPI libraries for the IT8951 and Waveshare screens; they build only on Linux.
-    "epdlib[it8951,waveshare]; sys_platform == 'linux'",
+    "epdlib[it8951,waveshare]>=1.0.0a1; sys_platform == 'linux'",
     "fastapi>=0.115",
     "icalendar>=7.3.0",
     "jinja2>=3.1",
@@ -34,6 +35,9 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff>=0.6",
 ]
+docs = [
+    "mkdocs-material>=9.8",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -52,8 +56,3 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
-
-# epdlib is not on PyPI yet, so it comes from GitHub at one fixed commit (see CLAUDE.md).
-# Move `rev` forward when PaperPi needs a newer epdlib.
-[tool.uv.sources]
-epdlib = { git = "https://github.com/txoof/epdlib", rev = "83d960f6b6456dcbb550c5a9a7b6ab8a55a67615" }

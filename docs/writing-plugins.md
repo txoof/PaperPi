@@ -1,6 +1,6 @@
 # Writing a plugin
 
-A plugin puts something on the screen: a clock, the weather, the song that is playing. This page shows how to write one. The reasons behind the rules are in [`decisions/plugin-interface.md`](decisions/plugin-interface.md). The simplest complete example is [`basic_clock`](../src/paperpi/plugins/basic_clock/).
+A plugin puts something on the screen: a clock, the weather, the song that is playing. This page shows how to write one. The reasons behind the rules are in [`decisions/plugin-interface.md`](decisions/plugin-interface.md). The simplest complete example is [`basic_clock`](https://github.com/txoof/PaperPi/tree/main/src/paperpi/plugins/basic_clock).
 
 ## What a plugin is
 

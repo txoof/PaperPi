@@ -1,0 +1,50 @@
+name: Docs
+
+# Builds the manual (docs/ and mkdocs.yml) for every PR, as a check, and publishes it to
+# GitHub Pages on every merge to main: https://txoof.github.io/PaperPi/
+# It runs for every change, not only docs changes, because some pages are made from the code.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publish at a time; a newer merge waits for the one before it.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Hides Material's end-of-life notice in the log (the version is fixed in uv.lock).
+      NO_MKDOCS_2_WARNING: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv sync --locked --group docs
+      # --strict: a broken link or a page missing from the menu stops the build.
+      - run: uv run --group docs mkdocs build --strict --site-dir site
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write # lets GitHub Pages check that the upload comes from this workflow
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
