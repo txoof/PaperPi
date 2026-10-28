@@ -23,11 +23,11 @@ The port is the web interface's port, `[web] port` (default 8080); like the web 
 | Layout | Shows |
 |---|---|
 | `splash` (default) | the name, the version, the two web addresses next to the QR code, and the GitHub address at the bottom |
-| `setup` | "Set up PaperPi", the web address next to a large QR code, and what to do there: set a password and choose which plugins to display. The first config after installing ([docs/install-systemd.md](../../../../docs/install-systemd.md)) shows it in turn with a clock, until you remove it from the plugin list. Without a network: "No network" and no QR code |
+| `setup` | "Set up PaperPi", the web address next to a large QR code, and what to do there: set a password and choose which plugins to display. The first config after installing ([Install on a Raspberry Pi](https://txoof.github.io/PaperPi/install-systemd/)) shows it in turn with a clock, until you remove it from the plugin list. Without a network: "No network" and no QR code |
 
 ## Settings
 
-One of its own, `port` (default 8080): the port in the addresses, only for a splash you add to the rotation yourself; the splash at start always uses `[web] port`. Plus the settings every plugin has (see the main [README](../../../../README.md)). It suggests a refresh every hour, which matters while no plugin is ready to show and in the rotation: it then picks up a new IP address.
+One of its own, `port` (default 8080): the port in the addresses, only for a splash you add to the rotation yourself; the splash at start always uses `[web] port`. Plus the [settings every plugin has](https://txoof.github.io/PaperPi/settings/#settings-every-plugin-has). It suggests a refresh every hour, which matters while no plugin is ready to show and in the rotation: it then picks up a new IP address.
 
 To put it in the rotation (not needed for the splash at start), here with the set-up screen, as `paperpi example-config --setup` writes it:
 

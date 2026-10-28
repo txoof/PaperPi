@@ -28,7 +28,7 @@ For 14:49:
 
 ## Settings
 
-None of its own, only the settings every plugin has (see the main [README](../../../../README.md)).
+None of its own, only the [settings every plugin has](https://txoof.github.io/PaperPi/settings/#settings-every-plugin-has).
 
 It suggests a refresh every 60 seconds, starting just after the minute changes.
 

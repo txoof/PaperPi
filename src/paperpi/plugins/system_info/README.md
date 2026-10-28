@@ -35,7 +35,7 @@ On gray and black-and-white screens each colour becomes black or white, whicheve
 
 It suggests a refresh every 60 seconds, starting just after the minute changes.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]

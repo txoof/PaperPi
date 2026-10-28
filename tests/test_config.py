@@ -240,8 +240,8 @@ def test_waveshare_colour_screen_draws_in_black_and_white_with_color_false():
 def test_waveshare_needs_a_model():
     assert errors_of(WAVESHARE) == [
         "paperpi.toml line 3 [display]: model: required setting is missing; the name of "
-        f"Waveshare's file for the screen, e.g. {TESTED} (the full list is in "
-        "docs/waveshare-screens.md)"
+        f"Waveshare's file for the screen, e.g. {TESTED} (the full list: "
+        "https://txoof.github.io/PaperPi/screens/#waveshare)"
     ]
 
 
@@ -250,7 +250,7 @@ def test_waveshare_unknown_model():
     assert message == (
         "paperpi.toml line 4 [display]: model: unknown waveshare model 'epd7in5_v2' (did you "
         f"mean 'epd7in5_V2'?); the name of Waveshare's file for the screen, e.g. {TESTED} "
-        "(the full list is in docs/waveshare-screens.md)"
+        "(the full list: https://txoof.github.io/PaperPi/screens/#waveshare)"
     )
 
 
@@ -271,20 +271,6 @@ def test_waveshare_untested_model_gives_a_hint():
         "?template=screen-report.yml&title=Screen+report%3A+epd2in13_V4&model=epd2in13_V4"
         f"&version={__version__}"
     ]
-
-
-def test_the_waveshare_docs_list_every_model_and_whether_it_was_tested():
-    from pathlib import Path
-
-    from epdlib.drivers.waveshare import MODELS
-
-    docs = Path(__file__).parent.parent / "docs" / "waveshare-screens.md"
-    rows = {
-        row.split("|")[2].strip(" `"): row.split("|")[6].strip()
-        for row in docs.read_text().splitlines()
-        if row.startswith("| ") and "`epd" in row
-    }
-    assert rows == {name: "yes" if info.tested else "no" for name, info in MODELS.items()}
 
 
 def test_waveshare_screen_without_fast_writes_is_never_cleaned():

@@ -30,7 +30,7 @@ The caption is in Libre Caslon Text, as in v1, the date in Anton and the cartoon
 
 It suggests a refresh every hour.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]

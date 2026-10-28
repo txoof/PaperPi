@@ -31,6 +31,10 @@ theme:
     - navigation.top
     - search.suggest
 
+# Adds the pages made from the code: settings, screens, plugins (see mkdocs_hooks.py).
+hooks:
+  - mkdocs_hooks.py
+
 markdown_extensions:
   - admonition
   - attr_list
@@ -53,7 +57,11 @@ nav:
   - Home: index.md
   - Install:
       - Install on a Raspberry Pi: install-systemd.md
+      - Supported screens: screens.md
       - Waveshare screens: waveshare-screens.md
+  - Settings reference: settings.md
+  - Plugins:
+      - plugins/index.md
   - Running from source: development.md
   - Writing plugins: writing-plugins.md
   - Making a release: releasing.md

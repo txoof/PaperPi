@@ -43,7 +43,7 @@ On the settings page, the **Find go-librespot** button reads go-librespot's `con
 
 PaperPi v1's `player_name` setting is gone: go-librespot's status only describes its own player.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]

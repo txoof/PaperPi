@@ -142,6 +142,8 @@ uv run --group docs mkdocs serve      # then open http://127.0.0.1:8000
 uv run --group docs mkdocs build --strict   # what the docs workflow runs: a broken link is an error
 ```
 
+Some pages are made from the code while the site is built, so they always match it: the settings reference, the supported screens, and the list of plugins with a page for each (the plugin's README, its settings and its sample pictures). `src/paperpi/manual.py` writes them, and `mkdocs_hooks.py` adds them to the site. To change a plugin's page, change its README or the descriptions of its settings.
+
 On the Pi, add `-a 0.0.0.0:8000` to `serve` to open it from another computer on the home network, at the Pi's address. `.github/workflows/docs.yml` builds the site for every PR and publishes it to <https://txoof.github.io/PaperPi/> on every merge to `main`.
 
 See [CLAUDE.md](https://github.com/txoof/PaperPi/blob/main/CLAUDE.md) for how work is organized.

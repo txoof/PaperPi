@@ -72,7 +72,7 @@ All text of a layout has one size, which depends on the size of the screen. A ti
 
 The addresses are secret settings: the web interface shows them as password fields, and PaperPi never writes them in its log. Error messages name only the server ("calendar.google.com answered 404 Not Found"). A 404 usually means the address was reset.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]
