@@ -71,7 +71,7 @@ Column IDs: Todo `f75ad846`, In Progress `47fc9ee4`, In Review `b470c173`, Done 
 | web | `src/paperpi/web/` |
 | plugins/<name> | `src/paperpi/plugins/<name>/` |
 | install | `install/` |
-| docs | `docs/`, `mkdocs.yml` (the manual website), `README.md` |
+| docs | `docs/`, `mkdocs.yml` and `mkdocs_hooks.py` (the manual website), `README.md` |
 | bench | `bench/` (test programs that are not part of the app, e.g. the M2 driver test round) |
 | ci | `.github/`, `pyproject.toml`, `uv.lock`, `.python-version` |
 

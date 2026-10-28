@@ -30,7 +30,7 @@ The title is in Lato Bold and the hover text in Lato Italic. Long titles and hov
 
 It suggests a refresh every 20 minutes.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]

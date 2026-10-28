@@ -18,7 +18,7 @@ Shows the time in large digits, and optionally the date below it. It needs no ne
 
 It suggests a refresh every 60 seconds, starting just after the minute changes.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]

@@ -241,7 +241,7 @@ choose_screen() {
 # short name of the menu (7in5_V2) is taken too.
 check_model() {
     [[ $DISPLAY_TYPE == waveshare ]] || return 0
-    local entry names="all names: $REPO/blob/main/docs/waveshare-screens.md"
+    local entry names="all names: https://txoof.github.io/PaperPi/screens/#waveshare"
     [[ -n $MODEL ]] || fail "--display waveshare needs --model, e.g. epd7in5_V2 ($names)"
     for entry in "${WAVESHARE_MODELS[@]}"; do
         if [[ ${entry%%|*} == "$MODEL" || ${entry%%|*} == "epd$MODEL" ]]; then

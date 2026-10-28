@@ -240,15 +240,21 @@ def _settings(
 
 def _setting(key: str, info: FieldInfo, value: Any, *, comment: bool = False) -> list[str]:
     """The help line and the ``key = value`` line of one setting."""
-    help_text = links.plain(info.description or key)
-    if is_required(info):
-        help_text += " (required)"
-    allowed = choices(info.annotation)
-    named = all(re.search(rf"\b{re.escape(str(c))}\b", help_text) for c in allowed)
-    if allowed and not named:
-        help_text += f". One of: {', '.join(toml_value(c) for c in allowed)}"
     line = f"{key} = {toml_value(value)}" if value is not None else f"{key} ="
-    return [*_comment(help_text), f"# {line}" if comment else line]
+    return [*_comment(links.plain(help_text(key, info))), f"# {line}" if comment else line]
+
+
+def help_text(key: str, info: FieldInfo) -> str:
+    """A setting's help text, with "(required)" and its allowed values when the text doesn't
+    name them. Links stay in (``[text](target)``, see :mod:`paperpi.links`)."""
+    text = info.description or key
+    if is_required(info):
+        text += " (required)"
+    allowed = choices(info.annotation)
+    named = all(re.search(rf"\b{re.escape(str(c))}\b", links.plain(text)) for c in allowed)
+    if allowed and not named:
+        text += f". One of: {', '.join(toml_value(c) for c in allowed)}"
+    return text
 
 
 def _comment(text: str) -> list[str]:

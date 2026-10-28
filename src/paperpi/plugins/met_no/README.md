@@ -62,7 +62,7 @@ You don't have to look up `lat`, `lon` and `altitude` yourself: on the plugin's 
 
 It suggests a refresh every 30 minutes. met.no updates its forecasts about once an hour.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]

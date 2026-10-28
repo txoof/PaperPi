@@ -38,7 +38,7 @@ It suggests a refresh every 5 seconds.
 
 On the settings page, the **Find players** button looks for LMS servers on the local network (the way LMS players find them: a broadcast message on UDP port 3483) and lists every player of every server, with its model and whether it is playing, on or switched off. Use fills in `server` and `player`. A server in another network can't hear the broadcast: type its address in `server` and press the button again to list its players. When the server has a password, fill in `user` and `password` first.
 
-In the config file (the rest of the file is shown in the main [README](../../../../README.md)):
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
 
 ```toml
 [[plugin]]

@@ -743,7 +743,7 @@ class _Checker:
             self.add(
                 "error",
                 "model: required setting is missing; the name of Waveshare's file for the "
-                f"screen, e.g. {tested} (the full list is in docs/waveshare-screens.md)",
+                f"screen, e.g. {tested} (the full list: https://txoof.github.io/PaperPi/screens/#waveshare)",
                 section,
                 "type",
                 "[display]",
@@ -762,8 +762,8 @@ class _Checker:
             self.add(
                 "error",
                 f"model: unknown waveshare model {settings.model!r}{hint}; the name of "
-                f"Waveshare's file for the screen, e.g. {tested} (the full list is in "
-                "docs/waveshare-screens.md)",
+                f"Waveshare's file for the screen, e.g. {tested} (the full list: "
+                "https://txoof.github.io/PaperPi/screens/#waveshare)",
                 section,
                 "model",
                 "[display]",
