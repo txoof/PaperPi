@@ -1,52 +1,17 @@
-# Install PaperPi as a systemd service
+# How the service works
 
-This installs PaperPi on a Raspberry Pi with Raspberry Pi OS "trixie", so it starts at every start of the Pi and is started again after a crash. systemd is the part of Linux that starts and watches programs like this one (a "service"). This is PaperPi's install; a Docker install was planned for milestone M6 but dropped (2026-10-25, #325).
+PaperPi runs as a systemd service: systemd is the part of Linux that starts and watches programs like this one (a "service"). It starts PaperPi at every start of the Pi and starts it again after a crash. This page is about how that is put together. To install PaperPi: [Install](install.md); to update or remove it: [Update and remove](update.md).
 
-## Install
+## What the install script does
 
-One command on the Pi:
+`install/paperpi-install` prints each step before it does it:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install | sudo bash
-```
+1. Unless a config is already in `/etc/paperpi`, it asks which screen is connected (or takes `--display`, `--model`, `--vcom`). `0`, or `--yes` without `--display`, means the virtual screen, which only saves pictures in `/var/lib/paperpi/screen/`.
+2. It installs what is missing from Debian, after asking: `git`, `python3-venv`, and `gcc` and `python3-dev` (they build `spidev`, the SPI library).
+3. For a real screen, it turns on SPI with `raspi-config nonint do_spi 0` (the same as raspi-config's menu Interface Options, SPI). When SPI only works after a restart, it asks before restarting the Pi.
+4. It makes the `paperpi` user, copies the newest release into `/opt/paperpi/code` (or the branch, tag or commit of `--ref`: `curl ... | sudo bash -s -- --ref main`), installs the Python packages of `uv.lock`, writes the first config (`paperpi example-config --setup`: a clock and the set-up screen), and starts the service.
 
-It prints each step before it does it:
-
-1. It asks which screen is connected, in short numbered menus that fit a small terminal (`b` goes back): first the kind of board, Waveshare's IT8951 board or Waveshare's e-Paper HAT with a small screen ([docs/waveshare-screens.md](waveshare-screens.md)); then the size in inches (for a small screen in Waveshare's notation, as on their files: `7in5` is 7.5 inch); for a small screen then the model of that size, such as `7in5_V2` (tested ones first), and for the IT8951 the `vcom`, the number printed on the screen's ribbon cable (each screen has its own). `0` in the first menu means none yet: PaperPi then uses the virtual screen, which only saves pictures in `/var/lib/paperpi/screen/`, and you choose the screen in the web interface later.
-2. It installs what the install needs from Debian, after asking: `git`, `python3-venv`, and `gcc` and `python3-dev` (they build `spidev`, the SPI library).
-3. For a real screen, it turns on SPI, the data line to the screen (`raspi-config nonint do_spi 0`, the same as raspi-config's menu Interface Options, SPI). When SPI only works after a restart, it asks before restarting the Pi; PaperPi then starts by itself after the restart.
-4. It installs the newest PaperPi release and starts it (see "Where the files are" below). To install the newest code instead, end the command with `sudo bash -s -- --ref main`.
-
-At the end the screen shows a clock and the set-up screen in turn. The set-up screen has the address of the web interface and a QR code for it: open it, set a password and choose which plugins to display. Until a password is set, anyone on your home network can set it.
-
-To install without questions (for example from another script), download the script and give the answers as options; `--yes` asks nothing and uses the virtual screen unless `--display` is given:
-
-```bash
-curl -fsSLO https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install
-sudo bash paperpi-install install --yes --display it8951 --model 9.7 --vcom -1.90
-sudo bash paperpi-install install --yes --display waveshare --model epd7in5_V2
-```
-
-`sudo bash paperpi-install --help` lists every option. With a config already in `/etc/paperpi` (from an earlier install), it is kept and nothing is asked about the screen.
-
-## Update
-
-```bash
-sudo paperpi-install update
-```
-
-It gets the newest release from GitHub, installs what is missing from Debian and PaperPi's Python packages, and restarts PaperPi. Nothing updates by itself. `--ref <branch, tag or commit>` installs that one instead: `--ref main` for the newest code, a version tag such as `v2.0.0a1` to go back to an older release, or a branch to try it. The next `update` without `--ref` goes back to the newest release, also when that is older than what is installed (it says so). With `--yes` or without a terminal, it installs missing Debian packages without asking.
-
-The first `update` after a change to this script still runs the old copy in `/usr/local/sbin`; it installs the new one, which the next `update` uses. So run `update` twice after such a change (for example the change to releases: the first update still installs `main`). How releases are made: [releasing.md](releasing.md). The config and the saved files stay as they are. PaperPi itself is always installed again, also when its version number hasn't changed between commits.
-
-## Remove
-
-```bash
-sudo paperpi-install uninstall           # keeps /etc/paperpi and /var/lib/paperpi
-sudo paperpi-install uninstall --purge   # also removes them and the paperpi user
-```
-
-Stopping clears the screen first, which can take up to 45 seconds.
+`update` does steps 2 and 4 again, without the questions and with the config as it is. PaperPi itself is always installed again, also when its version number hasn't changed between commits. How releases are made: [Making a release](releasing.md).
 
 ## Use
 
@@ -74,7 +39,7 @@ When PaperPi crashes 5 times within 10 minutes, systemd stops trying (`systemctl
 | `/run/paperpi/health` | the health report, in memory | paperpi |
 | `/etc/systemd/system/paperpi.service` | the service file (from `install/paperpi.service`) | root |
 | `/usr/local/bin/paperpi` | the `paperpi` command | root |
-| `/usr/local/sbin/paperpi-install` | this install script | root |
+| `/usr/local/sbin/paperpi-install` | the install script (`install/paperpi-install`), for `update` and `uninstall` | root |
 
 The code belongs to root, so PaperPi itself (and a plugin) can't change it. PaperPi runs as the user `paperpi`, which can't log in, has no password and is only in the `spi` and `gpio` groups. A plugin that goes wrong can't read your own files or use `sudo`.
 

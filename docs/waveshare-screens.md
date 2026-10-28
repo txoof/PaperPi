@@ -8,7 +8,7 @@ PaperPi can drive Waveshare's small e-paper screens: the ones that plug into Wav
 2. **Set the HAT's two small switches:**
    - **Display Config: B** for most screens. Waveshare's page for your screen (on [waveshare.com/wiki](https://www.waveshare.com/wiki/Main_Page)) says which one it needs. With the wrong setting the picture can be faint, with gray blacks and light streaks.
    - **Interface Config: 0** (4-line SPI, which PaperPi uses).
-3. **Install PaperPi** ([install-systemd.md](install-systemd.md)): its screen menu asks for the board, the size and the model, and turns on SPI (the data line to the screen). Without the installer: `sudo raspi-config nonint do_spi 0`, then reboot.
+3. **Install PaperPi** ([Install](install.md)): its screen menu asks for the board, the size and the model, and turns on SPI (the data line to the screen). Without the installer: `sudo raspi-config nonint do_spi 0`, then reboot.
 4. **Or choose the screen later:** on the web interface's **Screen & system** page, **Change screen…**, type **Waveshare small screen**, then the model. Or in the config file:
 
    ```toml

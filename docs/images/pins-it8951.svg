@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 496" width="560" height="496" role="img" font-family="DejaVu Sans Mono, Menlo, Consolas, monospace" font-size="12">
+<title>The Raspberry Pi's 40 pins; highlighted: the pins the Waveshare IT8951 board uses, with the board's name for each. Layout after pinout.xyz (CC BY-SA 4.0).</title>
+<rect width="560" height="496" fill="#4e6e35"/>
+<rect x="250" width="60" height="496" fill="#0f3a46"/>
+<text x="8" y="24.0" fill="#ffffff">3v3 Power</text>
+<text x="244" y="24.0" text-anchor="end" font-size="10" fill="#ffffff">1</text>
+<rect x="259.0" y="12.0" width="16" height="16" fill="#b58900"/>
+<rect x="293.0" y="8" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="316" y="24.0" font-size="10" fill="#073642">2</text>
+<text x="342" y="24.0" fill="#073642" font-weight="bold">5v Power <tspan font-size="10">(5V)</tspan></text>
+<circle cx="293.0" cy="20.0" r="9" fill="#dc322f"/><circle cx="293.0" cy="20.0" r="5" fill="#ffffff"/>
+<text x="8" y="48.0" fill="#ffffff">GPIO 2 <tspan font-size="10">(I2C1 SDA)</tspan></text>
+<text x="244" y="48.0" text-anchor="end" font-size="10" fill="#ffffff">3</text>
+<circle cx="267.0" cy="44.0" r="9" fill="#268bd2"/>
+<text x="316" y="48.0" font-size="10" fill="#ffffff">4</text>
+<text x="342" y="48.0" fill="#ffffff">5v Power</text>
+<circle cx="293.0" cy="44.0" r="9" fill="#dc322f"/>
+<text x="8" y="72.0" fill="#ffffff">GPIO 3 <tspan font-size="10">(I2C1 SCL)</tspan></text>
+<text x="244" y="72.0" text-anchor="end" font-size="10" fill="#ffffff">5</text>
+<circle cx="267.0" cy="68.0" r="9" fill="#268bd2"/>
+<rect x="293.0" y="56" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="316" y="72.0" font-size="10" fill="#073642">6</text>
+<text x="342" y="72.0" fill="#073642" font-weight="bold">Ground <tspan font-size="10">(GND)</tspan></text>
+<circle cx="293.0" cy="68.0" r="9" fill="#002b36"/>
+<text x="8" y="96.0" fill="#ffffff">GPIO 4 <tspan font-size="10">(GPCLK0)</tspan></text>
+<text x="244" y="96.0" text-anchor="end" font-size="10" fill="#ffffff">7</text>
+<circle cx="267.0" cy="92.0" r="9" fill="#8d9e1e"/>
+<text x="316" y="96.0" font-size="10" fill="#ffffff">8</text>
+<text x="342" y="96.0" fill="#ffffff">GPIO 14 <tspan font-size="10">(UART0 TX)</tspan></text>
+<circle cx="293.0" cy="92.0" r="9" fill="#6c71c4"/>
+<text x="8" y="120.0" fill="#a9bd95">Ground</text>
+<text x="244" y="120.0" text-anchor="end" font-size="10" fill="#ffffff">9</text>
+<circle cx="267.0" cy="116.0" r="9" fill="#002b36"/>
+<text x="316" y="120.0" font-size="10" fill="#ffffff">10</text>
+<text x="342" y="120.0" fill="#ffffff">GPIO 15 <tspan font-size="10">(UART0 RX)</tspan></text>
+<circle cx="293.0" cy="116.0" r="9" fill="#6c71c4"/>
+<rect x="0" y="128" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="8" y="144.0" fill="#073642" font-weight="bold">GPIO 17 <tspan font-size="10">(RST)</tspan></text>
+<text x="244" y="144.0" text-anchor="end" font-size="10" fill="#073642">11</text>
+<circle cx="267.0" cy="140.0" r="9" fill="#8d9e1e"/><circle cx="267.0" cy="140.0" r="5" fill="#ffffff"/>
+<text x="316" y="144.0" font-size="10" fill="#ffffff">12</text>
+<text x="342" y="144.0" fill="#ffffff">GPIO 18 <tspan font-size="10">(PCM CLK)</tspan></text>
+<circle cx="293.0" cy="140.0" r="9" fill="#2aa198"/>
+<text x="8" y="168.0" fill="#ffffff">GPIO 27</text>
+<text x="244" y="168.0" text-anchor="end" font-size="10" fill="#ffffff">13</text>
+<circle cx="267.0" cy="164.0" r="9" fill="#8d9e1e"/>
+<text x="316" y="168.0" font-size="10" fill="#ffffff">14</text>
+<text x="342" y="168.0" fill="#a9bd95">Ground</text>
+<circle cx="293.0" cy="164.0" r="9" fill="#002b36"/>
+<text x="8" y="192.0" fill="#ffffff">GPIO 22</text>
+<text x="244" y="192.0" text-anchor="end" font-size="10" fill="#ffffff">15</text>
+<circle cx="267.0" cy="188.0" r="9" fill="#8d9e1e"/>
+<text x="316" y="192.0" font-size="10" fill="#ffffff">16</text>
+<text x="342" y="192.0" fill="#ffffff">GPIO 23</text>
+<circle cx="293.0" cy="188.0" r="9" fill="#8d9e1e"/>
+<text x="8" y="216.0" fill="#ffffff">3v3 Power</text>
+<text x="244" y="216.0" text-anchor="end" font-size="10" fill="#ffffff">17</text>
+<rect x="259.0" y="204.0" width="16" height="16" fill="#b58900"/>
+<rect x="293.0" y="200" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="316" y="216.0" font-size="10" fill="#073642">18</text>
+<text x="342" y="216.0" fill="#073642" font-weight="bold">GPIO 24 <tspan font-size="10">(HRDY)</tspan></text>
+<circle cx="293.0" cy="212.0" r="9" fill="#8d9e1e"/><circle cx="293.0" cy="212.0" r="5" fill="#ffffff"/>
+<rect x="0" y="224" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="8" y="240.0" fill="#073642" font-weight="bold">GPIO 10 <tspan font-size="10">(MOSI)</tspan></text>
+<text x="244" y="240.0" text-anchor="end" font-size="10" fill="#073642">19</text>
+<circle cx="267.0" cy="236.0" r="9" fill="#e0457b"/><circle cx="267.0" cy="236.0" r="5" fill="#ffffff"/>
+<text x="316" y="240.0" font-size="10" fill="#ffffff">20</text>
+<text x="342" y="240.0" fill="#a9bd95">Ground</text>
+<circle cx="293.0" cy="236.0" r="9" fill="#002b36"/>
+<rect x="0" y="248" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="8" y="264.0" fill="#073642" font-weight="bold">GPIO 9 <tspan font-size="10">(MISO)</tspan></text>
+<text x="244" y="264.0" text-anchor="end" font-size="10" fill="#073642">21</text>
+<circle cx="267.0" cy="260.0" r="9" fill="#e0457b"/><circle cx="267.0" cy="260.0" r="5" fill="#ffffff"/>
+<text x="316" y="264.0" font-size="10" fill="#ffffff">22</text>
+<text x="342" y="264.0" fill="#ffffff">GPIO 25</text>
+<circle cx="293.0" cy="260.0" r="9" fill="#8d9e1e"/>
+<rect x="0" y="272" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="8" y="288.0" fill="#073642" font-weight="bold">GPIO 11 <tspan font-size="10">(SCK)</tspan></text>
+<text x="244" y="288.0" text-anchor="end" font-size="10" fill="#073642">23</text>
+<circle cx="267.0" cy="284.0" r="9" fill="#e0457b"/><circle cx="267.0" cy="284.0" r="5" fill="#ffffff"/>
+<rect x="293.0" y="272" width="267.0" height="24" fill="#ebe6d3"/>
+<text x="316" y="288.0" font-size="10" fill="#073642">24</text>
+<text x="342" y="288.0" fill="#073642" font-weight="bold">GPIO 8 <tspan font-size="10">(CS)</tspan></text>
+<circle cx="293.0" cy="284.0" r="9" fill="#e0457b"/><circle cx="293.0" cy="284.0" r="5" fill="#ffffff"/>
+<text x="8" y="312.0" fill="#a9bd95">Ground</text>
+<text x="244" y="312.0" text-anchor="end" font-size="10" fill="#ffffff">25</text>
+<circle cx="267.0" cy="308.0" r="9" fill="#002b36"/>
+<text x="316" y="312.0" font-size="10" fill="#ffffff">26</text>
+<text x="342" y="312.0" fill="#ffffff">GPIO 7 <tspan font-size="10">(SPI0 CE1)</tspan></text>
+<circle cx="293.0" cy="308.0" r="9" fill="#e0457b"/>
+<text x="8" y="336.0" fill="#ffffff">GPIO 0 <tspan font-size="10">(EEPROM SDA)</tspan></text>
+<text x="244" y="336.0" text-anchor="end" font-size="10" fill="#ffffff">27</text>
+<circle cx="267.0" cy="332.0" r="9" fill="#268bd2"/>
+<text x="316" y="336.0" font-size="10" fill="#ffffff">28</text>
+<text x="342" y="336.0" fill="#ffffff">GPIO 1 <tspan font-size="10">(EEPROM SCL)</tspan></text>
+<circle cx="293.0" cy="332.0" r="9" fill="#268bd2"/>
+<text x="8" y="360.0" fill="#ffffff">GPIO 5</text>
+<text x="244" y="360.0" text-anchor="end" font-size="10" fill="#ffffff">29</text>
+<circle cx="267.0" cy="356.0" r="9" fill="#8d9e1e"/>
+<text x="316" y="360.0" font-size="10" fill="#ffffff">30</text>
+<text x="342" y="360.0" fill="#a9bd95">Ground</text>
+<circle cx="293.0" cy="356.0" r="9" fill="#002b36"/>
+<text x="8" y="384.0" fill="#ffffff">GPIO 6</text>
+<text x="244" y="384.0" text-anchor="end" font-size="10" fill="#ffffff">31</text>
+<circle cx="267.0" cy="380.0" r="9" fill="#8d9e1e"/>
+<text x="316" y="384.0" font-size="10" fill="#ffffff">32</text>
+<text x="342" y="384.0" fill="#ffffff">GPIO 12 <tspan font-size="10">(PWM0)</tspan></text>
+<circle cx="293.0" cy="380.0" r="9" fill="#8d9e1e"/>
+<text x="8" y="408.0" fill="#ffffff">GPIO 13 <tspan font-size="10">(PWM1)</tspan></text>
+<text x="244" y="408.0" text-anchor="end" font-size="10" fill="#ffffff">33</text>
+<circle cx="267.0" cy="404.0" r="9" fill="#8d9e1e"/>
+<text x="316" y="408.0" font-size="10" fill="#ffffff">34</text>
+<text x="342" y="408.0" fill="#a9bd95">Ground</text>
+<circle cx="293.0" cy="404.0" r="9" fill="#002b36"/>
+<text x="8" y="432.0" fill="#ffffff">GPIO 19 <tspan font-size="10">(PCM FS)</tspan></text>
+<text x="244" y="432.0" text-anchor="end" font-size="10" fill="#ffffff">35</text>
+<circle cx="267.0" cy="428.0" r="9" fill="#2aa198"/>
+<text x="316" y="432.0" font-size="10" fill="#ffffff">36</text>
+<text x="342" y="432.0" fill="#ffffff">GPIO 16</text>
+<circle cx="293.0" cy="428.0" r="9" fill="#8d9e1e"/>
+<text x="8" y="456.0" fill="#ffffff">GPIO 26</text>
+<text x="244" y="456.0" text-anchor="end" font-size="10" fill="#ffffff">37</text>
+<circle cx="267.0" cy="452.0" r="9" fill="#8d9e1e"/>
+<text x="316" y="456.0" font-size="10" fill="#ffffff">38</text>
+<text x="342" y="456.0" fill="#ffffff">GPIO 20 <tspan font-size="10">(PCM DIN)</tspan></text>
+<circle cx="293.0" cy="452.0" r="9" fill="#2aa198"/>
+<text x="8" y="480.0" fill="#a9bd95">Ground</text>
+<text x="244" y="480.0" text-anchor="end" font-size="10" fill="#ffffff">39</text>
+<circle cx="267.0" cy="476.0" r="9" fill="#002b36"/>
+<text x="316" y="480.0" font-size="10" fill="#ffffff">40</text>
+<text x="342" y="480.0" fill="#ffffff">GPIO 21 <tspan font-size="10">(PCM DOUT)</tspan></text>
+<circle cx="293.0" cy="476.0" r="9" fill="#2aa198"/>
+</svg>

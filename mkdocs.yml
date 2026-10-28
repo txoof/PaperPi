@@ -55,13 +55,19 @@ validation:
 
 nav:
   - Home: index.md
-  - Install:
-      - Install on a Raspberry Pi: install-systemd.md
-      - Supported screens: screens.md
-      - Waveshare screens: waveshare-screens.md
-  - Settings reference: settings.md
+  - Get started:
+      - What you need: hardware.md
+      - Install: install.md
+      - First setup: first-setup.md
+      - The web interface: web-interface.md
+      - Update and remove: update.md
   - Plugins:
       - plugins/index.md
+  - Reference:
+      - Settings reference: settings.md
+      - Supported screens: screens.md
+      - Waveshare screens: waveshare-screens.md
+      - How the service works: install-systemd.md
   - Running from source: development.md
   - Writing plugins: writing-plugins.md
   - Making a release: releasing.md
