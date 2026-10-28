@@ -1,0 +1,73 @@
+# The PaperPi manual: a website made from docs/ by MkDocs with the Material theme.
+# Build it with: uv run --group docs mkdocs serve (see docs/development.md, "The manual").
+# .github/workflows/docs.yml builds it for every PR and publishes it on every merge to main.
+site_name: PaperPi
+site_description: Show information on e-paper displays attached to a Raspberry Pi
+site_url: https://txoof.github.io/PaperPi/
+repo_url: https://github.com/txoof/PaperPi
+repo_name: txoof/PaperPi
+edit_uri: edit/main/docs/
+copyright: PaperPi is free software under the GPL 3.0 or later.
+
+theme:
+  name: material
+  favicon: images/paperpi-icon.svg
+  logo: images/paperpi-icon.svg
+  palette:
+    # Follows the device's light or dark setting; the button switches by hand.
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+# A link to a page that does not exist stops the build (the docs workflow uses --strict).
+validation:
+  nav:
+    omitted_files: warn
+  links:
+    absolute_links: relative_to_docs
+    unrecognized_links: warn
+    anchors: warn
+
+nav:
+  - Home: index.md
+  - Install:
+      - Install on a Raspberry Pi: install-systemd.md
+      - Waveshare screens: waveshare-screens.md
+  - Running from source: development.md
+  - Writing plugins: writing-plugins.md
+  - Making a release: releasing.md
+  - Design notes:
+      - Config format: decisions/config-format.md
+      - Plugin interface: decisions/plugin-interface.md
+      - Setting helpers: decisions/setting-helpers.md
+      - Plugin scheduling: decisions/plugin-scheduling.md
+      - Live config reload: decisions/live-config-reload.md
+      - Display driver interface: decisions/display-driver-interface.md
+      - IT8951 driver: decisions/it8951-driver.md
+      - Errors and time limits: decisions/errors-and-time-limits.md
+      - Freeze prevention: decisions/freeze-prevention.md
+      - Web interface: decisions/web-interface.md
+  - Background:
+      - Version 1 inventory: v1-inventory.md
+      - IT8951 test report: it8951-test-report.md
