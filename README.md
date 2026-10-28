@@ -16,7 +16,7 @@ PaperPi needs a Raspberry Pi 3 or 4 with Raspberry Pi OS "trixie", and a screen 
 curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install | sudo bash
 ```
 
-What it does, and how to update and remove PaperPi: [Install on a Raspberry Pi](https://txoof.github.io/PaperPi/install-systemd/).
+What you need, the install step by step, and how to update and remove PaperPi: [Install](https://txoof.github.io/PaperPi/install/).
 
 ## Development
 
