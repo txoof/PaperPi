@@ -38,7 +38,7 @@ crash_every = 5
 refresh = 20
 ```
 
-Draw its sample image: `uv run paperpi render debugging`. To see the pattern, use `paperpi run` (see [Running from source](https://txoof.github.io/PaperPi/development/#run-paperpi-without-a-screen)): `render` starts with a new, empty storage folder each time, so its count is always 1.
+Draw its sample image: `uv run paperpi render debugging`. To see the pattern, use `paperpi run` (see [Running from source](https://txoof.github.io/PaperPi/development/#run-paperpi)): `render` starts with a new, empty storage folder each time, so its count is always 1.
 
 ## Sample images
 
