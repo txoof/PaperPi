@@ -1,6 +1,6 @@
 # met_no
 
-Shows the weather for the next 12 hours at your location, from [met.no](https://api.met.no/) (the Norwegian Meteorological Institute): temperature, rain, wind and a weather icon. Free, with forecasts for places all over the world.
+Shows the weather for the next 12 hours at your location from [met.no](https://api.met.no/), the Norwegian Meteorological Institute. Free, with forecasts for places all over the world.
 
 This plugin takes its turn with the other plugins using the `rotation` display level. It needs the internet, your location and your email address.
 

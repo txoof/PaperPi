@@ -1,6 +1,6 @@
 # moon_phase
 
-Shows today's moon: a picture of its phase, the name of the phase ("Waning Crescent"), and the times it rises and sets at your location. White on black, like the night sky.
+Shows today's moon: a picture of its phase, the name of the phase, and the times it rises and sets at your location. White on black, like the night sky.
 
 This plugin takes its turn with the other plugins using the `rotation` display level. It needs the internet, your location and your email address.
 
