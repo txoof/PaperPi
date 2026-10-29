@@ -6,7 +6,7 @@ PaperPi is a lovely, quiet, slow internet e-Paper radio. No loud colors, no busy
 
 ## Plugins
 
-PaperPi supports a growing library of [plugins](plugin-reference.md) that are configurable and customizable.
+PaperPi supports a growing library of [plugins](plugins/index.md) that are configurable and customizable.
 
 <div class="grid cards" markdown>
 
