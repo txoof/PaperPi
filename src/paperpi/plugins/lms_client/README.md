@@ -71,7 +71,7 @@ When the server doesn't answer, asks for a password, or has no player with that 
 
 The plugin asks for a new picture every 5 seconds unless you change `refresh`.
 
-In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
+### Configuration Keys
 
 ```toml
 [[plugin]]
@@ -82,12 +82,8 @@ server = "192.168.1.9:9000"
 player = "Kitchen"
 ```
 
-## Sample images
-
-The sample cover, [`sample/cover.png`](sample/cover.png), was drawn for PaperPi; the sample song is made up. All sample images are in [`tests/images/`](../../../../tests/images/), named `lms_client-<layout>-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours).
-
 ## For developers
 
-At each update the plugin asks the LMS server through its JSON-RPC interface (`http://<server>/jsonrpc.js`) for its players, finds the one named in `player`, and asks for its status. With a password, `user` and `password` are sent with every request (HTTP basic auth). Covers come from `/music/<coverid>/cover_500x500_m.jpg`. Each update is a new program, so the plugin saves the time a song was paused in a small file. **Find players** sends a broadcast message on UDP port 3483, the way LMS players find their server.
+At each update the plugin asks the LMS server through its JSON-RPC interface (`http://<server>/jsonrpc.js`) for its players, finds the one named in `player`, and asks for its status. With a password, `user` and `password` are sent with every request (HTTP basic auth). Covers come from `/music/<coverid>/cover_500x500_m.jpg`. Each update is run as a new process; the plugin saves the time a song was paused in a small file for memory. **Find players** sends a broadcast message on UDP port 3483, the way LMS players find their server.
 
 Try it without a screen: `uv run paperpi render lms_client` (sample song), or with the song playing now: `uv run paperpi render lms_client --live --set server=192.168.1.9:9000 --set player=Kitchen`. The fonts are under the SIL Open Font License ([`fonts/Oswald-OFL.txt`](../../fonts/Oswald-OFL.txt), [`fonts/Montserrat-OFL.txt`](../../fonts/Montserrat-OFL.txt)).
