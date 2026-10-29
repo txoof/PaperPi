@@ -1,6 +1,6 @@
 # How the service works
 
-PaperPi runs as a systemd service: systemd is the part of Linux that starts and watches programs like this one (a "service"). It starts PaperPi at every start of the Pi and starts it again after a crash. This page is about how that is put together. To install PaperPi: [Install](install.md); to update or remove it: [Update and remove](update.md).
+PaperPi runs as a systemd service: systemd is the part of Linux that starts and watches programs like this one (a "service"). It starts PaperPi at every start of the Pi and starts it again after a crash. This page is about how that is put together. To install PaperPi: [Install](install.md); to update or remove it: [Update and Uninstall](update.md).
 
 ## What the install script does
 

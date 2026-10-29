@@ -1,4 +1,4 @@
-# How plugins take turns
+# Understanding Plugin Schedules
 
 PaperPi shows one plugin at a time. This page explains how it picks which one, and the settings that change it. You find these settings in the **General** section of a plugin's settings page.
 

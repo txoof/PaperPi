@@ -57,7 +57,7 @@ Look at its card on the Home page:
 
 A weather plugin needs your real email address: met.no refuses made-up ones such as `you@example.com`.
 
-How PaperPi chooses which plugin to show: [How plugins take turns](take-turns.md).
+How PaperPi chooses which plugin to show: [Understanding Plugin Schedules](take-turns.md).
 
 ## The config file has a mistake
 

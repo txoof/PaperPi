@@ -124,7 +124,7 @@ uv run paperpi web-defaults --config paperpi.toml --state-dir state   # then sta
 
 ## Run it on a real screen
 
-On a Raspberry Pi with a screen connected ([What you need](hardware.md)):
+On a Raspberry Pi with a screen connected ([Hardware](hardware.md)):
 
 1. Switch on SPI, the data line to the screen: `sudo raspi-config nonint do_spi 0`, then restart the Pi.
 2. Run PaperPi as a user in the `spi` and `gpio` groups. The first user on Raspberry Pi OS already is; otherwise `sudo usermod -aG spi,gpio $USER`, then log in again.
@@ -149,7 +149,7 @@ model = "epd7in5_V2"
 
 If the screen doesn't answer at start, the error is in the log, and PaperPi keeps running and tries again. More about the screens: epdlib's [IT8951 guide](https://github.com/txoof/epdlib/blob/main/docs/it8951.md) and [Waveshare screens](waveshare-screens.md).
 
-To try how PaperPi handles plugins that crash, hang or come and go, add the `debugging` plugin: it does all of these on purpose. How the plugins take turns: [How plugins take turns](take-turns.md).
+To try how PaperPi handles plugins that crash, hang or come and go, add the `debugging` plugin: it does all of these on purpose. How the plugins take turns: [Understanding Plugin Schedules](take-turns.md).
 
 ## Work on the manual
 

@@ -1,6 +1,6 @@
-# The web interface
+# Web Interface
 
-PaperPi is set up in a web page, on any phone or computer on your home network. Open it at the address the screen shows at start, for example `http://192.168.1.20:8080` (the Pi's address, then `:8080`; on the Pi, `hostname -I` prints the address). The first visit: [First setup](first-setup.md).
+PaperPi is set up in a web page, on any phone or computer on your home network. Open it at the address the screen shows at start, for example `http://192.168.1.20:8080` (the Pi's address, then `:8080`; on the Pi, `hostname -I` prints the address). The first visit: [First Setup](first-setup.md).
 
 Every page has a menu at the top (on a phone: one **☰ Menu** button) and a **Dark**/**Light** button; otherwise the pages follow your device's light or dark setting. A change applies at once and is saved in the config file, `/etc/paperpi/paperpi.toml`.
 
