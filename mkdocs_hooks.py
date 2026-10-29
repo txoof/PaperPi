@@ -2,7 +2,7 @@
 
 The pages themselves are written by ``paperpi.manual``; this file only hands them to MkDocs:
 the settings reference, the supported screens, the list of plugins and a page per plugin
-(added to "Plugins" under "Reference" in the menu), and the pictures they show.
+(added to the "Plugins" part of the menu), and the pictures they show.
 """
 
 from __future__ import annotations
@@ -36,8 +36,7 @@ def on_files(files: Files, config) -> Files:
 
 
 def on_nav(nav: Navigation, config, files: Files) -> Navigation:
-    reference = next(item for item in nav.items if item.title == "Reference")
-    section = next(item for item in reference.children if item.title == "Plugins")
+    section = next(item for item in nav.items if item.title == "Plugins")
     for plugin_type in manual.listed(plugins.available()):
         page = files.get_file_from_path(f"plugins/{plugin_type}.md").page
         page.parent = section

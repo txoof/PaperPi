@@ -40,9 +40,12 @@ Then open the web interface at the address the screen shows: [First Setup](first
 - [Troubleshooting](troubleshooting.md): Basic troubleshooting steps
 - [What's New](changelog.md): Changelog!
 
-**Reference**
+**Plugins**
 
 - [Plugins](plugins/index.md): Gallery of the plugins and their settings
+
+**Reference**
+
 - [Settings reference](settings.md): Config file reference
 - [Supported screens](screens.md): Complete list of Waveshare Screens and known issues
 - [How the service works](install-systemd.md): where the files are, the commands to check on PaperPi, and how systemd keeps it running
