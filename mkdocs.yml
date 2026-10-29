@@ -92,3 +92,5 @@ nav:
       - Writing a plugin: writing-plugins.md
       - Plugin reference: plugin-reference.md
       - Making a release: releasing.md
+      - How PaperPi works:
+          - Which plugin is shown: specs/scheduling.md
