@@ -1,39 +1,43 @@
 # lms_client
 
-Shows the song a [Lyrion Music Server](https://lyrion.org/) player is playing: its title, artist, album and cover. Lyrion Music Server (LMS) was called Logitech Media Server before.
+Shows the currently playing song, artist and album art sourced from a local [Lyrion Music Server](https://lyrion.org/) player.
+
+This plugin typically remains dormant and invisible on PaperPi until the tracked music player starts playing. When music starts, the plugin will jump to the foreground using the `interrupt` display level and keep control of teh screen until the music stops.
 
 ![The plugin's default layout on the 9.7" screen: the cover, with the artist and album next to it and the title below](../../../../tests/images/lms_client-two_column_three_row-9in7.png)
 
 ## What you need
 
 - **An LMS server** on your network, for example on a Raspberry Pi or a home server ([lyrion.org](https://lyrion.org/) explains how to install one).
-- **A player** that plays from it: a Squeezebox, or Squeezelite (a player program) on a Raspberry Pi. The player can be on the same Pi as PaperPi or anywhere on the network.
+- **A LMS player** that plays from it: a Squeezebox, or Squeezelite (a player program) on a Raspberry Pi. The player can be on the same Pi as PaperPi or anywhere on the network.
 
 ## Set it up
 
-1. In the web interface, open the **Plugin Library** and add **Music server (LMS)**.
-2. On its settings page, press **Find players**. It lists every player of every LMS server on your network, with its model and whether it is playing.
-3. Press **Use** next to your player. That fills in `server` and `player`.
+1. In the PaperPi web interface, open the **Plugin Library** and add **Music server (LMS)**.
+2. On its settings page, press **Find players**. The plugin will attempt to discover all of players registered on the LMS server.
+3. Press **Use** next to your player. That fills in `server` and `player` settings.
 4. If your LMS server has a password, fill in `user` and `password`.
 5. Save, and play a song.
 
+Note: Servers on other network segments may not be discovered automatically
+
 A server in another network can't be found this way. Type its address (such as `192.168.1.9:9000`) in `server` and press **Find players** again to list its players. If the server has a password, fill in `user` and `password` before you press the button.
 
-To show several players, add the plugin once for each player.
+It is possible to track multiple players by adding a plugin instance for each player. Tracking multiple players may have unexpected behavior if more than one player is actively playing.
 
 ## When it is shown
 
-While the player plays, the plugin takes over the screen. When the player stops or is switched off, the other plugins are shown again. A paused song stays on the screen for `idle_timeout` seconds (15 unless you change it), so a short pause doesn't change the screen. This is called an interrupt plugin; [Understanding Plugin Schedules](https://txoof.github.io/PaperPi/take-turns/) explains the levels.
+While actively playing, the plugin takes over the screen. When the player stops or is switched off, the other plugins are shown again. A paused song stays on the screen for `idle_timeout` a default of 15 seconds so a short pause doesn't change the screen. This is called an interrupt plugin; [Understanding Plugin Schedules](https://txoof.github.io/PaperPi/take-turns/) explains the levels.
 
 ## Layouts
 
-| Layout | Shows |
-|---|---|
+| Layout                           | Shows                                                           |
+| -------------------------------- | --------------------------------------------------------------- |
 | `two_column_three_row` (default) | the cover with the artist and album next to it, the title below |
-| `album_art_title` | a large cover with the title below it |
-| `cover_art_only` | only the cover |
-| `two_rows_text_only` | the title and the artist |
-| `three_rows_text_only` | the title, the artist and the album |
+| `album_art_title`                | a large cover with the title below it                           |
+| `cover_art_only`                 | only the cover                                                  |
+| `two_rows_text_only`             | the title and the artist                                        |
+| `three_rows_text_only`           | the title, the artist and the album                             |
 
 | `two_column_three_row` | `album_art_title` | `cover_art_only` |
 |---|---|---|
@@ -47,7 +51,7 @@ Long titles are drawn smaller; text that still doesn't fit ends with "…". Titl
 
 ## Covers and radio
 
-Songs from your LMS library show their cover from the server. Internet radio shows the station's name as the artist, and the station's picture when LMS has one. A song without a cover shows a plain picture of a record.
+Songs from your LMS library show cover art from the server. Internet radio shows the station's name as the artist, and the station's picture when LMS has one. A song without a cover shows a plain picture of a record.
 
 Each cover is downloaded once and kept in the plugin's storage folder (at most 2 MB, JPEG or PNG; on a nearly full disk it is not kept).
 
@@ -57,13 +61,13 @@ When the server doesn't answer, asks for a password, or has no player with that 
 
 ## Settings
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `server` | (required) | address of the LMS server with its web port, e.g. `192.168.1.9:9000` (without a port: 9000) |
-| `player` | (required) | name of the player, as LMS shows it, e.g. `Kitchen` (upper and lower case don't matter) |
-| `user` | `""` | user name, only when the LMS server has a password |
-| `password` | `""` | password, only when the LMS server has one (a secret: not shown on the settings page, and only sent to the LMS server) |
-| `idle_timeout` | `15` | seconds a paused song stays on the screen before other plugins are shown |
+| Setting        | Default    | Meaning                                                                                                                |
+| -------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `server`       | (required) | address of the LMS server with its web port, e.g. `192.168.1.9:9000` (without a port: 9000)                            |
+| `player`       | (required) | name of the player, as LMS shows it, e.g. `Kitchen` (upper and lower case don't matter)                                |
+| `user`         | `""`       | user name, only when the LMS server has a password                                                                     |
+| `password`     | `""`       | password, only when the LMS server has one (a secret: not shown on the settings page, and only sent to the LMS server) |
+| `idle_timeout` | `15`       | seconds a paused song stays on the screen before other plugins are shown                                               |
 
 The plugin asks for a new picture every 5 seconds unless you change `refresh`.
 
