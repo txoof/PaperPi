@@ -8,7 +8,7 @@ PaperPi is a lovely, quiet, slow internet e-Paper radio. No loud colors, no busy
 
 PaperPi runs great on a Raspberry Pi 3 or better!
 
-Minimum requirements:
+**Minimum requirements:**
 
 - Pi 3 or better with Raspberry Pi OS Trixie
 - E-Paper screen - nearly all of Waveshare's screens work and many have been tested
@@ -25,15 +25,15 @@ One command on the Pi installs PaperPi and starts it with prompts to guide you t
 curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/paperpi-install | sudo bash
 ```
 
-Then open the web interface at the address the screen shows: [First setup](first-setup.md).
+Then open the web interface at the address the screen shows: [First Setup](first-setup.md).
 
 ## What's in this manual
 
-**Get started**
+**Getting started**
 
 - [Hardware](hardware.md): Parts, pins and connections
 - [Install](install.md): Step by step build instructions
-- [First Run](first-setup.md): Setting a password and configuring plugins
+- [First Setup](first-setup.md): Setting a password and configuring plugins
 - [Web Interface](web-interface.md): Getting around the interface
 - [Update and Uninstall](update.md): Updating, rolling back and uninstalling PaperPi
 - [Understanding Plugin Schedules](take-turns.md): Display time, refresh, and the levels rotation, interrupt and alert
