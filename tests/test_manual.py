@@ -131,7 +131,8 @@ def test_full_addresses_of_manual_pages_become_links_between_pages():
 
 
 def test_the_screens_page_lists_every_model_epdlib_has():
-    page = manual.screens_page()
+    page = manual.fill_screens((ROOT / "docs" / "screens.md").read_text())
+    assert "<!-- made from epdlib" not in page
     it_rows = [r for r in rows(page) if r[0].startswith('`"')]
     assert [r[0].strip('`"') for r in it_rows] == list(it8951.MODELS)
     ws = {r[1].strip("`"): r for r in rows(page) if r[1].startswith("`epd")}
@@ -139,6 +140,11 @@ def test_the_screens_page_lists_every_model_epdlib_has():
     for name, info in waveshare.MODELS.items():
         assert ws[name][5] == ("yes" if info.tested else "no"), name
         assert ws[name][2] == f"{info.width} × {info.height}", name
+
+
+def test_a_missing_place_for_a_table_stops_the_build():
+    with pytest.raises(ValueError, match="not working"):
+        manual.fill_screens("<!-- made from epdlib: it8951 models -->")
 
 
 def test_waveshare_models_are_listed_tested_first_then_by_size():

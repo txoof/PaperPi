@@ -147,7 +147,7 @@ type = "waveshare"
 model = "epd7in5_V2"
 ```
 
-If the screen doesn't answer at start, the error is in the log, and PaperPi keeps running and tries again. More about the screens: epdlib's [IT8951 guide](https://github.com/txoof/epdlib/blob/main/docs/it8951.md) and [Waveshare screens](waveshare-screens.md).
+If the screen doesn't answer at start, the error is in the log, and PaperPi keeps running and tries again. More about the screens: epdlib's [IT8951 guide](https://github.com/txoof/epdlib/blob/main/docs/it8951.md) and [Supported screens](screens.md).
 
 To try how PaperPi handles plugins that crash, hang or come and go, add the `debugging` plugin: it does all of these on purpose. How the plugins take turns: [Understanding Plugin Schedules](take-turns.md).
 

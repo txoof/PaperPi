@@ -1,8 +1,9 @@
 """MkDocs hooks (see "hooks" in mkdocs.yml): add the pages made from PaperPi's code.
 
 The pages themselves are written by ``paperpi.manual``; this file only hands them to MkDocs:
-the settings reference, the supported screens, the list of plugins and a page per plugin
-(added to the "Plugins" part of the menu), and the pictures they show.
+the settings reference, the list of plugins and a page per plugin (added to the "Plugins"
+part of the menu), and the pictures they show. It also fills the tables of screens into
+docs/screens.md, and keeps the address of the old Waveshare screens page working.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ ROOT = Path(__file__).parent
 
 def on_files(files: Files, config) -> Files:
     types = plugins.available()
-    pages = {"settings.md": manual.settings_page(), "screens.md": manual.screens_page()}
+    pages = {"settings.md": manual.settings_page()}
     pages["plugins/index.md"], used = manual.plugins_page(types, ROOT)
     for plugin_type in types:
         pages[f"plugins/{plugin_type}.md"], shown = manual.plugin_page(plugin_type, types, ROOT)
@@ -45,4 +46,18 @@ def on_nav(nav: Navigation, config, files: Files) -> Navigation:
 
 
 def on_page_markdown(markdown: str, page, config, files: Files) -> str:
+    if page.file.src_uri == "screens.md":
+        markdown = manual.fill_screens(markdown)
     return manual.site_links(markdown, page.file.src_uri, (f.src_uri for f in files))
+
+
+def on_post_build(config) -> None:
+    # The Waveshare screens page is now part of Supported screens; the web interface of
+    # PaperPi 2.0.0a1 still links to its old address.
+    old = Path(config["site_dir"]) / "waveshare-screens" / "index.html"
+    old.parent.mkdir(exist_ok=True)
+    old.write_text(
+        '<!doctype html><meta charset="utf-8"><title>Supported screens</title>'
+        '<meta http-equiv="refresh" content="0; url=../screens/#waveshare">'
+        '<a href="../screens/#waveshare">Supported screens</a>\n'
+    )
