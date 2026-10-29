@@ -36,7 +36,9 @@ Then open the web interface at the address the screen shows: [First setup](first
 
 **For developers**
 
-- [Running from source](development.md), [Writing plugins](writing-plugins.md), [Making a release](releasing.md).
+- [Running from source](development.md): working on PaperPi's code, or trying it without installing it.
+- [Writing a plugin](writing-plugins.md), step by step from `paperpi new-plugin`, and the [Plugin reference](plugin-reference.md) with the exact rules.
+- [Making a release](releasing.md).
 
 ## Version 1
 

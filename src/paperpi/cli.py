@@ -16,6 +16,8 @@
   check uses it.
 - ``paperpi reload`` tells the running ``paperpi run`` to apply changes to the config file,
   and prints what changed, or the mistake that stops it (:mod:`paperpi.reload`).
+- ``paperpi new-plugin <type>`` starts a new plugin from the template
+  (:mod:`paperpi.newplugin`).
 
 Run ``paperpi <command> --help`` for all options.
 """
@@ -35,7 +37,18 @@ from pathlib import Path
 from epdlib import ScreenMode
 from pydantic import ValidationError
 
-from . import __version__, config, example, health, limits, logbook, plugins, reload, storage
+from . import (
+    __version__,
+    config,
+    example,
+    health,
+    limits,
+    logbook,
+    newplugin,
+    plugins,
+    reload,
+    storage,
+)
 from .files import write_atomic
 from .plugin import Context, Plugin, PluginSettings, State
 from .runner import PluginFailed, run_update
@@ -192,6 +205,19 @@ def _parser() -> argparse.ArgumentParser:
         help="keep the example's fixed plugin IDs (to make paperpi.example.toml again)",
     )
     sample.set_defaults(command=_example_config)
+
+    new = commands.add_parser(
+        "new-plugin",
+        help="start a new plugin from the template",
+        description=(
+            "Make the folder of a new plugin in src/paperpi/plugins/ from PaperPi's template: "
+            "a small working plugin that shows a greeting and today's date. Then change it "
+            "into your own plugin: https://txoof.github.io/PaperPi/writing-plugins/"
+        ),
+    )
+    new.add_argument("type", help="the plugin's type: lowercase letters, digits and _")
+    new.add_argument("--title", help="its name in the web interface (default: from the type)")
+    new.set_defaults(command=_new_plugin)
 
     check = commands.add_parser(
         "health",
@@ -587,6 +613,16 @@ def _example_config(args: argparse.Namespace) -> int:
         print(f"paperpi: {error}", file=sys.stderr)
         return 1
     print(f"saved {args.output}")
+    return 0
+
+
+def _new_plugin(args: argparse.Namespace) -> int:
+    try:
+        folder = newplugin.new_plugin(args.type, title=args.title)
+    except newplugin.NewPluginError as error:
+        raise UsageError(str(error)) from None
+    print(f"made {folder}")
+    print(f"try it: uv run paperpi render {args.type}")
     return 0
 
 

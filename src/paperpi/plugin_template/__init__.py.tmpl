@@ -1,0 +1,46 @@
+"""$type: a greeting and today's date. Made by "paperpi new-plugin": change it into your own
+plugin (see https://txoof.github.io/PaperPi/writing-plugins/)."""
+
+from datetime import date
+
+from pydantic import Field
+
+from paperpi.plugin import Context, Plugin, PluginSettings, ready
+
+from .layouts import LAYOUTS
+
+
+class Settings(PluginSettings):
+    """The plugin's own settings. Each one has a default and a help text (description),
+    which the web interface shows next to its field."""
+
+    greeting: str = Field("Hello", max_length=60, description="The text shown on the screen")
+
+
+def fetch(context: Context):
+    """Get the data to show. A plugin that downloads something does it here."""
+    return ready(date.today())
+
+
+def draw(today: date, context: Context) -> dict:
+    """Turn the data into a text for each block of the layout (context.layout says which
+    layout is drawn; only greeting_date has a date block)."""
+    values = {"greeting": context.settings.greeting}
+    if context.layout == "greeting_date":
+        values["date"] = f"{today:%A} {today.day} {today:%B}"
+    return values
+
+
+PLUGIN = Plugin(
+    type="$type",
+    title="$title",
+    description="A greeting and today's date.",
+    settings=Settings,
+    layouts=LAYOUTS,
+    layout_titles={"greeting_date": "Greeting and date", "greeting": "Greeting only"},
+    fetch=fetch,
+    draw=draw,
+    # Drawn for tests, sample pictures and the Plugin Library, instead of fetch's data.
+    sample=date(2026, 10, 5),
+    refresh=3600,
+)

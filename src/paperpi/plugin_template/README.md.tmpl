@@ -1,0 +1,29 @@
+# $type
+
+Shows a greeting and today's date. It needs no network.
+
+## Layouts
+
+| Layout | Shows |
+|---|---|
+| `greeting_date` (default) | the greeting, with the date below it |
+| `greeting` | the greeting only, as large as fits |
+
+## Settings
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `greeting` | `Hello` | The text shown on the screen |
+
+It suggests a refresh every hour.
+
+In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
+
+```toml
+[[plugin]]
+id = "$type-1a2b3c4d"
+type = "$type"
+greeting = "Good morning"
+```
+
+Try it without a screen: `uv run paperpi render $type`.
