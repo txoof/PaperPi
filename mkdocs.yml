@@ -49,6 +49,8 @@ hooks:
 markdown_extensions:
   - admonition
   - attr_list
+  # Lets Markdown be used inside HTML blocks, such as the picture grid on the home page.
+  - md_in_html
   - tables
   - toc:
       permalink: true
