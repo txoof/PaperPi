@@ -95,3 +95,4 @@ nav:
       - How PaperPi works:
           - The config file: specs/config.md
           - Which plugin is shown: specs/scheduling.md
+          - Plugins and setting helpers: specs/plugins.md
