@@ -68,9 +68,9 @@ comic = "newest"
 max_width = 1000
 ```
 
-## Licence of the comics
+## License of the comics
 
-The comics are Randall Munroe's work, under the [Creative Commons Attribution-NonCommercial 2.5](https://creativecommons.org/licenses/by-nc/2.5/) licence (see [xkcd.com/license.html](https://xkcd.com/license.html)): they may be shared with credit, but not sold. The sample comic, [`sample/think_logically.png`](sample/think_logically.png) (xkcd 1112, "Think Logically"), and the sample images made from it are under that license, not PaperPi's; see [`sample/LICENSE`](sample/LICENSE).
+The comics are Randall Munroe's work, under the [Creative Commons Attribution-NonCommercial 2.5](https://creativecommons.org/licenses/by-nc/2.5/) license (see [xkcd.com/license.html](https://xkcd.com/license.html)): they may be shared with credit, but not sold. The sample comic, [`sample/think_logically.png`](sample/think_logically.png) (xkcd 1112, "Think Logically"), and the sample images made from it are under that license, not PaperPi's; see [`sample/LICENSE`](sample/LICENSE).
 
 ## For developers
 

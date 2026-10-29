@@ -16,7 +16,7 @@ This plugin takes its turn with the other plugins using the `rotation` display l
 
 | Layout                 | Shows                                                          |
 | ---------------------- | -------------------------------------------------------------- |
-| `words_time` (default) | the sentence, large, with the time small underneath ("20:21") |
+| `words_time` (default) | the sentence, large, with the time small underneath ("20:21")  |
 | `words`                | the sentence only                                              |
 
 | `words_time` | `words` | `words_time`, yellow on blue, color screen |
@@ -25,7 +25,7 @@ This plugin takes its turn with the other plugins using the `rotation` display l
 
 The font is [Anton](https://fonts.google.com/specimen/Anton).
 
-## colors
+## Colors
 
 The colors are used as they are on color screens. On gray and black-and-white screens each color becomes black or white, whichever is closer (yellow becomes white, blue black).
 
@@ -37,8 +37,8 @@ Note: if both colors would look the same, the clock uses white on black and writ
 
 | Setting            | Default   | Meaning                                                                                       |
 | ------------------ | --------- | --------------------------------------------------------------------------------------------- |
-| `text_color`       | `"white"` | color of the text: `red`, `orange`, `yellow`, `green`, `blue`, `black`, `white`, or `random` |
-| `background_color` | `"black"` | color of the background, same choices                                                        |
+| `text_color`       | `"white"` | color of the text: `red`, `orange`, `yellow`, `green`, `blue`, `black`, `white`, or `random`  |
+| `background_color` | `"black"` | color of the background, same choices                                                         |
 
 The plugin asks for a new picture every 60 seconds, just after the minute changes, unless you change `refresh`. Each update moves the text, so the screen is written once a minute while the clock is shown.
 

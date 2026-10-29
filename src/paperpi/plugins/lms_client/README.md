@@ -43,9 +43,9 @@ While actively playing, the plugin takes over the screen. When the player stops 
 |---|---|---|
 | ![two_column_three_row](../../../../tests/images/lms_client-two_column_three_row-9in7.png) | ![album_art_title](../../../../tests/images/lms_client-album_art_title-9in7.png) | ![cover_art_only](../../../../tests/images/lms_client-cover_art_only-9in7.png) |
 
-| `two_rows_text_only` | `three_rows_text_only` | `album_art_title` on a colour screen |
+| `two_rows_text_only` | `three_rows_text_only` | `album_art_title` on a color screen |
 |---|---|---|
-| ![two_rows_text_only](../../../../tests/images/lms_client-two_rows_text_only-9in7.png) | ![three_rows_text_only](../../../../tests/images/lms_client-three_rows_text_only-9in7.png) | ![colour](../../../../tests/images/lms_client-album_art_title-5in65.png) |
+| ![two_rows_text_only](../../../../tests/images/lms_client-two_rows_text_only-9in7.png) | ![three_rows_text_only](../../../../tests/images/lms_client-three_rows_text_only-9in7.png) | ![color](../../../../tests/images/lms_client-album_art_title-5in65.png) |
 
 Long titles are drawn smaller; text that still doesn't fit ends with "…". Titles are in [Oswald](https://fonts.google.com/specimen/Oswald), the artist and album in [Montserrat](https://fonts.google.com/specimen/Montserrat) SemiBold, as in PaperPi v1. The layouts are the same as the [Spotify](../librespot_client/README.md) plugin's.
 
