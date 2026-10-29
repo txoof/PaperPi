@@ -6,7 +6,8 @@
   its default and help text, from the same descriptions as ``paperpi example-config``.
 - :func:`plugin_page`: one page per plugin: its README, with links made to work on the site,
   and a table of its settings. :func:`plugins_page` lists them with a picture each.
-- :func:`screens_page`: every screen epdlib can drive.
+- :func:`fill_screens`: fills the tables of every screen epdlib can drive into the
+  Supported screens page (``docs/screens.md``, written by hand).
 
 Pictures in the READMEs are the image tests' reference images (``tests/images/``), which CI
 checks against the plugins' drawing, so they always show what the plugin draws now.
@@ -176,8 +177,8 @@ def plugins_page(types: Iterable[str], root: Path) -> tuple[str, set[str]]:
     )
 
 
-def screens_page() -> str:
-    """Every screen epdlib can drive, made from epdlib's lists of models."""
+def screen_parts() -> dict[str, str]:
+    """The parts of the Supported screens page made from epdlib's lists of models."""
     it_rows = [
         "| `model =` | Size (pixels) | Shows | Fast writes | Tested |",
         "|---|---|---|---|---|",
@@ -199,38 +200,22 @@ def screens_page() -> str:
             f"| {name.removeprefix('epd')} | `{name}` | {info.width} × {info.height} | {shows} "
             f"| {_yes(info.fast_refresh)} | {_yes(info.tested)} |"
         )
-    virtual = ", ".join(f"`{m}`" for m in MODES)
-    return f"""\
-# Supported screens
+    return {
+        "it8951 models": "\n".join(it_rows),
+        "not working": _not_working(),
+        "waveshare models": "\n".join(ws_rows),
+        "virtual modes": ", ".join(f"`{m}`" for m in MODES),
+    }
 
-PaperPi draws for three kinds of screen, set with `type` in `[display]` (see the
-[settings reference](settings.md#display)). The web interface's **Screen & system** page
-and the installer offer the same list. This page is made from epdlib's lists of models, so
-it always matches the installed version.
 
-## IT8951 screens {{ #it8951 }}
-
-`type = "it8951"`: Waveshare's larger screens with the IT8951 board. `model` is the size
-in inches. `vcom` is required too: the voltage printed on the screen's ribbon cable.
-
-{chr(10).join(it_rows)}
-
-## Waveshare's small screens {{ #waveshare }}
-
-`type = "waveshare"`: the screens on Waveshare's e-Paper HAT, without an IT8951 board. How
-to set them up, and what to know about each kind: [Waveshare screens](waveshare-screens.md).
-Three-colour screens (with "B" or "C" in the name) show only black and white for now.
-
-Tested ones first, then by size. The name is Waveshare's: `7in5_V2` is the 7.5 inch screen,
-version 2. The config file uses the whole name of Waveshare's file (`model =`).
-{_not_working()}
-{chr(10).join(ws_rows)}
-
-## Virtual screen {{ #virtual }}
-
-`type = "virtual"`: no screen; every picture is saved as a PNG file. Any `width` and
-`height`, and a `mode`: {virtual}. Without them it is like the 9.7" IT8951 screen.
-"""
+def fill_screens(markdown: str) -> str:
+    """docs/screens.md with each ``<!-- made from epdlib: <part> -->`` filled in."""
+    for name, text in screen_parts().items():
+        marker = f"<!-- made from epdlib: {name} -->"
+        if marker not in markdown:
+            raise ValueError(f"docs/screens.md has no {marker}")
+        markdown = markdown.replace(marker, text)
+    return markdown
 
 
 def waveshare_models() -> list[tuple[str, Any]]:
@@ -332,6 +317,6 @@ def _yes(value: bool) -> str:
 def _not_working() -> str:
     broken = sorted(waveshare.NOT_WORKING)
     if not broken:
-        return ""
+        return "- **Not working:** none known."
     names = ", ".join(f"`{n}`" for n in broken)
-    return f"\nNot working, so PaperPi refuses them: {names}.\n"
+    return f"- **Not working, so PaperPi refuses them:** {names}."

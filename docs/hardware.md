@@ -53,7 +53,7 @@ The IT8951 board leaves the other pins free, so a HiFiBerry sound card can be us
 2. Set the HAT's two small switches: **Display Config** to **B** for most screens and **Interface Config** to **0**. Check the Waveshare documentation for your board.
 3. Plug the HAT onto the Pi's 40 pins, or use jumper wires, pin by pin as in the picture below.
 
-See the full [Waveshare screens](waveshare-screens.md) documentation.
+More about these screens, such as which are tested: [Supported screens](screens.md#waveshare).
 
 ![The Pi's 40 pins; highlighted: the pins the e-Paper HAT uses](images/pins-waveshare.svg)
 

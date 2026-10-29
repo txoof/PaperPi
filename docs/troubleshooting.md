@@ -25,7 +25,7 @@ sudo systemctl start paperpi
 - Check that the screen type and model on **Screen & system** match your screen. **Change screen…** fixes them.
 - Check that SPI is switched on: `ls /dev/spidev0.0` must show that file. If not, run `sudo raspi-config nonint do_spi 0` and restart the Pi.
 - A small screen on the e-Paper HAT: check the HAT's **Display Config** switch (**B** for most screens) and **Interface Config** (**0**).
-- A HiFiBerry sound card on the same Pi as the e-Paper HAT doesn't work: both need GPIO 18 ([more](waveshare-screens.md#gpio-18-and-hifiberry-sound-cards)).
+- A HiFiBerry sound card on the same Pi as the e-Paper HAT doesn't work: both need GPIO 18 ([more](screens.md#gpio-18-and-hifiberry-sound-cards)).
 
 When the screen stops answering while PaperPi runs, PaperPi pauses writing to it and tries again, with longer waits each time. **Try again now** on the Warnings page tries at once.
 

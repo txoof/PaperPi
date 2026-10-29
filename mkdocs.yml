@@ -82,7 +82,6 @@ nav:
   - Reference:
       - Settings reference: settings.md
       - Supported screens: screens.md
-      - Waveshare screens: waveshare-screens.md
       - How the service works: install-systemd.md
   - For developers:
       - Running from source: development.md
