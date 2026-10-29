@@ -117,12 +117,16 @@ To get started, copy and paste the following command into a terminal window on y
 
 **Stable**
 
-`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"`
+```
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh)"
+```
 
 
 **Development**
 
-`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | /bin/bash -s -- -b development`
+```
+curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | /bin/bash -s -- -b development
+```
 
 **Self Install**
 
@@ -132,7 +136,9 @@ If you would rather install PaperPi yourself without running a remote script, [c
 
 If you would like to remote install from a different remote branch, use:
 
-`curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME`
+```
+curl -fsSL https://raw.githubusercontent.com/txoof/PaperPi/main/install/remote_install.sh | bash -s -- -b REPLACE_WITH_BRANCH_NAME
+```
 
 
 ### Setup
@@ -143,11 +149,15 @@ The installer should prompt you to edit `/etc/default/paperpi.ini`. At minimum y
 
 Any changes to the PaperPi configuration require a restart of the service:
 
-`sudo systemctl restart paperpi-daemon.service`
+```
+sudo systemctl restart paperpi-daemon.service
+```
 
 To disable the service from starting on boot, run the command:
 
-`sudo systemctl disable paperpi-daemon.service`
+```
+sudo systemctl disable paperpi-daemon.service
+```
 
 **On Demand**
 
@@ -192,7 +202,7 @@ Most plugins should have a maximum priority of 2. This is the default level for 
 
 ### Uninstall
 
-To uninstall PaperPi, run `/usr/bin/local/paperpi/install.sh` with either `-u` to uninstall or `-p` to uninstall and remove all configuration files.
+To uninstall PaperPi, run `/usr/local/paperpi/install.sh` with either `-u` to uninstall or `-p` to uninstall and remove all configuration files.
 
 ## Command Reference
 
