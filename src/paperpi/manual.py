@@ -41,6 +41,8 @@ OWN = ("default", "debugging")
 #: Where pictures from the repository go on the site: ``files/<path in the repository>``.
 FILES = "files/"
 _PICTURE = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
+#: A line that is only a picture: ``![text](target)``.
+_PREVIEW = re.compile(r"^(!\[[^\]]*\]\([^)\s]+\))[ \t]*$", re.MULTILINE)
 #: The target of a Markdown link or picture: ``](target)``.
 _TARGET = re.compile(r"\]\(([^)\s]+)\)")
 #: Help text written for the config file (where the suggestion is a comment below the
@@ -144,9 +146,13 @@ def plugin_page(plugin_type: str, types: Iterable[str], root: Path) -> tuple[str
     title = f"# {plugin.shown_title}" if first.startswith("# ") else first
     facts = f"Type `{plugin.type}` · needs {_NETWORK[plugin.network]}"
     if plugin.setup:
-        facts += f" · set up first: {plugin.setup}"
+        facts += f" · set up first: {plugin.setup.rstrip('.')}"
     table = _plugin_settings(plugin)
     head, sample, tail = rest.partition("\n## Sample images")
+    # A picture on its own line before the first section is the plugin's preview.
+    intro, heading, sections = head.partition("\n## ")
+    intro = _PREVIEW.sub(r"\1{ .preview }", intro, count=1)
+    head = intro + heading + sections
     body = f"{head.rstrip()}\n\n{table}\n## Sample images{tail}" if sample else f"{rest}\n{table}"
     return f"{title}\n\n{facts}.\n{body.rstrip()}\n", used
 

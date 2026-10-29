@@ -1,36 +1,50 @@
 # newyorker
 
-A random cartoon from [The New Yorker](https://www.newyorker.com)'s Daily Cartoon, with its caption, the cartoonist's name and the day it came out.
+Shows a random cartoon from [The New Yorker](https://www.newyorker.com)'s Daily Cartoon, with its caption, the cartoonist's name and the day it came out.
 
-At each update the plugin downloads the Daily Cartoon feed (an RSS file: a small list of the newest cartoons, about 10, each with a title, date, cartoonist, picture and page), `https://www.newyorker.com/feed/cartoons/daily-cartoon`. It picks a random cartoon from the newest `day_range` ones, so with `day_range = 1` it always shows the newest. The feed has a cartoon for most weekdays, so `day_range = 5` is about the last week.
+This plugin takes its turn with the other plugins using the `rotation` display level. It needs the internet, but no setup.
 
-The feed doesn't have the captions, so for each new cartoon the plugin also downloads the cartoon's page on newyorker.com (about 800 kB) and reads the caption and "Cartoon by ..." from it. Some cartoons have their words inside the picture and no caption on the page: then only "Cartoon by ..." is shown, and the caption line stays empty. When the page has changed (neither can be found, or the "caption" is longer than 400 characters, so it can't be one), the cartoon's title and cartoonist from the feed are shown instead ("Monday, October 5th · Chris Gural"). When the page can't be downloaded, the title and cartoonist are shown and the page is tried again at the next update.
+![The plugin's default layout on the 9.7" screen: a cartoon with its caption below, and the date and cartoonist on the bottom line](../../../../tests/images/newyorker-comic_caption_date-9in7.png)
 
-The picture (a JPEG file of about 400 kB) and the texts are saved in the plugin's storage folder, so each cartoon is downloaded only once. The saved files of cartoons that are no longer among the newest `day_range` are removed, so the folder holds at most `day_range` cartoons. When the disk is nearly full, new cartoons are shown without being saved.
+## Set it up
 
-When no new cartoon can be had (the feed or the picture can't be downloaded or read), a random saved cartoon is shown. If none is saved, the update fails, and PaperPi tries again at the next update. To leave time for this within the update's time limit (60 s unless you change it), the downloads have shorter time limits than usual: 20 s for the feed, 15 s for the picture and 10 s for the page. Pictures and pages larger than 2 MB, and pictures larger than 4000 x 4000 pixels, are refused.
+1. In the PaperPi web interface, open the **Plugin Library** and add **New Yorker cartoon**.
+2. Optionally, set `day_range` to `1` on its settings page to always show the newest cartoon.
+3. Save.
 
-Everything is downloaded only from newyorker.com and its servers (such as `media.newyorker.com`), over https, also after a redirect. Only JPEG and PNG pictures are used.
+## Which cartoon is shown
+
+At each update the plugin picks a random cartoon from the newest `day_range` ones. The Daily Cartoon has a cartoon for most weekdays, so the default `day_range = 5` is about the last week.
+
+Note: some cartoons have their words inside the picture and no caption: then only "Cartoon by ..." is shown.
 
 ## Layouts
 
-| Layout | Shows |
-|---|---|
-| `comic_caption_date` (default) | the cartoon, its caption on up to 3 lines, and a line with the date (left) and the cartoonist (right) |
-| `comic_caption` | the cartoon, its caption and the cartoonist |
-| `comic_only` | only the cartoon |
+| Layout                         | Shows                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| `comic_caption_date` (default) | the cartoon, its caption on up to 3 lines, and the date and the cartoonist    |
+| `comic_caption`                | the cartoon, its caption and the cartoonist                                   |
+| `comic_only`                   | only the cartoon                                                              |
 
-The caption is in Libre Caslon Text, as in v1, the date in Anton and the cartoonist in Lato Italic. Long captions are drawn smaller; text that still doesn't fit ends with "…". The fonts are [Libre Caslon Text](https://fonts.google.com/specimen/Libre+Caslon+Text) by The Libre Caslon Text Project Authors, [Anton](https://fonts.google.com/specimen/Anton) by The Anton Project Authors and [Lato](https://fonts.google.com/specimen/Lato) by Łukasz Dziedzic, all under the SIL Open Font License ([`fonts/LibreCaslonText-OFL.txt`](../../fonts/LibreCaslonText-OFL.txt), [`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt), [`fonts/Lato-OFL.txt`](../../fonts/Lato-OFL.txt)).
+| `comic_caption_date` | `comic_caption` | `comic_only` |
+|---|---|---|
+| ![comic_caption_date](../../../../tests/images/newyorker-comic_caption_date-9in7.png) | ![comic_caption](../../../../tests/images/newyorker-comic_caption-9in7.png) | ![comic_only](../../../../tests/images/newyorker-comic_only-9in7.png) |
+
+Long captions are drawn smaller; text that still doesn't fit ends with "…". The caption is in [Libre Caslon Text](https://fonts.google.com/specimen/Libre+Caslon+Text), as in v1.
+
+## When something is wrong
+
+When no new cartoon can be downloaded, the plugin shows a random cartoon it saved earlier. If none is saved, the plugin's card on the web interface's home page shows the error, and PaperPi tries again at the next update ([Troubleshooting](https://txoof.github.io/PaperPi/troubleshooting/)).
 
 ## Settings
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `day_range` | `5` | pick a random cartoon from this many of the newest ones (1 to 20; 1: always the newest) |
+| Setting     | Default | Meaning                                                                                   |
+| ----------- | ------- | ----------------------------------------------------------------------------------------- |
+| `day_range` | `5`     | pick a random cartoon from this many of the newest ones (1 to 20; 1: always the newest)   |
 
-It suggests a refresh every hour.
+The plugin asks for a new cartoon every hour unless you change `refresh`.
 
-In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
+### Configuration Keys
 
 ```toml
 [[plugin]]
@@ -41,16 +55,14 @@ layout = "comic_caption"   # optional; without it: comic_caption_date
 day_range = 1
 ```
 
-Try it without a screen: `uv run paperpi render newyorker` (sample cartoon), or with a cartoon from the feed: `uv run paperpi render newyorker --live`.
+## Credits
 
-## The cartoons
+The cartoons and captions belong to The New Yorker and their cartoonists (© Condé Nast). PaperPi only downloads them to show on your own screen and does not share them. The sample cartoon, [`sample/therapist.png`](sample/therapist.png), its caption and its cartoonist ("Chatwell Gilbert Pennington Thurston (C.G.P.T.)") are made up: the drawing was made for PaperPi with an AI image tool and is under PaperPi's license.
 
-The cartoons and captions belong to The New Yorker and their cartoonists (© Condé Nast). PaperPi only downloads them to show on your own screen and does not share them. The sample cartoon, [`sample/therapist.png`](sample/therapist.png), its caption and its cartoonist ("Chatwell Gilbert Pennington Thurston (C.G.P.T.)") are made up: the drawing was made for PaperPi with an AI image tool and is under PaperPi's licence. It is stored in 16 shades of gray (the most a PaperPi screen shows), which keeps the file small.
+## For developers
 
-## Sample images
+At each update the plugin downloads the Daily Cartoon feed (an RSS file with the newest cartoons, about 10), `https://www.newyorker.com/feed/cartoons/daily-cartoon`. The feed doesn't have the captions, so for each new cartoon the plugin also downloads the cartoon's page on newyorker.com (about 800 kB) and reads the caption and "Cartoon by ..." from it. When the page has changed (neither can be found, or the "caption" is longer than 400 characters), the cartoon's title and cartoonist from the feed are shown instead ("Monday, October 5th · Chris Gural"). When the page can't be downloaded, it is tried again at the next update.
 
-All sample images are in [`tests/images/`](../../../../tests/images/), named `newyorker-<layout>-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours).
+The picture (a JPEG file of about 400 kB) and the texts are saved in the plugin's storage folder, so each cartoon is downloaded only once; the folder holds at most `day_range` cartoons. When the disk is nearly full, new cartoons are shown without being saved. The downloads have shorter time limits than usual (20 s for the feed, 15 s for the picture, 10 s for the page), so a saved cartoon can still be shown within the update's 60 s. Pictures and pages larger than 2 MB, and pictures larger than 4000 x 4000 pixels, are refused. Everything is downloaded only from newyorker.com and its servers, over https, also after a redirect. Only JPEG and PNG pictures are used.
 
-| `comic_caption_date`, 9.7" | `comic_caption`, 9.7" | `comic_only`, 9.7" |
-|---|---|---|
-| ![comic_caption_date](../../../../tests/images/newyorker-comic_caption_date-9in7.png) | ![comic_caption](../../../../tests/images/newyorker-comic_caption-9in7.png) | ![comic_only](../../../../tests/images/newyorker-comic_only-9in7.png) |
+Try it without a screen: `uv run paperpi render newyorker` (sample cartoon), or with a cartoon from the feed: `uv run paperpi render newyorker --live`. The sample cartoon is stored in 16 shades of gray, which keeps the file small. The date is in Anton and the cartoonist in Lato Italic. The fonts are under the SIL Open Font License ([`fonts/LibreCaslonText-OFL.txt`](../../fonts/LibreCaslonText-OFL.txt), [`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt), [`fonts/Lato-OFL.txt`](../../fonts/Lato-OFL.txt)).

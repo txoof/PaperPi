@@ -1,0 +1,9 @@
+/* The picture at the top of a plugin's page (manual.plugin_page marks it): the size of a
+   screen on a desk, not the width of the page, with a thin frame like the screen's edge. */
+.md-typeset img.preview {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  border: 1px solid var(--md-default-fg-color--lighter);
+}

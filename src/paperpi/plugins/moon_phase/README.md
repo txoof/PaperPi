@@ -1,41 +1,51 @@
 # moon_phase
 
-Today's moon: a picture of its phase, the name of the phase ("Waning Crescent"), and the times it rises and sets at your place. White on black, like the night sky.
+Shows today's moon: a picture of its phase, the name of the phase, and the times it rises and sets at your location. White on black, like the night sky.
 
-The data comes from [met.no](https://api.met.no/) (the Norwegian Meteorological Institute), from its free [sunrise service](https://docs.api.met.no/doc/sunrise/celestial.html), which works for places all over the world. Times are shown in the Pi's own time zone.
+This plugin takes its turn with the other plugins using the `rotation` display level. It needs the internet, your location and your email address.
 
-## The picture
+![The plugin's default layout on the 9.7" screen: a waning crescent moon, moonrise and moonset times on top, the phase name below](../../../../tests/images/moon_phase-moon_data-9in7.png)
 
-The picture is one of 201 pictures of the moon made by NASA's Scientific Visualization Studio ([SVS 4955](https://svs.gsfc.nasa.gov/4955), "Moon Phase and Libration, 2022"). They are not photographs: a computer made them from the measurements of NASA's Lunar Reconnaissance Orbiter, a spacecraft that has mapped the moon's surface since 2009. There is one for every 1.8° of the phase, from the first full lunar month of 2022 (2 January to 1 February). The plugin shows the picture whose phase is nearest to today's (exactly halfway between two, the later one). The pictures show the moon as seen from the northern half of the earth. South of the equator (`lat` below 0) the moon looks upside down, so the picture is turned by 180°.
+## Set it up
 
-The phase is met.no's phase angle, in degrees: 0 is new moon, 90 first quarter, 180 full moon, 270 last quarter. New moon, the quarters and full moon are moments; their name is shown for about a day around them (6° on each side). In between, the names are Waxing Crescent, Waxing Gibbous, Waning Gibbous and Waning Crescent. Waxing means the lit part grows from day to day (from new moon to full moon), waning that it shrinks again. Crescent means less than half of the moon is lit, gibbous more than half.
+1. In the PaperPi web interface, open the **Plugin Library** and add **Moon phase**.
+2. On its settings page, type the name of your town or city just above `lat` (e.g. `Addis Ababa`) and press **Search**.
+3. Press **Use** next to the right place. That fills in the `lat` and `lon` settings.
+4. Fill in your `email`.
+5. Save.
 
-On a day the moon doesn't rise or set (this happens about once a month, because the moon rises about 50 minutes later every day), the time shows "none".
-
-## How often it asks met.no
-
-met.no gives one answer per place and day. The plugin saves it in its storage folder (PaperPi's own folder for this plugin's files, `/var/lib/paperpi/plugins/<id>/`, where `<id>` is made from the plugin's `id` in the config file: `id = "moon_phase-0df54c14"` gives `moon-phase-0df54c14`) and asks again only on the next day, or after a change of `lat` or `lon`. If met.no can't be reached, the update fails as usual and PaperPi tries again at the next update. It sends your email address (only to met.no) as contact and rounds the coordinates to 4 decimals, as met.no's [terms of service](https://api.met.no/doc/TermsOfService) ask.
+Note: the email address is sent only to met.no, whose terms of service require contact details from every program that uses its data.
 
 ## Layouts
 
-| Layout | Shows |
-|---|---|
-| `moon_data` (default) | moonrise and moonset on top, the moon, the name of the phase, and "Data: MET Norway · Image: NASA SVS" small at the bottom |
-| `moon_only` | the moon only, as large as fits |
+| Layout                | Shows                                                                         |
+| --------------------- | ----------------------------------------------------------------------------- |
+| `moon_data` (default) | moonrise and moonset on top, the moon, the name of the phase, and the credits |
+| `moon_only`           | the moon only, as large as fits                                               |
+
+| `moon_data` | `moon_only` | `moon_data`, south of the equator | `moon_data`, 7.5" black and white |
+|---|---|---|---|
+| ![moon_data](../../../../tests/images/moon_phase-moon_data-9in7.png) | ![moon_only](../../../../tests/images/moon_phase-moon_only-9in7.png) | ![moon_data, Rio](../../../../tests/images/moon_phase-moon_data-rio-9in7.png) | ![moon_data, 7.5"](../../../../tests/images/moon_phase-moon_data-7in5.png) |
+
+Note: south of the equator the moon looks upside down, so the picture is turned for you.
+
+On a day the moon doesn't rise or set (about once a month), the time shows "none". Times are shown in the Pi's own time zone.
+
+## When something is wrong
+
+When met.no can't be reached, the plugin's card on the web interface's home page shows the error, and PaperPi tries again at the next update. After 3 failures in a row the plugin is paused for 30 minutes and the Warnings page shows it too ([Troubleshooting](https://txoof.github.io/PaperPi/troubleshooting/)). If `lat`, `lon` or `email` is missing, the plugin is not shown.
 
 ## Settings
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `lat` | none, required | latitude of the place, e.g. `52.52` |
-| `lon` | none, required | longitude of the place, e.g. `13.40` |
-| `email` | none, required | your own, real email address, sent only to met.no. met.no's terms of service require contact details from every program, so it can ask before blocking one that misbehaves |
+| Setting | Default        | Meaning                                                    |
+| ------- | -------------- | ---------------------------------------------------------- |
+| `lat`   | none, required | latitude of the place, e.g. `52.52`                        |
+| `lon`   | none, required | longitude of the place, e.g. `13.40`                       |
+| `email` | none, required | your own, real email address, sent only to met.no          |
 
-You don't have to look up `lat` and `lon` yourself: on the plugin's settings page in the web interface, type the name of a town or city just above `lat` (e.g. `Addis Ababa`, or `Morrison, Colorado` when several places share a name), press Search, and **Use** next to the right place fills in both (Save keeps them). The search sends only the typed name to [Open-Meteo](https://open-meteo.com/en/docs/geocoding-api) (place data from GeoNames).
+The plugin asks for a new picture every 20 minutes unless you change `refresh`. It asks met.no only once a day.
 
-It suggests a refresh every 20 minutes.
-
-In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
+### Configuration Keys
 
 ```toml
 [[plugin]]
@@ -48,14 +58,16 @@ email = "you@example.com"   # put your own, real address here
 layout = "moon_only"   # optional; without it: moon_data
 ```
 
-Try it without a screen: `uv run paperpi render moon_phase` (sample data), or with real data: `uv run paperpi render moon_phase --live --set lat=52.52 --set lon=13.40 --set email=you@example.com` (put your own address in place of `you@example.com`). If lat, lon or email is missing, the plugin is not shown; the config check and `paperpi list` say which one.
+## Credits
 
-The moon data is from [MET Norway](https://www.met.no/en), under the [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/) licence (CC BY 4.0): anyone may use the data, as long as they say where it came from. The `moon_data` layout shows "Data: MET Norway", as the licence asks. The moon pictures are by [NASA's Scientific Visualization Studio](https://svs.gsfc.nasa.gov/4955) (credit: NASA's Scientific Visualization Studio). NASA's pictures are generally not protected by copyright in the United States and may be used freely, as long as NASA is credited and the use does not suggest that NASA endorses PaperPi ([NASA's media usage guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)). They are the same files as in PaperPi v1. The font is Anton, under the SIL Open Font License ([`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt)), in PaperPi's shared fonts folder.
+The moon data is from [MET Norway](https://www.met.no/en), under the [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/) license (CC BY 4.0). The `moon_data` layout shows "Data: MET Norway", as the license asks.
 
-## Sample images
+The moon pictures are by [NASA's Scientific Visualization Studio](https://svs.gsfc.nasa.gov/4955) (credit: NASA's Scientific Visualization Studio). NASA's pictures are generally not protected by copyright in the United States and may be used freely, as long as NASA is credited and the use does not suggest that NASA endorses PaperPi ([NASA's media usage guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)).
 
-The sample data is met.no's real answer for Berlin on 6 October 2026: a waning crescent, rising at 01:38 and setting at 17:04. All sample images are in [`tests/images/`](../../../../tests/images/), named `moon_phase-<layout>[-rio]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours). `rio` has `lat` set to Rio de Janeiro's, so the picture is turned (the times are still the sample's, from Berlin).
+## For developers
 
-| `moon_data` | `moon_only` | `moon_data`, south of the equator | `moon_data`, 7.5" black and white |
-|---|---|---|---|
-| ![moon_data](../../../../tests/images/moon_phase-moon_data-9in7.png) | ![moon_only](../../../../tests/images/moon_phase-moon_only-9in7.png) | ![moon_data, Rio](../../../../tests/images/moon_phase-moon_data-rio-9in7.png) | ![moon_data, 7.5"](../../../../tests/images/moon_phase-moon_data-7in5.png) |
+The data comes from met.no's free [sunrise service](https://docs.api.met.no/doc/sunrise/celestial.html). met.no gives one answer per place and day; the plugin saves it in its storage folder (`/var/lib/paperpi/plugins/<id>/`) and asks again only on the next day, or after a change of `lat` or `lon`. It rounds the coordinates to 4 decimals, as met.no's [terms of service](https://api.met.no/doc/TermsOfService) ask. The place search sends only the typed name to [Open-Meteo](https://open-meteo.com/en/docs/geocoding-api) (place data from GeoNames).
+
+The pictures are 201 computer-made pictures from NASA SVS 4955 ("Moon Phase and Libration, 2022"), one for every 1.8° of the phase; the plugin shows the one nearest to today's phase angle (met.no's, in degrees: 0 new moon, 90 first quarter, 180 full moon, 270 last quarter). The names of new moon, the quarters and full moon are shown for 6° on each side. South of the equator (`lat` below 0) the picture is turned by 180°.
+
+Try it without a screen: `uv run paperpi render moon_phase` (sample data: met.no's real answer for Berlin on 6 October 2026), or with real data: `uv run paperpi render moon_phase --live --set lat=52.52 --set lon=13.40 --set email=you@example.com` (put your own address in place of `you@example.com`). The font is Anton, under the SIL Open Font License ([`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt)).
