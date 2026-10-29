@@ -49,6 +49,8 @@ hooks:
 markdown_extensions:
   - admonition
   - attr_list
+  # Lets Markdown be used inside HTML blocks, such as the picture grid on the home page.
+  - md_in_html
   - tables
   - toc:
       permalink: true
@@ -75,9 +77,9 @@ nav:
       - Understanding Plugin Schedules: take-turns.md
       - Troubleshooting: troubleshooting.md
       - What's New: changelog.md
+  - Plugins:
+      - plugins/index.md
   - Reference:
-      - Plugins:
-          - plugins/index.md
       - Settings reference: settings.md
       - Supported screens: screens.md
       - Waveshare screens: waveshare-screens.md

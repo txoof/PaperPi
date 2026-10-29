@@ -4,6 +4,28 @@ PaperPi is a lovely, quiet, slow internet e-Paper radio. No loud colors, no busy
 
 ![The Home page of PaperPi's web interface](images/web/home-light.png)
 
+## Plugins
+
+PaperPi supports a growing library of [plugins](plugins/index.md) that are configurable and customizable.
+
+<div class="grid cards" markdown>
+
+- [![Word clock](plugins/files/tests/images/word_clock-words_time-9in7.png)](plugins/word_clock.md)
+  [Word clock](plugins/word_clock.md)
+
+- [![Weather](plugins/files/tests/images/met_no-hours_12-9in7.png)](plugins/met_no.md)
+  [Weather](plugins/met_no.md)
+
+- [![Moon phase](plugins/files/tests/images/moon_phase-moon_data-9in7.png)](plugins/moon_phase.md)
+  [Moon phase](plugins/moon_phase.md)
+
+- [![xkcd](plugins/files/tests/images/xkcd_comic-comic_title_alttext-9in7.png)](plugins/xkcd_comic.md)
+  [xkcd](plugins/xkcd_comic.md)
+
+</div>
+
+See [all plugins](plugins/index.md).
+
 ## Install
 
 PaperPi runs great on a Raspberry Pi 3 or better!
@@ -40,9 +62,12 @@ Then open the web interface at the address the screen shows: [First Setup](first
 - [Troubleshooting](troubleshooting.md): Basic troubleshooting steps
 - [What's New](changelog.md): Changelog!
 
-**Reference**
+**Plugins**
 
 - [Plugins](plugins/index.md): Gallery of the plugins and their settings
+
+**Reference**
+
 - [Settings reference](settings.md): Config file reference
 - [Supported screens](screens.md): Complete list of Waveshare Screens and known issues
 - [How the service works](install-systemd.md): where the files are, the commands to check on PaperPi, and how systemd keeps it running
