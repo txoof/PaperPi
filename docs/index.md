@@ -4,6 +4,12 @@ PaperPi is a lovely, quiet, slow internet e-Paper radio. No loud colors, no busy
 
 ![The Home page of PaperPi's web interface](images/web/home-light.png)
 
+## Plugins
+
+PaperPi supports a growing library of [plugins](plugin-reference.md) that are configurable and customizable.
+
+<<EXAMPLE IMAGES HERE WITH LINKS TO PLUGINS>>
+
 ## Install
 
 PaperPi runs great on a Raspberry Pi 3 or better!
