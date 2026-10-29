@@ -26,6 +26,7 @@ PaperPi needs Python 3.13 and [uv](https://docs.astral.sh/uv/) (a tool that inst
 uv sync                    # install everything
 uv run pytest -n auto      # run the tests
 uv run paperpi render basic_clock   # draw a plugin to basic_clock.png, without a screen
+uv run paperpi new-plugin my_plugin # start a plugin of your own from the template
 ```
 
 More in the manual: [Running from source](https://txoof.github.io/PaperPi/development/), [Writing plugins](https://txoof.github.io/PaperPi/writing-plugins/). See [CLAUDE.md](CLAUDE.md) for how work is organized.

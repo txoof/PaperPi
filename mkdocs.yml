@@ -79,5 +79,7 @@ nav:
       - Waveshare screens: waveshare-screens.md
       - How the service works: install-systemd.md
   - Running from source: development.md
-  - Writing plugins: writing-plugins.md
+  - Writing plugins:
+      - Writing a plugin: writing-plugins.md
+      - Plugin reference: plugin-reference.md
   - Making a release: releasing.md

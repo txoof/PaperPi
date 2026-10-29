@@ -1,0 +1,51 @@
+"""Layouts for $type: what goes where on the screen. The first one is the default.
+
+Each block has a name (the key in what draw returns), and a sample: the widest text it
+normally shows, so the text size stays the same from one update to the next.
+"""
+
+PADDING = 0.03
+
+
+def greeting_date(settings) -> dict:
+    """A large greeting with the date below it."""
+    return {
+        "column": [
+            {
+                "name": "greeting",
+                "type": "text",
+                "size": 3,
+                "sample": settings.greeting,
+                "align": "center",
+                "valign": "bottom",
+                "padding": PADDING,
+            },
+            {
+                "name": "date",
+                "type": "text",
+                "size": 1,
+                "sample": "Wednesday 30 September",
+                "align": "center",
+                "valign": "top",
+                "padding": PADDING,
+            },
+        ]
+    }
+
+
+def greeting(settings) -> dict:
+    """The greeting only, as large as fits."""
+    return {
+        "column": [
+            {
+                "name": "greeting",
+                "type": "text",
+                "sample": settings.greeting,
+                "align": "center",
+                "padding": PADDING,
+            }
+        ]
+    }
+
+
+LAYOUTS = {"greeting_date": greeting_date, "greeting": greeting}
