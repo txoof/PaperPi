@@ -1,6 +1,6 @@
 # xkcd_comic
 
-Shows a random comic (or the newest one) from [xkcd.com](https://xkcd.com) by Randall Munroe, with its number, title and hover text (the "alt text" the website shows when the mouse is over the comic).
+Shows a random comic (or the newest one) from [xkcd.com](https://xkcd.com) by Randall Munroe, with its number, title and alt text.
 
 This plugin takes its turn with the other plugins using the `rotation` display level. It needs the internet, but no setup.
 
@@ -9,7 +9,7 @@ This plugin takes its turn with the other plugins using the `rotation` display l
 ## Set it up
 
 1. In the PaperPi web interface, open the **Plugin Library** and add **xkcd**.
-2. If you like, set `comic` to `newest` on its settings page to show the newest comic instead of a random one.
+2. Optionally, set `comic` to `newest` on its settings page to show the newest comic instead of a random one.
 3. Save.
 
 ## Which comic is shown
@@ -70,10 +70,10 @@ max_width = 1000
 
 ## Licence of the comics
 
-The comics are Randall Munroe's work, under the [Creative Commons Attribution-NonCommercial 2.5](https://creativecommons.org/licenses/by-nc/2.5/) licence (see [xkcd.com/license.html](https://xkcd.com/license.html)): they may be shared with credit, but not sold. The sample comic, [`sample/think_logically.png`](sample/think_logically.png) (xkcd 1112, "Think Logically"), and the sample images made from it are under that licence, not PaperPi's; see [`sample/LICENSE`](sample/LICENSE).
+The comics are Randall Munroe's work, under the [Creative Commons Attribution-NonCommercial 2.5](https://creativecommons.org/licenses/by-nc/2.5/) licence (see [xkcd.com/license.html](https://xkcd.com/license.html)): they may be shared with credit, but not sold. The sample comic, [`sample/think_logically.png`](sample/think_logically.png) (xkcd 1112, "Think Logically"), and the sample images made from it are under that license, not PaperPi's; see [`sample/LICENSE`](sample/LICENSE).
 
 ## For developers
 
-The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html) (a small file per comic that lists its number, title, hover text and picture). Each update downloads two small files, the newest comic's number and the chosen comic's details, and then the comic's picture (at most 5 MB; usually tens to a few hundred kB). For the newest comic, one small file is enough. Skipped comics add more downloads, and so does looking for the double-size picture (`name_2x.png`, one more download, only for comics enlarged more than 1.5 times). Pictures come only from xkcd's picture server (`imgs.xkcd.com`, over https), and only PNG, JPEG and GIF files are used. It saves nothing in its storage folder.
+The plugin uses xkcd's own [JSON interface](https://xkcd.com/json.html). Each update downloads two small files, the newest comic's number and the chosen comic's details, and then the comic's picture (at most 5 MB; usually tens to a few hundred kB). For the newest comic, one small file is enough. Skipped comics add more downloads, and so does looking for the double-size picture (`name_2x.png`, one more download, only for comics enlarged more than 1.5 times). Pictures come only from xkcd's picture server (`imgs.xkcd.com`, over https), and only PNG, JPEG and GIF files are used. It saves nothing in its storage folder.
 
 Try it without a screen: `uv run paperpi render xkcd_comic` (sample comic), or with a random comic from xkcd.com: `uv run paperpi render xkcd_comic --live`. Lato is by Łukasz Dziedzic, under the SIL Open Font License ([`fonts/Lato-OFL.txt`](../../fonts/Lato-OFL.txt)).

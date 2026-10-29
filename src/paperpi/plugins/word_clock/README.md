@@ -1,6 +1,6 @@
 # word_clock
 
-Shows the time in words, rounded to the nearest 10 minutes: "It's roughly Twenty After Eight", "It's nearly Ten 'Til Lunch", "It is about Dinner Sharp".
+Shows the time in vague words, rounded to the nearest 10 minutes: "It's roughly Twenty After Eight", "It's nearly Ten 'Til Noon".
 
 This plugin takes its turn with the other plugins using the `rotation` display level. It needs no network and no setup.
 
@@ -9,16 +9,8 @@ This plugin takes its turn with the other plugins using the `rotation` display l
 ## Set it up
 
 1. In the PaperPi web interface, open the **Plugin Library** and add **Word clock**.
-2. If you like, choose a `text_color` and `background_color` on its settings page.
+2. For color displays, choose a `text_color` and `background_color` on its settings page.
 3. Save.
-
-## How it tells the time
-
-- **Rounding:** from :05 on, the time rounds up (20:25 is "half past"), and from :35 on, the sentence counts to the next hour (20:35 is "twenty 'til nine").
-- **The words vary.** The opening, the minute words and the hour (a number or a nickname such as "lunch", "too late" or "go to bed") are picked anew for each 10-minute step. Within a step the time words stay the same. Openings like "nearly" are used only while the time is a little before the step; from the minute of the step on, a plain one ("It is about").
-- **The text moves.** At every update the text is placed somewhere else on the screen, as in v1.
-
-The word lists are in [`words.py`](words.py).
 
 ## Layouts
 
@@ -27,26 +19,26 @@ The word lists are in [`words.py`](words.py).
 | `words_time` (default) | the sentence, large, with the time small underneath ("20:21") |
 | `words`                | the sentence only                                              |
 
-| `words_time` | `words` | `words_time`, yellow on blue, colour screen |
+| `words_time` | `words` | `words_time`, yellow on blue, color screen |
 |---|---|---|
 | ![words_time](../../../../tests/images/word_clock-words_time-9in7.png) | ![words](../../../../tests/images/word_clock-words-9in7.png) | ![colors](../../../../tests/images/word_clock-words_time-colors-5in65.png) |
 
 The font is [Anton](https://fonts.google.com/specimen/Anton).
 
-## Colours
+## colors
 
-The colours are used as they are on colour screens. On gray and black-and-white screens each colour becomes black or white, whichever is closer (yellow becomes white, blue black).
+The colors are used as they are on color screens. On gray and black-and-white screens each color becomes black or white, whichever is closer (yellow becomes white, blue black).
 
-`random` picks a new colour for each 10-minute step, always one that is easy to read with the other colour (pairs too close in brightness, such as white and yellow or red and orange, are skipped).
+`random` picks a new color for each 10-minute step, always one that is easy to read with the other color (pairs too close in brightness, such as white and yellow or red and orange, are skipped).
 
-Note: if both colours would look the same, the clock uses white on black and writes a warning to the log.
+Note: if both colors would look the same, the clock uses white on black and writes a warning to the log.
 
 ## Settings
 
 | Setting            | Default   | Meaning                                                                                       |
 | ------------------ | --------- | --------------------------------------------------------------------------------------------- |
-| `text_color`       | `"white"` | colour of the text: `red`, `orange`, `yellow`, `green`, `blue`, `black`, `white`, or `random` |
-| `background_color` | `"black"` | colour of the background, same choices                                                        |
+| `text_color`       | `"white"` | color of the text: `red`, `orange`, `yellow`, `green`, `blue`, `black`, `white`, or `random` |
+| `background_color` | `"black"` | color of the background, same choices                                                        |
 
 The plugin asks for a new picture every 60 seconds, just after the minute changes, unless you change `refresh`. Each update moves the text, so the screen is written once a minute while the clock is shown.
 
