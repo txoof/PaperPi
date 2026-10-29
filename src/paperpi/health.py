@@ -1,6 +1,6 @@
 """The health report: PaperPi says "still running" to systemd and to a small file.
 
-The reasons are in ``docs/decisions/errors-and-time-limits.md``. In short:
+The reasons are in ``docs/history/decisions/errors-and-time-limits.md``. In short:
 
 - The scheduler loop calls :meth:`Health.report` every :data:`~paperpi.limits.HEALTH_REPORT`
   seconds. When the loop gets stuck, the reports stop, and after

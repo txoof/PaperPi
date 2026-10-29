@@ -1,5 +1,5 @@
 """Finding stops and stations by name, for the search boxes on the settings page (setting
-helpers, see ``docs/decisions/setting-helpers.md``).
+helpers, see ``docs/specs/plugins.md``).
 
 People type a name, with typos if need be ("Rotterdam Centraal", "utrcht cs"), and pick from
 a list; nobody needs to know a code.

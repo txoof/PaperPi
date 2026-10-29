@@ -1,6 +1,6 @@
 """Default time and size limits, all in one place.
 
-The numbers come from ``docs/decisions/errors-and-time-limits.md``. All durations are in
+The numbers come from ``docs/history/decisions/errors-and-time-limits.md``. All durations are in
 seconds and are measured with the monotonic clock (``time.monotonic``), which does not jump
 when the system time is corrected.
 """
@@ -32,7 +32,7 @@ APPLY_WAIT = 3.0
 KEEP_WEB = 5 * 60.0
 
 #: Longest one search of a setting helper may take: one web request with its retry
-#: (``docs/decisions/setting-helpers.md``).
+#: (``docs/specs/plugins.md``).
 HELPER_SEARCH = 30.0
 
 #: Longest one request to the place search may take (``paperpi.places``), with its retry.

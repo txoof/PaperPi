@@ -1,7 +1,7 @@
 """Example pictures for the Plugin Library: each layout of each plugin drawn with its sample
 data.
 
-See ``docs/decisions/web-interface.md``. The pictures are drawn ahead, in the background,
+See ``docs/history/decisions/web-interface.md``. The pictures are drawn ahead, in the background,
 at the screen's size (in 256 shades of gray, or in color for a color screen), and saved in
 ``library-pictures/`` in the state folder, so the Library page opens at once (agreed with
 txoof, M5 part 3b-2).

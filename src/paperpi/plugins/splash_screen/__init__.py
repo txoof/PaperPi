@@ -9,7 +9,7 @@ block can also put it in the rotation, but that is not what it is meant for.
 
 It shows the address of PaperPi's web interface by IP address, and a QR code with that
 address, so a phone can open the web interface at once. (Not by host name: the web
-interface only accepts IP addresses, see docs/decisions/web-interface.md.)
+interface only accepts IP addresses, see docs/history/decisions/web-interface.md.)
 """
 
 import socket

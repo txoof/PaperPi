@@ -1,7 +1,7 @@
 """PaperPi's own log: the last lines in memory, and the important ones in a small file.
 
-The reasons are in ``docs/decisions/web-interface.md`` ("Warnings page") and
-``docs/decisions/errors-and-time-limits.md`` ("Logs"). In short:
+The reasons are in ``docs/history/decisions/web-interface.md`` ("Warnings page") and
+``docs/history/decisions/errors-and-time-limits.md`` ("Logs"). In short:
 
 - ``paperpi run`` calls :func:`start`. From then on, every log line of level INFO and up
   (DEBUG too with ``--verbose``) is kept in memory: the last :data:`~paperpi.limits.LOG_LINES`.

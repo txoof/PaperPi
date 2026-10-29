@@ -1,5 +1,5 @@
 """Setting helpers on the settings page: the search box under a setting, its choices and their
-Use buttons (see ``docs/decisions/setting-helpers.md`` and :mod:`paperpi.helper`).
+Use buttons (see ``docs/specs/plugins.md`` and :mod:`paperpi.helper`).
 
 A search runs the plugin's helper in its own process with a time limit
 (:func:`paperpi.runner.run_helper`), with the settings in the form as Save would write them.

@@ -1,7 +1,7 @@
 """Find places by name, for plugins that need a latitude and longitude (such as the weather).
 
 The search is Open-Meteo's place search (chosen with txoof on 2026-10-10, see
-``docs/decisions/setting-helpers.md``): no key, and it gives each place's altitude too. Its
+``docs/specs/plugins.md``): no key, and it gives each place's altitude too. Its
 place data comes from GeoNames; both ask for credit (CC BY 4.0), which
 :func:`location_helper` shows under the choices.
 

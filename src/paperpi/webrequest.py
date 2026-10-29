@@ -1,6 +1,6 @@
 """The one helper every plugin uses for web requests.
 
-The limits come from ``docs/decisions/errors-and-time-limits.md`` and :mod:`paperpi.limits`:
+The limits come from ``docs/history/decisions/errors-and-time-limits.md`` and :mod:`paperpi.limits`:
 
 - 10 seconds to connect,
 - 30 seconds in total, including one retry after 5 seconds,
