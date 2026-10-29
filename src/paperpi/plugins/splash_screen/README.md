@@ -1,35 +1,53 @@
 # splash_screen
 
-Shows PaperPi's name, its version, the address of its web interface and a QR code with that address, plus the address of PaperPi's web page (https://github.com/txoof/PaperPi). Ported from v1.
+Shows PaperPi's name, its version, the address of its web interface and a QR code with that address.
 
-PaperPi shows it **once at start**, before the other plugins, for `[display] splash_time` seconds (default 60, at most 3600; `0`: not at all). Meanwhile the other plugins get their first pictures. **With no plugin ready to show**, for example the first start after installing with the default config, it stays on screen (with a new picture every hour) until a plugin is ready to show, so the web address to set PaperPi up is always there. It is a plugin like any other, so start-up needs no drawing code of its own. You can also put it in the rotation with a `[[plugin]]` block; the `setup` layout is made for that (see below).
+PaperPi shows this plugin once at start, before the other plugins, for `splash_time` seconds (60 unless you change it). It needs no setup.
 
-What it shows:
+![The plugin's default layout on the 9.7" screen: PaperPi's name and version, the web address next to a QR code, and the GitHub address at the bottom](../../../../tests/images/splash_screen-splash-9in7.png)
+
+## When it is shown
+
+At start, PaperPi shows the splash screen while the other plugins get their first pictures. To change how long, set `splash_time` in `[display]` (at most 3600 seconds; `0`: not at all).
+
+Note: when no plugin is ready to show, for example on the first start after installing, the splash screen stays on the screen until one is. So the web address to set PaperPi up is always there.
+
+You can also add it to the rotation like any other plugin; the `setup` layout is made for that.
+
+## What it shows
 
 - the name, in large letters;
-- the version of the PaperPi that is running, for example `2.0.0`;
-- the web interface's address by IP address, e.g. `http://192.0.2.10:8080`. Not by name (`paperpi.local`): the web interface only accepts IP addresses (see the main README). The address can change when the router gives the Pi a new one;
+- the version of PaperPi that is running, for example `2.0.0`;
+- the web interface's address by IP address, e.g. `http://192.0.2.10:8080`. The address can change when the router gives the Pi a new one;
 - a QR code with the same address, to open the web interface on a phone;
 - PaperPi's GitHub address.
 
 Without a network it says "No network" instead, with no QR code.
 
-An address is never cut off: when it doesn't fit on one line, it is broken after a "/" (or after a "." or ":"), drawn smaller if needed, and as a last step broken between letters (v1 split the GitHub address over two lines for the same reason).
-
-The port is the web interface's port, `[web] port` (default 8080); like the web interface itself, a change applies at the next start of PaperPi. In Docker (M6), PaperPi may see the container's address instead of the Pi's; M6 deals with that.
-
 ## Layouts
 
-| Layout | Shows |
+| Layout             | Shows                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| `splash` (default) | the name, the version, the web addresses next to the QR code, and the GitHub address at the bottom      |
+| `setup`            | "Set up PaperPi", the web address next to a large QR code, and what to do there                         |
+
+| `splash` | `setup` |
 |---|---|
-| `splash` (default) | the name, the version, the two web addresses next to the QR code, and the GitHub address at the bottom |
-| `setup` | "Set up PaperPi", the web address next to a large QR code, and what to do there: set a password and choose which plugins to display. The first config after installing ([Install](https://txoof.github.io/PaperPi/install/)) shows it in turn with a clock, until you remove it from the plugin list. Without a network: "No network" and no QR code |
+| ![splash](../../../../tests/images/splash_screen-splash-9in7.png) | ![setup](../../../../tests/images/splash_screen-setup-9in7.png) |
+
+Note: the first config after installing ([Install](https://txoof.github.io/PaperPi/install/)) shows the `setup` layout in turn with a clock, until you remove it from the plugin list.
 
 ## Settings
 
-One of its own, `port` (default 8080): the port in the addresses, only for a splash you add to the rotation yourself; the splash at start always uses `[web] port`. Plus the [settings every plugin has](https://txoof.github.io/PaperPi/settings/#settings-every-plugin-has). It suggests a refresh every hour, which matters while no plugin is ready to show and in the rotation: it then picks up a new IP address.
+| Setting | Default | Meaning                                                                                       |
+| ------- | ------- | --------------------------------------------------------------------------------------------- |
+| `port`  | `8080`  | the port in the addresses, only for a splash screen you add to the rotation yourself          |
 
-To put it in the rotation (not needed for the splash at start), here with the set-up screen, as `paperpi example-config --setup` writes it:
+The splash screen at start always uses `[web] port`. The plugin asks for a new picture every hour unless you change `refresh`, so it picks up a new IP address.
+
+### Configuration Keys
+
+To add it to the rotation (not needed for the splash screen at start), here with the set-up screen, as `paperpi example-config --setup` writes it:
 
 ```toml
 [[plugin]]
@@ -39,22 +57,10 @@ type = "splash_screen"
 layout = "setup"
 ```
 
-Try it without a screen: `uv run paperpi render splash_screen --size 800x480 --mode bw` (with sample data; `--live` shows this Pi's real addresses).
+## For developers
 
-The name is in [Anton](https://fonts.google.com/specimen/Anton) by The Anton Project Authors and the rest in [Dosis](https://fonts.google.com/specimen/Dosis) SemiBold by Edgar Tolentino, Pablo Impallari and Igino Marini, both as in v1. Both are under the SIL Open Font License ([`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt), [`fonts/Dosis-OFL.txt`](../../fonts/Dosis-OFL.txt)), in PaperPi's shared fonts folder. The QR code is made with [segno](https://github.com/heuer/segno).
+The splash screen is a plugin like any other, so start-up needs no drawing code of its own. With no plugin ready to show, it gets a new picture every hour. The address is by IP address, not by name (`paperpi.local`), because the web interface only accepts IP addresses. A change of `[web] port` applies at the next start of PaperPi.
 
-## Sample images
+An address is never cut off: when it doesn't fit on one line, it is broken after a "/" (or after a "." or ":"), drawn smaller if needed, and as a last step broken between letters.
 
-The sample images show version 2.0.0, and the made-up address 192.0.2.10. All sample images are in [`tests/images/`](../../../../tests/images/), named `splash_screen-<layout>-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours).
-
-`splash`:
-
-| 9.7" | 7.5" black and white | 5.65" 7 colours |
-|---|---|---|
-| ![9in7](../../../../tests/images/splash_screen-splash-9in7.png) | ![7in5](../../../../tests/images/splash_screen-splash-7in5.png) | ![5in65](../../../../tests/images/splash_screen-splash-5in65.png) |
-
-`setup`:
-
-| 9.7" | 7.5" black and white | 5.65" 7 colours |
-|---|---|---|
-| ![9in7](../../../../tests/images/splash_screen-setup-9in7.png) | ![7in5](../../../../tests/images/splash_screen-setup-7in5.png) | ![5in65](../../../../tests/images/splash_screen-setup-5in65.png) |
+Try it without a screen: `uv run paperpi render splash_screen --size 800x480 --mode bw` (sample data: version 2.0.0 and the made-up address 192.0.2.10; `--live` shows this Pi's real addresses). The name is in [Anton](https://fonts.google.com/specimen/Anton) and the rest in [Dosis](https://fonts.google.com/specimen/Dosis) SemiBold, both as in v1 and under the SIL Open Font License ([`fonts/Anton-OFL.txt`](../../fonts/Anton-OFL.txt), [`fonts/Dosis-OFL.txt`](../../fonts/Dosis-OFL.txt)). The QR code is made with [segno](https://github.com/heuer/segno).
