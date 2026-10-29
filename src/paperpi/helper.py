@@ -1,5 +1,5 @@
 """Setting helpers: a search a plugin offers on its settings page, such as finding a place's
-latitude and longitude from its name (see ``docs/decisions/setting-helpers.md``).
+latitude and longitude from its name (see ``docs/specs/plugins.md``).
 
 A helper is a :class:`Helper` in the plugin's ``helpers``. A setting names it with
 ``setting(..., helper="<name>")`` and the settings page shows a search box just before

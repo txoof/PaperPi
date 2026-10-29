@@ -9,7 +9,7 @@ the values a sent form holds, checked the same way as the config file.
 - :func:`read` turns a sent form into the changes to save, or an error per field (then
   nothing is saved). An empty field means "the default" (for a check box: off; for a list:
   nothing picked). A value changed to its default is taken out of the file, which only holds
-  the settings that differ from the default (``docs/decisions/config-format.md``). An empty
+  the settings that differ from the default (``docs/specs/config.md``). An empty
   secret (an API key, ...) keeps the one that is saved, so the page never has to show it.
 - Browsers send nothing for a check box that is off or a list with nothing picked. So the
   page adds a hidden empty field for each, and a field that is missing from the form is
