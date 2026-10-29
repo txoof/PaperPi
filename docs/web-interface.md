@@ -90,5 +90,5 @@ Comments in the file stay when the web interface changes it, except the comments
 ## Safety
 
 - The web interface uses plain HTTP, not HTTPS: it is for your home network only. **Do not open it to the internet** (for example with port forwarding on your router).
-- Names such as `paperpi.local` are refused for now, for safety; use the Pi's address in numbers ([why](decisions/web-interface.md)).
+- Names such as `paperpi.local` are refused for now, for safety; use the Pi's address in numbers.
 - If the port is taken by another program, the log says so and PaperPi runs without the web interface.

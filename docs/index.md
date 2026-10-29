@@ -23,6 +23,9 @@ Then open the web interface at the address the screen shows: [First setup](first
 - [First setup](first-setup.md): the password, adding plugins and filling in their settings, in the web interface.
 - [The web interface](web-interface.md): what each of its pages does.
 - [Update and remove](update.md): getting a new version, going back to an older one, removing PaperPi.
+- [How plugins take turns](take-turns.md): display time, refresh, and the levels rotation, interrupt and alert.
+- [Troubleshooting](troubleshooting.md): what to do when something doesn't work, and how to ask for help.
+- [What's new](changelog.md): the changes in each release.
 
 **Reference**
 
@@ -33,7 +36,7 @@ Then open the web interface at the address the screen shows: [First setup](first
 
 **For developers**
 
-- [Running from source](development.md), [Writing plugins](writing-plugins.md), [Making a release](releasing.md), and the design notes: why PaperPi works the way it does.
+- [Running from source](development.md), [Writing plugins](writing-plugins.md), [Making a release](releasing.md).
 
 ## Version 1
 
