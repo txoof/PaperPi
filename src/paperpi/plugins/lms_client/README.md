@@ -2,14 +2,14 @@
 
 Shows the currently playing song, artist and album art sourced from a local [Lyrion Music Server](https://lyrion.org/) player.
 
-This plugin typically remains dormant and invisible on PaperPi until the tracked music player starts playing. When music starts, the plugin will jump to the foreground using the `interrupt` display level and keep control of teh screen until the music stops.
+This plugin typically remains dormant and invisible on PaperPi until the tracked music player starts playing. When music starts, the plugin will jump to the foreground using the `interrupt` display level and keep control of the screen until the music stops.
 
 ![The plugin's default layout on the 9.7" screen: the cover, with the artist and album next to it and the title below](../../../../tests/images/lms_client-two_column_three_row-9in7.png)
 
 ## What you need
 
 - **An LMS server** on your network, for example on a Raspberry Pi or a home server ([lyrion.org](https://lyrion.org/) explains how to install one).
-- **A LMS player** that plays from it: a Squeezebox, or Squeezelite (a player program) on a Raspberry Pi. The player can be on the same Pi as PaperPi or anywhere on the network.
+- **An LMS player** that plays from it: a Squeezebox, or Squeezelite (a player program) on a Raspberry Pi. The player can be on the same Pi as PaperPi or anywhere on the network.
 
 ## Set it up
 
