@@ -1,6 +1,6 @@
 # Install
 
-Before you start: the screen is connected ([What you need](hardware.md)), the Pi runs Raspberry Pi OS "trixie" and is on your home network.
+Before you start: the screen is connected ([Hardware](hardware.md)), the Pi runs Raspberry Pi OS "trixie" and is on your home network.
 
 ## Run the install
 
@@ -25,7 +25,7 @@ For the first minute, PaperPi's name, version and the address of its web interfa
 
 ![The set-up screen: "Set up PaperPi", the web address and a QR code](images/setup-screen.png)
 
-Scan the QR code with your phone's camera, or type the address into a browser on a phone or computer on the same home network. Then go on with [First setup](first-setup.md).
+Scan the QR code with your phone's camera, or type the address into a browser on a phone or computer on the same home network. Then go on with [First Setup](first-setup.md).
 
 The screen stays blank or shows nothing new? Check that PaperPi runs: `systemctl status paperpi` should say `active (running)`. The log of the last minutes: `journalctl -u paperpi -n 50`.
 
@@ -43,4 +43,4 @@ sudo bash paperpi-install install --yes --display waveshare --model epd7in5_V2
 
 ## Already installed?
 
-The install keeps a config that is already there (in `/etc/paperpi`, from an earlier install) and asks nothing about the screen. To update PaperPi, use [Update and remove](update.md). What the install puts where: [How the service works](install-systemd.md).
+The install keeps a config that is already there (in `/etc/paperpi`, from an earlier install) and asks nothing about the screen. To update PaperPi, use [Update and Uninstall](update.md). What the install puts where: [How the service works](install-systemd.md).

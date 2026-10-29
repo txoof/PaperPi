@@ -1,4 +1,4 @@
-# What you need
+# Hardware
 
 ## The parts
 

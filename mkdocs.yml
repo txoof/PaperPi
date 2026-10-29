@@ -27,7 +27,11 @@ theme:
         name: Light
   features:
     - content.code.copy
-    - navigation.sections
+    # The menu shows the main headings; each one folds open to show its pages.
+    # A section's first page (Plugins) opens from the heading itself.
+    - navigation.indexes
+    # Previous and Next links at the bottom of every page, in menu order.
+    - navigation.footer
     - navigation.top
     - search.suggest
 
@@ -62,24 +66,24 @@ validation:
 
 nav:
   - Home: index.md
-  - Get started:
-      - What you need: hardware.md
+  - Getting started:
+      - Hardware: hardware.md
       - Install: install.md
-      - First setup: first-setup.md
-      - The web interface: web-interface.md
-      - Update and remove: update.md
-      - How plugins take turns: take-turns.md
+      - First Setup: first-setup.md
+      - Web Interface: web-interface.md
+      - Update and Uninstall: update.md
+      - Understanding Plugin Schedules: take-turns.md
       - Troubleshooting: troubleshooting.md
-      - What's new: changelog.md
-  - Plugins:
-      - plugins/index.md
+      - What's New: changelog.md
   - Reference:
+      - Plugins:
+          - plugins/index.md
       - Settings reference: settings.md
       - Supported screens: screens.md
       - Waveshare screens: waveshare-screens.md
       - How the service works: install-systemd.md
-  - Running from source: development.md
-  - Writing plugins:
+  - For developers:
+      - Running from source: development.md
       - Writing a plugin: writing-plugins.md
       - Plugin reference: plugin-reference.md
-  - Making a release: releasing.md
+      - Making a release: releasing.md

@@ -1,4 +1,4 @@
-# What's new
+# What's New
 
 Every release of PaperPi has release notes on GitHub, with the changes it brings: **[PaperPi's releases](https://github.com/txoof/PaperPi/releases)**. The newest release is at the top.
 
@@ -12,7 +12,7 @@ On the **Screen & system** page of the web interface, under **This Pi**, or at t
 sudo paperpi-install update
 ```
 
-PaperPi does not update by itself. More, and how to go back to an earlier version: [Update and remove](update.md).
+PaperPi does not update by itself. More, and how to go back to an earlier version: [Update and Uninstall](update.md).
 
 ## Version numbers
 

@@ -231,7 +231,7 @@ data = answer.json()
 
 `refresh` is the suggested number of seconds between updates, at least 5. Don't make it equal to the default display time (120 seconds): the new picture could then arrive just as the plugin's turn ends (a test checks). The user's own `refresh` setting always wins.
 
-`level` is the suggested level: `"rotation"` takes turns with the other plugins, `"interrupt"` takes over the screen while it has something to show, `"alert"` takes over until the alert is over (see [How plugins take turns](take-turns.md)). A plugin that only has something now and then, such as a music player, suggests `"interrupt"` and says so in its description. The user's `level` setting always wins.
+`level` is the suggested level: `"rotation"` takes turns with the other plugins, `"interrupt"` takes over the screen while it has something to show, `"alert"` takes over until the alert is over (see [Understanding Plugin Schedules](take-turns.md)). A plugin that only has something now and then, such as a music player, suggests `"interrupt"` and says so in its description. The user's `level` setting always wins.
 
 ## Storage
 

@@ -1,6 +1,6 @@
-# First setup
+# First Setup
 
-After the [install](install.md), you set PaperPi up in its web interface: a web page on your phone or computer. This page goes through the first visit, step by step. What every page of the web interface does: [The web interface](web-interface.md).
+After the [install](install.md), you set PaperPi up in its web interface: a web page on your phone or computer. This page goes through the first visit, step by step. What every page of the web interface does: [Web Interface](web-interface.md).
 
 ## 1. Open the web interface
 
@@ -66,6 +66,6 @@ Use the arrows to change the order, or **Change order** to drag the cards. **Sho
 
 ## 7. Check the screen settings
 
-If you chose `0` (no screen yet) during the install, or the picture looks wrong, open **Screen & system** in the menu. **Change screen…** sets the kind of screen and its model; [The web interface](web-interface.md#screen-system) has the details.
+If you chose `0` (no screen yet) during the install, or the picture looks wrong, open **Screen & system** in the menu. **Change screen…** sets the kind of screen and its model; [Web Interface](web-interface.md#screen-system) has the details.
 
-That's it: PaperPi now shows your plugins in turn. To keep it up to date: [Update and remove](update.md).
+That's it: PaperPi now shows your plugins in turn. To keep it up to date: [Update and Uninstall](update.md).

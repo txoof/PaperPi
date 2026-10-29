@@ -1,4 +1,4 @@
-# Update and remove
+# Update and Uninstall
 
 ## Update
 
