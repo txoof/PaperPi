@@ -10,7 +10,7 @@ PaperPi shows this plugin once at start, before the other plugins, for `splash_t
 
 At start, PaperPi shows the splash screen while the other plugins get their first pictures. To change how long, set `splash_time` in `[display]` (at most 3600 seconds; `0`: not at all).
 
-Note: when no plugin is ready to show, for example on the first start after installing, the splash screen stays on the screen until one is. So the web address to set PaperPi up is always there.
+Note: when no plugin is ready to show, for example on the first start after installing, the splash screen stays on the screen until at least one is configured.
 
 You can also add it to the rotation like any other plugin; the `setup` layout is made for that.
 
