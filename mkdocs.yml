@@ -32,6 +32,13 @@ theme:
     - search.suggest
 
 # Adds the pages made from the code: settings, screens, plugins (see mkdocs_hooks.py).
+# Notes for the people and agents working on PaperPi: in the repository, not on the site.
+exclude_docs: |
+  decisions/
+  v1-inventory.md
+  it8951-test-report.md
+  images/it8951-endurance.svg
+
 hooks:
   - mkdocs_hooks.py
 
@@ -61,6 +68,9 @@ nav:
       - First setup: first-setup.md
       - The web interface: web-interface.md
       - Update and remove: update.md
+      - How plugins take turns: take-turns.md
+      - Troubleshooting: troubleshooting.md
+      - What's new: changelog.md
   - Plugins:
       - plugins/index.md
   - Reference:
@@ -71,17 +81,3 @@ nav:
   - Running from source: development.md
   - Writing plugins: writing-plugins.md
   - Making a release: releasing.md
-  - Design notes:
-      - Config format: decisions/config-format.md
-      - Plugin interface: decisions/plugin-interface.md
-      - Setting helpers: decisions/setting-helpers.md
-      - Plugin scheduling: decisions/plugin-scheduling.md
-      - Live config reload: decisions/live-config-reload.md
-      - Display driver interface: decisions/display-driver-interface.md
-      - IT8951 driver: decisions/it8951-driver.md
-      - Errors and time limits: decisions/errors-and-time-limits.md
-      - Freeze prevention: decisions/freeze-prevention.md
-      - Web interface: decisions/web-interface.md
-  - Background:
-      - Version 1 inventory: v1-inventory.md
-      - IT8951 test report: it8951-test-report.md

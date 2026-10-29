@@ -45,7 +45,7 @@ The code belongs to root, so PaperPi itself (and a plugin) can't change it. Pape
 
 ## The service file
 
-`install/paperpi.service`; the reasons are in [decisions/errors-and-time-limits.md](decisions/errors-and-time-limits.md).
+`install/paperpi.service`:
 
 - `Type=notify`, `WatchdogSec=120`: systemd counts PaperPi as started only after it says `READY=1`, and restarts it when no "still running" message (`WATCHDOG=1`) arrives for 2 minutes. Only the main process may send them (`NotifyAccess=main`, the default), so a plugin process can't hide a stuck loop.
 - `TimeoutStopSec=45`: longer than the screen clear at exit (30 s) and its check (2 s).

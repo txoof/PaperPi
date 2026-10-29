@@ -1,6 +1,6 @@
 # Writing a plugin
 
-A plugin puts something on the screen: a clock, the weather, the song that is playing. This page shows how to write one. The reasons behind the rules are in [`decisions/plugin-interface.md`](decisions/plugin-interface.md). The simplest complete example is [`basic_clock`](https://github.com/txoof/PaperPi/tree/main/src/paperpi/plugins/basic_clock).
+A plugin puts something on the screen: a clock, the weather, the song that is playing. This page shows how to write one. The simplest complete example is [`basic_clock`](https://github.com/txoof/PaperPi/tree/main/src/paperpi/plugins/basic_clock).
 
 ## What a plugin is
 
@@ -112,7 +112,7 @@ hours = 12
 
 ## Setting helpers
 
-Some settings are hard to fill in by hand, such as a place's latitude and longitude or a stop's code. A plugin can offer a **helper**: a search box on its settings page, just before the setting it fills. The user types something, PaperPi shows a list of choices, and **Use** fills in the form's fields (nothing is saved until Save). The reasons are in `docs/decisions/setting-helpers.md`.
+Some settings are hard to fill in by hand, such as a place's latitude and longitude or a stop's code. A plugin can offer a **helper**: a search box on its settings page, just before the setting it fills. The user types something, PaperPi shows a list of choices, and **Use** fills in the form's fields (nothing is saved until Save).
 
 - A helper is a `paperpi.plugin.Helper` in the plugin's `helpers`, by name. A setting names it with `setting(..., helper="<name>")`; the search box is shown just before that setting, so name the first of the settings it fills. The plugin check fails for a name the plugin doesn't have.
 - Its `find(query)` gets a `Query`: `query.text` (what the user typed, without spaces around it, at most 100 characters; empty for `typed=False`), `query.settings` (the form's settings, checked as Save checks them; an empty secret field gives the saved secret) and `query.language` (the language the user's browser asks for first, e.g. `nl`; `en` when not known), for services that find names only in the language they are asked in.
@@ -229,7 +229,7 @@ What it does when something goes wrong:
 
 ## Level
 
-`level` is the suggested level: `"rotation"` (the default: it takes turns with the other plugins), `"interrupt"` (it takes over the screen while it has something to show) or `"alert"` (see `docs/decisions/plugin-scheduling.md`). A plugin that only has something now and then, such as a music player, suggests `level="interrupt"` and says so in its `description`. The user's `level` setting always wins.
+`level` is the suggested level: `"rotation"` (the default: it takes turns with the other plugins), `"interrupt"` (it takes over the screen while it has something to show) or `"alert"` (see [How plugins take turns](take-turns.md)). A plugin that only has something now and then, such as a music player, suggests `level="interrupt"` and says so in its `description`. The user's `level` setting always wins.
 
 ## Storage
 
