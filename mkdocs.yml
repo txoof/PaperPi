@@ -46,6 +46,10 @@ exclude_docs: |
 hooks:
   - mkdocs_hooks.py
 
+# Small changes to the theme's look (see the comments in the file).
+extra_css:
+  - stylesheets/extra.css
+
 markdown_extensions:
   - admonition
   - attr_list

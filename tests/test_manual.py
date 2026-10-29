@@ -174,3 +174,10 @@ def test_the_menu_and_the_list_of_plugins_use_the_same_order():
     assert [re.search(r"\]\((\w+)\.md\)", row[1])[1] for row in rows(page)] == order
     titles = [plugins.load(t).shown_title.lower() for t in order]
     assert titles == sorted(titles) and not set(order) & set(manual.OWN)
+
+
+def test_a_picture_before_the_first_section_is_the_plugins_preview():
+    page, _ = manual.plugin_page("lms_client", TYPES, ROOT)
+    intro, _, sections = page.partition("\n## ")
+    assert intro.count("{ .preview }") == 1 and "{ .preview }" not in sections
+    assert ".." not in intro.splitlines()[2]
