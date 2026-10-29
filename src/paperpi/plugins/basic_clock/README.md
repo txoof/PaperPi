@@ -1,24 +1,40 @@
 # basic_clock
 
-Shows the time in large digits, and optionally the date below it. It needs no network.
+Shows the time in large digits, and optionally the date below it.
+
+This plugin takes its turn with the other plugins using the `rotation` display level. It needs no network and no setup.
+
+![The plugin's default layout on the 9.7" screen: the time 10:42 in large digits](../../../../tests/images/basic_clock-time-9in7.png)
+
+## Set it up
+
+1. In the PaperPi web interface, open the **Plugin Library** and add **Clock**.
+2. Optionally, set `hours` to `12` and choose the `time_date` layout on its settings page.
+3. Save.
 
 ## Layouts
 
-| Layout | Shows |
-|---|---|
-| `time` (default) | the time only, as large as fits |
-| `time_date` | the time, with the date below it ("Monday 5 October") |
-| `small` | time and date on one small line at the bottom ("10:42 Monday 5 October"); the rest stays white. PaperPi shows this as its fallback clock when no plugin has anything to show (see `fallback_clock` in the main README) |
+| Layout           | Shows                                                                  |
+| ---------------- | ---------------------------------------------------------------------- |
+| `time` (default) | the time only, as large as fits                                        |
+| `time_date`      | the time, with the date below it ("Monday 5 October")                   |
+| `small`          | time and date on one small line at the bottom; the rest stays white   |
+
+| `time` | `time_date` | `small` |
+|---|---|---|
+| ![time](../../../../tests/images/basic_clock-time-9in7.png) | ![time_date](../../../../tests/images/basic_clock-time_date-9in7.png) | ![small](../../../../tests/images/basic_clock-small-9in7.png) |
+
+Note: PaperPi uses the `small` layout as its fallback clock when no plugin has anything to show ([Understanding Plugin Schedules](https://txoof.github.io/PaperPi/take-turns/)).
 
 ## Settings
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `hours` | `24` | `24` shows 15:45, `12` shows 3:45 PM |
+| Setting | Default | Meaning                                |
+| ------- | ------- | -------------------------------------- |
+| `hours` | `24`    | `24` shows 15:45, `12` shows 3:45 PM   |
 
-It suggests a refresh every 60 seconds, starting just after the minute changes.
+The plugin asks for a new picture every 60 seconds, just after the minute changes, unless you change `refresh`.
 
-In the config file (every other setting is in the [settings reference](https://txoof.github.io/PaperPi/settings/)):
+### Configuration Keys
 
 ```toml
 [[plugin]]
@@ -29,12 +45,6 @@ layout = "time_date"
 hours = 12
 ```
 
-Try it without a screen: `uv run paperpi render basic_clock --layout time_date --set hours=12`.
+## For developers
 
-## Sample images
-
-Sample time: 10:42 on Monday 5 October 2026. All sample images are in [`tests/images/`](../../../../tests/images/), named `basic_clock-<layout>[-12h]-<screen>.png`, where `<screen>` is `9in7` (9.7", 1200x825, 16 grays), `7in5` (7.5", 800x480, black and white) or `5in65` (5.65", 600x448, 7 colours).
-
-| `time` | `time_date` | `small` |
-|---|---|---|
-| ![time](../../../../tests/images/basic_clock-time-9in7.png) | ![time_date](../../../../tests/images/basic_clock-time_date-9in7.png) | ![small](../../../../tests/images/basic_clock-small-9in7.png) |
+Try it without a screen: `uv run paperpi render basic_clock --layout time_date --set hours=12`. The sample time is 10:42 on Monday 5 October 2026.
