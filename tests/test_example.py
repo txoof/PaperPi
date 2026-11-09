@@ -9,7 +9,7 @@ import pytest
 from pydantic import BaseModel, Field, SecretStr
 
 from paperpi import config, plugins
-from paperpi.example import example_config, plugin_block, setup_config
+from paperpi.example import _check_reads_back, example_config, plugin_block, setup_config
 from paperpi.plugin import PluginEntry, PluginSettings
 
 EXAMPLE_FILE = Path(__file__).parent.parent / "paperpi.example.toml"
@@ -143,7 +143,7 @@ def test_block_refuses_values_the_plugin_would_not_accept(values, message):
 
 
 def test_block_refuses_what_paperpi_could_not_read_back():
-    # tomlkit writes the control character ESC in a form Python's TOML reader doesn't know.
+    # Control characters such as ESC are refused.
     with pytest.raises(ValueError, match="control characters"):
         plugin_block(plugins.load("basic_clock"), "b", {"name": "B\x1bad"})
     # Characters Python counts as line breaks, which the web interface's line counting skips.
@@ -152,8 +152,18 @@ def test_block_refuses_what_paperpi_could_not_read_back():
             plugin_block(plugins.load("basic_clock"), "b", {"name": name})
     with pytest.raises(ValueError, match="only letters, digits"):
         plugin_block(plugins.load("basic_clock"), "B\x1bad")
-    with pytest.raises(ValueError, match="reads it back"):
-        plugin_block(plugins.load("met_no"), "Weather", {"place": "B\x1bad"})
+
+
+def test_check_reads_back_refuses_text_python_cannot_read():
+    # tomlkit before 0.15.2 wrote ESC as \e, which Python's TOML reader refuses.
+    values = {"id": "b", "type": "met_no", "place": "B\x1bad"}
+    text = '[[plugin]]\nid = "b"\ntype = "met_no"\nplace = "B\\ead"\n'
+    with pytest.raises(ValueError, match="reads it back:"):
+        _check_reads_back(text, values)
+    # Text Python reads, but as different values.
+    with pytest.raises(ValueError, match="reads it back the same"):
+        _check_reads_back(text.replace("B\\ead", "Bad"), values)
+    _check_reads_back(text.replace("\\e", "\\u001b"), values)
 
 
 def test_config_file_refuses_control_characters_in_names():

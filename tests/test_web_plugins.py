@@ -182,9 +182,15 @@ def test_the_library_page_shows_titles_labels_and_names_added(client):
     assert page.count("Added: ") == 2
     # Every word of the search is looked for in the title, type, description and labels.
     assert 'data-search="weather met_no the weather for the next 12 hours' in page
-    assert "wind. requires setup requires internet next 12 hours three rows: now, +3 and +6 hours" in page
+    assert (
+        "wind. requires setup requires internet next 12 hours three rows: now, +3 and +6 hours"
+        in page
+    )
     # A plugin with more than one layout lists their titles, the default first.
-    assert "Layouts: Next 12 hours, Three rows: now, +3 and +6 hours, Three columns: now, +3 and +6 hours," in page
+    assert (
+        "Layouts: Next 12 hours, Three rows: now, +3 and +6 hours,"
+        " Three columns: now, +3 and +6 hours," in page
+    )
     assert page.count('class="hint layouts"') == sum(
         len(item.plugin.layouts) > 1 for item in web_plugins.library()
     )
