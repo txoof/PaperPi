@@ -146,10 +146,14 @@ def test_health_values_go_to_the_log_at_the_start_and_then_every_hour(tmp_path, 
 def test_report_is_replaced_and_never_grows(tmp_path, systemd):
     path = tmp_path / "health"
     reports = Health(path, disk=tmp_path, notify=systemd)
-    for _ in range(200):
+    reports.report(None)
+    first = path.stat().st_size
+    for _ in range(199):
         reports.report(None)
     assert len(path.read_text().splitlines()) == 1
-    assert path.stat().st_size < 200
+    # About the same size as one report: the numbers in it (memory, free disk) may change
+    # by a few digits between reports, so no exact size.
+    assert path.stat().st_size <= first + 10
     assert [p.name for p in tmp_path.iterdir()] == ["health"]  # no temporary files left
 
 
