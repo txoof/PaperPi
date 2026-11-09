@@ -55,7 +55,6 @@ A web answer may be at most 5 MB after unpacking; a plugin that downloads pictur
 - **PaperPi's own log file**, `paperpi.log` in `/var/lib/paperpi`, keeps the warnings, errors, starts, stops, crashes and the health line, so they survive a restart of the Pi. At 1 MB it becomes `paperpi.log.1` and a new file starts, so both together stay under about 2 MB.
 - **The web interface** shows the last 5,000 lines (INFO and up) on its Full log page, and what needs attention on its Warnings page.
 - **Plugins' log lines** are sent to PaperPi with their result, at most 100 per update, with secret settings replaced by `****`.
-- **An error that repeats** is logged once; after that, a summary line every 10 minutes, e.g. "same error repeated 40 times".
 
 ## Saved files
 
@@ -94,7 +93,6 @@ A frozen PaperPi v1 was not fixed by restarting PaperPi or the Pi, only by wipin
 | log file size before a new one starts        | 1 MB (two files: about 2 MB) |
 | longest log line                             | 10,000 characters           |
 | log lines per plugin update                  | 100                         |
-| summary of a repeated error                  | every 10 minutes            |
 | free disk PaperPi keeps                      | 2 GB                        |
 | longest clean-up of one storage folder       | 10 seconds                  |
 | most files looked at in one clean-up         | 100,000                     |
@@ -104,6 +102,7 @@ A frozen PaperPi v1 was not fixed by restarting PaperPi or the Pi, only by wipin
 - **A memory limit for PaperPi** in its systemd service (`MemoryMax=`), as a safety net if it ever used too much memory.
 - **The screen helper process's own log lines** (epdlib's) are not sent to PaperPi's log yet.
 - **Changing the web request limits** in the config file.
+- **A summary for an error that repeats:** log it once, then a line every 10 minutes such as "same error repeated 40 times". Some parts already do this on their own (the screen watchdog, the low-disk warning).
 
 ## Why it works this way
 
