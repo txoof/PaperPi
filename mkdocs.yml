@@ -97,3 +97,4 @@ nav:
           - Which plugin is shown: specs/scheduling.md
           - Plugins and setting helpers: specs/plugins.md
           - Screens and drivers: specs/screens.md
+          - Errors and time limits: specs/errors.md
