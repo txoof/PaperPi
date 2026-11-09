@@ -1,6 +1,6 @@
 """Default time and size limits, all in one place.
 
-The numbers come from ``docs/history/decisions/errors-and-time-limits.md``. All durations are in
+The numbers come from ``docs/specs/errors.md``. All durations are in
 seconds and are measured with the monotonic clock (``time.monotonic``), which does not jump
 when the system time is corrected.
 """
