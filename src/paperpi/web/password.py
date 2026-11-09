@@ -5,7 +5,7 @@
 - :func:`save_password_hash` writes the hash into ``[web]`` of the config file (``None``
   removes it, for ``paperpi reset-password``), keeping the rest of the file as it is.
 
-See ``docs/decisions/web-interface.md``.
+See ``docs/history/decisions/web-interface.md``.
 """
 
 from __future__ import annotations

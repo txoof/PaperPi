@@ -164,7 +164,7 @@ uv run --group docs mkdocs build --strict     # stops on a broken link, as the c
 
 Some pages are made from the code while the site is built, so they always match it: the settings reference, the supported screens, and a page for each plugin (its README, its settings and its sample pictures). `src/paperpi/manual.py` writes them and `mkdocs_hooks.py` adds them. To change a plugin's page, change its README or the help texts of its settings.
 
-Write every page for people: plain sentences, steps, examples and pictures. The design notes in `docs/decisions/` are working notes for the people and agents building PaperPi, and are not part of the site.
+Write every page for people: plain sentences, steps, examples and pictures. The old design notes in `docs/history/decisions/` are kept for history and are not part of the site; how PaperPi works now is in the specifications under [How PaperPi works](specs/scheduling.md).
 
 GitHub builds the site for every pull request, and publishes it at <https://txoof.github.io/PaperPi/> after every merge to `main`.
 

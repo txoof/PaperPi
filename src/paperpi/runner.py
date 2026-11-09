@@ -1,7 +1,7 @@
 """Run one plugin update (or one search of a setting helper) in a new, short-lived process,
 with a time limit.
 
-See ``docs/decisions/plugin-interface.md``. Each update gets its own process: when it is
+See ``docs/specs/plugins.md``. Each update gets its own process: when it is
 done, the process exits and its memory is given back. A plugin that hangs or crashes is
 stopped without affecting PaperPi or other plugins.
 

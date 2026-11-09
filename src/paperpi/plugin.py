@@ -1,7 +1,7 @@
 """The plugin interface (v2).
 
 A plugin puts something on the screen: a clock, the weather, the song that is playing. The
-reasons behind this interface are in ``docs/decisions/plugin-interface.md``; how to write a
+reasons behind this interface are in ``docs/specs/plugins.md``; how to write a
 plugin is in ``docs/writing-plugins.md``.
 
 A plugin is a folder in ``src/paperpi/plugins/<type>/`` whose ``__init__.py`` has a
@@ -44,7 +44,7 @@ from .helper import Query as Query
 
 
 class State(StrEnum):
-    """What a plugin has to show (see ``docs/decisions/plugin-scheduling.md``)."""
+    """What a plugin has to show (see ``docs/specs/scheduling.md``)."""
 
     NOTHING = "nothing"
     """Nothing to show right now, e.g. the music is stopped."""

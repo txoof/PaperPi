@@ -2,7 +2,7 @@
 
 PaperPi keeps using the config text it loaded last
 (:attr:`~paperpi.scheduler.Summary.config_text`) until it is told to load the file again
-(see ``docs/decisions/live-config-reload.md``). When the file on disk holds other settings,
+(see ``docs/specs/config.md``). When the file on disk holds other settings,
 and it is not the text the web interface saved itself, it was changed by hand. Every page
 then shows a bar that links to the Review changes page, which lists the changes: per plugin
 (matched by its ID), the screen, the web interface and the rest of the file, each setting

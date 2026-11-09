@@ -43,7 +43,7 @@ Everything is set up through the web interface unless a command line is truly ne
 | v1 feature | Decision | Why / how | Milestone |
 |---|---|---|---|
 | Plugin = folder with update function, layouts, sample config, sample image | Keep | Adds a settings schema and sample data. | M4 |
-| Rotation by priority and minimum display time; plugins changing their own priority; higher priority interrupting | Change | txoof does not want the v1 priority method. Replacement designed in #194 (`docs/decisions/plugin-scheduling.md`). | M4 |
+| Rotation by priority and minimum display time; plugins changing their own priority; higher priority interrupting | Change | txoof does not want the v1 priority method. Replacement designed in #194 (`docs/specs/scheduling.md`). | M4 |
 | Same plugin several times with different settings | Keep | E.g. weather for two cities. | M4 |
 | `refresh_rate`: fetch data at most once per N seconds | Keep | Protects web services. | M4 |
 | Skip unchanged screens | Change | v1 compared a marker set on every "updated"; v2 compares the image itself. | M4 |

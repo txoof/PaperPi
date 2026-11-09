@@ -1,6 +1,6 @@
 """Previews: draw a plugin with the settings in its form, before they are saved.
 
-See ``docs/decisions/web-interface.md``. A preview runs one update in its own process with a
+See ``docs/history/decisions/web-interface.md``. A preview runs one update in its own process with a
 time limit, as the scheduler does (:func:`paperpi.runner.run_update`), at the screen's size
 and for the screen's type. The real screen is not touched. Each preview gets a new, empty
 storage folder that is deleted afterwards, so a preview can't change the plugin's saved

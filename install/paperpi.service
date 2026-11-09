@@ -1,5 +1,5 @@
 # PaperPi as a systemd service; install/paperpi-install puts it in /etc/systemd/system.
-# Why each setting is here: docs/install-systemd.md and docs/decisions/errors-and-time-limits.md.
+# Why each setting is here: docs/install-systemd.md and docs/history/decisions/errors-and-time-limits.md.
 [Unit]
 Description=PaperPi e-paper display
 Documentation=https://github.com/txoof/PaperPi

@@ -44,6 +44,11 @@ These rules apply to every person and agent working in this repository.
     Once your own PR is open, it shows up in this list too.
   - The other shared files are changed only in their own small issue.
 
+## Specifications
+- `docs/specs/` describes how each part of PaperPi works now, for people (shown on the site under "How PaperPi works"). Present tense, what the code does today; no options, status lines, dates or issue numbers.
+- **A PR that changes how a part works updates its specification in the same PR.**
+- New design work is talked over with txoof in the issue, then written into the specification. The old design notes in `docs/history/decisions/` are kept for history only and are not updated.
+
 ## Project board
 All PaperPi and epdlib work is shown on one board, where each issue or PR is a card (one entry on the board) in a column: https://github.com/users/txoof/projects/4 (columns Todo, In Progress, In Review, Done).
 - PaperPi issues and PRs are added to the board automatically. epdlib issues and PRs are not (GitHub's free plan allows automatic adding from one repo only); see epdlib's CLAUDE.md.

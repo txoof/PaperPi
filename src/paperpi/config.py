@@ -1,6 +1,6 @@
 """The config file: reading it, checking it, and the last good copy.
 
-The reasons behind this design are in ``docs/decisions/config-format.md``. In short:
+The reasons behind this design are in ``docs/specs/config.md``. In short:
 
 - One TOML file, ``/etc/paperpi/paperpi.toml``, that holds only values that differ from
   the defaults.
@@ -108,7 +108,7 @@ _TOP_LEVEL = ("config_version", "display", "web", "plugin")
 _VIRTUAL_ONLY = ("width", "height", "mode")
 
 #: ``[display]`` settings that need the screen to be connected again, so a change applies
-#: only at the next start of PaperPi (see ``docs/decisions/live-config-reload.md``).
+#: only at the next start of PaperPi (see ``docs/specs/config.md``).
 NEXT_START = ("type", "model", "width", "height", "mode")
 
 #: ``[display]`` settings the screen driver uses: a change starts a new screen helper process.

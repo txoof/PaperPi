@@ -148,11 +148,10 @@ def plugin_page(plugin_type: str, types: Iterable[str], root: Path) -> tuple[str
     if plugin.setup:
         facts += f" · set up first: {plugin.setup.rstrip('.')}"
     table = _plugin_settings(plugin)
-    head, sample, tail = rest.partition("\n## Sample images")
     # A picture on its own line before the first section is the plugin's preview.
-    intro, heading, sections = head.partition("\n## ")
-    intro = _PREVIEW.sub(r"\1{ .preview }", intro, count=1)
-    head = intro + heading + sections
+    intro, heading, sections = rest.partition("\n## ")
+    rest = _PREVIEW.sub(r"\1{ .preview }", intro, count=1) + heading + sections
+    head, sample, tail = rest.partition("\n## Sample images")
     body = f"{head.rstrip()}\n\n{table}\n## Sample images{tail}" if sample else f"{rest}\n{table}"
     return f"{title}\n\n{facts}.\n{body.rstrip()}\n", used
 

@@ -1,6 +1,6 @@
 """The screen: writes run in a separate helper process, watched by a time limit.
 
-See ``docs/decisions/display-driver-interface.md`` and ``errors-and-time-limits.md``.
+See ``docs/history/decisions/display-driver-interface.md`` and ``errors-and-time-limits.md``.
 
 The screen driver (from epdlib) is made and used only in a small helper process. PaperPi
 sends it each image and waits for the answer, at most the time limit. A write that hangs is

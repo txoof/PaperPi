@@ -19,7 +19,7 @@ at once, and facts about this Pi.
   :func:`web_waiting` tells when the file names another address or port than the ones in
   use. After the restart the new ones are on trial (:mod:`.keep`).
 - :func:`screen_facts` describes the screen in use (the type and model PaperPi started
-  with, see ``docs/decisions/live-config-reload.md``) and :func:`pi_facts` measures this Pi
+  with, see ``docs/specs/config.md``) and :func:`pi_facts` measures this Pi
   when the page asks.
 """
 

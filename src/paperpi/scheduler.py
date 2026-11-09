@@ -1,6 +1,6 @@
 """The scheduler: decides which plugin is on screen, and is the only part that writes to it.
 
-The reasons behind these rules are in ``docs/decisions/plugin-scheduling.md``. In short:
+The reasons behind these rules are in ``docs/specs/scheduling.md``. In short:
 
 - Every plugin updates on its own refresh timer, all the time, whether it is on screen or
   not. So when a turn changes, the next plugin's image is ready and is shown at once. Each
