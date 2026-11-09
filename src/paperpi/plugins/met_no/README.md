@@ -42,18 +42,28 @@ Feathers add up: a long and a short feather is 15 knots; a triangle and two long
 
 ## Layouts
 
-| Layout               | Shows                                                                               |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| `hours_12` (default) | the summary, an icon every 2 hours, then per hour the rain, temperature and wind    |
-| `steps_3h`           | the summary, then 4 steps of 3 hours: icon, lowest and highest temperature, rain, wind |
-| `now`                | the current hour, large: icon, temperature and wind barb, with the summary below    |
-| `small`              | for tiny screens (2" to 3"): a big icon, the temperature now, max, min and rain     |
-| `portrait_hours`     | for upright screens: the summary, then one row per hour                             |
-| `portrait_now`       | for upright screens: a large icon for the current hour, then the summary            |
+| Layout               | Shows                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------ |
+| `hours_12` (default) | the summary, an icon every 2 hours, then per hour the rain, temperature and wind           |
+| `three_rows`         | now, +3 and +6 hours as rows: time, icon, temperature, rain and wind                       |
+| `three_columns`      | now, +3 and +6 hours as columns: time, icon, a large temperature and rain                  |
+| `now_and_today`      | the icon and temperature now; the highest and lowest temperature, and when the rain starts |
+| `six_hours`          | every 2 hours: hour, icon, temperature, and a bar with the rain of both hours              |
+| `steps_3h`           | 4 steps of 3 hours: icon, highest temperature and rain                                     |
+| `now`                | the current hour only, large: icon, temperature, and the wind as an arrow with its speed   |
+| `small`              | for tiny screens (2" to 3"): a big icon, the temperature now, max, min and rain            |
+| `portrait_hours`     | for upright screens: the summary, then one row per hour                                    |
+| `portrait_now`       | for upright screens: a large icon for the current hour, then the summary                   |
 
-| `hours_12` | `steps_3h` | `now` |
+All layouts from `three_rows` to `now` are made to be read from across the room: few items and large, bold text.
+
+| `three_rows` | `three_columns` | `now_and_today` |
 |---|---|---|
-| ![hours_12](../../../../tests/images/met_no-hours_12-berlin-9in7.png) | ![steps_3h](../../../../tests/images/met_no-steps_3h-berlin-9in7.png) | ![now](../../../../tests/images/met_no-now-berlin-9in7.png) |
+| ![three_rows](../../../../tests/images/met_no-three_rows-berlin-9in7.png) | ![three_columns](../../../../tests/images/met_no-three_columns-berlin-9in7.png) | ![now_and_today](../../../../tests/images/met_no-now_and_today-berlin-9in7.png) |
+
+| `six_hours` | `steps_3h` | `now` |
+|---|---|---|
+| ![six_hours](../../../../tests/images/met_no-six_hours-berlin-9in7.png) | ![steps_3h](../../../../tests/images/met_no-steps_3h-berlin-9in7.png) | ![now](../../../../tests/images/met_no-now-berlin-9in7.png) |
 
 | `small`, 2.13" | `portrait_hours`, upright | `portrait_now`, upright | `hours_12`, °F and inches, 7.5" |
 |---|---|---|---|
@@ -78,8 +88,9 @@ Note: a saved forecast older than 6 hours is not used. Then the plugin's card on
 | `place`       | `""`           | name shown at the top, e.g. `"Berlin"`; without it, the coordinates are shown                    |
 | `temperature` | `"C"`          | `"C"` (Celsius) or `"F"` (Fahrenheit)                                                            |
 | `rain`        | `"mm"`         | `"mm"` or `"inch"`                                                                               |
+| `wind`        | `"m/s"`        | `"m/s"`, `"km/h"`, `"mph"` or `"knots"`: the wind speed in the `now` layout                      |
 
-Wind is always in knots, because the barbs are drawn in knots.
+Wind barbs are always in knots, whatever `wind` is set to.
 
 The plugin asks for a new picture every 30 minutes unless you change `refresh`. met.no updates its forecasts about once an hour.
 
@@ -99,7 +110,7 @@ layout = "steps_3h"   # optional; without it: hours_12
 
 ## Credits
 
-The weather data is from [MET Norway](https://www.met.no/en), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) license. The screen shows "Data: MET Norway", as the license asks. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT license ([`icons/LICENSE`](icons/LICENSE)).
+The weather data is from [MET Norway](https://www.met.no/en), under the [Creative Commons 4.0 BY International](https://creativecommons.org/licenses/by/4.0/) license. The screen shows "Data: MET Norway", as the license asks. The weather icons are met.no's own, from [github.com/metno/weathericons](https://github.com/metno/weathericons), under the MIT license ([`icons/LICENSE`](icons/LICENSE)). The large text uses Economica Bold by Vicente Lamonaca, under the SIL Open Font License 1.1 ([`fonts/Economica-OFL.txt`](../../fonts/Economica-OFL.txt)).
 
 ## For developers
 

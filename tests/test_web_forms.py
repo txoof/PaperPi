@@ -38,7 +38,7 @@ def test_fields_are_in_groups_in_the_agreed_order():
     found = forms.fields(plugins.load("met_no"), WEATHER)
     assert [f.key for f in found] == [
         "name",
-        *["lat", "lon", "altitude", "place", "email", "temperature", "rain"],
+        *["lat", "lon", "altitude", "place", "email", "temperature", "rain", "wind"],
         *["display_time", "refresh", "layout", "level"],
         *["time_limit", "alert_reminder", "alert_max_time", "storage_mb", "storage_days"],
     ]
@@ -55,7 +55,7 @@ def test_fields_show_the_value_or_else_the_default():
     assert found["refresh"].value == found["refresh"].default == "1800"  # the suggestion
     assert found["layout"].choices == tuple(plugins.load("met_no").layouts)
     # The layouts are shown by their titles; the default too.
-    assert found["layout"].labels[:2] == ("Next 12 hours", "Small: right now")
+    assert found["layout"].labels[:2] == ("Next 12 hours", "Three rows: now, +3 and +6 hours")
     assert found["layout"].default == "Next 12 hours"
     assert found["temperature"].labels == ()
     assert found["temperature"].choices == ("C", "F")

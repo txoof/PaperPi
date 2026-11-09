@@ -444,9 +444,11 @@ def test_barb_size():
 
 @pytest.mark.parametrize("layout", list(met_no.LAYOUTS))
 def test_every_block_gets_a_value(tmp_path, layout):
-    """draw fills exactly the blocks of the chosen layout, no more, no fewer."""
+    """draw fills exactly the blocks of the chosen layout, no more, no fewer (the lines
+    between rows need no value)."""
     blocks = Layout(met_no.LAYOUTS[layout](Settings())).blocks
-    assert set(draw(PLUGIN.sample, context(tmp_path, layout))) == set(blocks)
+    filled = {name for name, block in blocks.items() if block.type != "shape"}
+    assert set(draw(PLUGIN.sample, context(tmp_path, layout))) == filled
 
 
 @pytest.mark.parametrize("layout", list(met_no.LAYOUTS))
@@ -513,22 +515,16 @@ def test_small_and_now(tmp_path):
 def test_steps_of_3_hours(tmp_path):
     values = draw(PLUGIN.sample, context(tmp_path, "steps_3h"))
     assert [values[f"step_{k}"] for k in range(4)] == ["09–12", "12–15", "15–18", "18–21"]
-    assert values["step_temp_0"] == "8–11°"
-    assert values["step_rain_0"] == ""
+    assert values["step_temp_0"] == "11°"  # the highest of 8.4, 9.6 and 11.2
+    assert values["step_rain_0"] == "dry"
     assert values["step_rain_2"] == "4.5 mm"  # 3.4 + 1.1 + 0
-    same = draw(weather(0, 0, 0), context(tmp_path, "steps_3h"))
-    assert same["step_temp_0"] == "10–12°"
-    # The icon of the wettest hour (15:00, heavy rain), the wind of the middle hour.
+    # The icon of the wettest hour (15:00, heavy rain).
     assert values["step_icon_2"].name == "heavyrain.png"
-    middle = PLUGIN.sample.forecast.hours[7]  # 16:00, the middle of 15-18
-    expected = barbs.barb(middle.wind_speed * forecast.KNOTS, middle.wind_from)
-    assert values["step_barb_2"].tobytes() == expected.tobytes()
 
 
 def test_drizzle_is_dry_in_steps_too(tmp_path):
     values = draw(steps_at(START, "Europe/Berlin", rain=0.05), context(tmp_path, "steps_3h"))
-    assert values["summary"].endswith("No rain")
-    assert values["step_rain_0"] == ""
+    assert values["step_rain_0"] == "dry"
 
 
 def test_step_rain_in_inches(tmp_path):
@@ -540,12 +536,70 @@ def test_step_rain_in_inches(tmp_path):
 
 def test_now(tmp_path):
     values = draw(PLUGIN.sample, context(tmp_path, "now"))
-    first = PLUGIN.sample.forecast.hours[0]
+    first = PLUGIN.sample.forecast.hours[0]  # 1.5 m/s from 200°
+    assert values["now_degrees"] == "8°"
+    assert values["now_wind"] == "2 m/s"
+    assert values["now_arrow"].tobytes() == met_no.wind_arrow(first.wind_from).tobytes()
+    assert values["now_icon"].name == "clearsky_day.png"
+
+
+@pytest.mark.parametrize(
+    ("unit", "text"),
+    [("m/s", "10 m/s"), ("km/h", "36 km/h"), ("mph", "22 mph"), ("knots", "19 kn")],
+)
+def test_wind_units(unit, text):
+    assert met_no.wind_text(10.0, unit) == text
+
+
+def test_wind_arrow_points_where_the_wind_goes():
+    """Wind from the north goes south: the arrowhead (the dark tip) is at the bottom."""
+    arrow = met_no.wind_arrow(0)
+    width, height = arrow.size
+    bottom = arrow.crop((0, height * 3 // 4, width, height))
+    top = arrow.crop((0, 0, width, height // 4))
+    assert sum(bottom.histogram()[:128]) > 2 * sum(top.histogram()[:128])
+    # From the east: it goes west, so the head is on the left.
+    east = met_no.wind_arrow(90)
+    left = east.crop((0, 0, width // 4, height))
+    right = east.crop((width * 3 // 4, 0, width, height))
+    assert sum(left.histogram()[:128]) > 2 * sum(right.histogram()[:128])
+
+
+def test_three_rows_and_columns_show_now_plus_3_and_6_hours(tmp_path):
+    values = draw(PLUGIN.sample, context(tmp_path, "three_rows"))
+    assert [values[f"pick_time_{k}"] for k in range(3)] == ["09:00", "12:00", "15:00"]
+    assert [values[f"pick_temp_{k}"] for k in range(3)] == ["8°", "13°", "13°"]
+    assert [values[f"pick_rain_{k}"] for k in range(3)] == ["dry", "dry", "3.4 mm"]
+    assert values["pick_icon_2"].name == "heavyrain.png"
+    columns = draw(PLUGIN.sample, context(tmp_path, "three_columns"))
+    assert [columns[f"pick_name_{k}"] for k in range(3)] == ["Now", "12:00", "15:00"]
+    assert "pick_barb_0" not in columns  # no wind
+
+
+def test_three_rows_with_fewer_hours(tmp_path):
+    """Near the end of a saved forecast, the rows without an hour stay empty."""
+    few = Weather(Forecast(hours(*[0.5] * 4), START), START, "Europe/Berlin")
+    values = draw(few, context(tmp_path, "three_rows"))
+    assert "pick_time_1" in values
+    assert "pick_time_2" not in values
+
+
+def test_now_and_today(tmp_path):
+    values = draw(PLUGIN.sample, context(tmp_path, "now_and_today"))
     assert values["now_temp"] == "8°C"
-    assert (
-        values["now_barb"].tobytes()
-        == barbs.barb(first.wind_speed * forecast.KNOTS, first.wind_from).tobytes()
-    )
+    assert (values["high"], values["low"]) == ("Max 14°", "Min 8°")
+    assert values["rain_start"] == "Rain from 13:00"
+    assert draw(weather(0, 0), context(tmp_path, "now_and_today"))["rain_start"] == "No rain"
+
+
+def test_six_hours_adds_the_rain_of_each_pair(tmp_path):
+    values = draw(PLUGIN.sample, context(tmp_path, "six_hours"))
+    assert [values[f"pair_hour_{k}"] for k in range(6)] == ["09", "11", "13", "15", "17", "19"]
+    assert [values[f"pair_temp_{k}"] for k in range(6)] == ["8°", "11°", "14°", "13°", "11°", "10°"]
+    assert [values[f"pair_mm_{k}"] for k in range(6)] == ["", "", "1.8", "4.5", "", "0.3"]
+    # The wettest pair fills the bar; a dry one has only the ground line.
+    assert values["pair_bar_3"].tobytes() == met_no.rain_bar(4.5, 4.5).tobytes()
+    assert values["pair_bar_0"].tobytes() == met_no.rain_bar(0, 4.5).tobytes()
 
 
 def test_portrait_rows_hold_their_own_hour(tmp_path):
