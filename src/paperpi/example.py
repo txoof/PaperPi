@@ -265,9 +265,9 @@ def _comment(text: str) -> list[str]:
 def _check_reads_back(text: str, values: Mapping[str, Any]) -> None:
     """Raise ``ValueError`` unless PaperPi reads ``text`` back as exactly ``values``.
 
-    tomlkit writes a few things (such as the control character ESC) in a newer form of
-    TOML than Python's reader understands; such a block would make the whole file
-    unreadable.
+    Some tomlkit versions write a few things in a newer form of TOML than Python's
+    reader understands (before 0.15.2, the control character ESC); such a block would
+    make the whole file unreadable.
     """
     expected = {"plugin": [{k: plain(v) for k, v in values.items()}]}
     try:

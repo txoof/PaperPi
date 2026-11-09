@@ -1,10 +1,17 @@
 version: 2
 updates:
+  # Each group puts all of a month's updates into one PR.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: uv
     directory: /
     schedule:
       interval: monthly
+    groups:
+      python-packages:
+        patterns: ["*"]
