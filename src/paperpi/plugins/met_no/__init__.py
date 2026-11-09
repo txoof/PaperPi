@@ -19,7 +19,7 @@ from ...places import location_helper
 from ...plugin import Context, Plugin, PluginSettings, ready, setting
 from . import barbs, forecast
 from .forecast import Forecast, Hour
-from .layouts import HOURS, LAYOUTS
+from .layouts import HOURS, LAYOUTS, PICKS
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +80,11 @@ class Settings(PluginSettings):
     )
     rain: Literal["mm", "inch"] = setting(
         "mm", group="Units", description="Rain in millimetres or inches"
+    )
+    wind: Literal["m/s", "km/h", "mph", "knots"] = setting(
+        "m/s",
+        group="Units",
+        description="Wind speed, shown by the now layout (wind barbs are always in knots)",
     )
 
 
@@ -200,6 +205,49 @@ def rain_summary_text(s: forecast.Summary, settings: Settings, zone) -> str:
     return f"Rain {total} {rain_unit(settings)}, {spells_text(s.spells, zone)}"
 
 
+#: Wind speed units: the number to multiply m/s by, and the text shown after the speed.
+WIND_UNITS = {
+    "m/s": (1.0, "m/s"),
+    "km/h": (3.6, "km/h"),
+    "mph": (2.236936, "mph"),
+    "knots": (forecast.KNOTS, "kn"),
+}
+
+
+def wind_text(speed: float, unit: str) -> str:
+    """ "4 m/s": a wind speed in m/s, in the chosen unit."""
+    factor, name = WIND_UNITS[unit]
+    return f"{round(speed * factor)} {name}"
+
+
+def wind_arrow(wind_from: float):
+    """A plain, thick arrow that points where the wind is going: easier to see from a
+    distance than a barb. Drawn larger than shown, like the rain bars."""
+    size = 400
+    picture = Image.new("L", (size, size), 255)
+    draw = ImageDraw.Draw(picture)
+    middle = size / 2
+    draw.line((middle, 60, middle, size - 110), fill=0, width=36)
+    draw.polygon(
+        [(middle - 90, size - 150), (middle + 90, size - 150), (middle, size - 20)], fill=0
+    )
+    # Drawn pointing down: wind from the north (0°) goes south. Turned clockwise from there.
+    return picture.rotate(-wind_from, resample=Image.Resampling.BICUBIC, fillcolor=255)
+
+
+def rain_amount(mm: float, settings: Settings) -> str:
+    """ "3.4 mm", or "dry" when it doesn't rain."""
+    number = rain_text(mm, settings.rain)
+    return f"{number} {rain_unit(settings)}" if number else "dry"
+
+
+def rain_start_text(s: forecast.Summary, zone) -> str:
+    """ "Rain from 13:00", or "No rain"."""
+    if not s.spells:
+        return "No rain"
+    return f"Rain from {s.spells[0][0].astimezone(zone):%H}:00"
+
+
 def summary_text(s: forecast.Summary, settings: Settings, zone) -> str:
     return f"{temperatures_text(s, settings)} · {rain_summary_text(s, settings, zone)}"
 
@@ -270,7 +318,36 @@ def draw(weather: Weather, context: Context) -> dict:
         "now_temp": lambda: f"{degrees(hours[0].temperature, t)}{t}",
         "now_icon": lambda: icon(hours[0].symbol),
         "now_barb": lambda: wind(hours[0]),
+        "now_degrees": lambda: degrees(hours[0].temperature, t),
+        "now_arrow": lambda: wind_arrow(hours[0].wind_from),
+        "now_wind": lambda: wind_text(hours[0].wind_speed, settings.wind),
+        "high": lambda: f"Max {degrees(summary.high, t)}",
+        "low": lambda: f"Min {degrees(summary.low, t)}",
+        "rain_start": lambda: rain_start_text(summary, zone),
     }
+    for k, i in enumerate(PICKS):
+        if i >= len(hours):
+            break
+        hour = hours[i]
+        makers |= {
+            f"pick_time_{k}": lambda h=hour: f"{local(h.time):%H:%M}",
+            f"pick_name_{k}": lambda h=hour, k=k: "Now" if k == 0 else f"{local(h.time):%H:%M}",
+            f"pick_icon_{k}": lambda h=hour: icon(h.symbol),
+            f"pick_temp_{k}": lambda h=hour: degrees(h.temperature, t),
+            f"pick_rain_{k}": lambda h=hour: rain_amount(h.rain, settings),
+            f"pick_barb_{k}": lambda h=hour: wind(h),
+        }
+    pairs = [hours[i : i + 2] for i in range(0, len(hours), 2)]
+    wet = [sum(h.rain for h in pair if h.rain >= forecast.WET) for pair in pairs]
+    pair_top = max([2 * 2.0, *wet])  # like the hourly bars: at least 2 mm per hour
+    for k, (pair, mm) in enumerate(zip(pairs, wet, strict=True)):
+        makers |= {
+            f"pair_hour_{k}": lambda h=pair[0]: f"{local(h.time):%H}",
+            f"pair_icon_{k}": lambda h=pair[0]: icon(h.symbol),
+            f"pair_temp_{k}": lambda h=pair[0]: degrees(h.temperature, t),
+            f"pair_bar_{k}": lambda mm=mm: rain_bar(mm, pair_top),
+            f"pair_mm_{k}": lambda mm=mm: rain_text(mm, unit),
+        }
     for i, hour in enumerate(hours):
         makers |= {
             f"bar_{i}": lambda h=hour: rain_bar(h.rain, top),
@@ -285,19 +362,17 @@ def draw(weather: Weather, context: Context) -> dict:
             makers[f"icon_{i // 2}"] = lambda h=hour: icon(h.symbol)
     for k in range(len(hours) // 3):
         part = hours[3 * k : 3 * k + 3]
-        low, high = (degrees(f(h.temperature for h in part), t) for f in (min, max))
-        mm = rain_text(sum(h.rain for h in part if h.rain >= forecast.WET), unit)
+        mm = sum(h.rain for h in part if h.rain >= forecast.WET)
         # The icon of the wettest hour, so it matches the rain shown under it; when dry,
-        # the middle hour's, like the wind.
+        # the middle hour's.
         wettest = max(part, key=lambda h: h.rain)
         shown = wettest if wettest.rain >= forecast.WET else part[1]
         end = part[-1].time + timedelta(hours=1)
         makers |= {
             f"step_{k}": lambda p=part, e=end: f"{local(p[0].time):%H}–{end_hour(e, zone)}",
             f"step_icon_{k}": lambda h=shown: icon(h.symbol),
-            f"step_temp_{k}": lambda lo=low, hi=high: lo if lo == hi else f"{lo[:-1]}–{hi}",
-            f"step_rain_{k}": lambda mm=mm: f"{mm} {rain_unit(settings)}" if mm else "",
-            f"step_barb_{k}": lambda p=part: wind(p[1]),  # the wind at the middle hour
+            f"step_temp_{k}": lambda p=part: degrees(max(h.temperature for h in p), t),
+            f"step_rain_{k}": lambda mm=mm: rain_amount(mm, settings),
         }
     wanted = PLUGIN.layout(context.layout, settings).blocks
     return {name: make() for name, make in makers.items() if name in wanted}
@@ -346,9 +421,13 @@ PLUGIN = Plugin(
     layouts=LAYOUTS,
     layout_titles={
         "hours_12": "Next 12 hours",
-        "small": "Small: right now",
+        "three_rows": "Three rows: now, +3 and +6 hours",
+        "three_columns": "Three columns: now, +3 and +6 hours",
+        "now_and_today": "Right now and today",
+        "six_hours": "Every 2 hours",
         "steps_3h": "Every 3 hours",
         "now": "Right now, large",
+        "small": "Small: right now",
         "portrait_hours": "Upright: hour by hour",
         "portrait_now": "Upright: right now",
     },

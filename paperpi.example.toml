@@ -100,7 +100,8 @@ type = "basic_clock"
 # storage_days = 30
 
 # met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
-# Layouts (values for "layout"): hours_12, small, steps_3h, now, portrait_hours, portrait_now
+# Layouts (values for "layout"): hours_12, three_rows, three_columns, now_and_today, six_hours,
+# steps_3h, now, small, portrait_hours, portrait_now
 [[plugin]]
 id = "met_no-3a91d2f4"
 name = "Weather Berlin"
@@ -120,6 +121,9 @@ place = "Berlin"
 # temperature = "C"
 # Rain in millimetres or inches. One of: "mm", "inch"
 # rain = "mm"
+# Wind speed, shown by the now layout (wind barbs are always in knots). One of: "m/s", "km/h",
+# "mph", "knots"
+# wind = "m/s"
 # --- Settings every plugin has (all of them are in the first block) ---
 # Seconds between updates (at least 5). Leave it out to use the plugin's suggestion (shown below)
 # refresh = 1800
@@ -130,7 +134,8 @@ place = "Berlin"
 # layout = "hours_12"
 
 # met_no: The weather for the next 12 hours from met.no: temperature, rain and wind.
-# Layouts (values for "layout"): hours_12, small, steps_3h, now, portrait_hours, portrait_now
+# Layouts (values for "layout"): hours_12, three_rows, three_columns, now_and_today, six_hours,
+# steps_3h, now, small, portrait_hours, portrait_now
 [[plugin]]
 id = "met_no-b7e40c19"
 name = "Weather Rio"
@@ -150,6 +155,9 @@ place = "Rio"
 # temperature = "C"
 # Rain in millimetres or inches. One of: "mm", "inch"
 # rain = "mm"
+# Wind speed, shown by the now layout (wind barbs are always in knots). One of: "m/s", "km/h",
+# "mph", "knots"
+# wind = "m/s"
 # --- Settings every plugin has (all of them are in the first block) ---
 # Seconds between updates (at least 5). Leave it out to use the plugin's suggestion (shown below)
 # refresh = 1800
