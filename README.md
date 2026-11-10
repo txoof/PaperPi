@@ -1,6 +1,8 @@
 # PaperPi
 
-PaperPi shows information on an e-paper screen attached to a Raspberry Pi: clocks, the weather, your calendar, what music is playing, comics, public transport departures and more. The screen shows one plugin at a time and changes to the next at the pace you choose. You set it up in a web page on your phone or computer; no config files to edit.
+PaperPi is a lovely, quiet, slow internet e-Paper radio. No loud colors, no busy animations, just a lovely selection of the information you want without buzz and distraction. PaperPi rotates through your choice of plugin screens at the pace you choose.
+
+Clocks, the weather, your calendar, what music is playing, comics, public transport departures and more, on an e-paper screen attached to a Raspberry Pi. You set it up in a web page on your phone or computer.
 
 **The manual: <https://txoof.github.io/PaperPi/>**
 
