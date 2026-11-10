@@ -41,8 +41,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          # A version with a letter (a, b, rc) is a test release.
+          # A version with a letter (a, b, rc) is a test release. ${TAG#v} drops the
+          # tag's leading "v", which is a letter too.
           pre=()
-          if [[ $TAG =~ [a-z] ]]; then pre=(--prerelease); fi
+          if [[ ${TAG#v} =~ [a-z] ]]; then pre=(--prerelease); fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "PaperPi ${TAG#v}" --generate-notes "${pre[@]}"
